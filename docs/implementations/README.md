@@ -21,10 +21,10 @@ Every implementation guide follows a four-document structure. This consistency a
 
 | Document | Purpose |
 |---|---|
-| `setup.md` | Prerequisites, MCP server installation, configuration, environment variables, verification steps |
-| `doc-storage.md` | How pipeline documents (PRFAQ, PRD, HLD, LLD, ADRs) are stored, versioned, and reviewed |
-| `project-management.md` | How epics, stories, and tasks are tracked; issue templates, label taxonomy, board configuration |
-| `ci-cd.md` | How pipeline stages are automated; workflow definitions, approval gates, PR automation |
+| `01-setup.md` | Prerequisites, MCP server installation, configuration, environment variables, verification steps |
+| `02-doc-storage.md` | How pipeline documents (PRFAQ, PRD, HLD, LLD, ADRs) are stored, versioned, and reviewed |
+| `03-project-management.md` | How epics, stories, and tasks are tracked; issue templates, label taxonomy, board configuration |
+| `04-ci-cd.md` | How pipeline stages are automated; workflow definitions, approval gates, PR automation |
 
 ## Comparison Matrix
 
@@ -60,9 +60,10 @@ To add support for a new backend combination:
 
 1. Fork this repository.
 2. Create a new directory under `docs/implementations/` named after the implementation (e.g., `notion-linear/`, `confluence-jira/`).
-3. Follow the standard four-document structure: `setup.md`, `doc-storage.md`, `project-management.md`, `ci-cd.md`.
-4. Map every abstract interface from the core design docs to a concrete tool, API call, or CLI command in the new backend.
-5. Include verification steps so adopters can confirm their setup is working before running the pipeline.
-6. Submit a pull request with a description of the backend combination, any limitations relative to the reference GitHub-native implementation, and any additional prerequisites.
+3. Follow the standard four-document structure: `01-setup.md`, `02-doc-storage.md`, `03-project-management.md`, `04-ci-cd.md`.
+4. Add a `README.md` to the new directory with an overview, reading order, and links to all four docs.
+5. Map every abstract interface from the core design docs to a concrete tool, API call, or CLI command in the new backend.
+6. Include verification steps so adopters can confirm their setup is working before running the pipeline.
+7. Submit a pull request with a description of the backend combination, any limitations relative to the reference GitHub-native implementation, and any additional prerequisites.
 
 Refer to the [GitHub Native](github-native/) implementation as the reference for expected scope and depth.

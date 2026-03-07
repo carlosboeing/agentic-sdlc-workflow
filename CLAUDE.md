@@ -33,10 +33,13 @@ implementation guides, and working reference files.
 - Use tables for structured comparisons and specifications
 
 ### Implementation Guides (docs/implementations/)
-- Each backend follows standard structure: setup.md, doc-storage.md, project-management.md, ci-cd.md
+- Each backend has a folder with a README.md + 4 numbered docs
+- Standard structure: `01-setup.md`, `02-doc-storage.md`, `03-project-management.md`, `04-ci-cd.md`
+- Folder README.md: overview, components table, reading order table, prerequisites summary
 - Title format: `# GitHub Native Implementation — Setup`
 - Include exact CLI commands and config snippets
 - Provide verification steps at the end
+- Each doc's closing section links to the next doc in sequence
 
 ## Terminology (use consistently)
 - Six agents: Visionary, Architect, Planner, Builder, Tester, Reviewer (always capitalized)

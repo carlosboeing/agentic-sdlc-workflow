@@ -74,7 +74,7 @@ Set the following in your shell profile (`~/.zshrc`, `~/.bashrc`, or equivalent)
 export GITHUB_PAT="ghp_your_token_here"
 ```
 
-For CI/CD environments, store the token as a repository secret named `GITHUB_PAT` (see [ci-cd.md](ci-cd.md) for GitHub Actions configuration).
+For CI/CD environments, store the token as a repository secret named `GITHUB_PAT` (see [04-ci-cd.md](04-ci-cd.md) for GitHub Actions configuration).
 
 ## Project Setup Steps
 
@@ -101,7 +101,7 @@ Update `.mcp.json` with the GitHub MCP configuration shown above. If the project
 mkdir -p docs/product docs/design docs/decisions
 ```
 
-See [doc-storage.md](doc-storage.md) for the full directory layout and naming conventions.
+See [02-doc-storage.md](02-doc-storage.md) for the full directory layout and naming conventions.
 
 ### 5. Create GitHub Project Board
 
@@ -112,11 +112,11 @@ Using the `gh` CLI:
 gh project create --owner OWNER --title "SDLC Pipeline" --format board
 ```
 
-Note the project number returned. Configure columns and automation as described in [project-management.md](project-management.md).
+Note the project number returned. Configure columns and automation as described in [03-project-management.md](03-project-management.md).
 
 ### 6. Set Up Label Taxonomy
 
-Run the label creation commands from [project-management.md](project-management.md). Summary:
+Run the label creation commands from [03-project-management.md](03-project-management.md). Summary:
 
 ```bash
 # Pipeline stage labels
@@ -224,6 +224,6 @@ Expected: All labels from Step 6 are present with correct colors and description
 
 With setup complete, proceed to:
 
-1. [doc-storage.md](doc-storage.md) — Configure document directory structure and review workflow
-2. [project-management.md](project-management.md) — Configure issue templates, labels, and project board
-3. [ci-cd.md](ci-cd.md) — Configure GitHub Actions workflows for pipeline automation
+1. [02-doc-storage.md](02-doc-storage.md) — Configure document directory structure and review workflow
+2. [03-project-management.md](03-project-management.md) — Configure issue templates, labels, and project board
+3. [04-ci-cd.md](04-ci-cd.md) — Configure GitHub Actions workflows for pipeline automation

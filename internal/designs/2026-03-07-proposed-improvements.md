@@ -88,7 +88,7 @@ Each template gains three additions:
 **Worked example** as a companion file alongside each template. Not a placeholder-filled version of the template, but a realistic, complete example based on a concrete feature (e.g., "Add team billing to a SaaS product").
 
 ```
-reference/.claude/templates/
+starter-kit/.claude/templates/
   prd.md              # Template with quality criteria
   prd-example.md      # Worked example: Team Billing PRD
   hld.md
@@ -188,7 +188,7 @@ A lightweight dashboard generated from run manifests and pipeline state files. T
 
 **Option A: CLI Dashboard (Tier 1)**
 
-A terminal-based status view for solo developers and small teams. Implemented as a script (`reference/scripts/sdlc-dashboard.sh`) that reads `.claude/context/runs/` and `.claude/context/status/` and renders a summary.
+A terminal-based status view for solo developers and small teams. Implemented as a script (`starter-kit/scripts/sdlc-dashboard.sh`) that reads `.claude/context/runs/` and `.claude/context/status/` and renders a summary.
 
 ```
 Feature Pipeline Status
@@ -345,11 +345,11 @@ Proposed sequencing based on impact and dependency order:
 
 ## Related Documents
 
-- [Architecture Overview](01-architecture-overview.md)
-- [Agent Pipeline](02-agent-pipeline.md)
-- [Orchestration Engine](03-orchestration-engine.md)
-- [Context Strategy](04-context-strategy.md)
-- [Integration Layer](05-integration-layer.md)
-- [Security Model](06-security-model.md)
-- [State Management](07-state-management.md)
-- [Monitoring and Scaling](08-monitoring-scaling.md)
+- [Architecture Overview](../blueprint/01-architecture-overview.md)
+- [Agent Pipeline](../blueprint/02-agent-pipeline.md)
+- [Orchestration Engine](../blueprint/03-orchestration-engine.md)
+- [Context Strategy](../blueprint/04-context-strategy.md)
+- [Integration Layer](../blueprint/05-integration-layer.md)
+- [Security Model](../blueprint/06-security-model.md)
+- [State Management](../blueprint/07-state-management.md)
+- [Monitoring and Scaling](../blueprint/08-monitoring-scaling.md)

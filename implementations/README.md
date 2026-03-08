@@ -59,7 +59,7 @@ The following matrix compares documentation and project management backends acro
 To add support for a new backend combination:
 
 1. Fork this repository.
-2. Create a new directory under `docs/implementations/` named after the implementation (e.g., `notion-linear/`, `confluence-jira/`).
+2. Create a new directory under `implementations/` named after the implementation (e.g., `notion-linear/`, `confluence-jira/`).
 3. Follow the standard four-document structure: `01-setup.md`, `02-doc-storage.md`, `03-project-management.md`, `04-ci-cd.md`.
 4. Add a `README.md` to the new directory with an overview, reading order, and links to all four docs.
 5. Map every abstract interface from the core design docs to a concrete tool, API call, or CLI command in the new backend.

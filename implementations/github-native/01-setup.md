@@ -80,16 +80,16 @@ For CI/CD environments, store the token as a repository secret named `GITHUB_PAT
 
 ### 1. Copy the Reference Implementation
 
-From the blueprint repository, copy the `reference/` directory into your target project:
+From the blueprint repository, copy the `starter-kit/` directory into your target project:
 
 ```bash
-cp -r /path/to/agentic-sdlc-blueprint/reference/.claude .claude
-cp /path/to/agentic-sdlc-blueprint/reference/.mcp.json .mcp.json
+cp -r /path/to/agentic-sdlc-blueprint/starter-kit/.claude .claude
+cp /path/to/agentic-sdlc-blueprint/starter-kit/.mcp.json .mcp.json
 ```
 
 ### 2. Customize `CLAUDE.md`
 
-Edit `CLAUDE.md` in the project root to reflect the target project's stack, commands, architecture, and conventions. This file is the single most important context source for all pipeline agents. See [04-context-strategy.md](../../04-context-strategy.md) for guidance on what to include.
+Edit `CLAUDE.md` in the project root to reflect the target project's stack, commands, architecture, and conventions. This file is the single most important context source for all pipeline agents. See [04-context-strategy.md](../../blueprint/04-context-strategy.md) for guidance on what to include.
 
 ### 3. Customize `.mcp.json`
 

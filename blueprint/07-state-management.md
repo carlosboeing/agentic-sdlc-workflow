@@ -339,13 +339,13 @@ Templates serve three functions:
 
 ### Template File References
 
-All templates are located in the `reference/.claude/templates/` directory:
+All templates are located in the `starter-kit/.claude/templates/` directory:
 
-- `reference/.claude/templates/prfaq-template.md`
-- `reference/.claude/templates/prd-template.md`
-- `reference/.claude/templates/hld-template.md`
-- `reference/.claude/templates/lld-template.md`
-- `reference/.claude/templates/adr-template.md`
+- `starter-kit/.claude/templates/prfaq-template.md`
+- `starter-kit/.claude/templates/prd-template.md`
+- `starter-kit/.claude/templates/hld-template.md`
+- `starter-kit/.claude/templates/lld-template.md`
+- `starter-kit/.claude/templates/adr-template.md`
 
 See [Agent Pipeline](02-agent-pipeline.md) for how each agent loads and applies its assigned templates.
 

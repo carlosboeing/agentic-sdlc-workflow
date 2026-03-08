@@ -36,15 +36,15 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 1: Permission Mode `full` Does Not Exist
 
 - **Severity:** Major
-- **Files:** `docs/02-agent-pipeline.md:454`, `docs/06-security-model.md:92`
+- **Files:** `blueprint/02-agent-pipeline.md:454`, `blueprint/06-security-model.md:92`
 - **Claim:** Three permission modes: `plan`, `acceptEdits`, `full`
 - **Reality:** Valid modes are `default`, `acceptEdits`, `dontAsk`, `bypassPermissions`, `plan`. There is no `full` mode.
-- **Fix:** Replace `full` with the actual equivalent. Likely `bypassPermissions` (skips all checks) or `dontAsk` (auto-deny prompts). Update the permission mode table in both files. Also update the agent definition format spec at `docs/02-agent-pipeline.md:444`.
+- **Fix:** Replace `full` with the actual equivalent. Likely `bypassPermissions` (skips all checks) or `dontAsk` (auto-deny prompts). Update the permission mode table in both files. Also update the agent definition format spec at `blueprint/02-agent-pipeline.md:444`.
 
 ### Finding 2: `ccusage` Tool Does Not Exist
 
 - **Severity:** Major
-- **File:** `docs/08-monitoring-scaling.md:76-77`
+- **File:** `blueprint/08-monitoring-scaling.md:76-77`
 - **Claim:** `npx ccusage@latest` provides per-developer cost reports
 - **Reality:** No tool called `ccusage` exists. The real equivalent is the `/cost` command in Claude Code interactive mode, or `--max-budget-usd` flag for budget enforcement.
 - **Fix:** Replace the `ccusage` reference with `/cost` command documentation and mention the `--max-budget-usd` flag for programmatic budget limits.
@@ -52,7 +52,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 3: Agent SDK `canUseTool` Callback Does Not Exist
 
 - **Severity:** Major
-- **File:** `docs/03-orchestration-engine.md:221`
+- **File:** `blueprint/03-orchestration-engine.md:221`
 - **Claim:** Agent SDK provides `canUseTool` callbacks for custom permission logic
 - **Reality:** The SDK does not have a `canUseTool` callback. The equivalent is using PreToolUse hooks for tool validation/blocking, or the `permissionMode` option on SDK sessions.
 - **Fix:** Replace `canUseTool callbacks` with `PreToolUse hooks` in the Tier 2 Agent SDK capabilities list.
@@ -60,10 +60,10 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 4: Hook Input Mechanism Incorrect
 
 - **Severity:** Major
-- **Files:** `reference/.claude/settings.json:9`, `docs/06-security-model.md:116-122`
+- **Files:** `starter-kit/.claude/settings.json:9`, `blueprint/06-security-model.md:116-122`
 - **Claim:** Hook commands access tool input via `$CLAUDE_TOOL_INPUT` environment variable: `echo $CLAUDE_TOOL_INPUT | jq -r '.command'`
 - **Reality:** Hooks receive JSON on stdin, not via environment variables. The input includes `tool_name`, `tool_input`, and event-specific fields.
-- **Fix:** Update the hook command to read from stdin. Example: `jq -r '.tool_input.command' | grep -qE 'rm -rf|...'` (reading from stdin rather than env var). Update both the settings.json example and the docs/06 explanation.
+- **Fix:** Update the hook command to read from stdin. Example: `jq -r '.tool_input.command' | grep -qE 'rm -rf|...'` (reading from stdin rather than env var). Update both the settings.json example and the blueprint/06 explanation.
 
 ---
 
@@ -72,7 +72,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 5: Inconsistent Notion MCP Server Package Names
 
 - **Severity:** Minor
-- **File:** `docs/05-integration-layer.md:108` vs `docs/05-integration-layer.md:257`
+- **File:** `blueprint/05-integration-layer.md:108` vs `blueprint/05-integration-layer.md:257`
 - **Claim:** Line 108 says `makenotion/notion-mcp-server` (official), but the example .mcp.json at line 257 uses `@notionhq/notion-mcp-server`
 - **Reality:** These are contradictory within the same document. The correct package name should be verified against npm. The `@notionhq` scoped name (line 257) is more likely correct as it matches Notion's npm org.
 - **Fix:** Verify the correct npm package name and make it consistent. If `@notionhq/notion-mcp-server` is correct, update line 108 to match.
@@ -80,7 +80,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 6: Notion MCP Credential Format May Be Incorrect
 
 - **Severity:** Minor
-- **File:** `docs/05-integration-layer.md:258-260`
+- **File:** `blueprint/05-integration-layer.md:258-260`
 - **Claim:** Notion MCP server uses `OPENAPI_MCP_HEADERS` env var with JSON-encoded Authorization header
 - **Reality:** This credential format depends on whether the Notion MCP server is an OpenAPI-based MCP server (which uses `OPENAPI_MCP_HEADERS`) or a native MCP server (which would use `NOTION_API_KEY` directly). The correct format depends on the actual server implementation.
 - **Fix:** Verify against the actual Notion MCP server documentation and update accordingly.
@@ -88,14 +88,14 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 7: Some MCP Server Names Are Vague or Unverifiable
 
 - **Severity:** Nit
-- **File:** `docs/05-integration-layer.md:139-147`
+- **File:** `blueprint/05-integration-layer.md:139-147`
 - **Claims:** References to `Atlassian Rovo MCP (official)`, `Official Linear MCP`, `Official Asana MCP`, `@azure-devops/mcp (Microsoft)` without npm package names
 - **Fix:** Where possible, provide exact npm package names or GitHub repo URLs. Where servers don't exist yet, mark as "Community" or "Planned".
 
 ### Finding 8: GitHub PM MCP URL May Be Incorrect
 
 - **Severity:** Minor
-- **File:** `docs/05-integration-layer.md:264-265`
+- **File:** `blueprint/05-integration-layer.md:264-265`
 - **Claim:** `"url": "https://api.githubcopilot.com/mcp/"` for GitHub PM tool
 - **Reality:** This URL references GitHub Copilot's MCP endpoint, which is specific to GitHub Copilot integration and may not be accessible from standalone Claude Code. The reference `.mcp.json` in the repo correctly uses `@modelcontextprotocol/server-github` as an npx command instead.
 - **Fix:** Use the stdio-based `@modelcontextprotocol/server-github` approach consistently, or clearly document when the HTTP endpoint is appropriate.
@@ -103,7 +103,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 9: Filesystem MCP Server Package Name
 
 - **Severity:** Minor
-- **File:** `docs/05-integration-layer.md:303`
+- **File:** `blueprint/05-integration-layer.md:303`
 - **Claim:** `@anthropic/filesystem-mcp-server`
 - **Reality:** The actual package may be `@modelcontextprotocol/server-filesystem`. Verify against npm.
 - **Fix:** Confirm the correct npm package name.
@@ -115,7 +115,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 10: `claude-code-action` Inputs Need Verification
 
 - **Severity:** Minor
-- **File:** `docs/implementations/github-native/04-ci-cd.md:73-107`
+- **File:** `implementations/github-native/04-ci-cd.md:73-107`
 - **Claim:** Action inputs include `anthropic_api_key`, `allowed_tools`, `max_turns`, `prompt`
 - **Reality:** `anthropics/claude-code-action@v1` is confirmed as a real action. However, the exact input names (`allowed_tools` vs `allowedTools`, `max_turns` vs `maxTurns`) should be verified against the action's `action.yml`.
 - **Fix:** Check the actual action.yml at <https://github.com/anthropics/claude-code-action> for exact input names and update all workflow examples if needed.
@@ -123,7 +123,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 11: Full Pipeline Workflow Has Conditional Logic Issues
 
 - **Severity:** Minor
-- **File:** `docs/implementations/github-native/04-ci-cd.md:437-439`
+- **File:** `implementations/github-native/04-ci-cd.md:437-439`
 - **Claim:** `architect` job has condition `if: inputs.entry_point == 'full' || inputs.entry_point == 'design'` and `needs: [approve-product-docs]`
 - **Issue:** When `entry_point == 'design'`, the `approve-product-docs` job is skipped (it has `if: inputs.entry_point == 'full'`), so the `architect` job would also be skipped because its dependency wasn't satisfied.
 - **Fix:** The `architect` job needs separate conditional dependency handling. Either make the gate job always run, or use GitHub Actions `if: always()` pattern with conditional logic.
@@ -175,7 +175,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 15: Economy Mode `model_for()` Bug
 
 - **Severity:** Critical
-- **File:** `reference/scripts/sdlc-pipeline.sh:48-62`
+- **File:** `starter-kit/scripts/sdlc-pipeline.sh:48-62`
 - **Claim:** Economy mode should assign Sonnet to Visionary, Planner, Builder, Tester (cheap decomposition/implementation) and Opus to Architect, Reviewer (complex reasoning)
 - **Actual behavior in script:**
 
@@ -187,7 +187,7 @@ The following features referenced throughout the docs were confirmed as real Cla
     esac;;
   ```
 
-- **Bug:** Builder and Tester get Opus in economy mode. Per `docs/02-agent-pipeline.md:399-406`, they should get Sonnet.
+- **Bug:** Builder and Tester get Opus in economy mode. Per `blueprint/02-agent-pipeline.md:399-406`, they should get Sonnet.
 - **Impact:** Economy mode is MORE expensive than standard mode for builder/tester agents — the opposite of its purpose.
 - **Fix:** Change economy case to:
 
@@ -202,7 +202,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 16: `.mcp.json` Missing Doc Tool Server
 
 - **Severity:** Critical
-- **File:** `reference/.mcp.json:1-11`
+- **File:** `starter-kit/.mcp.json:1-11`
 - **Issue:** Only configures GitHub MCP server. No doc management MCP server is configured.
 - **Impact:** All agent tool calls to `mcp__docs__*` tools (create_page, update_page, search, get_page) will fail with "tool not found". The Visionary, Architect, Planner, and Reviewer agents all depend on doc tools.
 - **Fix:** Add a doc tool MCP server entry. For a minimal reference, add a Notion or filesystem-based doc server. Example:
@@ -217,13 +217,13 @@ The following features referenced throughout the docs were confirmed as real Cla
 
   Or for a zero-dependency setup, use the filesystem MCP server pointing to `./docs`.
 
-### Finding 17: `reference/CLAUDE.md` Missing Required Docs Section
+### Finding 17: `starter-kit/CLAUDE.md` Missing Required Docs Section
 
 - **Severity:** Major
-- **File:** `reference/CLAUDE.md`
-- **Issue:** The template CLAUDE.md is missing the `## Docs` section that `docs/08-monitoring-scaling.md:190` lists as required ("Document tool workspace and organization").
+- **File:** `starter-kit/CLAUDE.md`
+- **Issue:** The template CLAUDE.md is missing the `## Docs` section that `blueprint/08-monitoring-scaling.md:190` lists as required ("Document tool workspace and organization").
 - **Impact:** Agents won't know where to write documents. The Visionary agent specifically needs to know the doc workspace name and organizational structure.
-- **Fix:** Add a `## Docs` section matching the example in `docs/08-monitoring-scaling.md:222-224`:
+- **Fix:** Add a `## Docs` section matching the example in `blueprint/08-monitoring-scaling.md:222-224`:
 
   ```markdown
   ## Docs
@@ -234,7 +234,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 18: DAG Execution Doesn't Halt on Task Failure
 
 - **Severity:** Major
-- **File:** `reference/scripts/sdlc-pipeline.sh:200-214`
+- **File:** `starter-kit/scripts/sdlc-pipeline.sh:200-214`
 - **Issue:** The wave loop adds all task IDs to `completed` after `wait`, regardless of whether individual tasks failed:
 
   ```bash
@@ -248,14 +248,14 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 19: Concurrent State Write Race Conditions
 
 - **Severity:** Major
-- **File:** `reference/scripts/sdlc-pipeline.sh:206-214`
+- **File:** `starter-kit/scripts/sdlc-pipeline.sh:206-214`
 - **Issue:** Multiple parallel agents in a wave may write to shared state files (`.claude/context/tasks/`, `.claude/context/runs/`) simultaneously. No file locking or atomic write mechanism exists.
 - **Fix:** Use per-task output files and merge after `wait`, or use `flock` for file locking.
 
 ### Finding 20: `run_checkpoint()` Blocks Non-Interactive Shells
 
 - **Severity:** Minor
-- **File:** `reference/scripts/sdlc-pipeline.sh:108`
+- **File:** `starter-kit/scripts/sdlc-pipeline.sh:108`
 - **Issue:** `read -p` blocks indefinitely in non-interactive contexts (cron, GitHub Actions).
 - **Mitigating factor:** The `--autonomy autonomous` flag skips checkpoints. But the script doesn't validate that non-interactive shells use autonomous mode.
 - **Fix:** Add a check: if stdin is not a terminal and autonomy is supervised, either auto-abort or warn.
@@ -263,7 +263,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 21: Worktree Cleanup Incomplete on Failure
 
 - **Severity:** Minor
-- **File:** `reference/scripts/cleanup-worktrees.sh`
+- **File:** `starter-kit/scripts/cleanup-worktrees.sh`
 - **Issue:** Only removes worktrees whose branches are merged to main. Failed tasks leave orphaned worktrees that accumulate over time.
 - **Fix:** Add a `--force` flag (partially implemented) and document the cleanup strategy for failed runs.
 
@@ -274,7 +274,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 22: Inter-Agent State Flow Is Fragile But Workable
 
 - **Severity:** Major
-- **File:** `reference/scripts/sdlc-pipeline.sh:139-164`
+- **File:** `starter-kit/scripts/sdlc-pipeline.sh:139-164`
 - **Issue:** Manifests from one agent are embedded as plaintext in the next agent's prompt:
 
   ```bash
@@ -292,15 +292,15 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 23: MCP Servers Cannot Be Restricted Per-Agent
 
 - **Severity:** Minor
-- **File:** `docs/05-integration-layer.md` (architectural assumption)
-- **Issue:** `.mcp.json` is project-level configuration. All agents share the same MCP servers. The permission matrix in `docs/06-security-model.md:73-81` shows different MCP access per agent (e.g., Builder has no Doc MCP access), but this restriction relies entirely on `--allowedTools` filtering, not MCP configuration.
+- **File:** `blueprint/05-integration-layer.md` (architectural assumption)
+- **Issue:** `.mcp.json` is project-level configuration. All agents share the same MCP servers. The permission matrix in `blueprint/06-security-model.md:73-81` shows different MCP access per agent (e.g., Builder has no Doc MCP access), but this restriction relies entirely on `--allowedTools` filtering, not MCP configuration.
 - **Mitigating factor:** `--allowedTools` does enforce tool restrictions in headless mode, so the design works as intended — it just relies on tool-level gating rather than server-level isolation.
 - **Status:** Working as designed, but the docs should clarify this mechanism.
 
 ### Finding 24: Cost Estimates Lack Sources
 
 - **Severity:** Minor
-- **File:** `docs/08-monitoring-scaling.md:99-115`
+- **File:** `blueprint/08-monitoring-scaling.md:99-115`
 - **Claims:** First-attempt success rate ~33%, productivity gain 10-30%, cost ~$1,000-1,500/mo
 - **Issue:** Presented as "empirically observed performance characteristics of agentic SDLC pipelines based on production deployments" but no data sources, studies, or deployment details are cited.
 - **Fix:** Either cite sources, reframe as projections/estimates, or add a disclaimer that these are rough benchmarks.
@@ -308,8 +308,8 @@ The following features referenced throughout the docs were confirmed as real Cla
 ### Finding 25: Token Estimates in Pipeline Manifest Example Are Plausible
 
 - **Severity:** N/A (Pass)
-- **File:** `docs/03-orchestration-engine.md:315-337`
-- **Details:** Example shows 245K input + 89K output tokens for a full pipeline run ($8.45 total). `docs/implementations/github-native/04-ci-cd.md:646` estimates 200K-400K tokens for a full pipeline. These are plausible for a 6-agent pipeline with moderate codebase exploration.
+- **File:** `blueprint/03-orchestration-engine.md:315-337`
+- **Details:** Example shows 245K input + 89K output tokens for a full pipeline run ($8.45 total). `implementations/github-native/04-ci-cd.md:646` estimates 200K-400K tokens for a full pipeline. These are plausible for a 6-agent pipeline with moderate codebase exploration.
 
 ### Finding 26: Worktree Isolation Is Sound for Filesystem
 
@@ -325,7 +325,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 | # | Finding | File | Fix |
 |---|---------|------|-----|
 | 15 | Economy mode `model_for()` bug — builder/tester get Opus instead of Sonnet | `sdlc-pipeline.sh:48-62` | Swap the case logic |
-| 16 | `.mcp.json` missing doc tool MCP server | `reference/.mcp.json` | Add docs MCP server entry |
+| 16 | `.mcp.json` missing doc tool MCP server | `starter-kit/.mcp.json` | Add docs MCP server entry |
 
 ### Major (8)
 
@@ -335,7 +335,7 @@ The following features referenced throughout the docs were confirmed as real Cla
 | 2 | `ccusage` tool doesn't exist | `08-monitoring-scaling.md:76-77` | Replace with `/cost` command |
 | 3 | Agent SDK `canUseTool` doesn't exist | `03-orchestration-engine.md:221` | Replace with PreToolUse hooks |
 | 4 | Hook commands use `$CLAUDE_TOOL_INPUT` env var (hooks receive stdin) | `settings.json:9`, `06-security-model.md:116-122` | Read from stdin instead |
-| 17 | `reference/CLAUDE.md` missing Docs section | `reference/CLAUDE.md` | Add `## Docs` section |
+| 17 | `starter-kit/CLAUDE.md` missing Docs section | `starter-kit/CLAUDE.md` | Add `## Docs` section |
 | 18 | DAG doesn't halt on task failure | `sdlc-pipeline.sh:200-214` | Track per-task exit codes |
 | 19 | Concurrent state write race conditions | `sdlc-pipeline.sh:206-214` | Per-task output files or flock |
 | 22 | Inter-agent state flow fragile (plaintext embedding) | `sdlc-pipeline.sh:139-164` | Write manifests to files |
@@ -369,7 +369,7 @@ After implementing fixes:
 1. **CLI flag verification:** Run `claude --help` and verify all referenced flags
 2. **Hook testing:** Create a test hook in settings.json, trigger it, confirm stdin format
 3. **Permission mode testing:** Run `claude -p --permission-mode plan "test"` and verify behavior
-4. **Script dry run:** Run `bash -n reference/scripts/sdlc-pipeline.sh` for syntax check
+4. **Script dry run:** Run `bash -n starter-kit/scripts/sdlc-pipeline.sh` for syntax check
 5. **Link verification:** Run a markdown link checker across all docs
 6. **MCP package verification:** Run `npm info <package>` for each referenced MCP server
 7. **Action verification:** Check <https://github.com/anthropics/claude-code-action/blob/main/action.yml> for exact input names
@@ -438,7 +438,7 @@ docs/
     claude-code/                  # NEW: CLI, hooks, agents, MCP config
     cursor/                       # future
     aider/                        # future
-reference/                        # stays Claude Code-specific
+starter-kit/                      # stays Claude Code-specific
 ```
 
 ### Option B: Light Abstraction

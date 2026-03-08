@@ -61,32 +61,32 @@ graph TB
 
 | # | Document | Description | Audience |
 |---|----------|-------------|----------|
-| 01 | [Architecture Overview](docs/01-architecture-overview.md) | System context, components, data flow, design principles, entry points | All |
-| 02 | [Agent Pipeline](docs/02-agent-pipeline.md) | Per-agent specs: role, I/O, permissions, model, context, prompt design | Engineers, Tech Leads |
-| 03 | [Orchestration Engine](docs/03-orchestration-engine.md) | DAG algorithm, retry/escalation, Bash to SDK to Actions tiers, manifests | Engineers |
-| 04 | [Context Strategy](docs/04-context-strategy.md) | Token budgets, 3-tier loading, per-agent context tables, RAG migration | Engineers, Architects |
-| 05 | [Integration Layer](docs/05-integration-layer.md) | MCP abstraction, unified tool interface, backend matrix, configs | Engineers, DevOps |
-| 06 | [Security Model](docs/06-security-model.md) | 5-layer defense, per-layer spec, worktree isolation, rollback | All |
-| 07 | [State Management](docs/07-state-management.md) | Task spec format, traceability, status files, run manifests, audit trail | Engineers |
-| 08 | [Monitoring & Scaling](docs/08-monitoring-scaling.md) | Telemetry, cost tracking, expectations, solo to team scaling | Tech Leads, Managers |
+| 01 | [Architecture Overview](blueprint/01-architecture-overview.md) | System context, components, data flow, design principles, entry points | All |
+| 02 | [Agent Pipeline](blueprint/02-agent-pipeline.md) | Per-agent specs: role, I/O, permissions, model, context, prompt design | Engineers, Tech Leads |
+| 03 | [Orchestration Engine](blueprint/03-orchestration-engine.md) | DAG algorithm, retry/escalation, Bash to SDK to Actions tiers, manifests | Engineers |
+| 04 | [Context Strategy](blueprint/04-context-strategy.md) | Token budgets, 3-tier loading, per-agent context tables, RAG migration | Engineers, Architects |
+| 05 | [Integration Layer](blueprint/05-integration-layer.md) | MCP abstraction, unified tool interface, backend matrix, configs | Engineers, DevOps |
+| 06 | [Security Model](blueprint/06-security-model.md) | 5-layer defense, per-layer spec, worktree isolation, rollback | All |
+| 07 | [State Management](blueprint/07-state-management.md) | Task spec format, traceability, status files, run manifests, audit trail | Engineers |
+| 08 | [Monitoring & Scaling](blueprint/08-monitoring-scaling.md) | Telemetry, cost tracking, expectations, solo to team scaling | Tech Leads, Managers |
 
 ## Quick Start
 
-1. Start with the [Architecture Overview](docs/01-architecture-overview.md) for the big picture — system context, component responsibilities, and data flow across the pipeline.
-2. Choose an [implementation guide](docs/implementations/) that matches your toolstack (e.g., GitHub-native, Notion + Linear, Confluence + Jira).
-3. Copy `reference/` into your project and customize `CLAUDE.md` and `.mcp.json` to match your repository structure and backend configuration.
+1. Start with the [Architecture Overview](blueprint/01-architecture-overview.md) for the big picture — system context, component responsibilities, and data flow across the pipeline.
+2. Choose an [implementation guide](implementations/) that matches your toolstack (e.g., GitHub-native, Notion + Linear, Confluence + Jira).
+3. Copy `starter-kit/` into your project and customize `CLAUDE.md` and `.mcp.json` to match your repository structure and backend configuration.
 
 ## Implementation Guides
 
 | Implementation | Doc Backend | PM Backend | Status |
 |---|---|---|---|
-| [GitHub Native](docs/implementations/github-native/) | Repository MD files | GitHub Issues + Projects | Available |
+| [GitHub Native](implementations/github-native/) | Repository MD files | GitHub Issues + Projects | Available |
 | Notion + Linear | Notion pages | Linear issues | Planned |
 | Confluence + Jira | Confluence pages | Jira issues | Planned |
 
-## Reference Implementation
+## Starter Kit
 
-The `reference/` directory contains a working reference implementation including agent definitions, prompt templates, orchestration scripts, and configuration files. It is designed to be forked or copied directly into a target project and then customized. The reference provides concrete, runnable examples of every abstraction defined in the design documents — from agent role contracts and context-loading logic to checkpoint validation and state-file schemas.
+The `starter-kit/` directory contains a working reference implementation including agent definitions, prompt templates, orchestration scripts, and configuration files. It is designed to be copied directly into a target project and then customized. The starter kit provides concrete, runnable examples of every abstraction defined in the design documents — from agent role contracts and context-loading logic to checkpoint validation and state-file schemas.
 
 ## Reading Order by Audience
 

@@ -178,7 +178,7 @@ graph TB
 
 **Context Loading.** Searches existing PRDs only (via `mcp__docs__search`). Skips HLD, LLD, and ADR documents entirely. See [Context Strategy](04-context-strategy.md).
 
-**Agent Definition File.** `reference/.claude/agents/visionary.md`
+**Agent Definition File.** `starter-kit/.claude/agents/visionary.md`
 
 **Prompt Design Notes.** The agent is instructed to be opinionated and recommend a single approach rather than presenting a menu of options. Assumptions and open questions must be flagged explicitly. The agent is prohibited from producing technical designs, epics, or task breakdowns.
 
@@ -206,7 +206,7 @@ graph TB
 
 **Context Loading.** Full load of PRFAQ, PRD, and Vision. Searches past ADRs for relevant prior decisions. See [Context Strategy](04-context-strategy.md).
 
-**Agent Definition File.** `reference/.claude/agents/architect.md`
+**Agent Definition File.** `starter-kit/.claude/agents/architect.md`
 
 **Prompt Design Notes.** The agent must evaluate 2-3 architectural approaches with explicit tradeoffs, then select one and defend the decision. Every significant decision requires an ADR with rationale. References to specific files and code paths are mandatory. The agent designs for the current codebase state, not a theoretical ideal.
 
@@ -234,7 +234,7 @@ graph TB
 
 **Context Loading.** Full load of HLD, LLD, and ADRs. Section-level load of PRD (requirements section only). Skips PRFAQ and Vision. See [Context Strategy](04-context-strategy.md).
 
-**Agent Definition File.** `reference/.claude/agents/planner.md`
+**Agent Definition File.** `starter-kit/.claude/agents/planner.md`
 
 **Prompt Design Notes.** Each task must be scoped to a maximum of 2 hours. The `Relevant Files` section in each task spec is critical because the Builder agent uses it for context loading. The dependency DAG must explicitly distinguish parallelizable tasks from sequential ones and mark the critical path.
 
@@ -262,7 +262,7 @@ graph TB
 
 **Context Loading.** Reads only the assigned task spec file. If the spec references an LLD section, reads that section only. Skips all other documents. See [Context Strategy](04-context-strategy.md).
 
-**Agent Definition File.** `reference/.claude/agents/builder.md`
+**Agent Definition File.** `starter-kit/.claude/agents/builder.md`
 
 **Prompt Design Notes.** The agent reads only its assigned task spec and must not explore the codebase beyond files listed in the `Relevant Files` section. Implementation proceeds incrementally with lint and test execution after each logical unit. Files outside the task scope must not be modified.
 
@@ -318,7 +318,7 @@ graph TB
 
 **Context Loading.** Section-level load of HLD and LLD (sections relevant to the diff under review). Searches ADRs for decisions relevant to the code in scope. Skips PRFAQ, PRD, and Vision. See [Context Strategy](04-context-strategy.md).
 
-**Agent Definition File.** `reference/.claude/agents/reviewer.md`
+**Agent Definition File.** `starter-kit/.claude/agents/reviewer.md`
 
 **Prompt Design Notes.** The agent reviews six dimensions: architecture alignment, code quality, security (OWASP Top 10), error handling, test coverage, and convention compliance. Architecture drift is not automatically treated as a defect; the agent flags it for human or Architect review and notes whether the drift may represent an improvement. Security issues are always classified as critical severity.
 

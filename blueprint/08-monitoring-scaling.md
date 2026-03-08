@@ -235,7 +235,7 @@ For the CLAUDE.md to function correctly within the agentic pipeline:
 
 ### Reference
 
-See `reference/CLAUDE.md` for a complete example of a pipeline-compatible CLAUDE.md file.
+See `starter-kit/CLAUDE.md` for a complete example of a pipeline-compatible CLAUDE.md file.
 
 ## Related Documents
 

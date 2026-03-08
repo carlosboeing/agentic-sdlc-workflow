@@ -1,19 +1,20 @@
 # Agentic SDLC Blueprint
 
 ## Project Overview
-Documentation repository + reference implementation for an end-to-end agentic
-software development lifecycle using Claude Code. Contains 8 core design docs,
-implementation guides, and working reference files.
+Documentation repository + starter kit for an end-to-end agentic software
+development lifecycle using Claude Code. Contains 8 core design docs,
+implementation guides, and working starter kit files.
 
 ## Repository Structure
-- `docs/01-08-*.md` — Core design documents (HLD/LLD format)
-- `docs/implementations/` — Backend-specific implementation guides
-- `docs/implementations/github-native/` — GitHub Issues/Projects/Actions guide
-- `reference/.claude/agents/` — 6 agent definitions with YAML frontmatter
-- `reference/.claude/templates/` — 5 document templates (PRFAQ, PRD, HLD, LLD, ADR)
-- `reference/.claude/commands/` — 5 slash commands
-- `reference/scripts/` — Orchestration scripts (Bash)
-- `reference/CLAUDE.md` — Example project context (NOT this file)
+- `blueprint/01-08-*.md` — Core design documents (HLD/LLD format)
+- `implementations/` — Backend-specific implementation guides
+- `implementations/github-native/` — GitHub Issues/Projects/Actions guide
+- `starter-kit/.claude/agents/` — 6 agent definitions with YAML frontmatter
+- `starter-kit/.claude/templates/` — 5 document templates (PRFAQ, PRD, HLD, LLD, ADR)
+- `starter-kit/.claude/commands/` — 5 slash commands
+- `starter-kit/scripts/` — Orchestration scripts (Bash)
+- `starter-kit/CLAUDE.md` — Example project context (NOT this file)
+- `internal/` — Working documents for iterating on the blueprint (see below)
 
 ## Writing Conventions
 
@@ -32,7 +33,7 @@ implementation guides, and working reference files.
 - Include Mermaid diagrams where they aid understanding
 - Use tables for structured comparisons and specifications
 
-### Implementation Guides (docs/implementations/)
+### Implementation Guides (implementations/)
 - Each backend has a folder with a README.md + 4 numbered docs
 - Standard structure: `01-setup.md`, `02-doc-storage.md`, `03-project-management.md`, `04-ci-cd.md`
 - Folder README.md: overview, components table, reading order table, prerequisites summary
@@ -52,17 +53,33 @@ implementation guides, and working reference files.
 - Permission modes: plan, acceptEdits, full (lowercase)
 - Cost modes: standard, economy (lowercase)
 
-## Agent Definitions (reference/.claude/agents/)
+## Agent Definitions (starter-kit/.claude/agents/)
 - YAML frontmatter: name, description, tools, model, permissionMode
 - Tool names must be abstract MCP names, not backend-specific
 - Rules section at bottom with bullet points
 
-## Reference Implementation
-- `reference/` is a copy-paste starter kit — files must be self-contained and runnable
-- `reference/CLAUDE.md` is an EXAMPLE template for user projects, not this repo's config
+## Starter Kit
+- `starter-kit/` is a copy-paste starter kit — files must be self-contained and runnable
+- `starter-kit/CLAUDE.md` is an EXAMPLE template for user projects, not this repo's config
 - Scripts use `set -euo pipefail` and have header comment blocks with usage/flags
+
+## Internal Documentation (internal/)
+Working documents for iterating on the blueprint. All files follow the
+naming convention `YYYY-MM-DD-<topic>.md` with kebab-case topics.
+
+- `designs/` — Design docs from brainstorming and ideation
+- `plans/` — Implementation plans for approved designs
+- `reviews/` — Code reviews, design reviews, post-implementation reviews
+- `decisions/` — Decision records explaining why X was chosen over Y
+- `audits/` — Periodic quality and completeness assessments
+- `research/` — Technical investigations, paper analyses, external reference digests
+- `notes/` — Session notes and daily logs of what was done and why
+
+CC skill overrides:
+- Brainstorming design docs → `internal/designs/YYYY-MM-DD-<topic>.md`
+- Implementation plans → `internal/plans/YYYY-MM-DD-<topic>.md`
 
 ## Git Conventions
 - Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`
 - Co-author line: `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
-- Commit docs and reference files in logical groups, not one file per commit
+- Commit docs and starter kit files in logical groups, not one file per commit

@@ -150,7 +150,7 @@ When the Visionary agent creates a PRFAQ, it reads `.claude/templates/prfaq-temp
 - **No rich editing UI**: Authors must write raw markdown. No WYSIWYG, no drag-and-drop, no block-based editing. This is acceptable for agent-authored content but may friction human collaborators who prefer visual editors.
 - **No real-time collaboration**: Git does not support simultaneous editing. Concurrent document work requires branching and merging, which can produce merge conflicts in prose.
 - **No embedded media**: Images, diagrams, and other media require file management (e.g., storing images in `docs/assets/` with relative path references). Mermaid diagrams render natively in GitHub but other diagram formats do not.
-- **Text-based search only**: Search is limited to text/regex matching via `grep` or `ripgrep`. No semantic search, no full-text indexing with relevance ranking. For large document corpora (50+ features), consider adding a vector RAG MCP server as described in [04-context-strategy.md](../../04-context-strategy.md).
+- **Text-based search only**: Search is limited to text/regex matching via `grep` or `ripgrep`. No semantic search, no full-text indexing with relevance ranking. For large document corpora (50+ features), consider adding a vector RAG MCP server as described in [04-context-strategy.md](../../blueprint/04-context-strategy.md).
 - **No granular permissions**: GitHub repository permissions apply to the entire repository. There is no way to restrict write access to `docs/` independently of `src/`. Branch protection rules provide some mitigation.
 
 ## Migration from External Backends

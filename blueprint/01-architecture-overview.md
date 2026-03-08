@@ -217,12 +217,12 @@ For the complete security specification, see [Security Model](06-security-model.
 
 | Reference | Path | Description |
 |-----------|------|-------------|
-| Pipeline Script | `reference/scripts/sdlc-pipeline.sh` | Tier 1 Bash orchestrator |
-| Agent Definitions | `reference/.claude/agents/` | Per-agent markdown definition files |
-| Document Templates | `reference/.claude/templates/` | Standardized PRFAQ, PRD, HLD, LLD, ADR templates |
-| MCP Configuration | `reference/.mcp.json` | Doc and PM backend configuration |
-| Hook Configuration | `reference/.claude/settings.json` | PreToolUse hook guards |
-| Project Context | `reference/CLAUDE.md` | Example CLAUDE.md for pipeline compatibility |
+| Pipeline Script | `starter-kit/scripts/sdlc-pipeline.sh` | Tier 1 Bash orchestrator |
+| Agent Definitions | `starter-kit/.claude/agents/` | Per-agent markdown definition files |
+| Document Templates | `starter-kit/.claude/templates/` | Standardized PRFAQ, PRD, HLD, LLD, ADR templates |
+| MCP Configuration | `starter-kit/.mcp.json` | Doc and PM backend configuration |
+| Hook Configuration | `starter-kit/.claude/settings.json` | PreToolUse hook guards |
+| Project Context | `starter-kit/CLAUDE.md` | Example CLAUDE.md for pipeline compatibility |
 
 ### Reading Order by Audience
 

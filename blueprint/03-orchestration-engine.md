@@ -187,7 +187,7 @@ The Bash orchestrator is a single shell script that invokes `claude -p` for each
 
 ### Pipeline Script Structure
 
-The Bash orchestrator (`reference/scripts/sdlc-pipeline.sh`) implements the following control flow:
+The Bash orchestrator (`starter-kit/scripts/sdlc-pipeline.sh`) implements the following control flow:
 
 1. **Configuration parsing.** Parse CLI flags and set defaults for entry point, cost mode, autonomy, and resume state.
 2. **Model selection.** A `model_for` function maps agent names to model identifiers based on the cost mode.

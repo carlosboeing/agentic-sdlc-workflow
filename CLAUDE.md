@@ -332,13 +332,17 @@ The script computes speed (tokens/s) and estimated cost automatically from the m
 
 Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Every completed story must have all three comments on its issue: "Work Started" (`issue-start.sh`, by builder), "Ready for Review" (`issue-review.sh`, by builder), and "Telemetry" (`issue-telemetry.sh`, by orchestrator).
 
-**Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. **CRITICAL: Use `isolation: "worktree"` in the Agent tool when dispatching parallel builders.** Without worktree isolation, parallel builders share the same working directory and can commit files from other stories onto the wrong branch (confirmed defect in Run 7 -- `c249257`, first flagged as risk in Run 4). After parallel dispatch completes, verify each story branch contains only its expected files before merging.
+**Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. **CRITICAL: Use `isolation: "worktree"` in the Agent tool when dispatching parallel builders.** Without worktree isolation, parallel builders share the same working directory and can commit files from other stories onto the wrong branch (confirmed defect in Run 7 -- `c249257`, first flagged as risk in Run 4). Worktree isolation was validated in Run 8 — 3 parallel builders produced clean, non-contaminated branches. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
 
-**Parallel dispatch git safety:** All parallel builders share a single git working tree. Every `git checkout` by one agent overwrites `.git/HEAD` for all concurrent agents. To prevent branch contamination:
+**Post-worktree cleanup (REQUIRED):** After all worktree-dispatched builders complete, the orchestrator MUST:
+1. Check for untracked files left in the main working tree: `git status --short`
+2. Clean up any stale artifacts before proceeding to merges: `git clean -fd` (after verifying no wanted files are affected)
+3. Verify each story branch was pushed to remote: `git ls-remote --heads origin <branch>` — worktree-isolated builders may not push automatically (confirmed in Run 8, E01-S02). If a branch is missing from remote, push it manually before merging.
+
+**Parallel dispatch git safety (defense-in-depth):** With worktree isolation enabled, these rules serve as a secondary safety net. They remain mandatory for any non-worktree parallel dispatch:
 - **Chain all git operations in a single Bash call:** `git checkout <branch> && git add <files> && git commit -m "msg"` — never split checkout and commit across separate Bash calls.
 - **Verify branch before every commit:** Include `git branch --show-current` in the same `&&` chain, not in a separate call.
 - **Use explicit file paths with `git add`** — never `git add .` which may stage files from other agents' work.
-- **Future improvement:** Use `git worktree add` to give each parallel agent an isolated checkout, eliminating shared-state conflicts entirely.
 
 **Epic branches must be created from the integration branch:** Always `git checkout backlog/<N>-<slug> && git pull` before `git checkout -b epic/eNN-slug`.
 

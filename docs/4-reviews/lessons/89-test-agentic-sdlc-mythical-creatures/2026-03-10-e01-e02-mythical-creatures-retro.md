@@ -1,0 +1,221 @@
+---
+date: 2026-03-10
+author: retro
+backlog-issue: 89
+epic-pr: 104
+scope: Full autonomous SDLC lifecycle test -- 7 stories, 2 epics, parallel dispatch, reviewer integration, model routing
+---
+
+# Mythical Creatures Field Guide -- Agentic Workflow Retrospective
+
+## Summary
+
+The Mythical Creatures Field Guide (SDLC v2 Run 3) was the first test of the full autonomous lifecycle -- design, plan, build, review, and merge all executed from a single orchestrator command with no human interaction. Seven stories across two epics (Creature Compendium and Field Operations Manual) produced 7 markdown files in `test-output/field-guide/`. The run validated three previously untested capabilities: parallel dispatch (4 builders concurrently in Wave 1), mandatory per-story reviewer integration (with E01-S04 requiring 2 fix cycles for word count compliance), and all three model tiers operating correctly (haiku, sonnet, opus). Total agent time was 25m 50s sequential, compressed to 14m 2s wall-clock through parallelism (1.8x speedup). Estimated cost was ~$1.30 (per-story breakdown; the single-model estimate of ~$3.29 overstates due to mixed-model averaging).
+
+## Timeline
+
+| Phase | Time (UTC) | Wall Clock | Activity |
+|-------|-----------|------------|----------|
+| Design | 15:32:06 | ~0 min | Design doc PR #92 auto-merged (written pre-session) |
+| Plan | 15:48 -- 15:52 | ~4 min | Architect wrote plan, created issues #94-#102, plan PR #103 auto-merged |
+| Architect fix | 15:54 | ~1 min | Added Bash tool to architect agent (commit `cfb2231`) |
+| Wave 1 build | 15:55 -- 15:58 | ~3 min | 4 builders dispatched concurrently: S01/S02/S03 (haiku), E02-S01 (sonnet) |
+| Wave 1 review | 15:59 -- 16:01 | ~2 min | Reviewer dispatched on all 4 story branches; all approved (S03 COMMENT) |
+| Wave 1 merge | 16:01 | ~1 min | 4 story branches merged into respective epic branches |
+| Wave 2 build | 16:02 -- 16:09 | ~7 min | 2 builders dispatched concurrently: S04 (sonnet), E02-S02 (sonnet) |
+| Wave 2 review (S04) | 16:09 -- 16:11 | ~2 min | Reviewer REQUEST_CHANGES on S04 (word count 569 > 500) |
+| S04 fix cycle 1 | 16:11 -- 16:14 | ~3 min | Builder trimmed to 535 words; reviewer REQUEST_CHANGES again (still over) |
+| S04 fix cycle 2 | 16:14 -- 16:19 | ~5 min | Builder trimmed to 495 words; reviewer APPROVE |
+| Wave 2 merge | 16:20 | ~1 min | S04 and E02-S02 merged into epic branches |
+| Wave 3 build | 16:21 -- 16:24 | ~3 min | E02-S03 dispatched (opus) |
+| Wave 3 review | 16:24 -- 16:27 | ~3 min | Reviewer APPROVE on E02-S03 |
+| Wrap-up | 16:27 -- 16:33 | ~6 min | Changelog, combined epic merge, PR #104 opened, telemetry posted, PR merged |
+| **Total** | **15:32 -- 16:33** | **~61 min** | 14m 2s wall-clock agent time within ~61 min session |
+
+*Source: git log timestamps and GitHub issue comment timestamps. All UTC times derived from UTC+10 commit/comment timestamps.*
+
+## Telemetry
+
+### Per-Story Breakdown
+
+| Story | Issue | Difficulty | Model Used | Agent Time | Tokens | Cost | Tool Uses |
+|-------|-------|-----------|------------|-----------|--------|------|-----------|
+| E01-S01 | #96 | easy | haiku | 2m 1s | 101K | ~$0.03 | 36 |
+| E01-S02 | #97 | easy | haiku | 2m 46s | 113K | ~$0.03 | 57 |
+| E01-S03 | #98 | easy | haiku | 1m 35s | 107K | ~$0.03 | 36 |
+| E01-S04 | #99 | medium | sonnet | 5m 25s | 64K | ~$0.19 | 37 |
+| E02-S01 | #100 | medium | sonnet | 3m 42s | 41K | ~$0.12 | 46 |
+| E02-S02 | #101 | medium | sonnet | 7m 4s | 51K | ~$0.15 | 76 |
+| E02-S03 | #102 | hard | opus | 3m 15s | 37K | ~$0.75 | 31 |
+| **Epic Total** | | | | **25m 48s** | **548K** | **~$1.30** | **319** |
+
+*Note: The E01-S04 "5m 25s" figure in the epic breakdown includes the initial build (2m 54s per story telemetry) plus two fix-cycle re-dispatches. The epic-level telemetry total (548K tokens, 374 tool uses) includes reviewer dispatches and orchestrator overhead not captured in per-story builder telemetry. Per-story tool uses sum to 319 from builder telemetry alone; the remaining 55 are from reviewer and orchestrator operations.*
+
+*Note: The epic telemetry headline cost of ~$3.29 is computed by applying the sonnet rate to all 548K tokens. The per-story breakdown above totalling ~$1.30 is the accurate figure for this mixed-model epic (haiku: $0.09, sonnet: $0.46, opus: $0.75). This is a known caveat documented in CLAUDE.md.*
+
+### Aggregate
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 7/7 |
+| Tests written | 0 (content-only workload; 298 existing tests passed) |
+| Critical bugs caught by reviewer | 0 |
+| Warnings caught by reviewer | 3 (S03 scope leak, S04 word count x2, PR-level habitat contradiction) |
+| Suggestions noted | 8 (across all reviews) |
+| Review cycles (fix + re-review) | 2 (both on E01-S04 #99) |
+| Reviewer verdicts | 4 APPROVE, 1 COMMENT, 2 REQUEST_CHANGES (all on same story) |
+| Parallel speedup | 1.8x (25m 50s sequential -> 14m 2s wall-clock) |
+| Time saved by parallelism | 11m 48s |
+
+## What Worked
+
+### 1. Parallel Dispatch Validated (First Time)
+
+Wave 1 successfully dispatched 4 builders concurrently via the Agent tool -- 3 haiku and 1 sonnet. This was the primary goal of Run 3, after Run 2 failed to test parallel dispatch due to CLI nested-session limitations. The 4 builders completed within a 3-minute window (15:55 -- 15:58 UTC), with the fastest (E01-S03, haiku) finishing in 1m 35s and the slowest (E02-S01, sonnet) in 3m 42s. Wave 2 also dispatched 2 stories concurrently. Evidence: issue timestamps on #96, #97, #98, #100 all show "Work Started" within 25 seconds of each other.
+
+### 2. Reviewer Integration Validated
+
+Every story received a mandatory review before merge. The reviewer performed structural compliance checks: file path, section structure, word count, cross-references, and taxonomy consistency. This caught a genuine word count violation on E01-S04 (#99) that required 2 fix cycles (569 -> 535 -> 495 words). The review-fix-review loop worked correctly: builder re-dispatched, trimmed prose surgically without losing content, and reviewer re-verified until the acceptance criteria were met. Evidence: issue #99 comments show the full REQUEST_CHANGES -> fix -> REQUEST_CHANGES -> fix -> APPROVE chain.
+
+### 3. Cross-Story Consistency Checking
+
+The epic-level reviewer caught a habitat contradiction for the Stoneback Leviathan that no per-story reviewer could have found. E01-S04 (#99, built by sonnet) described the creature as purely aquatic ("colossal aquatic creature," "deepest oceanic basins"), while E02-S01 (#100, built by sonnet) and E02-S03 (#102, built by opus) described it walking through a forest ("moving through the treeline"). This is a fundamental validation that cross-story review is necessary when parallel builders work on shared-universe content. Evidence: PR #104 review comment W1.
+
+### 4. Model Routing Across All Three Tiers
+
+All three difficulty levels routed correctly: 3 easy -> haiku, 3 medium -> sonnet, 1 hard -> opus. Cost-efficiency validated: haiku stories averaged $0.03 (1m 47s), sonnet stories averaged $0.15 (5m 24s), opus story cost $0.75 (3m 15s). The haiku-to-opus cost ratio was 25x per story, confirming the value of routing simple work to cheaper models. Evidence: telemetry on issues #96-#102.
+
+### 5. Full Autonomous Lifecycle
+
+The entire pipeline ran from a single command: `claude --agent orchestrator --dangerously-skip-permissions "Execute backlog item #89."` Design doc detection, plan PR auto-merge, builder dispatch, reviewer integration, epic PR, and telemetry posting all completed without human intervention. This was the first successful test of the full autonomous flow. Evidence: backlog #89 opened at 14:26 UTC, closed at 16:32 UTC with all 10 issues resolved.
+
+## What Didn't Work
+
+### 1. Board Status Skipped Stages (Critical)
+
+Stories jumped directly from Planned to Done, skipping Todo, In Progress, and In Review. Two root causes identified:
+
+**Root cause A: Missing Planned-to-Todo transition.** CLAUDE.md assigns this to "Human (on plan PR merge)" but in autonomous mode there is no human. The orchestrator auto-merged the plan PR but did not assume the human's responsibility for transitioning stories to "Todo."
+
+**Root cause B: Concurrent board updates silently failed.** Wave 1's 4 parallel builders each called `issue-start.sh` (In Progress) and `issue-review.sh` (In Review) simultaneously. The 3 haiku builders' updates were silently lost -- likely a GitHub Projects API race condition when 4 agents call `gh project item-edit` concurrently. The sonnet builder's updates succeeded, as did all Wave 2/3 builders at lower concurrency.
+
+The final `issue-merged.sh` calls (run sequentially by the orchestrator) worked correctly, masking the problem by jumping everything to Done. The board was visually wrong for the entire build duration.
+
+Evidence: lesson file `docs/4-reviews/lessons/89-mythical-creatures/e01-creature-compendium/2026-03-10-s00-board-status-skipped-stages.md`.
+
+### 2. Architect Agent Missing Bash Tool
+
+The architect agent could not run `gh issue create`, `gh api graphql`, or any GitHub CLI commands because its YAML frontmatter tool list omitted `Bash`. The architect worked around this by generating a shell script and asking the orchestrator to run it -- breaking the autonomous flow and adding a manual step.
+
+Root cause: the architect agent file listed `Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Task` but not `Bash`, despite its instructions containing dozens of `gh` and `git` commands. Fixed mid-session by commit `cfb2231`.
+
+Evidence: lesson file `docs/4-reviews/lessons/89-mythical-creatures/e01-creature-compendium/2026-03-10-s00-architect-missing-bash-tool.md`.
+
+### 3. Scope Leak in Parallel Branches
+
+E01-S03 (#98, Mirrorghast) included `taxonomy.md` in its commit, which belongs to E01-S01 (#96). The reviewer flagged this as W1. While it resolved naturally during merge (both branches added the same file from the same base), it could have caused merge conflicts if the taxonomy content had diverged between parallel builders. Root cause: the haiku builder created the directory structure and included a file that was not part of its story scope.
+
+Evidence: review comment on issue #98.
+
+### 4. Mixed-Model Cost Estimate Overstatement
+
+The epic telemetry headline cost was ~$3.29, computed by applying the sonnet rate to all 548K tokens. The actual cost from the per-story breakdown was ~$1.30 -- a 2.5x overstatement. This is a known caveat documented in CLAUDE.md but it still creates misleading headlines on epic issues and PRs.
+
+Evidence: epic telemetry on issues #94, #95, and PR #104.
+
+## Workflow Evolution During Epic
+
+| Commit | Change | Trigger |
+|--------|--------|---------|
+| `cfb2231` | Added `Bash` to architect agent's tool list | Architect couldn't run `gh` commands (lesson: architect-missing-bash-tool) |
+| `3597ea4` | Agent color palette updated to pipeline flow theme | Orchestrator-initiated mid-build styling pass |
+| `df449a1` | Refined color palette with builder tier differentiation | Distinguish haiku/sonnet/opus builders visually |
+| `3587b2b` | Final warm/cool color palette: warm for execution, cool for planning | Consolidation of color experiments |
+| `ec85167` | Documented autonomous vs interactive mode trigger in CLAUDE.md | Orchestrator needed to document the "autonomous" keyword detection |
+| `d6cd302` | Distinct green shades for builder variants | Earlier attempt at builder differentiation |
+
+## Key Learnings
+
+### For Builders
+
+1. **Word count compliance must be verified before committing.** The sonnet builder on E01-S04 produced 569 words against a 500-word cap, requiring 2 fix cycles. Builders should run `wc -w` and compare against the acceptance criteria before calling `issue-review.sh`.
+2. **Scope discipline in parallel branches.** E01-S03's haiku builder included `taxonomy.md` (E01-S01's file) in its commit. Builders working on parallel branches must commit only the files specified in their story's acceptance criteria.
+3. **Cross-story consistency is unguaranteed in parallel dispatch.** The Stoneback Leviathan was aquatic in E01-S04 but terrestrial in E02-S01/E02-S03. Builders working from acceptance criteria alone (not reading each other's output) can produce irreconcilable content. This is acceptable for workflow tests but would be a problem in production.
+
+### For the Orchestrator
+
+1. **Board status is the orchestrator's responsibility in autonomous mode.** Builders should not be the primary source of truth for board transitions. The orchestrator must set Todo (after plan merge), In Progress (before dispatch), and In Review (after builder completes) sequentially to avoid API race conditions.
+2. **GitHub Projects API cannot handle concurrent `item-edit` calls reliably.** All board updates must be serialized. After parallel dispatch, the orchestrator must verify and fix board status before proceeding.
+3. **Agent tool lists must be audited when instructions reference CLI commands.** The architect agent had `gh` commands in its instructions but no `Bash` tool. Verify tool lists match instruction requirements before first dispatch.
+
+### For the Workflow
+
+1. **Parallel dispatch works and provides significant speedup.** The 1.8x speedup (25m 50s -> 14m 2s) validates the architecture. Wave 1 with 4 concurrent builders is the proven upper bound so far.
+2. **Per-story review catches real issues.** The word count violation on E01-S04 and the scope leak on E01-S03 were both caught by per-story review. The epic-level review caught the cross-story habitat contradiction. Both review levels add value.
+3. **Mixed-model cost estimation needs improvement.** The current `issue-telemetry.sh` single-model flag produces misleading headlines for mixed-model epics. The per-story breakdown is accurate; the headline is not.
+4. **Autonomous mode needs explicit phase transitions.** The Planned-to-Todo transition was previously "human's job" -- in autonomous mode, the orchestrator must own all board transitions that would normally be human-triggered.
+
+## Recommendations
+
+1. **Orchestrator must own all board transitions in autonomous mode** -- The Planned-to-Todo gap and concurrent board update failures both stem from the same root cause: the orchestrator delegated board status to other agents and scripts. The orchestrator should set board status sequentially before and after each dispatch. *Status: proposed for convention change.*
+
+2. **Audit agent tool lists against instruction content** -- Add a pre-flight check: before dispatching an agent, verify its `tools` frontmatter includes `Bash` if the agent's instructions reference `gh`, `git`, or other CLI commands. This is a one-time fix for existing agents but should be a convention for new agent files. *Status: already fixed for architect (commit `cfb2231`); convention change proposed.*
+
+3. **Add per-model cost rows to epic telemetry** -- The `issue-telemetry.sh` script should accept multiple `--model` flags or compute cost from the breakdown table rather than applying a single model rate to all tokens. This eliminates the misleading headline cost. *Status: proposed as an issue for the architect, not a convention change.*
+
+4. **Builders must verify word counts before committing** -- Add to builder agent instructions: "Run `wc -w <output-file>` and compare against the acceptance criteria word count range before calling `issue-review.sh`." This would have prevented 2 of the 3 review cycles. *Status: proposed for convention change.*
+
+5. **Cross-story consistency review should be explicit in the plan** -- When parallel stories describe shared entities, the plan should specify a "consistency contract" -- a set of facts (e.g., "Stoneback Leviathan is terrestrial") that all builders must respect. The reviewer checklist should include a cross-reference section for shared entities. *Status: observation; not a convention change (requires plan-level thinking).*
+
+## Lesson Retention
+
+| Lesson File | Status |
+|-------------|--------|
+| `e01-creature-compendium/2026-03-10-s00-architect-missing-bash-tool.md` | Compiled into this retro; fix applied (commit `cfb2231`); convention change proposed |
+| `e01-creature-compendium/2026-03-10-s00-board-status-skipped-stages.md` | Compiled into this retro; convention change proposed |
+
+Both lesson files remain on disk for traceability. This retro doc is the primary reference for this epic's learnings going forward.
+
+## Comparison with Run 2
+
+| Metric | Run 2 (#57) | Run 3 (#89) | Delta |
+|--------|------------|------------|-------|
+| Stories | 9 | 7 | -2 |
+| Epics | 2 | 2 | 0 |
+| Parallel dispatch | Failed (CLI) | Validated (Agent tool) | First success |
+| Reviewer dispatch | Skipped | Every story | First validation |
+| Fix cycles | 0 | 2 (E01-S04) | Reviewer caught real issue |
+| Sequential time | 13m 6s | 25m 48s | +97% (reviews + fix cycles) |
+| Wall-clock time | ~13m (no parallelism) | 14m 2s | +7% (but with parallelism) |
+| Tokens | 106K | 548K | +417% (reviews + orchestrator overhead) |
+| Cost (accurate) | ~$1.20 | ~$1.30 | +8% |
+| Board status correct | Partial (missing telemetry) | Failed (skipped stages) | Regression |
+| Lessons written | 0 | 2 | Improvement |
+
+The token increase (106K -> 548K) is almost entirely due to reviewer dispatch (7 reviews + 2 re-reviews) and the orchestrator's expanded responsibilities (board management, telemetry posting, PR creation). The actual build cost remained comparable ($1.20 vs $1.30). Wall-clock time was nearly identical despite adding reviews, thanks to parallel dispatch offsetting the reviewer overhead.
+
+## User Observations (Real-Time Feedback)
+
+The user observed the orchestration in real-time during the session and caught several issues that automated agents missed. These observations are particularly valuable because they show what a human stakeholder notices during an autonomous run.
+
+| Observation | Impact | Fix Applied |
+|-------------|--------|-------------|
+| **"How can I indicate autonomous mode?"** — The `autonomous` keyword trigger was undocumented. | Users can't discover the feature without reading agent source code. | Added docs to README.md and SDLC v2 design doc (commit `ec85167`). |
+| **"Items don't appear on the project board"** — User couldn't see new issues on the board. | GitHub UI caching/view filter issue. Items were present per API. | User refreshed the board view. |
+| **"Did the planner create with the correct labels?"** — Wanted verification. | Trust gap in autonomous mode — user wants to verify intermediate state. | Labels were correct; verified via `gh issue view`. |
+| **"Items were all Planned, not Todo — is that normal?"** — Questioned the status lifecycle. | Revealed the missing Planned→Todo transition in autonomous mode. | Documented as a lesson; proposed convention change. |
+| **"Builder is always green — variations for different models?"** — Wanted visual differentiation. | Can't distinguish haiku/sonnet/opus at a glance in the UI. | Added distinct green shades: light (#90EE90), standard, dark (#006400) (commit `d6cd302`). |
+| **"3 E01 stories stuck in Planned"** — Caught the critical board status gap. | Board was visually wrong for the entire build duration. | Identified race condition in parallel board updates; wrote lesson. |
+| **"Planned directly to Done — expect them to move through stages"** — Identified full lifecycle gap. | Confirmed both root causes: missing Todo transition + parallel API failures. | Orchestrator must own all board transitions sequentially. |
+| **"Fix the planner process, remember to improve"** — Prompted architect Bash tool fix. | Architect couldn't run gh commands without Bash in its tool list. | Added Bash to architect tools (commit `cfb2231`). |
+| **"Epic telemetry shows all stories, not just that epic's children"** — Caught cross-contamination. | Misleading telemetry on each epic issue. | Posted corrected per-epic breakdowns (lesson filed). |
+
+### Insight: Human-in-the-Loop Catches Different Issues
+
+The automated reviewer caught structural issues (word count, scope leaks, cross-story contradictions). The human observer caught **process issues** (board status gaps, missing documentation, UX problems, telemetry scoping). These are complementary — the automated pipeline validates the *output*, while the human observer validates the *workflow*. Future runs should include a post-build walkthrough with the user to catch process-level issues even in "autonomous" mode.
+
+## Additional Lesson
+
+| Lesson File | Status |
+|-------------|--------|
+| `e01-creature-compendium/2026-03-10-s00-epic-telemetry-cross-contamination.md` | Filed post-retro; fix applied (corrected comments on #94 and #95) |

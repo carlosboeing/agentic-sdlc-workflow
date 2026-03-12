@@ -1,0 +1,3 @@
+# Ephemeral directories (not committed)
+state/
+worktrees/

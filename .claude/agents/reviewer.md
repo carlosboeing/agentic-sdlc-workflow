@@ -93,16 +93,16 @@ When reviewing a PR or set of changes:
 ## Code Review: PR #N — Title
 
 ### Critical Issues (blocks merge)
-| # | File | Line | Issue |
-|---|------|------|-------|
+| No. | File | Line | Issue |
+|-----|------|------|-------|
 
 ### Warnings (should fix)
-| # | File | Line | Issue |
-|---|------|------|-------|
+| No. | File | Line | Issue |
+|-----|------|------|-------|
 
 ### Suggestions (nice to have)
-| # | File | Issue |
-|---|------|-------|
+| No. | File | Issue |
+|-----|------|-------|
 
 ### Strengths
 - What's well-done

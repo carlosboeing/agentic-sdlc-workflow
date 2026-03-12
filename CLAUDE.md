@@ -111,6 +111,7 @@ Six specialized agents in `.claude/agents/`:
 - Always check GitHub Issues first (`gh issue list`) to understand project state
 - Never start work without a corresponding GitHub Issue
 - Use conventional commits: `<type>(<scope>): <description>`
+- **Never use `#N` in commit messages** unless intentionally referencing a GitHub issue. GitHub auto-links any `#N` pattern to issue N, so reviewer warning numbers, list indices, or other numbered references must use a format without `#` (e.g., `warning 4`, `W4`, `item 4`). The `Fixes #N` / `Closes #N` footer is the correct place for issue references.
 - Reference `docs/5-guides/PROJECT.md` for architecture context
 - Write lesson files when encountering bugs, unexpected behavior, or missing conventions (see Lesson Conventions below)
 

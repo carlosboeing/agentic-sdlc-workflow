@@ -416,6 +416,8 @@ The backlog telemetry comment should include:
 6. The **backlog PR number** and **commit hash** for traceability
 7. Note: the orchestrator's own token consumption is not captured (it runs in the parent session). Only dispatched subagent telemetry is tracked.
 
+**Value column convention:** Value cells in all telemetry tables contain only numbers and units (e.g., `~33m`, `770K`, `~$4.79`). Never add descriptive text or parenthetical notes to value cells. Annotations belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `~33m` in Value). This matches the rule in `scripts/templates/telemetry.md`.
+
 **Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. To capture them:
 1. At the **start** of the orchestrator session, note the session's running token count (visible via `/cost` in the Claude Code UI)
 2. At the **end**, note the final count. The difference minus all subagent tokens is the orchestrator's overhead.

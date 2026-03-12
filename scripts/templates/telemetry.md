@@ -1,22 +1,30 @@
 <!--
   Telemetry Template — Reusable across projects.
   Single source of truth for all telemetry output (story, epic, backlog, PR).
-  Used by issue-telemetry.sh to render GitHub issue comments and PR comments.
+  Used by issue-telemetry.sh to render GitHub issue comments and PR descriptions.
 
   Syntax:
     {{VAR}}                  — Variable substituted at render time
     <!-- IF_X -->            — Conditional block (included when condition X is true)
     <!-- END_X -->           — End of conditional block
 
+  Modes:
+    BACKLOG mode (--summary provided):
+      ## heading → Summary table → Breakdown → Duration → Timeline → Footer → Disclaimer
+    STORY mode (default, no --summary):
+      ### heading → Metric/Value table → Breakdown → Duration → Timeline → Disclaimer
+
   Conditions:
+    BACKLOG                  — Backlog-level telemetry (--summary provided)
+    STORY                    — Story/epic-level telemetry (no --summary)
     TOKENS                   — Token count provided
     TOOL_USES                — Tool use count provided
     NO_PARALLELISM           — Single story (no wall-clock data)
     PARALLELISM              — Parallel dispatch (wall-clock data provided)
     TIME_SAVED               — Time saved > 0
     BREAKDOWN                — Per-story breakdown table provided
-    PARALLELISM_BREAKDOWN    — Parallelism data + breakdown + time saved > 0
     GANTT                    — Gantt chart data provided
+    FOOTER                   — Footer text provided (e.g., notes, PR link)
     DISCLAIMER               — Cost estimates or breakdown shown
 
   Value columns contain only numbers/formatted values — no labels.
@@ -33,6 +41,16 @@
     for ~4:1+ contrast with both white text (dark mode) and black text (light mode).
     Tasks ordered chronologically top-to-bottom for a natural visual flow.
 -->
+<!-- IF_BACKLOG -->
+## {{HEADING}}
+
+### Summary
+
+| Phase | Agent | Duration | Tokens | Est. Cost |
+|-------|-------|----------|--------|-----------|
+{{SUMMARY}}
+<!-- END_BACKLOG -->
+<!-- IF_STORY -->
 ### {{HEADING}}
 
 | Metric | Value |
@@ -50,33 +68,31 @@
 <!-- IF_NO_PARALLELISM -->
 | **Duration** | {{DURATION_HUMAN}} |
 <!-- END_NO_PARALLELISM -->
+<!-- END_STORY -->
+<!-- IF_BREAKDOWN -->
+
+### Breakdown
+
+| Agent | Task | Duration | Tokens | Est. Cost |
+|-------|------|----------|--------|-----------|
+{{BREAKDOWN}}
+
+<!-- END_BREAKDOWN -->
 <!-- IF_PARALLELISM -->
 
-### ⏱️ Duration
+### Duration
 
 | Metric | Value |
 |--------|-------|
-| **Sequential Duration** | {{DURATION_HUMAN}} |
+| **Duration** | {{DURATION_HUMAN}} |
 | **Actual Duration** _(with parallelism)_ | {{WALL_CLOCK_HUMAN}} |
 <!-- IF_TIME_SAVED -->
 | **Time Saved** _({{SPEEDUP}} parallel speedup)_ | {{TIME_SAVED_HUMAN}} |
 <!-- END_TIME_SAVED -->
 <!-- END_PARALLELISM -->
-<!-- IF_BREAKDOWN -->
-
-#### Breakdown
-
-| Wave | Dispatch | Story | Model | Duration | Tokens | Est. Cost |
-|------|----------|-------|-------|----------|--------|-----------|
-{{BREAKDOWN}}
-<!-- IF_PARALLELISM_BREAKDOWN -->
-| | | **Actual** _(with parallelism)_ | | **{{WALL_CLOCK_HUMAN}}** | | |
-| | | **Saved** _({{SPEEDUP}} parallel speedup)_ | | **{{TIME_SAVED_HUMAN}}** | | |
-<!-- END_PARALLELISM_BREAKDOWN -->
-<!-- END_BREAKDOWN -->
 <!-- IF_GANTT -->
 
-#### Timeline
+### Timeline
 
 ```mermaid
 %%{init: {'themeVariables':{
@@ -93,6 +109,10 @@ gantt
 {{GANTT}}
 ```
 <!-- END_GANTT -->
+<!-- IF_FOOTER -->
+
+{{FOOTER}}
+<!-- END_FOOTER -->
 <!-- IF_DISCLAIMER -->
 
 ---

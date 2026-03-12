@@ -386,8 +386,8 @@ When all epics are merged into the integration branch:
      --tokens <total_tokens> \
      --tool-uses <total_tool_uses> \
      --commit $(git rev-parse backlog/<N>-<slug>) \
-     --breakdown "| 1 | parallel | E01-S01 (#N) | haiku | 1m | 50K | ~\$0.02 |
-   | | | **Total** | | **~1m** | **50K** | **~\$0.02** |"
+     --breakdown "| Builder (haiku) | E01-S01 Coffee Machine (#N) | 1m | 50K | ~\$0.02 |
+   | | **Total (3 dispatches)** | **~1m** | **50K** | **~\$0.02** |"
    ```
 
    For mixed-model epics, pass `--cost` with the sum of per-story costs (from the breakdown). For single-model epics, omit `--cost` and pass `--model <model>` — the script computes cost from the rate.
@@ -507,96 +507,54 @@ As the final phase, post a **full lifecycle telemetry summary** on the backlog i
 | Reviewers (per story + backlog PR) | tokens, duration, tool uses |
 | Retro | tokens, duration, tool uses |
 
-**Post the summary on the backlog issue:**
+**Post using `issue-telemetry.sh` with `--summary` for backlog-level telemetry:**
 
 ```bash
-gh issue comment <backlog-number> --body "$(cat <<'EOF'
-## 📊 Full Lifecycle Telemetry
-
-| Phase | Agent | Tokens | Sequential Duration | Est. Cost |
-|-------|-------|--------|---------------------|-----------|
-| Design | designer | 45K | 3m 20s | ~$0.14 |
-| Plan | planner | 66K | 5m 5s | ~$0.20 |
-| Build | builders (7 stories) | 548K | 25m 48s | ~$1.30 |
-| Review | reviewers (10 dispatches) | 336K | 19m 4s | ~$1.01 |
-| Retro | retro | 40K | 2m 30s | ~$0.12 |
-| **Total** | | **1,035K** | **55m 47s** | **~$2.77** |
-
-### ⏱️ Duration Summary
-
-| Metric | Value |
-|--------|-------|
-| **Sequential Duration** | 55m 47s |
-| **Actual Duration** | ~38m (with parallel dispatch) |
-| **Time Saved** | ~18m (builds: 25m 48s seq → ~8m actual) |
-
-### Full Lifecycle Breakdown
-
-| Wave | Dispatch | Task | Model | Duration | Tokens | Est. Cost |
-|------|----------|------|-------|----------|--------|-----------|
-| 0 | sequential | Designer (#N) | opus | 3m 20s | 45K | ~$0.14 |
-| 0 | sequential | Planner (#N) | opus | 5m 05s | 66K | ~$0.20 |
-| 1 | parallel | E01-S01 (#26) | haiku | 1m | 50K | ~$0.02 |
-| 1 | parallel | E01-S03 (#28) | haiku | 1m | 40K | ~$0.02 |
-| 1 | sequential | Review S01 (#26) | opus | 2m | 30K | ~$0.10 |
-| 1 | sequential | Review S03 (#28) | opus | 2m | 30K | ~$0.10 |
-| 2 | sequential | E01-S02 (#27) | sonnet | 3m | 120K | ~$0.72 |
-| 2 | sequential | Review S02 (#27) | opus | 2m | 30K | ~$0.10 |
-| 3 | sequential | Backlog PR Review | opus | 3m | 40K | ~$0.13 |
-| 4 | sequential | Retro Agent | opus | 2m 30s | 40K | ~$0.12 |
-| | | **Total** | | **~25m** | **491K** | **~$1.65** |
-| | | **Actual** _(with parallelism)_ | | **~20m** | | |
-| | | **Saved** _(1.3x speedup)_ | | **~5m** | | |
-
-#### Timeline
-
-```mermaid
-%%{init: {'themeVariables':{
-  'taskBkgColor':'#059669',
-  'activeTaskBkgColor':'#8b5cf6',
-  'doneTaskBkgColor':'#ca8a04',
-  'critBkgColor':'#dc2626',
-  'taskBorderColor':'#047857',
-  'activeTaskBorderColor':'#7c3aed',
-  'doneTaskBorderColor':'#a16207',
-  'critBorderColor':'#b91c1c'
-}}}%%
-gantt
-    title Full Lifecycle Timeline
+./scripts/issue-telemetry.sh <backlog-number> \
+  --model opus \
+  --duration <total_sequential_ms> \
+  --wall-clock <total_wall_clock_ms> \
+  --commit $(git rev-parse backlog/<N>-<slug>) \
+  --tokens <total_tokens> \
+  --cost <total_dollars> \
+  --summary "| Design | designer | 3m 20s | 45K | ~\$0.14 |
+| Plan | planner | 5m 5s | 66K | ~\$0.20 |
+| Build | builders (7 stories) | 25m 48s | 548K | ~\$1.30 |
+| Review | reviewers (10 dispatches) | 19m 4s | 336K | ~\$1.01 |
+| Retro | retro | 2m 30s | 40K | ~\$0.12 |
+| **Total** | | **55m 47s** | **1,035K** | **~\$2.77** |" \
+  --breakdown "| Designer (opus) | Write Design Doc (#N) | 3m 20s | 45K | ~\$0.14 |
+| Planner (opus) | Write Plan Doc (#N) | 5m 05s | 66K | ~\$0.20 |
+| Builder (haiku) | E01-S01 Coffee Machine (#26) | 1m | 50K | ~\$0.02 |
+| Reviewer (opus) | Review E01-S01 (#26) | 2m | 30K | ~\$0.10 |
+| Retro (opus) | Write Retro Doc | 2m 30s | 40K | ~\$0.12 |
+| | **Total (<N> dispatches)** | **~25m** | **491K** | **~\$1.65** |" \
+  --gantt "    title Full Lifecycle Timeline
     dateFormat HH:mm:ss
     axisFormat %M:%S
     tickInterval 2minute
-    Designer (3m20s)           :active, design, 00:00:00, 200s
-    Planner (5m05s)          :active, plan, after design, 305s
-    E01-S01 (1m00s)            :w1b1, after plan, 60s
-    E01-S03 (1m00s)            :w1b3, after plan, 60s
-    Review S01 (2m00s)         :done, r1, after w1b1, 120s
-    Review S03 (2m00s)         :done, r3, after w1b3, 120s
-    E01-S02 (3m00s)            :w2b1, after r1, 180s
-    Review S02 (2m00s)         :done, r2, after w2b1, 120s
-    Backlog PR Review (3m00s)  :done, bpr, after r2, 180s
-    Retro Agent (2m30s)        :active, retro, after bpr, 150s
-```
-
-*Orchestrator overhead (parent session) not included.*
+    Designer (3m20s)  :active, design, 00:00:00, 200s
+    Planner (5m05s)   :active, plan, after design, 305s" \
+  --footer "*Orchestrator overhead (parent session) not included.*
 *Non-builder agents inherited the orchestrator session's model.*
 
-Backlog PR: #104 | Commit: `abc1234`
-EOF
-)"
+Backlog PR: #104 | Commit: \`abc1234\`" \
+  --pr <pr-number>
 ```
 
-**Also append to the backlog PR description** using `gh pr edit --body` (append below existing content with a `---` separator). This keeps telemetry visible at the top of the PR page.
+The script renders from `scripts/templates/telemetry.md` (single source of truth for all telemetry formatting) and:
+- Posts the full telemetry as a comment on the backlog issue
+- When `--pr` is provided with `--summary`, appends the telemetry to the PR description (not as a comment)
 
-The Gantt chart should include **all lifecycle phases** (design, plan, build waves, review waves, fix cycles, retro), not just the build timeline. No `section` directives — task labels are self-explanatory. No `theme` key in `%%{init}%%` — this lets GitHub auto-detect dark/light mode for text and backgrounds while custom bar colors are applied on top. Color by task tag: `:active` (violet) for design/plan/retro, default (emerald) for build, `:done` (amber) for review, `:crit` (red) for fix/re-review. Use `after` syntax for sequential dependencies. The single source of truth for the init block and colors is `scripts/templates/telemetry.md`.
+The Gantt chart should include **all lifecycle phases** (design, plan, build waves, review waves, fix cycles, retro), not just the build timeline. No `section` directives — task labels are self-explanatory. Color and theming rules are defined in `scripts/templates/telemetry.md` (single source of truth).
+
+**Value column convention:** Value cells in telemetry tables contain only numbers and units (e.g., `~33m`, `770K`, `~$4.79`). Never add descriptive text, annotations, or parenthetical notes to value cells — those belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `~33m` in Value).
 
 **Gantt label convention:** Labels follow the format `<ENN-SNN> <short label> (<duration>)`. The short label is generated by the orchestrator from the full issue title — a concise, readable summary (aim for ~30 characters max) that preserves meaning. Do not mechanically truncate; use judgement to produce a label that makes sense at a glance. For non-story phases, use the agent role (e.g., "Designer (3m20s)", "Planner (5m05s)", "Retro Agent (2m30s)").
 
 Note: the orchestrator's own token consumption runs in the parent session and is not captured. Only dispatched subagent telemetry is tracked.
 
-**Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically. For manually composed telemetry (backlog-level comments, PR descriptions), append:
-
-> *💡 Cost estimates use Anthropic's published API token pricing with a blended rate (75% input / 25% output tokens). Actual costs vary by usage pattern. Subscription plans (Pro, Max, Team, Enterprise) include token allowances and are not charged per-token — these figures represent equivalent API value for reference only.*
+**Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically via the template.
 
 ## Model Routing
 
@@ -690,7 +648,7 @@ When all stories in an epic are complete, post aggregate telemetry on the epic i
 - **Tool uses:** Sum all story `tool_uses` values
 - **Model:** Use the highest-tier model across all stories (opus > sonnet > haiku)
 - **Commit:** Use the epic branch head (`git rev-parse epic/<slug>`)
-- **Breakdown:** Include a Wave column showing which stories ran in parallel, per-story rows, and a Total row
+- **Breakdown:** Per-story rows using `Agent | Task | Duration | Tokens | Est. Cost` columns, with a Total row including dispatch count
 
 ## Error Handling
 

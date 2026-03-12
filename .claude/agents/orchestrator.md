@@ -532,21 +532,19 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 
 ### Full Lifecycle Breakdown
 
-| Wave | Dispatch | Task | Model | Duration | Tokens | Est. Cost |
-|------|----------|------|-------|----------|--------|-----------|
-| 0 | sequential | Designer (#N) | opus | 3m 20s | 45K | ~$0.14 |
-| 0 | sequential | Planner (#N) | opus | 5m 05s | 66K | ~$0.20 |
-| 1 | parallel | E01-S01 (#26) | haiku | 1m | 50K | ~$0.02 |
-| 1 | parallel | E01-S03 (#28) | haiku | 1m | 40K | ~$0.02 |
-| 1 | sequential | Review S01 (#26) | opus | 2m | 30K | ~$0.10 |
-| 1 | sequential | Review S03 (#28) | opus | 2m | 30K | ~$0.10 |
-| 2 | sequential | E01-S02 (#27) | sonnet | 3m | 120K | ~$0.72 |
-| 2 | sequential | Review S02 (#27) | opus | 2m | 30K | ~$0.10 |
-| 3 | sequential | Backlog PR Review | opus | 3m | 40K | ~$0.13 |
-| 4 | sequential | Retro Agent | opus | 2m 30s | 40K | ~$0.12 |
-| | | **Total** | | **~25m** | **491K** | **~$1.65** |
-| | | **Actual** _(with parallelism)_ | | **~20m** | | |
-| | | **Saved** _(1.3x speedup)_ | | **~5m** | | |
+| Agent | Task | Duration | Tokens | Est. Cost |
+|------------------|----------------------------------|----------|--------|-----------|
+| Designer (opus) | Write Design Doc (#N) | 3m 20s | 45K | ~$0.14 |
+| Planner (opus) | Write Plan Doc (#N) | 5m 05s | 66K | ~$0.20 |
+| Builder (haiku) | E01-S01 (#26) | 1m | 50K | ~$0.02 |
+| Builder (haiku) | E01-S03 (#28) | 1m | 40K | ~$0.02 |
+| Reviewer (opus) | Review E01-S01 (#26) | 2m | 30K | ~$0.10 |
+| Reviewer (opus) | Review E01-S03 (#28) | 2m | 30K | ~$0.10 |
+| Builder (sonnet) | E01-S02 (#27) | 3m | 120K | ~$0.72 |
+| Reviewer (opus) | Review E01-S02 (#27) | 2m | 30K | ~$0.10 |
+| Reviewer (opus) | Backlog PR Review | 3m | 40K | ~$0.13 |
+| Retro (opus) | Write Retro Doc | 2m 30s | 40K | ~$0.12 |
+| | **Total (<N> dispatches)** | **~25m** | **491K** | **~$1.65** |
 
 #### Timeline
 

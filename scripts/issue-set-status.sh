@@ -18,6 +18,7 @@ PROJECT_NUMBER=7
 PROJECT_OWNER="carlosboeing"
 PROJECT_ID="PVT_kwHOADPMJc4BRg45"
 STATUS_FIELD_ID="PVTSSF_lAHOADPMJc4BRg45zg_UfJc"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <issue-number> <status>" >&2
@@ -47,8 +48,8 @@ esac
 fetch_item_id() {
   gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" \
     --format json --limit 200 \
-    | tr -d '\x00-\x1f' \
-    | jq -r ".items[] | select(.content.number == $ISSUE_NUMBER) | .id" 2>/dev/null
+    | sed 's/[[:cntrl:]]//g' \
+    | jq -r ".items[] | select(.content.number == $ISSUE_NUMBER and .content.repository == \"$REPO\") | .id" 2>/dev/null
 }
 
 ITEM_ID=$(fetch_item_id)

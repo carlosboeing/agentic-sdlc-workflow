@@ -63,7 +63,7 @@
 <!-- END_PARALLELISM -->
 <!-- IF_BREAKDOWN -->
 
-#### Breakdown
+### Breakdown
 
 | Agent | Task | Duration | Tokens | Est. Cost |
 |-------|------|----------|--------|-----------|
@@ -72,7 +72,7 @@
 <!-- END_BREAKDOWN -->
 <!-- IF_GANTT -->
 
-#### Timeline
+### Timeline
 
 ```mermaid
 %%{init: {'themeVariables':{

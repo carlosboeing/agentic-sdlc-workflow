@@ -548,7 +548,7 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 | **Actual Duration** _(with parallelism)_ | ~38m |
 | **Time Saved** | ~18m (builds: 25m 48s seq → ~8m actual) |
 
-#### Timeline
+### Timeline
 
 ```mermaid
 %%{init: {'themeVariables':{

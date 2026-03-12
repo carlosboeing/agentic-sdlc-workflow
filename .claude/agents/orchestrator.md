@@ -515,14 +515,14 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 
 ### Summary
 
-| Phase | Agent | Tokens | Sequential Duration | Est. Cost |
-|-------|-------|--------|---------------------|-----------|
-| Design | designer | 45K | 3m 20s | ~$0.14 |
-| Plan | planner | 66K | 5m 5s | ~$0.20 |
-| Build | builders (7 stories) | 548K | 25m 48s | ~$1.30 |
-| Review | reviewers (10 dispatches) | 336K | 19m 4s | ~$1.01 |
-| Retro | retro | 40K | 2m 30s | ~$0.12 |
-| **Total** | **<N> dispatches** | **1,035K** | **55m 47s** | **~$2.77** |
+| Phase | Agent | Duration | Tokens | Est. Cost |
+|-------|-------|----------|--------|-----------|
+| Design | designer | 3m 20s | 45K | ~$0.14 |
+| Plan | planner | 5m 5s | 66K | ~$0.20 |
+| Build | builders (7 stories) | 25m 48s | 548K | ~$1.30 |
+| Review | reviewers (10 dispatches) | 19m 4s | 336K | ~$1.01 |
+| Retro | retro | 2m 30s | 40K | ~$0.12 |
+| **Total** | **<N> dispatches** | **55m 47s** | **1,035K** | **~$2.77** |
 
 ### Full Lifecycle Breakdown
 

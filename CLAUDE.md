@@ -408,7 +408,7 @@ gh pr merge <N> --squash --delete-branch
 | Retro | Retro agent | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
 
 The backlog telemetry comment should include:
-1. A **per-phase breakdown** table showing agent, tokens, sequential duration, and cost per phase (design, plan, build, review, retro)
+1. A **per-phase breakdown** table showing agent, duration, tokens, and cost per phase (design, plan, build, review, retro)
 2. A **grand total** row summing all phases, with the total **dispatch count** in the Task cell (e.g., "Total (16 dispatches)")
 3. A **full lifecycle breakdown** table with columns: **Agent** (agent name + model, e.g., "Builder (haiku)"), **Task** (descriptive name + issue number), **Duration**, **Tokens**, **Est. Cost**. No Wave column — the Gantt chart shows parallelism. Rows cover ALL phases (design, plan, builds, reviews, fix cycles, retro). Task names: "Write Design Doc", "Write Plan Doc", "Write Retro Doc" for doc agents; "Review ENN-SNN" matching the build's story label for reviews. A single **Total** row at the bottom with dispatch count in the Task cell. No Actual/Saved rows (the Duration Summary section covers that)
 4. A **Duration** section with **Sequential Duration**, **Actual Duration** (with parallelism), and **Time Saved**

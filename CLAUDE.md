@@ -439,7 +439,7 @@ Post the final aggregate using a manual `gh issue comment` (not `issue-telemetry
 gh issue comment <backlog-number> --body "## 📊 Telemetry\n\n| Phase | Tokens | Sequential Duration | Est. Cost |\n..."
 ```
 
-The backlog telemetry should include a **Duration** and a **Full Lifecycle Breakdown** covering all phases (design, plan, build waves, review waves, fix cycles, retro) — not just builds.
+The backlog telemetry should include a **Duration** and a **Breakdown** covering all phases (design, plan, build waves, review waves, fix cycles, retro) — not just builds.
 
 **Epic-scoped telemetry:** When posting epic-level telemetry on epic issues, include only stories that belong to that specific epic (check the epic's sub-issues). The backlog PR and backlog issue are the only places where cross-epic aggregate and full lifecycle telemetry belongs. Do not post the full breakdown on individual epic issues.
 

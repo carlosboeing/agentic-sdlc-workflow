@@ -524,7 +524,7 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 | Retro | retro | 2m 30s | 40K | ~$0.12 |
 | **Total** | **<N> dispatches** | **55m 47s** | **1,035K** | **~$2.77** |
 
-### Full Lifecycle Breakdown
+### Breakdown
 
 | Agent | Task | Duration | Tokens | Est. Cost |
 |------------------|----------------------------------|----------|--------|-----------|

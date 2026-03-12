@@ -51,7 +51,7 @@
 <!-- END_NO_PARALLELISM -->
 <!-- IF_PARALLELISM -->
 
-### ⏱️ Duration
+### Duration
 
 | Metric | Value |
 |--------|-------|

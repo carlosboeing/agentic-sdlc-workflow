@@ -282,16 +282,16 @@ echo ""
 # --- Test 14: Board status management ---
 echo "Test Group: Board status management"
 
-if grep -q "308bbc1e" "$SCRIPT_UNDER_TEST"; then
-  echo "  PASS: Uses In Progress status ID (308bbc1e)"
+if grep -q "47fc9ee4" "$SCRIPT_UNDER_TEST"; then
+  echo "  PASS: Uses In Progress status ID (47fc9ee4)"
   PASS=$((PASS + 1))
 else
   echo "  FAIL: Missing In Progress status ID"
   FAIL=$((FAIL + 1))
 fi
 
-if grep -q "6f3c9037" "$SCRIPT_UNDER_TEST"; then
-  echo "  PASS: Uses In Review status ID (6f3c9037)"
+if grep -q "9bb97c15" "$SCRIPT_UNDER_TEST"; then
+  echo "  PASS: Uses In Review status ID (9bb97c15)"
   PASS=$((PASS + 1))
 else
   echo "  FAIL: Missing In Review status ID"

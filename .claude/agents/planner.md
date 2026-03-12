@@ -148,7 +148,7 @@ Every issue you create MUST be added to the project board with the correct statu
 1. **Add to project:**
 
    ```bash
-   gh project item-add 1 --owner gavinkilbride --url <issue-url> --format json
+   gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
    ```
 
 2. **Set status to Planned** (stories/epics from a not-yet-approved plan):

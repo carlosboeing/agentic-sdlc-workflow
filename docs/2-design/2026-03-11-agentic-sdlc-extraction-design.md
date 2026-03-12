@@ -42,7 +42,7 @@ The extraction must separate **process** (how work flows) from **knowledge** (wh
 | Category | Files | Norris-specific content to strip |
 |----------|-------|----------------------------------|
 | **Agents** | `.claude/agents/orchestrator.md`, `planner.md`, `designer.md`, `builder.md`, `builder-{haiku,sonnet,opus}.md`, `reviewer.md`, `retro.md` | All `.NET`, `NN.*`, `ITool`, `IKernelTool`, Blazor, EF Core, SQLite, DI pattern references; all `gh` CLI commands and board IDs |
-| **Scripts** | `scripts/issue-start.sh`, `issue-review.sh`, `issue-telemetry.sh`, `issue-merged.sh`, `dispatch-story.sh`, `dispatch-workflow.sh`, `setup-labels.sh`, `fetch-pricing.sh` | `REPO="gavinkilbride/NeuralNorris"`, project board IDs, status option IDs |
+| **Scripts** | `scripts/issue-start.sh`, `issue-review.sh`, `issue-telemetry.sh`, `issue-merged.sh`, `dispatch-story.sh`, `dispatch-workflow.sh`, `setup-labels.sh`, `fetch-pricing.sh` | `REPO="carlosboeing/agentic-sdlc-workflow"`, project board IDs, status option IDs |
 | **Templates** | `scripts/templates/telemetry.md` | Already generic |
 | **Config** | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/.gitignore` | `dotnet` command allowlists (tech-stack specific) |
 | **Workflows** | `.github/workflows/sentinel.yml`, `auto-close-issues.yml` | Repo references, NeuralNorris security checklist |
@@ -423,11 +423,11 @@ Agents become intent-based instead of command-based:
 ```markdown
 # In orchestrator.md
 Set story to In Progress:
-ITEM_ID=$(gh project item-list 1 --owner gavinkilbride --format json --limit 100 \
+ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 \
   | jq -r '.items[] | select(.content.number == 42) | .id')
-gh project item-edit --project-id "PVT_kwHOAAywgM4BRGeY" --id "$ITEM_ID" \
-  --field-id "PVTSSF_lAHOAAywgM4BRGeYzg_By8o" \
-  --single-select-option-id "308bbc1e"
+gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
+  --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
+  --single-select-option-id "47fc9ee4"
 ```
 
 ### After (adapter-agnostic)

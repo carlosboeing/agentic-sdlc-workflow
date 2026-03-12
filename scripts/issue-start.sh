@@ -6,7 +6,7 @@ set -euo pipefail
 #
 # Usage: ./scripts/issue-start.sh <issue-number> [--model <model>] [--agent <agent>]
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ $# -lt 1 ]; then

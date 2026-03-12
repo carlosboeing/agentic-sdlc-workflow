@@ -35,7 +35,7 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
 4. **Add the design doc issue to the project board and set status to In Progress:**
 
    ```bash
-   gh project item-add 1 --owner gavinkilbride --url <issue-url> --format json
+   gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
    ./scripts/issue-set-status.sh <design-issue-number> in-progress
    ```
 

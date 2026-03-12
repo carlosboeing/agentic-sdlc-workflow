@@ -101,7 +101,7 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 3. **Add backlog issue to project board** with status **Backlog** (if not already added):
    ```bash
-   gh project item-add 1 --owner gavinkilbride --url "https://github.com/gavinkilbride/NeuralNorris/issues/<N>" --format json
+   gh project item-add 7 --owner carlosboeing --url "https://github.com/carlosboeing/agentic-sdlc-workflow/issues/<N>" --format json
    ```
 
 4. **Add `backlog/<N>-<slug>` label** to the backlog issue if missing:
@@ -628,25 +628,25 @@ If no difficulty label is found, default to `"builder-sonnet"` and post a warnin
 
 All project board operations use these constants (from CLAUDE.md):
 
-- **Project ID:** `PVT_kwHOAAywgM4BRGeY`
-- **Status Field ID:** `PVTSSF_lAHOAAywgM4BRGeYzg_By8o`
+- **Project ID:** `PVT_kwHOADPMJc4BRg45`
+- **Status Field ID:** `PVTSSF_lAHOADPMJc4BRg45zg_UfJc`
 
 | Status | Option ID | When to set |
 |--------|-----------|-------------|
-| In Progress | `308bbc1e` | Story or epic work begins |
-| In Review | `6f3c9037` | Story implementation complete, awaiting review/merge |
-| Done | `9cfa70ca` | Issue closed after backlog PR merged |
+| In Progress | `47fc9ee4` | Story or epic work begins |
+| In Review | `9bb97c15` | Story implementation complete, awaiting review/merge |
+| Done | `98236657` | Issue closed after backlog PR merged |
 
 **Get the board item ID for an issue:**
 ```bash
-ITEM_ID=$(gh project item-list 1 --owner gavinkilbride --format json --limit 100 \
+ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 \
   | tr -d '\x00-\x1f' | jq -r '.items[] | select(.content.number == <issue-number>) | .id')
 ```
 
 **Update status:**
 ```bash
-gh project item-edit --project-id "PVT_kwHOAAywgM4BRGeY" --id "$ITEM_ID" \
-  --field-id "PVTSSF_lAHOAAywgM4BRGeYzg_By8o" \
+gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
+  --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
   --single-select-option-id "<option-id>"
 ```
 
@@ -730,7 +730,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
     "mode": "autonomous",
     "orchestrator_model": "opus",
     "started_at": "2026-03-10T14:00:00Z",
-    "repo": "gavinkilbride/NeuralNorris",
+    "repo": "carlosboeing/agentic-sdlc-workflow",
     "git_main_sha": "d1c7532"
   },
   "pricing": {
@@ -808,7 +808,7 @@ cat > .claude/state/<backlog>/orchestrator.json << EOF
     "mode": "autonomous",
     "orchestrator_model": "<model>",
     "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    "repo": "gavinkilbride/NeuralNorris",
+    "repo": "carlosboeing/agentic-sdlc-workflow",
     "git_main_sha": "$(git rev-parse --short HEAD)"
   },
   "pricing": $PRICING,

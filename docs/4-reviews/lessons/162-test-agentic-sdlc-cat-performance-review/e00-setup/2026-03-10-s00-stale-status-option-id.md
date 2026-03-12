@@ -10,7 +10,7 @@ severity: medium
 
 ## What happened
 
-The planner agent file (`.claude/agents/planner.md`) contains a "Planned" status option ID of `2b7091c1` which does not match the project board's actual option ID. The correct ID is `61757ea9` as documented in `CLAUDE.md`. All 7 `item-edit` calls failed with "The single select option Id does not belong to the field" before retrying with the correct ID.
+The planner agent file (`.claude/agents/planner.md`) contains a "Planned" status option ID of `2b7091c1` which does not match the project board's actual option ID. The correct ID is `cf183d2a` as documented in `CLAUDE.md`. All 7 `item-edit` calls failed with "The single select option Id does not belong to the field" before retrying with the correct ID.
 
 ## Root cause
 

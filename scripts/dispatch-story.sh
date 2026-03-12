@@ -4,7 +4,7 @@ set -euo pipefail
 # dispatch-story.sh — Read a GitHub issue, write a prompt file, invoke claude -p, post telemetry or failure.
 # Usage: ./scripts/dispatch-story.sh <issue-number> --model <model> --agent <agent> [--epic-branch <branch>]
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DISPATCH_DIR="$REPO_ROOT/.dispatch"

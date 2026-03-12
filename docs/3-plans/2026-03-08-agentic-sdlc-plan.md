@@ -100,7 +100,7 @@ set -euo pipefail
 # Idempotent: skips labels that already exist.
 # Usage: ./scripts/setup-labels.sh
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 create_label() {
   local name="$1" color="$2" description="$3"
@@ -161,7 +161,7 @@ set -euo pipefail
 # issue-start.sh — Mark a GitHub Issue as in-progress and post telemetry start.
 # Usage: ./scripts/issue-start.sh <issue-number> [--model <model>] [--agent <agent>]
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <issue-number> [--model <model>] [--agent <agent>]"
@@ -228,7 +228,7 @@ set -euo pipefail
 # issue-review.sh — Mark a story as ready for review.
 # Usage: ./scripts/issue-review.sh <issue-number> <commit-hash>
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <issue-number> <commit-hash>"
@@ -282,7 +282,7 @@ set -euo pipefail
 # issue-telemetry.sh — Post telemetry metrics as a GitHub Issue comment.
 # Usage: ./scripts/issue-telemetry.sh <issue-number> --model <model> --duration <ms> --commit <hash>
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <issue-number> --model <model> --duration <ms> --commit <hash>"
@@ -355,7 +355,7 @@ set -euo pipefail
 # issue-merged.sh — Close a GitHub Issue after its PR has merged.
 # Usage: ./scripts/issue-merged.sh <issue-number>
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <issue-number>"
@@ -1068,7 +1068,7 @@ Expected output: labels created (or "exists" if already present).
 **Step 2: Verify labels exist**
 
 ```bash
-gh label list --repo gavinkilbride/NeuralNorris
+gh label list --repo carlosboeing/agentic-sdlc-workflow
 ```
 
 Expected: `type/feature`, `type/bug`, `type/refactor`, `type/test`, `type/docs`, `difficulty/easy`, `difficulty/medium`, `difficulty/hard` all present.

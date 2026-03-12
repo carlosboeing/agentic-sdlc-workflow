@@ -21,7 +21,7 @@ set -euo pipefail
 # The --gantt parameter accepts the body of a Mermaid gantt chart (everything after the
 # ```mermaid\ngantt header). The script wraps it in the code fence automatically.
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/templates/telemetry.md"
 

@@ -198,7 +198,7 @@ gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\"
 **Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `gh issue edit --body` to append below the existing body with a `---` separator. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
 
 
-**GitHub Project board:** All issues live on the [NeuralNorris Project](https://github.com/users/gavinkilbride/projects/1) (project number 1, owner `gavinkilbride`).
+**GitHub Project board:** All issues live on the [Agentic SDLC Workflow Project](https://github.com/users/carlosboeing/projects/7) (project number 7, owner `carlosboeing`).
 
 Status field values and their meanings:
 
@@ -231,16 +231,16 @@ Adding an issue to the project and setting its status:
 
 ```bash
 # Add issue to project
-gh project item-add 1 --owner gavinkilbride --url <issue-url> --format json
+gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
 
 # Set status — prefer the helper script (handles control chars, validation, retry):
 ./scripts/issue-set-status.sh <issue-number> in-progress
 
 # Or manually (use the option ID from the project field):
 # NOTE: gh project item-list output contains control characters that break jq -- always pipe through tr -d
-ITEM_ID=$(gh project item-list 1 --owner gavinkilbride --format json --limit 100 | tr -d '\x00-\x1f' | jq -r '.items[] | select(.content.number == <issue-number>) | .id')
-gh project item-edit --project-id "PVT_kwHOAAywgM4BRGeY" --id "$ITEM_ID" \
-  --field-id "PVTSSF_lAHOAAywgM4BRGeYzg_By8o" \
+ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 | tr -d '\x00-\x1f' | jq -r '.items[] | select(.content.number == <issue-number>) | .id')
+gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
+  --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
   --single-select-option-id "<option-id>"
 ```
 
@@ -248,12 +248,12 @@ Status option IDs:
 
 | Status      | Option ID  |
 |-------------|------------|
-| Backlog     | `dd47bfb0` |
-| Planned     | `61757ea9` |
-| Todo        | `e37a4d28` |
-| In Progress | `308bbc1e` |
-| In Review   | `6f3c9037` |
-| Done        | `9cfa70ca` |
+| Backlog     | `17425ce6` |
+| Planned     | `cf183d2a` |
+| Todo        | `f75ad846` |
+| In Progress | `47fc9ee4` |
+| In Review   | `9bb97c15` |
+| Done        | `98236657` |
 
 **DANGER: Never use `updateProjectV2Field` to add/modify status options.** That mutation replaces the entire option set, generating new IDs and wiping all existing item statuses. To add a new status option, use the GitHub web UI (Project → Settings → Status field) and then update the option IDs in this file.
 

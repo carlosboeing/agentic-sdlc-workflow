@@ -14,10 +14,10 @@ set -euo pipefail
 #   0 — status updated successfully
 #   1 — failed (issue not found on board, invalid status, or API error)
 
-PROJECT_NUMBER=1
-PROJECT_OWNER="gavinkilbride"
-PROJECT_ID="PVT_kwHOAAywgM4BRGeY"
-STATUS_FIELD_ID="PVTSSF_lAHOAAywgM4BRGeYzg_By8o"
+PROJECT_NUMBER=7
+PROJECT_OWNER="carlosboeing"
+PROJECT_ID="PVT_kwHOADPMJc4BRg45"
+STATUS_FIELD_ID="PVTSSF_lAHOADPMJc4BRg45zg_UfJc"
 
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <issue-number> <status>" >&2
@@ -30,12 +30,12 @@ STATUS="$2"
 
 # Map status name to option ID
 case "$STATUS" in
-  backlog)     OPTION_ID="dd47bfb0" ;;
-  planned)     OPTION_ID="61757ea9" ;;
-  todo)        OPTION_ID="e37a4d28" ;;
-  in-progress) OPTION_ID="308bbc1e" ;;
-  in-review)   OPTION_ID="6f3c9037" ;;
-  done)        OPTION_ID="9cfa70ca" ;;
+  backlog)     OPTION_ID="17425ce6" ;;
+  planned)     OPTION_ID="cf183d2a" ;;
+  todo)        OPTION_ID="f75ad846" ;;
+  in-progress) OPTION_ID="47fc9ee4" ;;
+  in-review)   OPTION_ID="9bb97c15" ;;
+  done)        OPTION_ID="98236657" ;;
   *)
     echo "ERROR: Unknown status '$STATUS'. Expected: backlog, planned, todo, in-progress, in-review, done" >&2
     exit 1

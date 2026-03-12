@@ -387,7 +387,7 @@ For the last story in an epic, the reviewer may optionally review the merged sta
 
 #### Problem
 
-During the Calendar build, all 12 story issues and 3 epic issues remained OPEN after the epic PR was created. The `issue-merged.sh` script exists but only calls `gh issue close` — it never updates the project board status to "Done" (option ID `9cfa70ca`). Worse, when a PR is merged via the GitHub UI (not through an agent), nothing runs at all — issues stay open and the board is stale.
+During the Calendar build, all 12 story issues and 3 epic issues remained OPEN after the epic PR was created. The `issue-merged.sh` script exists but only calls `gh issue close` — it never updates the project board status to "Done" (option ID `98236657`). Worse, when a PR is merged via the GitHub UI (not through an agent), nothing runs at all — issues stay open and the board is stale.
 
 Two gaps:
 
@@ -403,12 +403,12 @@ Two gaps:
 gh issue close "$ISSUE_NUMBER" --repo "$REPO" --reason completed
 
 # Set board status to Done
-ITEM_ID=$(gh project item-list 1 --owner gavinkilbride --format json --limit 100 \
+ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 \
   | jq -r ".items[] | select(.content.number == $ISSUE_NUMBER) | .id")
 if [ -n "$ITEM_ID" ]; then
-  gh project item-edit --project-id "PVT_kwHOAAywgM4BRGeY" --id "$ITEM_ID" \
-    --field-id "PVTSSF_lAHOAAywgM4BRGeYzg_By8o" \
-    --single-select-option-id "9cfa70ca"
+  gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
+    --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
+    --single-select-option-id "98236657"
 fi
 ```
 
@@ -1256,7 +1256,7 @@ claude --agent orchestrator \
 
 **Notes:**
 - `### GitHub Conventions` contains **both** generic workflow rules (3-level hierarchy, status transitions, label taxonomy) **and** GitHub-specific implementation details (project board IDs, option IDs, `gh` commands). When extracting, the generic rules go to the framework's `CLAUDE.md.template`, and the GitHub-specific details go to the GitHub PM adapter.
-- The board status option IDs (`dd47bfb0`, `308bbc1e`, etc.) and project ID (`PVT_kwHOAAywgM4BRGeY`) appear in both `CLAUDE.md` and multiple scripts/agent files. These are the primary coupling points to NeuralNorris's specific GitHub Project.
+- The board status option IDs (`17425ce6`, `47fc9ee4`, etc.) and project ID (`PVT_kwHOADPMJc4BRg45`) appear in both `CLAUDE.md` and multiple scripts/agent files. These are the primary coupling points to NeuralNorris's specific GitHub Project.
 
 ### Porting checklist
 
@@ -1266,7 +1266,7 @@ Use this to copy files from NeuralNorris into a new framework repo. For each fil
 
 | File | Action |
 |------|--------|
-| `orchestrator.md` | Copy. Remove all `gh` commands, board IDs, `gavinkilbride` references. Replace with `sdlc.sh` adapter calls. Remove NeuralNorris architecture knowledge. |
+| `orchestrator.md` | Copy. Remove all `gh` commands, board IDs, `carlosboeing` references. Replace with `sdlc.sh` adapter calls. Remove NeuralNorris architecture knowledge. |
 | `designer.md` | Copy. Remove NeuralNorris project vision/architecture references. Keep design phase workflow. |
 | `planner.md` | Copy. Remove `gh issue create`/`gh project` commands, board IDs. Remove .NET/C# architecture knowledge. Replace with adapter calls and "Read the project's CLAUDE.md". |
 | `builder.md` | Copy. Remove .NET build commands, `NN.*` namespaces, DI patterns, xUnit/NSubstitute. Replace with "Read the project's CLAUDE.md for build commands, test framework, and conventions". |
@@ -1274,18 +1274,18 @@ Use this to copy files from NeuralNorris into a new framework repo. For each fil
 | `builder-sonnet.md` | Copy. Same changes as `builder.md`. |
 | `builder-opus.md` | Copy. Same changes as `builder.md`. |
 | `reviewer.md` | Copy. Remove .NET patterns, DI checklist, NeuralNorris security checklist. Replace with "Read the project's CLAUDE.md for conventions". |
-| `retro.md` | Copy. Mostly generic already — remove `gavinkilbride/NeuralNorris` reference. |
+| `retro.md` | Copy. Mostly generic already — remove `carlosboeing/agentic-sdlc-workflow` reference. |
 
 **Scripts — copy and rewrite:**
 
 | File | Action |
 |------|--------|
-| `issue-start.sh` | Copy. Replace hardcoded `REPO="gavinkilbride/NeuralNorris"` with adapter config lookup. |
+| `issue-start.sh` | Copy. Replace hardcoded `REPO="carlosboeing/agentic-sdlc-workflow"` with adapter config lookup. |
 | `issue-review.sh` | Copy. Same — replace hardcoded `REPO`. |
 | `issue-telemetry.sh` | Copy. Replace hardcoded `REPO` and board IDs with adapter config. |
 | `issue-merged.sh` | Copy. Replace hardcoded `REPO`, project ID, field ID, status ID with adapter config. |
 | `dispatch-story.sh` | Copy. Replace hardcoded `REPO` with adapter config. |
-| `dispatch-workflow.sh` | Copy. Replace hardcoded `REPO`, `gavinkilbride`, all board IDs with adapter config. |
+| `dispatch-workflow.sh` | Copy. Replace hardcoded `REPO`, `carlosboeing`, all board IDs with adapter config. |
 | `setup-labels.sh` | Copy. Replace hardcoded `REPO` with adapter config. |
 | `fetch-pricing.sh` | Copy as-is. Already generic — no project references. |
 | `templates/telemetry.md` | Copy as-is. Already generic — no project references. |
@@ -1321,10 +1321,10 @@ Extract the workflow sections into a `CLAUDE.md.template` for the framework (see
 
 | Value | Appears in | Replace with |
 |-------|-----------|-------------|
-| `gavinkilbride/NeuralNorris` | 7 scripts, `sentinel.yml` | Config: `SDLC_REPO` |
-| `gavinkilbride` | `orchestrator.md`, `dispatch-workflow.sh` | Config: `SDLC_GITHUB_OWNER` |
-| `PVT_kwHOAAywgM4BRGeY` | `orchestrator.md`, `builder.md` + variants, `dispatch-workflow.sh`, `issue-merged.sh`, `CLAUDE.md` | GitHub adapter config: `SDLC_PROJECT_ID` |
-| `PVTSSF_lAHOAAywgM4BRGeYzg_By8o` | Same files | GitHub adapter config: `SDLC_STATUS_FIELD_ID` |
+| `carlosboeing/agentic-sdlc-workflow` | 7 scripts, `sentinel.yml` | Config: `SDLC_REPO` |
+| `carlosboeing` | `orchestrator.md`, `dispatch-workflow.sh` | Config: `SDLC_GITHUB_OWNER` |
+| `PVT_kwHOADPMJc4BRg45` | `orchestrator.md`, `builder.md` + variants, `dispatch-workflow.sh`, `issue-merged.sh`, `CLAUDE.md` | GitHub adapter config: `SDLC_PROJECT_ID` |
+| `PVTSSF_lAHOADPMJc4BRg45zg_UfJc` | Same files | GitHub adapter config: `SDLC_STATUS_FIELD_ID` |
 | 6 status option IDs | Same files + `CLAUDE.md` | GitHub adapter config: `SDLC_STATUS_*` |
 | `.NET 10`, `dotnet`, `NeuralNorris.slnx` | `settings.json`, agents, `CLAUDE.md` | Removed — project's own `CLAUDE.md` |
 | `NN.*`, `ITool`, `IKernelTool`, Blazor, EF Core, SQLite | Agents, `CLAUDE.md` | Removed — project's own `CLAUDE.md` |

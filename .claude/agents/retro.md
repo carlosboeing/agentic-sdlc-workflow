@@ -73,11 +73,11 @@ gh issue view <story-issue-number> --json comments --jq '.comments[].body'
 
 ```bash
 # Comments on the backlog PR
-gh api repos/gavinkilbride/NeuralNorris/pulls/<pr-number>/comments \
+gh api repos/carlosboeing/agentic-sdlc-workflow/pulls/<pr-number>/comments \
   --jq '.[].body'
 
 # Issue comments on the PR (gh pr comment, not inline)
-gh api repos/gavinkilbride/NeuralNorris/issues/<pr-number>/comments \
+gh api repos/carlosboeing/agentic-sdlc-workflow/issues/<pr-number>/comments \
   --jq '.[].body'
 ```
 

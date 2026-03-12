@@ -1,6 +1,6 @@
 # TODO: Make Workflow Project-Agnostic
 
-This repo was extracted from [NeuralNorris](https://github.com/gavinkilbride/NeuralNorris) and still contains NeuralNorris-specific references that need to be generalized.
+This repo was extracted from [NeuralNorris](https://github.com/carlosboeing/agentic-sdlc-workflow) and still contains NeuralNorris-specific references that need to be generalized.
 
 ## What needs refactoring
 

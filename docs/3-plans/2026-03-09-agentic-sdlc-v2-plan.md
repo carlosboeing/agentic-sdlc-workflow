@@ -32,7 +32,7 @@ CLI dispatch wrapper: reads a GitHub issue, writes a prompt file, invokes Claude
 - `scripts/dispatch-story.sh`
 - `.dispatch/.gitignore` (contains `*` + `!.gitignore`)
 
-**Pattern to follow:** `scripts/issue-start.sh` — `set -euo pipefail`, `REPO="gavinkilbride/NeuralNorris"`, named arg parsing via `while/case`.
+**Pattern to follow:** `scripts/issue-start.sh` — `set -euo pipefail`, `REPO="carlosboeing/agentic-sdlc-workflow"`, named arg parsing via `while/case`.
 
 **Acceptance criteria:**
 
@@ -123,7 +123,7 @@ When an epic PR is merged (via CC agent or GitHub UI), all linked issues should 
 
 **Modify:**
 
-- `scripts/issue-merged.sh` — add board status update to "Done" (option ID `9cfa70ca`)
+- `scripts/issue-merged.sh` — add board status update to "Done" (option ID `98236657`)
 
 **Create:**
 

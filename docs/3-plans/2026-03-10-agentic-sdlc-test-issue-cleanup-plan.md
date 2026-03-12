@@ -195,7 +195,7 @@ Delete all test run issues and their associated labels. Preserve all real featur
 ### Post-flight verification
 
 1. Confirm issue count: `gh issue list --state all --limit 200` should show no test run issues
-2. Confirm board: `gh project item-list 1 --owner gavinkilbride --format json --limit 200` should not contain deleted issue numbers
+2. Confirm board: `gh project item-list 7 --owner carlosboeing --format json --limit 200` should not contain deleted issue numbers
 3. Confirm labels: `gh label list` should not contain the 6 deleted labels
 
 ## Not Deleted (for reference)

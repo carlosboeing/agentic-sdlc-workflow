@@ -158,11 +158,11 @@ Agent `.md` files become **intent-based** instead of **command-based**:
    gh issue list --label "epic/$SLUG" --state open --limit 50 --json number,title,labels
 
 2. Update board status:
-   ITEM_ID=$(gh project item-list 1 --owner gavinkilbride --format json --limit 100 \
+   ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 \
      | jq -r '.items[] | select(.content.number == 42) | .id')
-   gh project item-edit --project-id "PVT_kwHOAAywgM4BRGeY" --id "$ITEM_ID" \
-     --field-id "PVTSSF_lAHOAAywgM4BRGeYzg_By8o" \
-     --single-select-option-id "308bbc1e"
+   gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
+     --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
+     --single-select-option-id "47fc9ee4"
 
 # After (provider-agnostic orchestrator)
 1. Read stories:
@@ -241,7 +241,7 @@ Build or accept community-contributed MCP servers for other platforms:
 | Three interfaces, not one | Teams mix providers (Jira + GitHub + Confluence). One monolithic interface forces all-or-nothing adoption. |
 | `docs-platform` is optional | Most teams store docs in the repo. Only teams using Confluence/Notion need this interface. Filesystem is the zero-config default. |
 | Git operations stay as direct commands | `git` is already provider-agnostic. Wrapping it in MCP adds indirection without value. Only hosting-platform operations (PRs, reviews) need abstraction. |
-| Generic status values | `"in_progress"` instead of option ID `308bbc1e`. The MCP server maps generic → provider-specific. Agents never see provider internals. |
+| Generic status values | `"in_progress"` instead of option ID `47fc9ee4`. The MCP server maps generic → provider-specific. Agents never see provider internals. |
 | Plugin ships reference provider | The GitHub MCP server ships with the plugin so it works out of the box. Other providers are optional add-ons. |
 
 ## Open Questions

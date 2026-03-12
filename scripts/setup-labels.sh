@@ -5,7 +5,7 @@ set -euo pipefail
 # Idempotent: skips labels that already exist.
 # Usage: ./scripts/setup-labels.sh
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 create_label() {
   local name="$1" color="$2" description="$3"

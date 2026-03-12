@@ -64,7 +64,7 @@ Create `scripts/migrate-hierarchy-labels.sh`:
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 echo "Applying hierarchy labels to existing issues..."
 
@@ -211,7 +211,7 @@ Create `scripts/remove-epic-labels.sh`:
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="gavinkilbride/NeuralNorris"
+REPO="carlosboeing/agentic-sdlc-workflow"
 
 echo "Removing epic/* labels from all issues..."
 

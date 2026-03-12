@@ -540,7 +540,7 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 | Retro (opus) | Write Retro Doc | 2m 30s | 40K | ~$0.12 |
 | | **Total (<N> dispatches)** | **~25m** | **491K** | **~$1.65** |
 
-### ⏱️ Duration Summary
+### ⏱️ Duration
 
 | Metric | Value |
 |--------|-------|

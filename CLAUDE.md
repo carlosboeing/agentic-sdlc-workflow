@@ -411,7 +411,7 @@ The backlog telemetry comment should include:
 1. A **per-phase breakdown** table showing agent, tokens, sequential duration, and cost per phase (design, plan, build, review, retro)
 2. A **grand total** row summing all phases, with the total **dispatch count** in the Task cell (e.g., "Total (16 dispatches)")
 3. A **full lifecycle breakdown** table with columns: **Agent** (agent name + model, e.g., "Builder (haiku)"), **Task** (descriptive name + issue number), **Duration**, **Tokens**, **Est. Cost**. No Wave column — the Gantt chart shows parallelism. Rows cover ALL phases (design, plan, builds, reviews, fix cycles, retro). Task names: "Write Design Doc", "Write Plan Doc", "Write Retro Doc" for doc agents; "Review ENN-SNN" matching the build's story label for reviews. A single **Total** row at the bottom with dispatch count in the Task cell. No Actual/Saved rows (the Duration Summary section covers that)
-4. A **Duration Summary** section with **Sequential Duration**, **Actual Duration** (with parallelism), and **Time Saved**
+4. A **Duration** section with **Sequential Duration**, **Actual Duration** (with parallelism), and **Time Saved**
 5. A **Mermaid Gantt timeline** visualizing all lifecycle phases — design, plan, build waves (parallel bars), review waves (parallel bars), fix cycles (`crit`), and retro. Use `dateFormat HH:mm:ss`, `axisFormat %M:%S`, `after` syntax for sequential dependencies, and `crit` for fix/re-review tasks. **Theming:** use `themeVariables` without a `theme` key in `%%{init}%%` — this lets GitHub auto-detect dark/light mode for text and backgrounds while custom bar colors are applied on top. Colors and init block are defined in `scripts/templates/telemetry.md` (single source of truth)
 6. The **backlog PR number** and **commit hash** for traceability
 7. Note: the orchestrator's own token consumption is not captured (it runs in the parent session). Only dispatched subagent telemetry is tracked.
@@ -439,7 +439,7 @@ Post the final aggregate using a manual `gh issue comment` (not `issue-telemetry
 gh issue comment <backlog-number> --body "## 📊 Telemetry\n\n| Phase | Tokens | Sequential Duration | Est. Cost |\n..."
 ```
 
-The backlog telemetry should include a **Duration Summary** and a **Full Lifecycle Breakdown** covering all phases (design, plan, build waves, review waves, fix cycles, retro) — not just builds.
+The backlog telemetry should include a **Duration** and a **Full Lifecycle Breakdown** covering all phases (design, plan, build waves, review waves, fix cycles, retro) — not just builds.
 
 **Epic-scoped telemetry:** When posting epic-level telemetry on epic issues, include only stories that belong to that specific epic (check the epic's sub-issues). The backlog PR and backlog issue are the only places where cross-epic aggregate and full lifecycle telemetry belongs. Do not post the full breakdown on individual epic issues.
 

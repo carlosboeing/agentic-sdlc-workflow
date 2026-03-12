@@ -511,7 +511,9 @@ As the final phase, post a **full lifecycle telemetry summary** on the backlog i
 
 ```bash
 gh issue comment <backlog-number> --body "$(cat <<'EOF'
-## 📊 Full Lifecycle Telemetry
+## 📊 Telemetry
+
+### Summary
 
 | Phase | Agent | Tokens | Sequential Duration | Est. Cost |
 |-------|-------|--------|---------------------|-----------|

@@ -397,7 +397,7 @@ gh pr merge <N> --squash --delete-branch
 
 **Mixed-model epics:** When stories use different models, pass `--model 'mixed (model1, model2)'` and `--cost <dollars>` with the pre-computed aggregate cost (sum of per-story costs from the breakdown). For example: `--model 'mixed (haiku, sonnet)' --cost 0.67`. The `--cost` flag overrides the rate-based calculation, so the summary table shows the correct total instead of `—`.
 
-**Backlog-level telemetry:** After all stories are built, reviewed, and merged into the integration branch — and the retro is complete — the orchestrator MUST post a **full lifecycle telemetry summary** on the backlog issue and in the **backlog PR description** (appended with a `---` separator). This captures the total cost of the entire feature — not just builders, but all agent work:
+**Backlog-level telemetry:** After all stories are built, reviewed, and merged into the integration branch — and the retro is complete — the orchestrator MUST post a **full lifecycle telemetry summary** on the backlog issue and in the **backlog PR description**. This captures the total cost of the entire feature — not just builders, but all agent work:
 
 | Phase | Agents | What to capture |
 |-------|--------|----------------|
@@ -436,14 +436,14 @@ See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full s
 Post the final aggregate using a manual `gh issue comment` (not `issue-telemetry.sh`, which is story-scoped):
 
 ```bash
-gh issue comment <backlog-number> --body "## 📊 Full Lifecycle Telemetry\n\n| Phase | Tokens | Sequential Duration | Est. Cost |\n..."
+gh issue comment <backlog-number> --body "## 📊 Telemetry\n\n| Phase | Tokens | Sequential Duration | Est. Cost |\n..."
 ```
 
 The backlog telemetry should include a **Duration Summary** and a **Full Lifecycle Breakdown** covering all phases (design, plan, build waves, review waves, fix cycles, retro) — not just builds.
 
 **Epic-scoped telemetry:** When posting epic-level telemetry on epic issues, include only stories that belong to that specific epic (check the epic's sub-issues). The backlog PR and backlog issue are the only places where cross-epic aggregate and full lifecycle telemetry belongs. Do not post the full breakdown on individual epic issues.
 
-**PR telemetry placement:** Full lifecycle telemetry goes in the **backlog PR description** (appended below the existing summary with a `---` separator), not as a PR comment. The PR description MUST contain the **same full telemetry** as the backlog issue comment — including the per-phase summary table, full lifecycle breakdown, and Mermaid Gantt timeline. Do not post a truncated summary on the PR; the PR body is the single source of truth for the run. Use `gh pr edit --body` to append. Backlog issue telemetry remains a `gh issue comment` since issue bodies serve a different purpose (problem statement).
+**PR telemetry placement:** Full lifecycle telemetry goes in the **backlog PR description** , not as a PR comment. The PR description MUST contain the **same full telemetry** as the backlog issue comment — including the per-phase summary table, full lifecycle breakdown, and Mermaid Gantt timeline. Do not post a truncated summary on the PR; the PR body is the single source of truth for the run. Use `gh pr edit --body` to append. Backlog issue telemetry remains a `gh issue comment` since issue bodies serve a different purpose (problem statement).
 
 **Cost disclaimer:** All telemetry posts that include cost estimates must end with a disclaimer note explaining that costs are estimates based on Anthropic's published API token pricing and that subscription plans are not charged per-token. The `issue-telemetry.sh` script appends this automatically. For manually composed telemetry (e.g., backlog-level comments), append the same note:
 

@@ -16,9 +16,9 @@ Add three static `hierarchy/*` labels for level identification. Keep `backlog/*`
 | Category | Labels | Purpose | Created by |
 |----------|--------|---------|------------|
 | **Hierarchy** (new) | `hierarchy/backlog`, `hierarchy/epic`, `hierarchy/story` | Level identification, board grouping/filtering | `setup-labels.sh` (static) |
-| **Backlog** (keep) | `backlog/<issue>-<slug>` | Workstream grouping — single label across all epics and stories in a feature | Architect (per feature) |
+| **Backlog** (keep) | `backlog/<issue>-<slug>` | Workstream grouping — single label across all epics and stories in a feature | Planner (per feature) |
 | **Type** (keep) | `type/feature`, `type/bug`, `type/refactor`, `type/test`, `type/docs` | Work category | `setup-labels.sh` (static) |
-| **Difficulty** (keep) | `difficulty/easy`, `difficulty/medium`, `difficulty/hard` | Model routing (easy→Haiku, medium→Sonnet, hard→Opus) | Architect (per story) |
+| **Difficulty** (keep) | `difficulty/easy`, `difficulty/medium`, `difficulty/hard` | Model routing (easy→Haiku, medium→Sonnet, hard→Opus) | Planner (per story) |
 
 ### Labels Retired
 
@@ -74,7 +74,7 @@ Add three static `hierarchy/*` labels for level identification. Keep `backlog/*`
 5. **Remove** `epic/*` labels from all issues, then delete the labels
 6. **Update** `setup-labels.sh` — add `hierarchy/*` labels, document standard `backlog/*` color
 7. **Update** `CLAUDE.md` — label conventions, GitHub conventions section
-8. **Update** agent `.md` files — architect (creates labels/issues), orchestrator (filters by labels), builder (reads labels)
+8. **Update** agent `.md` files — planner (creates labels/issues), orchestrator (filters by labels), builder (reads labels)
 9. **Update** lesson folder convention if affected by `epic/*` removal
 
 ## What's NOT Changing
@@ -133,7 +133,7 @@ Level 3: Story            ← HOW to build it (implementable units)
 - Represents a natural architectural boundary (data layer, API layer, UI layer, integration layer)
 - Contains 1-8 stories (fewer is fine — an epic with 1-2 stories is valid)
 - Can be worked on in parallel with other epics (if stories have no cross-epic dependencies)
-- Defined by an architect or tech lead during planning
+- Defined by an planner or tech lead during planning
 
 **Examples (for a "Calendar integration" backlog item):**
 - Epic 1: "Calendar Core Infrastructure" (domain models, config, DB migration)
@@ -217,7 +217,7 @@ Each level maps to a phase of the software development lifecycle:
 |-------|-----|-----------------|--------|
 | **Discovery** | Stakeholder / Designer | Backlog Item | Problem statement, requirements |
 | **Design** | Designer | Backlog Item | Design document, approach trade-offs |
-| **Planning** | Architect | Epics + Stories | Implementation plan, dependency graph, difficulty ratings |
+| **Planning** | Planner | Epics + Stories | Implementation plan, dependency graph, difficulty ratings |
 | **Implementation** | Builder | Story | Code, tests, PR |
 | **Review** | Reviewer | Story / Epic | Review comments, approval |
 | **Integration** | Orchestrator | Backlog Item | Merged epic PR(s), changelog |
@@ -299,7 +299,7 @@ A single grouping label per workstream is sufficient when combined with `hierarc
 
 ### Why exactly three hierarchy levels?
 
-A 4th level (e.g., "tasks" below stories, or "initiatives" above backlog items) was considered and rejected. The architect agent in a prior workflow run created child backlog items under a parent backlog item — effectively introducing a 4th level — which broke dispatch, telemetry, and board tracking.
+A 4th level (e.g., "tasks" below stories, or "initiatives" above backlog items) was considered and rejected. The planner agent in a prior workflow run created child backlog items under a parent backlog item — effectively introducing a 4th level — which broke dispatch, telemetry, and board tracking.
 
 **The problem with 4 levels:**
 - Every additional level multiplies state management: labels, branches, dispatch logic, telemetry aggregation, board status sync

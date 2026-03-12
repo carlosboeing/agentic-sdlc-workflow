@@ -17,7 +17,7 @@ Run 7 produced the "Alien Anthropological Field Study of Earth" -- five markdown
 | Phase | Time (UTC) | Wall Clock | Activity |
 |-------|-----------|------------|----------|
 | Design | 11:03:56 – 11:04:31 | ~3m | Designer created design doc (`7090982`), PR #207 auto-merged |
-| Plan | 11:07:06 – 11:09:44 | ~5m | Architect created plan (`3423551`), PR #216 auto-merged, issues created |
+| Plan | 11:07:06 – 11:09:44 | ~5m | Planner created plan (`3423551`), PR #216 auto-merged, issues created |
 | Wave 1 (E01 build) | 11:13:31 – 11:15:18 | ~2m | 3 parallel builders: #209 haiku, #210 haiku, #211 sonnet |
 | Wave 1 (E01 review) | ~11:15 – ~11:20 | ~5m | 3 reviews: #209 REQUEST_CHANGES, #210 COMMENT, #211 REQUEST_CHANGES |
 | Wave 1 (E01 fix) | ~11:20 – ~11:22 | ~3m | Fix cycles for #209 (workspace cleanup + re-review) and #211 (content fix + re-review) |
@@ -174,7 +174,7 @@ No convention changes were made to CLAUDE.md or agent files during this run. The
 
 2. **Add `tr -d` pipe convention for `gh project item-list`** -- Document that `gh project item-list` output must be piped through `tr -d '\x00-\x1f'` before passing to `jq`. This has been a recurring issue across multiple runs. *Status: proposed as convention change below.*
 
-3. **Add rate-limit awareness to orchestrator** -- This is an architectural change (not a convention) that would require the orchestrator to track API call counts and introduce backoff. Flagged for the architect, not proposed as a convention change here.
+3. **Add rate-limit awareness to orchestrator** -- This is an architectural change (not a convention) that would require the orchestrator to track API call counts and introduce backoff. Flagged for the planner, not proposed as a convention change here.
 
 4. **Post-parallel verification step** -- After parallel dispatch completes, the orchestrator should verify each story branch contains only its expected files (check against the plan's file list). This is a defense-in-depth measure even with worktree isolation. Flagged as a recommendation for the orchestrator agent file.
 
@@ -183,7 +183,7 @@ No convention changes were made to CLAUDE.md or agent files during this run. The
 | Lesson File | Status | Disposition |
 |-------------|--------|-------------|
 | `e01-field-reports/2026-03-11-s00-parallel-workspace-collision.md` | Compiled | Summarized in "What Didn't Work" #1; recommendation #1 proposed as convention change |
-| `e02-admin-documents/2026-03-11-s02-rate-limiting-wave3.md` | Compiled | Summarized in "What Didn't Work" #2; recommendation #3 flagged for architect |
+| `e02-admin-documents/2026-03-11-s02-rate-limiting-wave3.md` | Compiled | Summarized in "What Didn't Work" #2; recommendation #3 flagged for planner |
 | (Run 4) `106-travel-advisory/.../parallel-dispatch-no-worktree-isolation.md` | Cross-referenced | Same root cause confirmed as actual defect in this run |
 
 No additional lesson files from previous agents were found for this backlog item -- all lessons were captured during the retro phase.

@@ -12,7 +12,7 @@ Introduce a structured AI-agent-driven software development lifecycle (SDLC) for
 
 | Decision | Choice |
 |----------|--------|
-| Agent count | 4 core: designer, architect, builder, reviewer |
+| Agent count | 4 core: designer, planner, builder, reviewer |
 | Task tracking | GitHub Issues/Projects (full adoption, replaces BACKLOG.md) |
 | Docs structure | Numbered SDLC phases (migrate existing files) |
 | Sentinel + reviewer | Complementary — Sentinel for security on all PRs, reviewer for code quality |
@@ -40,9 +40,9 @@ Four agents in `.claude/agents/`, each with strict separation of concerns.
 - **Does NOT:** Write code, create issues, or make planning decisions
 - **Tools:** Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Agent
 
-### architect — System Design & Planning
+### planner — System Design & Planning
 
-- **Role:** Senior .NET architect who knows the NeuralNorris dependency graph
+- **Role:** Senior .NET planner who knows the NeuralNorris dependency graph
 - **Responsibilities:**
   - Create implementation plans from approved designs → `docs/3-plans/`
   - Break plans into epics and stories with careful difficulty classification
@@ -89,7 +89,7 @@ Four agents in `.claude/agents/`, each with strict separation of concerns.
 | Agent | Writes code | Creates issues | Writes docs | Reviews code |
 |-------|:-----------:|:--------------:|:-----------:|:------------:|
 | designer | | | x | |
-| architect | | x | x | |
+| planner | | x | x | |
 | builder | x | | | |
 | reviewer | | | | x |
 
@@ -140,7 +140,7 @@ docs/
 | Agent | Writes to |
 |---|---|
 | designer | `2-design/` |
-| architect | `3-plans/`, `6-adrs/` |
+| planner | `3-plans/`, `6-adrs/` |
 | reviewer | `4-reviews/` |
 | builder | Code only |
 
@@ -235,9 +235,9 @@ main
 | **Medium** | Sonnet | New tool implementation following existing patterns, standard EF migrations, Blazor component updates, multi-file changes within one project |
 | **Hard** | Opus | New abstractions/interfaces, cross-project changes, orchestration logic, Blazor + backend wiring, security-sensitive code, DevOps tool additions |
 
-### Architect's classification checklist
+### Planner's classification checklist
 
-Before assigning difficulty, the architect considers:
+Before assigning difficulty, the planner considers:
 
 1. **How many projects are touched?** (1 = easier, 2+ = harder)
 2. **Does it require new abstractions?** (new interface/base class = hard)

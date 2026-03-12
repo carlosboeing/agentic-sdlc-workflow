@@ -272,7 +272,7 @@ These are the specific workflow mechanics Run 6 is designed to validate:
 ### Open Questions (would have asked the user)
 
 1. **Should E01-S03 (Dog Owner, medium) run in Wave 1 with the easy stories or Wave 2?** Decision: Wave 1. It has no dependencies on the other Epic 1 stories. Running all three E01 stories in parallel gives a stronger test and is the natural grouping by epic.
-2. **Is 200-300 words acceptable for the hard story?** The backlog says "100-200 words per story" but also says the designer may adjust. Decision: 200-300 for E02-S02 only, to give the hard label meaningful scope. If this is too long, the architect can tighten it to 150-200.
+2. **Is 200-300 words acceptable for the hard story?** The backlog says "100-200 words per story" but also says the designer may adjust. Decision: 200-300 for E02-S02 only, to give the hard label meaningful scope. If this is too long, the planner can tighten it to 150-200.
 3. **Should E02-S01 reference Epic 1 reviews by reading the files or from AC?** Decision: from AC. This removes filesystem dependencies and allows Wave 2 to run without waiting for Wave 1's files to be committed. The AC specifies the category names (e.g., "Work-From-Home Humans") so the builder has everything it needs.
 
 ## Risks
@@ -282,7 +282,7 @@ These are the specific workflow mechanics Run 6 is designed to validate:
 | Single-PR workflow has untested edge cases | Integration branch conflicts, merge order issues | This is the test -- document all issues as lessons |
 | 3-story parallel wave causes resource contention | Stories fail or timeout | Fall back to 2+1 split; document in lesson |
 | Backlog PR `Closes` list is incomplete | Issues remain open after merge | Orchestrator must enumerate all issues (backlog + design + plan + epics + stories) |
-| E02-S02 word count (200-300) exceeds budget brief | User objects to scope | Architect can tighten to 150-200 if needed |
+| E02-S02 word count (200-300) exceeds budget brief | User objects to scope | Planner can tighten to 150-200 if needed |
 | Epic branches created from wrong base | Merge conflicts | Orchestrator must `git checkout backlog/162-cat-performance-review` before creating epic branches |
 
 ## Estimated Cost & Duration

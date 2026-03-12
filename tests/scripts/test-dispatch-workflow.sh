@@ -133,7 +133,7 @@ echo ""
 # --- Test 7: Script references key components ---
 echo "Test Group: Key component references"
 
-for COMPONENT in "designer" "architect" "builder" "reviewer" "retro"; do
+for COMPONENT in "designer" "planner" "builder" "reviewer" "retro"; do
   if grep -q "$COMPONENT" "$SCRIPT_UNDER_TEST"; then
     echo "  PASS: References agent: $COMPONENT"
     PASS=$((PASS + 1))

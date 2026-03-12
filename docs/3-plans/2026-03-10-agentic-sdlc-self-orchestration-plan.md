@@ -1,6 +1,6 @@
 ---
 date: 2026-03-10
-author: architect
+author: planner
 status: draft
 backlog: 122
 ---
@@ -114,7 +114,7 @@ Extend `DevOpsConfig` with Claude CLI dispatch settings.
   - `string ClaudeCliBinary { get; set; } = "claude";` — path to claude binary
   - `int MaxDispatchTimeoutMinutes { get; set; } = 120;` — max subprocess runtime
   - `int MaxOutputSizeBytes { get; set; } = 524288;` — output size cap (512KB)
-  - `List<string> AllowedAgents { get; set; }` — default: `["orchestrator", "designer", "architect", "builder", "builder-haiku", "builder-sonnet", "builder-opus", "reviewer", "retro"]`
+  - `List<string> AllowedAgents { get; set; }` — default: `["orchestrator", "designer", "planner", "builder", "builder-haiku", "builder-sonnet", "builder-opus", "reviewer", "retro"]`
   - **Note:** `AllowedAgents` is used for **exact match** validation (not prefix/substring). The tool layer passes the validated value from this list, not raw user input. See E02-S03 for details.
 - All have sensible defaults (zero-config for development)
 - Unit test verifying defaults are set

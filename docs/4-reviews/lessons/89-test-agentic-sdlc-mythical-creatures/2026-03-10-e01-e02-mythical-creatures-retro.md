@@ -17,8 +17,8 @@ The Mythical Creatures Field Guide (SDLC v2 Run 3) was the first test of the ful
 | Phase | Time (UTC) | Wall Clock | Activity |
 |-------|-----------|------------|----------|
 | Design | 15:32:06 | ~0 min | Design doc PR #92 auto-merged (written pre-session) |
-| Plan | 15:48 -- 15:52 | ~4 min | Architect wrote plan, created issues #94-#102, plan PR #103 auto-merged |
-| Architect fix | 15:54 | ~1 min | Added Bash tool to architect agent (commit `cfb2231`) |
+| Plan | 15:48 -- 15:52 | ~4 min | Planner wrote plan, created issues #94-#102, plan PR #103 auto-merged |
+| Planner fix | 15:54 | ~1 min | Added Bash tool to planner agent (commit `cfb2231`) |
 | Wave 1 build | 15:55 -- 15:58 | ~3 min | 4 builders dispatched concurrently: S01/S02/S03 (haiku), E02-S01 (sonnet) |
 | Wave 1 review | 15:59 -- 16:01 | ~2 min | Reviewer dispatched on all 4 story branches; all approved (S03 COMMENT) |
 | Wave 1 merge | 16:01 | ~1 min | 4 story branches merged into respective epic branches |
@@ -103,13 +103,13 @@ The final `issue-merged.sh` calls (run sequentially by the orchestrator) worked 
 
 Evidence: lesson file `docs/4-reviews/lessons/89-mythical-creatures/e01-creature-compendium/2026-03-10-s00-board-status-skipped-stages.md`.
 
-### 2. Architect Agent Missing Bash Tool
+### 2. Planner Agent Missing Bash Tool
 
-The architect agent could not run `gh issue create`, `gh api graphql`, or any GitHub CLI commands because its YAML frontmatter tool list omitted `Bash`. The architect worked around this by generating a shell script and asking the orchestrator to run it -- breaking the autonomous flow and adding a manual step.
+The planner agent could not run `gh issue create`, `gh api graphql`, or any GitHub CLI commands because its YAML frontmatter tool list omitted `Bash`. The planner worked around this by generating a shell script and asking the orchestrator to run it -- breaking the autonomous flow and adding a manual step.
 
-Root cause: the architect agent file listed `Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Task` but not `Bash`, despite its instructions containing dozens of `gh` and `git` commands. Fixed mid-session by commit `cfb2231`.
+Root cause: the planner agent file listed `Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Task` but not `Bash`, despite its instructions containing dozens of `gh` and `git` commands. Fixed mid-session by commit `cfb2231`.
 
-Evidence: lesson file `docs/4-reviews/lessons/89-mythical-creatures/e01-creature-compendium/2026-03-10-s00-architect-missing-bash-tool.md`.
+Evidence: lesson file `docs/4-reviews/lessons/89-mythical-creatures/e01-creature-compendium/2026-03-10-s00-planner-missing-bash-tool.md`.
 
 ### 3. Scope Leak in Parallel Branches
 
@@ -127,7 +127,7 @@ Evidence: epic telemetry on issues #94, #95, and PR #104.
 
 | Commit | Change | Trigger |
 |--------|--------|---------|
-| `cfb2231` | Added `Bash` to architect agent's tool list | Architect couldn't run `gh` commands (lesson: architect-missing-bash-tool) |
+| `cfb2231` | Added `Bash` to planner agent's tool list | Planner couldn't run `gh` commands (lesson: planner-missing-bash-tool) |
 | `3597ea4` | Agent color palette updated to pipeline flow theme | Orchestrator-initiated mid-build styling pass |
 | `df449a1` | Refined color palette with builder tier differentiation | Distinguish haiku/sonnet/opus builders visually |
 | `3587b2b` | Final warm/cool color palette: warm for execution, cool for planning | Consolidation of color experiments |
@@ -146,7 +146,7 @@ Evidence: epic telemetry on issues #94, #95, and PR #104.
 
 1. **Board status is the orchestrator's responsibility in autonomous mode.** Builders should not be the primary source of truth for board transitions. The orchestrator must set Todo (after plan merge), In Progress (before dispatch), and In Review (after builder completes) sequentially to avoid API race conditions.
 2. **GitHub Projects API cannot handle concurrent `item-edit` calls reliably.** All board updates must be serialized. After parallel dispatch, the orchestrator must verify and fix board status before proceeding.
-3. **Agent tool lists must be audited when instructions reference CLI commands.** The architect agent had `gh` commands in its instructions but no `Bash` tool. Verify tool lists match instruction requirements before first dispatch.
+3. **Agent tool lists must be audited when instructions reference CLI commands.** The planner agent had `gh` commands in its instructions but no `Bash` tool. Verify tool lists match instruction requirements before first dispatch.
 
 ### For the Workflow
 
@@ -159,9 +159,9 @@ Evidence: epic telemetry on issues #94, #95, and PR #104.
 
 1. **Orchestrator must own all board transitions in autonomous mode** -- The Planned-to-Todo gap and concurrent board update failures both stem from the same root cause: the orchestrator delegated board status to other agents and scripts. The orchestrator should set board status sequentially before and after each dispatch. *Status: proposed for convention change.*
 
-2. **Audit agent tool lists against instruction content** -- Add a pre-flight check: before dispatching an agent, verify its `tools` frontmatter includes `Bash` if the agent's instructions reference `gh`, `git`, or other CLI commands. This is a one-time fix for existing agents but should be a convention for new agent files. *Status: already fixed for architect (commit `cfb2231`); convention change proposed.*
+2. **Audit agent tool lists against instruction content** -- Add a pre-flight check: before dispatching an agent, verify its `tools` frontmatter includes `Bash` if the agent's instructions reference `gh`, `git`, or other CLI commands. This is a one-time fix for existing agents but should be a convention for new agent files. *Status: already fixed for planner (commit `cfb2231`); convention change proposed.*
 
-3. **Add per-model cost rows to epic telemetry** -- The `issue-telemetry.sh` script should accept multiple `--model` flags or compute cost from the breakdown table rather than applying a single model rate to all tokens. This eliminates the misleading headline cost. *Status: proposed as an issue for the architect, not a convention change.*
+3. **Add per-model cost rows to epic telemetry** -- The `issue-telemetry.sh` script should accept multiple `--model` flags or compute cost from the breakdown table rather than applying a single model rate to all tokens. This eliminates the misleading headline cost. *Status: proposed as an issue for the planner, not a convention change.*
 
 4. **Builders must verify word counts before committing** -- Add to builder agent instructions: "Run `wc -w <output-file>` and compare against the acceptance criteria word count range before calling `issue-review.sh`." This would have prevented 2 of the 3 review cycles. *Status: proposed for convention change.*
 
@@ -171,7 +171,7 @@ Evidence: epic telemetry on issues #94, #95, and PR #104.
 
 | Lesson File | Status |
 |-------------|--------|
-| `e01-creature-compendium/2026-03-10-s00-architect-missing-bash-tool.md` | Compiled into this retro; fix applied (commit `cfb2231`); convention change proposed |
+| `e01-creature-compendium/2026-03-10-s00-planner-missing-bash-tool.md` | Compiled into this retro; fix applied (commit `cfb2231`); convention change proposed |
 | `e01-creature-compendium/2026-03-10-s00-board-status-skipped-stages.md` | Compiled into this retro; convention change proposed |
 
 Both lesson files remain on disk for traceability. This retro doc is the primary reference for this epic's learnings going forward.
@@ -207,7 +207,7 @@ The user observed the orchestration in real-time during the session and caught s
 | **"Builder is always green — variations for different models?"** — Wanted visual differentiation. | Can't distinguish haiku/sonnet/opus at a glance in the UI. | Added distinct green shades: light (#90EE90), standard, dark (#006400) (commit `d6cd302`). |
 | **"3 E01 stories stuck in Planned"** — Caught the critical board status gap. | Board was visually wrong for the entire build duration. | Identified race condition in parallel board updates; wrote lesson. |
 | **"Planned directly to Done — expect them to move through stages"** — Identified full lifecycle gap. | Confirmed both root causes: missing Todo transition + parallel API failures. | Orchestrator must own all board transitions sequentially. |
-| **"Fix the planner process, remember to improve"** — Prompted architect Bash tool fix. | Architect couldn't run gh commands without Bash in its tool list. | Added Bash to architect tools (commit `cfb2231`). |
+| **"Fix the planner process, remember to improve"** — Prompted planner Bash tool fix. | Planner couldn't run gh commands without Bash in its tool list. | Added Bash to planner tools (commit `cfb2231`). |
 | **"Epic telemetry shows all stories, not just that epic's children"** — Caught cross-contamination. | Misleading telemetry on each epic issue. | Posted corrected per-epic breakdowns (lesson filed). |
 
 ### Insight: Human-in-the-Loop Catches Different Issues

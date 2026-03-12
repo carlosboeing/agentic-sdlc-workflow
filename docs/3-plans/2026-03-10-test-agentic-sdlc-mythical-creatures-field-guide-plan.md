@@ -1,6 +1,6 @@
 ---
 date: 2026-03-10
-author: architect
+author: planner
 status: draft
 backlog: 89
 epic: mythical-creatures-field-guide

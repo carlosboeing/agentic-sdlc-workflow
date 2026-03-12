@@ -10,7 +10,7 @@ status: draft
 
 Our GitHub issue descriptions have been inconsistent across 6 SDLC test runs. Run 1 (#57) had a clean, integrated format with dependency graphs in the body. Later runs lost this — Run 6 (#162) had the graph appended with a `---` separator that looks unprofessional. We have no formalised templates for any work item level.
 
-The architect, designer, orchestrator, and humans all create issues but have no shared structure to follow. This leads to inconsistent quality, missing information, and dependency graphs that look bolted-on.
+The planner, designer, orchestrator, and humans all create issues but have no shared structure to follow. This leads to inconsistent quality, missing information, and dependency graphs that look bolted-on.
 
 ## Design Principles
 
@@ -22,7 +22,7 @@ Based on industry research (IEEE 1016, Google Design Docs, HashiCorp RFCs, Shape
 4. **Lightweight structure wins.** Core sections are required; everything else is optional. Over-templating causes compliance theatre ("I'd rather review code than all these markdown files" — Fowler).
 5. **Lower abstraction reduces interpretation errors.** One story = one spec = one deliverable (Tessl principle). The less an agent needs to interpret across documents, the better the output.
 6. **All top-level headings use `##`.** The GitHub issue title renders as the page heading; `#` in the body creates a visual duplicate.
-7. **No `---` separators for appended content.** Sections added later (by the architect) are a natural continuation of the body, not an afterthought.
+7. **No `---` separators for appended content.** Sections added later (by the planner) are a natural continuation of the body, not an afterthought.
 8. **No emoji in headings.** Cleaner, more professional, easier to parse programmatically.
 
 ## Information Flow
@@ -34,7 +34,7 @@ Human / Product → Backlog item (the brief)
                       ↓
                 Design doc (the full SDD — docs/2-design/)
                       ↓
-                Architect reads design doc
+                Planner reads design doc
                       ↓
                 Plan doc (decomposition — docs/3-plans/)
                 + Story issues (self-contained micro-specs)
@@ -49,10 +49,10 @@ Human / Product → Backlog item (the brief)
 | Work item                         | Written by               | Read by        | Purpose                                                |
 | --------------------------------- | ------------------------ | -------------- | ------------------------------------------------------ |
 | **Backlog issue**                 | Human / product workflow | Designer       | The brief — "here's what I want"                       |
-| **Design doc** (`docs/2-design/`) | Designer                 | Architect      | The full SDD — why, what, how, alternatives            |
-| **Plan doc** (`docs/3-plans/`)    | Architect                | Orchestrator   | Decomposition, dependency graph, dispatch strategy     |
-| **Story issue**                   | Architect                | **Builder**    | Self-contained micro-spec — everything needed to build |
-| **Epic issue**                    | Architect                | Humans (board) | Grouping container for tracking and visibility         |
+| **Design doc** (`docs/2-design/`) | Designer                 | Planner      | The full SDD — why, what, how, alternatives            |
+| **Plan doc** (`docs/3-plans/`)    | Planner                | Orchestrator   | Decomposition, dependency graph, dispatch strategy     |
+| **Story issue**                   | Planner                | **Builder**    | Self-contained micro-spec — everything needed to build |
+| **Epic issue**                    | Planner                | Humans (board) | Grouping container for tracking and visibility         |
 
 
 The key insight: **design detail lives in the design doc, execution detail lives in the story, and epics are just folders.**
@@ -87,7 +87,7 @@ Sub-sections (###) allowed.
 Optional — skip when the overview says enough.>
 ```
 
-**After the architect completes planning**, the following sections are appended to the backlog issue body as a natural continuation (no `---` separator):
+**After the planner completes planning**, the following sections are appended to the backlog issue body as a natural continuation (no `---` separator):
 
 ```markdown
 ## Epics
@@ -130,9 +130,9 @@ These appended sections are for **human visibility and orchestrator reference** 
 | Overview | Whoever creates the issue | **Yes** | The one section that must always exist |
 | Requirements | Whoever creates the issue | Optional | Skip for test/exploratory items |
 | Context | Whoever creates the issue | Optional | Skip when overview is sufficient |
-| Epics | Architect (appended) | **Yes** | Added after plan is complete |
-| Dependency Graph | Architect (appended) | **Yes** | Added after story issues are created |
-| Dispatch Plan | Architect (appended) | **Yes** | Added after story issues are created |
+| Epics | Planner (appended) | **Yes** | Added after plan is complete |
+| Dependency Graph | Planner (appended) | **Yes** | Added after story issues are created |
+| Dispatch Plan | Planner (appended) | **Yes** | Added after story issues are created |
 
 ---
 
@@ -234,7 +234,7 @@ Part of #<epic>.
 
 **Design vs AC — distinct concerns, deliberate ordering:**
 
-- **Design** answers **"how should the builder get there?"** — implementation strategy, file layout, patterns to follow, structural decisions scoped to this story. Named "Design" to align with IEEE 1016, Kiro (AWS), and RFC conventions. For easy stories the path is obvious (omit Design). For hard stories the Design section is where the architect's thinking reaches the builder — distinct from the design doc because it's scoped to one story, not the whole feature.
+- **Design** answers **"how should the builder get there?"** — implementation strategy, file layout, patterns to follow, structural decisions scoped to this story. Named "Design" to align with IEEE 1016, Kiro (AWS), and RFC conventions. For easy stories the path is obvious (omit Design). For hard stories the Design section is where the planner's thinking reaches the builder — distinct from the design doc because it's scoped to one story, not the whole feature.
 - **Acceptance Criteria** answer **"what does done look like?"** — specific, testable, predefined conditions that the deliverable must meet to be accepted. They define scope and reduce ambiguity. They do not tell the builder *how* to build it.
 
 **Design comes before AC.** This matches IEEE 1016 (Detailed Design → Quality Attributes), Kiro (Design → Test Plan), RFC format (Implementation → Success Metrics), and cognitive flow theory: the builder needs to understand the path before recognising the finish line. Reading AC without understanding the design forces backtracking.
@@ -269,7 +269,7 @@ The flow is consistent: **Why → What → How → Done**, at decreasing granula
 | Graph heading               | `## 📊 Dependency Graph`                         | `## Dependency Graph` (no emoji)                                        |
 | Epic story list             | Checkbox list                                    | Structured table (Story, Issue, Title, Difficulty, Depends on)          |
 | Epic dependency graph       | Separate Mermaid graph per epic                  | Removed — redundant with backlog graph + table "Depends on" column      |
-| Backlog sections            | Ad-hoc, varied per run                           | Defined outline: Overview, Requirements, Context (+ architect appendix) |
+| Backlog sections            | Ad-hoc, varied per run                           | Defined outline: Overview, Requirements, Context (+ planner appendix) |
 | Story self-containment      | Builder sometimes needed to read epic/design doc | Story has full context + Design section + design doc link as safety net |
 | Story metadata              | Varied                                           | Consistent: Branch, Difficulty, Dependencies, Design link               |
 | Who creates backlog         | Assumed to be human in this workflow             | Explicitly anyone — human, CC session, product workflow                 |
@@ -278,12 +278,12 @@ The flow is consistent: **Why → What → How → Done**, at decreasing granula
 ## Anti-Patterns to Avoid
 
 1. **Over-templating.** If a section is always "N/A", it shouldn't be in the template. Optional means optional.
-2. `**---` separators for appended content.** The architect appends Epics/Graph/Dispatch as a continuation of the body, not a separated addendum.
+2. `**---` separators for appended content.** The planner appends Epics/Graph/Dispatch as a continuation of the body, not a separated addendum.
 3. **Emoji in headings.** Clean heading names are more professional and easier to parse.
 4. **Duplicating sub-issue state.** Don't maintain `- [x]` checkboxes on epics for story completion — GitHub sub-issues already track this.
 5. **Forcing user story format.** "As a cat, I want to review my human..." adds no value. Use natural language when the format doesn't fit.
 6. **Making epics informative.** Epics are folders. Don't put design detail on them — it belongs in the story's Design section or the design doc.
-7. **Expecting builders to read upstream.** If the builder needs the design doc to understand the story, the story is under-specified. The Design section carries the architect's implementation guidance; the design link is a safety net, not a primary source.
+7. **Expecting builders to read upstream.** If the builder needs the design doc to understand the story, the story is under-specified. The Design section carries the planner's implementation guidance; the design link is a safety net, not a primary source.
 
 ## Implementation
 
@@ -292,7 +292,7 @@ The flow is consistent: **Why → What → How → Done**, at decreasing granula
 
 | File                                   | Change                                                         |
 | -------------------------------------- | -------------------------------------------------------------- |
-| `.claude/agents/architect.md`          | Replace issue creation guidance with these templates           |
+| `.claude/agents/planner.md`          | Replace issue creation guidance with these templates           |
 | `CLAUDE.md`                            | Add brief reference to issue template conventions              |
 | `.claude/agents/builder.md` + variants | Add instruction: "Read the design doc link if AC is ambiguous" |
 

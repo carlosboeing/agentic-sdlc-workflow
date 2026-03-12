@@ -15,7 +15,7 @@ This repo was extracted from [NeuralNorris](https://github.com/gavinkilbride/Neu
 ### Agent files (`.claude/agents/`)
 - `builder.md` + variants reference `dotnet build`, `dotnet test`, C# conventions
 - `reviewer.md` may reference C#/.NET patterns
-- `architect.md` may reference .NET project structure conventions
+- `planner.md` may reference .NET project structure conventions
 - All agents should be language/framework-agnostic, with project-specific config injected via CLAUDE.md
 
 ### Config (`.claude/settings.json`)

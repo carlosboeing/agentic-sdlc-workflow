@@ -1,6 +1,6 @@
 ---
 date: 2026-03-09
-author: architect
+author: planner
 status: draft
 epic: sdlc-v2
 ---
@@ -62,9 +62,9 @@ Full lifecycle CLI orchestration: design → plan → build → review → epic 
 **Acceptance criteria:**
 
 - Usage: `./scripts/dispatch-workflow.sh <backlog-issue-number> [--skip-design] [--skip-plan] [--autonomous] [--epic <eNN-slug>]`
-- `--autonomous` flag: designer/architect skip interactive questions; PRs auto-merged via `gh pr merge`
+- `--autonomous` flag: designer/planner skip interactive questions; PRs auto-merged via `gh pr merge`
 - Phase 1 (Design): dispatches designer (with "autonomous" prefix when `--autonomous`), auto-merges or polls for merge
-- Phase 2 (Plan): dispatches architect (with "autonomous" prefix when `--autonomous`), auto-merges or polls for merge
+- Phase 2 (Plan): dispatches planner (with "autonomous" prefix when `--autonomous`), auto-merges or polls for merge
 - Phase 3 (Build): reads stories via `gh issue list --label "epic/<slug>"`, reads difficulty, dispatches via `dispatch-story.sh`, dispatches reviewer after each story
 - Phase 4 (Close): opens epic PR with `Closes #NN`, posts epic telemetry
 - Phase 5 (Retro): dispatches retro agent
@@ -95,14 +95,14 @@ Full lifecycle CLI orchestration: design → plan → build → review → epic 
 
 ---
 
-### E01-S04: Add lessons + self-doc to designer, architect, reviewer — `difficulty/easy`
+### E01-S04: Add lessons + self-doc to designer, planner, reviewer — `difficulty/easy`
 
-**Modify:** `designer.md`, `architect.md`, `reviewer.md`
+**Modify:** `designer.md`, `planner.md`, `reviewer.md`
 
 Same two sections as E01-S03, with role-specific tag keywords:
 
 - Designer: `grep -rl "tags:.*design" docs/4-reviews/lessons/`
-- Architect: `grep -rl "tags:.*architecture" docs/4-reviews/lessons/`
+- Planner: `grep -rl "tags:.*architecture" docs/4-reviews/lessons/`
 - Reviewer: `grep -rl "tags:.*review" docs/4-reviews/lessons/`
 
 **Additional reviewer change:** New "Per-Story Review Mode" section:
@@ -316,7 +316,7 @@ graph TD
 **After all stories complete:**
 
 1. **Scripts:** `test -x scripts/dispatch-story.sh && test -x scripts/dispatch-workflow.sh`
-2. **Agent files:** `ls .claude/agents/{designer,architect,builder,builder-haiku,builder-sonnet,builder-opus,reviewer,orchestrator,retro}.md` — 9 files
+2. **Agent files:** `ls .claude/agents/{designer,planner,builder,builder-haiku,builder-sonnet,builder-opus,reviewer,orchestrator,retro}.md` — 9 files
 3. **Builder sync:** `diff <(tail -n +6 .claude/agents/builder.md) <(tail -n +6 .claude/agents/builder-sonnet.md)`
 4. **Lessons sections:** `grep -l "Capturing Lessons" .claude/agents/*.md` — 6 unique agents (9 files counting variants)
 5. **CLAUDE.md:** agents table has 6 rows, dispatch protocol documents both modes, "Lesson Conventions" section exists

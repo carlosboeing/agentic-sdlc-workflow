@@ -44,7 +44,7 @@ sequenceDiagram
     CC->>GH: creates issue, opens PR
     Human->>GH: merges design PR (approval gate)
 
-    Human->>CC: claude --agent architect "Plan calendar tool"
+    Human->>CC: claude --agent planner "Plan calendar tool"
     CC->>Repo: writes docs/3-plans/*.md
     CC->>GH: creates epic + story issues, opens PR
     Human->>GH: merges plan PR (approval gate)
@@ -72,9 +72,9 @@ Context already flows through **persistent artifacts**, not agent return values:
 | Artifact | Where | Who writes | Who reads |
 | -------- | ----- | ---------- | --------- |
 | CLAUDE.md | repo root | human/retro agent | all agents |
-| Design doc | `docs/2-design/` | designer | architect, builder |
-| Plan + acceptance criteria | `docs/3-plans/` | architect | builder |
-| GitHub Issues (labels, body) | GitHub | architect | orchestrator, builder |
+| Design doc | `docs/2-design/` | designer | planner, builder |
+| Plan + acceptance criteria | `docs/3-plans/` | planner | builder |
+| GitHub Issues (labels, body) | GitHub | planner | orchestrator, builder |
 | Story branches (code) | git | builder | next builder, reviewer |
 | Issue comments (telemetry) | GitHub | scripts | orchestrator, retro |
 | Epic branch (accumulated code) | git | builders (merge) | reviewer |
@@ -123,7 +123,7 @@ flowchart TD
 
     subgraph Workers ["CC CLI Workers (subscription plan)"]
         DES[designer]
-        ARC[architect]
+        ARC[planner]
         BLD[builder]
         REV[reviewer]
         RET[retro]
@@ -192,7 +192,7 @@ sequenceDiagram
 
     rect rgb(219, 234, 254)
     Note over Orch,Repo: Phase 2 — Plan
-    Orch->>Worker: dispatch architect
+    Orch->>Worker: dispatch planner
     Worker->>Repo: writes docs/3-plans/*.md
     Worker->>GH: creates epic + story issues, opens PR
     Orch-->>GH: polls gh pr view --json state
@@ -249,7 +249,7 @@ claude --agent orchestrator --dangerously-skip-permissions \
 
 For CI/CD or headless compute, add `-p` to run without the interactive UI: `-p --verbose` for turn-by-turn text logging, `-p --output-format stream-json` for machine-readable streaming events (pipe to `tee` for log files), or `-p` alone for silent execution.
 
-The designer and architect agents still follow their structured processes in autonomous mode — exploring approaches, documenting trade-offs, and flagging assumptions — but derive all requirements from the backlog issue instead of asking interactive questions.
+The designer and planner agents still follow their structured processes in autonomous mode — exploring approaches, documenting trade-offs, and flagging assumptions — but derive all requirements from the backlog issue instead of asking interactive questions.
 
 ## Detailed Design
 
@@ -264,7 +264,7 @@ The designer and architect agents still follow their structured processes in aut
 **Capabilities:**
 
 - Detects existing artifacts (design docs, plans) and skips completed phases
-- Dispatches designer and architect agents for design/plan phases (autonomous or interactive)
+- Dispatches designer and planner agents for design/plan phases (autonomous or interactive)
 - Auto-merges design/plan PRs in autonomous mode via `gh pr merge`
 - Reads `docs/3-plans/` to find the plan for the backlog item
 - Reads GitHub issues to get story list, labels (difficulty), dependencies
@@ -280,7 +280,7 @@ The designer and architect agents still follow their structured processes in aut
 
 **Two modes — controlled by including the word `autonomous` in your prompt:**
 
-| Mode | How to activate | Designer/Architect behavior | PR handling |
+| Mode | How to activate | Designer/Planner behavior | PR handling |
 |------|----------------|---------------------------|-------------|
 | **Autonomous** | Include `autonomous` in the prompt (e.g., `"autonomous — Execute backlog item #42."`) | Skip brainstorming skill and `AskUserQuestion`; derive all requirements from the backlog issue | Auto-merged via `gh pr merge` |
 | **Interactive** | Omit `autonomous` from the prompt (default) | Ask clarifying questions via `AskUserQuestion`; use brainstorming skill for structured exploration | Wait for human to review and merge |
@@ -294,7 +294,7 @@ Both modes preserve structured thinking — the designer still explores approach
 claude --agent orchestrator --dangerously-skip-permissions \
   "autonomous — Execute backlog item #42."
 
-# Interactive — designer/architect ask questions, wait for PR merges
+# Interactive — designer/planner ask questions, wait for PR merges
 claude --agent orchestrator "Execute backlog item #42."
 
 # Mixed — skip design/plan (already done), build autonomously
@@ -306,7 +306,7 @@ claude --agent orchestrator --dangerously-skip-permissions \
 
 - Write code (dispatch the builder)
 - Write design docs itself (dispatch the designer)
-- Create plans itself (dispatch the architect)
+- Create plans itself (dispatch the planner)
 - Parse CC CLI output beyond exit codes
 
 **Dispatch mechanism (primary):** The orchestrator dispatches workers as in-session subagents via the Agent tool with `subagent_type: "builder-sonnet"` (or haiku/opus based on difficulty label).
@@ -463,13 +463,13 @@ New script that orchestrates a full backlog item lifecycle:
 #
 # Phases:
 # 1. Design (if not --skip-design): dispatch designer, wait/auto-merge PR
-# 2. Plan (if not --skip-plan): dispatch architect, wait/auto-merge PR
+# 2. Plan (if not --skip-plan): dispatch planner, wait/auto-merge PR
 # 3. Build: read plan, dispatch stories respecting dependency graph
 # 4. Review: dispatch reviewer per story
 # 5. Epic PR: open PR with Closes links, changelog, telemetry
 # 6. Retro: dispatch retro agent
 #
-# --autonomous: Designer/architect skip interactive questions; PRs auto-merged
+# --autonomous: Designer/planner skip interactive questions; PRs auto-merged
 ```
 
 **Approval gates:** In interactive mode (default), the script pauses after design and plan phases, polling for human PR merge. In autonomous mode (`--autonomous`), design/plan PRs are auto-merged via `gh pr merge` immediately after the agent completes.
@@ -585,7 +585,7 @@ Tags are freeform — agents add whatever tags make sense. Common tags will emer
 | Orchestrator | Yes | Yes | When dispatch or board operations fail unexpectedly | `grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/` |
 | Retro | Yes (all) | Yes (supplements) | When it identifies cross-story patterns that individual agents missed | Reads entire directory to synthesize |
 | Designer | Yes | Yes | When it discovers constraints or trade-offs worth capturing for future designs | `grep -rl "tags:.*design" docs/4-reviews/lessons/` |
-| Architect | Yes | Yes | When plan assumptions prove wrong or dependency graphs need revision | `grep -rl "tags:.*architecture" docs/4-reviews/lessons/` |
+| Planner | Yes | Yes | When plan assumptions prove wrong or dependency graphs need revision | `grep -rl "tags:.*architecture" docs/4-reviews/lessons/` |
 
 ### Lesson Retention
 
@@ -657,7 +657,7 @@ Two feedback loops drive improvement:
 
 During the Calendar build, the human orchestrator had to make 22 commits to CLAUDE.md and agent files because agents didn't update documentation when they encountered gaps or made decisions. Examples:
 
-- The architect discovered that `gh project item-list` defaults to 30 items but didn't add `--limit 100` to the agent docs — the human had to.
+- The planner discovered that `gh project item-list` defaults to 30 items but didn't add `--limit 100` to the agent docs — the human had to.
 - The builder discovered that DI registration was incomplete but didn't propose an instruction update — the human had to.
 - The designer crossed phase boundaries (tried to write plans) but didn't add a guard rail to its own agent file — the human had to.
 
@@ -717,7 +717,7 @@ warrant team review, note it in your issue-review.sh comment.
 | ----- | -------------------- | ------------------ | ------------------------- | ---------------------- |
 | Builder | Yes (conventions it discovers) | Yes | No | Yes |
 | Reviewer | Yes (review conventions) | Yes | Yes (if review finding requires it) | Yes |
-| Architect | Yes (project structure, commands) | Yes | No | Yes |
+| Planner | Yes (project structure, commands) | Yes | No | Yes |
 | Designer | Yes (design conventions it discovers) | Yes | No | Yes |
 | Orchestrator | Yes (dispatch conventions) | Yes | No | Yes |
 | Retro | Yes (proposes changes via PR) | Yes | Yes (proposes via PR) | Yes |
@@ -790,7 +790,7 @@ Every agent call consumes API tokens at pay-per-use rates. The Calendar build co
 | -------- | ---------- |
 | Orchestrator (CC agent or Norris planning) | Subscription (CC CLI) or minimal API (Norris) |
 | Designer | Subscription (CC CLI) |
-| Architect | Subscription (CC CLI) |
+| Planner | Subscription (CC CLI) |
 | Builder x N | Subscription (CC CLI) |
 | Reviewer x N | Subscription (CC CLI) |
 | Retro | Subscription (CC CLI) |
@@ -945,7 +945,7 @@ The backlog-level telemetry includes all agent work, not just builders:
 | Phase | Agent | What to capture |
 |-------|-------|----------------|
 | Design | Designer | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
-| Plan | Architect | Same |
+| Plan | Planner | Same |
 | Build | Builders (per story) | Already captured via `issue-telemetry.sh` |
 | Review | Reviewers (per story + epic) | Same (even from failed/limited dispatches) |
 | Retro | Retro agent | Same |
@@ -983,7 +983,7 @@ Builder scripts (`issue-start.sh`, `issue-review.sh`) still update the board as 
 3. After all complete, set all to In Review **sequentially**
 4. Verify board status and fix any missed transitions
 
-**Dependency graph:** The architect's plan includes a Mermaid dependency graph. Stories with no shared dependencies can run in parallel. The orchestrator reads this graph to determine wave composition.
+**Dependency graph:** The planner's plan includes a Mermaid dependency graph. Stories with no shared dependencies can run in parallel. The orchestrator reads this graph to determine wave composition.
 
 **Dispatch strategy:** Splitting into waves (e.g., Wave 1 for independent stories, Wave 2 for stories with light dependencies) gives the orchestrator checkpoints to verify board transitions and telemetry before proceeding.
 
@@ -1095,7 +1095,7 @@ The original design specified one PR per epic to `main`. This was revised based 
 - Simpler branch model: one integration branch instead of independent epic PRs
 
 **Impact on phases:**
-- Designer/architect PRs target the integration branch (not main)
+- Designer/planner PRs target the integration branch (not main)
 - Epic branches are created from the integration branch
 - Retro commits go on the integration branch (no separate PR)
 - Orchestrator opens ONE PR and leaves it for human review
@@ -1172,7 +1172,7 @@ claude --agent orchestrator \
 |------|------|-------------|
 | `orchestrator.md` | Orchestrator | Drives full lifecycle: dispatches agents, manages board state, posts telemetry, handles phase gates |
 | `designer.md` | Designer | Brainstorms features, writes design docs in `docs/2-design/`, opens design PR |
-| `architect.md` | Architect | Creates implementation plans in `docs/3-plans/`, creates epic/story issues, sets difficulty labels, builds dependency graphs |
+| `planner.md` | Planner | Creates implementation plans in `docs/3-plans/`, creates epic/story issues, sets difficulty labels, builds dependency graphs |
 | `builder.md` | Builder | TDD implementation of stories: reads issue, creates branch, implements, runs tests, commits |
 | `builder-haiku.md` | Builder (easy) | Builder variant routed to Haiku model for `difficulty/easy` stories |
 | `builder-sonnet.md` | Builder (medium) | Builder variant routed to Sonnet model for `difficulty/medium` stories |
@@ -1241,11 +1241,11 @@ claude --agent orchestrator \
 | Section | What it defines |
 |---------|----------------|
 | `## Development Workflow` | Six agent roles table |
-| `### Agents` | Agent table (designer, architect, builder, reviewer, orchestrator, retro) |
+| `### Agents` | Agent table (designer, planner, builder, reviewer, orchestrator, retro) |
 | `### For All Agents` | Check GitHub Issues first, never start without an issue, conventional commits, reference PROJECT.md, write lessons |
 | `### Branch Conventions` | Integration branch, epic branches, story branches, merge strategy, delete-after-merge safety |
 | `### GitHub Conventions` | Labels (hierarchy/*, type/*, difficulty/*), work item hierarchy (3 levels), issue naming, sub-issue linking, GitHub Project board, status field values + option IDs, helper scripts table, epic status sync, board transitions |
-| `### Work Item Hierarchy` | Backlog Item → Epic → Story (3-level constraint), lifecycle mapping, architect constraints |
+| `### Work Item Hierarchy` | Backlog Item → Epic → Story (3-level constraint), lifecycle mapping, planner constraints |
 | `### Dispatch Protocol` | Model routing (difficulty → model), in-session dispatch, CLI dispatch, builder variants, telemetry, parallel dispatch, epic branch creation |
 | `### Backlog PR Strategy` | One PR per backlog item, squash merge, `Closes #NN` linking, changelog, internal merges, per-epic telemetry, mixed-model epics, backlog-level telemetry, PR telemetry placement, cost disclaimer, orchestrator state persistence |
 | `### Documentation Conventions` | Doc folder structure, doc approval workflow |
@@ -1268,7 +1268,7 @@ Use this to copy files from NeuralNorris into a new framework repo. For each fil
 |------|--------|
 | `orchestrator.md` | Copy. Remove all `gh` commands, board IDs, `gavinkilbride` references. Replace with `sdlc.sh` adapter calls. Remove NeuralNorris architecture knowledge. |
 | `designer.md` | Copy. Remove NeuralNorris project vision/architecture references. Keep design phase workflow. |
-| `architect.md` | Copy. Remove `gh issue create`/`gh project` commands, board IDs. Remove .NET/C# architecture knowledge. Replace with adapter calls and "Read the project's CLAUDE.md". |
+| `planner.md` | Copy. Remove `gh issue create`/`gh project` commands, board IDs. Remove .NET/C# architecture knowledge. Replace with adapter calls and "Read the project's CLAUDE.md". |
 | `builder.md` | Copy. Remove .NET build commands, `NN.*` namespaces, DI patterns, xUnit/NSubstitute. Replace with "Read the project's CLAUDE.md for build commands, test framework, and conventions". |
 | `builder-haiku.md` | Copy. Same changes as `builder.md` (sync from rewritten `builder.md`). |
 | `builder-sonnet.md` | Copy. Same changes as `builder.md`. |

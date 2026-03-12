@@ -4,7 +4,7 @@
 
 **Goal:** Set up a four-agent SDLC workflow with GitHub Issues integration, helper scripts, numbered docs structure, and updated project conventions.
 
-**Architecture:** Four agent definitions in `.claude/agents/` (designer, architect, builder, reviewer), bash helper scripts in `scripts/`, numbered SDLC doc phases, CLAUDE.md workflow section, and Sentinel workflow update.
+**Architecture:** Four agent definitions in `.claude/agents/` (designer, planner, builder, reviewer), bash helper scripts in `scripts/`, numbered SDLC doc phases, CLAUDE.md workflow section, and Sentinel workflow update.
 
 **Tech Stack:** Bash (helper scripts), GitHub CLI (`gh`), Markdown (agent definitions), GitHub Actions (Sentinel)
 
@@ -463,7 +463,7 @@ Save all outputs as docs in the project:
 
 Always save docs immediately, even as drafts. The user will review and confirm approval.
 
-When a design doc is approved and ready for implementation, flag that it needs an implementation plan and GitHub Issues created by the architect agent. Do not create implementation issues yourself — that is the architect's responsibility.
+When a design doc is approved and ready for implementation, flag that it needs an implementation plan and GitHub Issues created by the planner agent. Do not create implementation issues yourself — that is the planner's responsibility.
 
 ## Output Format
 
@@ -484,22 +484,22 @@ git commit -m "feat(agents): add designer agent for feature brainstorming and de
 
 ---
 
-### Task 9: Create the `architect` agent
+### Task 9: Create the `planner` agent
 
 **Files:**
-- Create: `.claude/agents/architect.md`
+- Create: `.claude/agents/planner.md`
 
 **Step 1: Write the agent definition**
 
 ```markdown
 ---
-name: architect
-description: Technical architect for planning implementation, designing C# interfaces, structuring the codebase, and creating GitHub Issues with difficulty labels. Use when planning technical architecture, designing types/abstractions, creating implementation plans, or breaking work into epics and stories. Writes docs and creates issues but does not modify code.
+name: planner
+description: Technical planner for planning implementation, designing C# interfaces, structuring the codebase, and creating GitHub Issues with difficulty labels. Use when planning technical architecture, designing types/abstractions, creating implementation plans, or breaking work into epics and stories. Writes docs and creates issues but does not modify code.
 tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Task
 model: inherit
 ---
 
-You are a senior .NET architect who specializes in C# / .NET 10 applications with clean architecture.
+You are a senior .NET planner who specializes in C# / .NET 10 applications with clean architecture.
 
 ## Tech Stack (Current)
 
@@ -611,8 +611,8 @@ When creating task breakdowns, each story should be:
 **Step 2: Commit**
 
 ```bash
-git add .claude/agents/architect.md
-git commit -m "feat(agents): add architect agent for planning and issue creation"
+git add .claude/agents/planner.md
+git commit -m "feat(agents): add planner agent for planning and issue creation"
 ```
 
 ---
@@ -913,7 +913,7 @@ Four specialized agents in `.claude/agents/`:
 | Agent | Role | Writes to |
 |-------|------|-----------|
 | `designer` | Brainstorm features, write design docs | `docs/2-design/` |
-| `architect` | Create plans, GitHub Issues with difficulty labels | `docs/3-plans/`, `docs/6-adrs/` |
+| `planner` | Create plans, GitHub Issues with difficulty labels | `docs/3-plans/`, `docs/6-adrs/` |
 | `builder` | TDD implementation of stories | Code only |
 | `reviewer` | Code quality and convention review | Review comments |
 
@@ -1079,7 +1079,7 @@ Expected: `type/feature`, `type/bug`, `type/refactor`, `type/test`, `type/docs`,
 ls -la .claude/agents/
 ```
 
-Expected: `designer.md`, `architect.md`, `builder.md`, `reviewer.md`
+Expected: `designer.md`, `planner.md`, `builder.md`, `reviewer.md`
 
 **Step 4: Verify docs structure**
 

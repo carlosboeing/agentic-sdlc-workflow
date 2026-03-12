@@ -14,7 +14,7 @@ Your job starts with a **backlog issue number** (or epic slug) and ends when the
 
 - Write or modify production code (dispatch the **builder**)
 - Write design docs yourself (dispatch the **designer**)
-- Create implementation plans yourself (dispatch the **architect**)
+- Create implementation plans yourself (dispatch the **planner**)
 - Perform code reviews (dispatch the **reviewer**)
 
 Your deliverables are: dispatched agents, GitHub state updates, telemetry, and the backlog PR. Nothing else.
@@ -58,12 +58,12 @@ wait
 
 The orchestrator supports two modes for the design and plan phases:
 
-**Autonomous mode** — activated when the prompt includes "autonomous". Design/plan PRs are auto-merged after the designer/architect completes.
+**Autonomous mode** — activated when the prompt includes "autonomous". Design/plan PRs are auto-merged after the designer/planner completes.
 
-**Interactive mode** — when the orchestrator is run in an interactive session without "autonomous" in the prompt. The designer/architect will ask clarifying questions via `AskUserQuestion`, and the orchestrator waits for the human to merge the PRs.
+**Interactive mode** — when the orchestrator is run in an interactive session without "autonomous" in the prompt. The designer/planner will ask clarifying questions via `AskUserQuestion`, and the orchestrator waits for the human to merge the PRs.
 
 **Auto-merge protocol (autonomous mode only):**
-1. After the designer/architect subagent completes and opens a PR targeting the integration branch, find the PR:
+1. After the designer/planner subagent completes and opens a PR targeting the integration branch, find the PR:
    ```bash
    gh pr list --head "docs/" --state open --json number,headRefName
    ```
@@ -171,11 +171,11 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 **Skip if:** implementation plan already exists in `docs/3-plans/` referencing this backlog item AND epic issues exist, OR the prompt says "skip plan".
 
-Same dual-mode pattern as Phase 1, dispatching the architect:
+Same dual-mode pattern as Phase 1, dispatching the planner:
 
 **Autonomous mode:**
 ```
-Agent tool → subagent_type: "architect"
+Agent tool → subagent_type: "planner"
 Prompt: "autonomous — Create an implementation plan for backlog item #<N> (<title>).
          Read the backlog issue and design doc for full context.
          Integration branch: backlog/<N>-<slug>"
@@ -202,7 +202,7 @@ This replaces the human's responsibility for the Planned-to-Todo transition.
 
 **Interactive mode:**
 ```
-Agent tool → subagent_type: "architect"
+Agent tool → subagent_type: "planner"
 Prompt: "Create an implementation plan for backlog item #<N> (<title>).
          Read the backlog issue and design doc for full context.
          Integration branch: backlog/<N>-<slug>"
@@ -502,7 +502,7 @@ As the final phase, post a **full lifecycle telemetry summary** on the backlog i
 | Phase | What to record |
 |-------|---------------|
 | Designer | tokens, duration, tool uses |
-| Architect | tokens, duration, tool uses |
+| Planner | tokens, duration, tool uses |
 | Builders (per story) | tokens, duration, tool uses (already posted via `issue-telemetry.sh`) |
 | Reviewers (per story + backlog PR) | tokens, duration, tool uses |
 | Retro | tokens, duration, tool uses |
@@ -516,7 +516,7 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 | Phase | Agent | Tokens | Sequential Duration | Est. Cost |
 |-------|-------|--------|---------------------|-----------|
 | Design | designer | 45K | 3m 20s | ~$0.14 |
-| Plan | architect | 66K | 5m 5s | ~$0.20 |
+| Plan | planner | 66K | 5m 5s | ~$0.20 |
 | Build | builders (7 stories) | 548K | 25m 48s | ~$1.30 |
 | Review | reviewers (10 dispatches) | 336K | 19m 4s | ~$1.01 |
 | Retro | retro | 40K | 2m 30s | ~$0.12 |
@@ -535,7 +535,7 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 | Wave | Dispatch | Task | Model | Duration | Tokens | Est. Cost |
 |------|----------|------|-------|----------|--------|-----------|
 | 0 | sequential | Designer (#N) | opus | 3m 20s | 45K | ~$0.14 |
-| 0 | sequential | Architect (#N) | opus | 5m 05s | 66K | ~$0.20 |
+| 0 | sequential | Planner (#N) | opus | 5m 05s | 66K | ~$0.20 |
 | 1 | parallel | E01-S01 (#26) | haiku | 1m | 50K | ~$0.02 |
 | 1 | parallel | E01-S03 (#28) | haiku | 1m | 40K | ~$0.02 |
 | 1 | sequential | Review S01 (#26) | opus | 2m | 30K | ~$0.10 |
@@ -567,7 +567,7 @@ gantt
     axisFormat %M:%S
     tickInterval 2minute
     Designer (3m20s)           :active, design, 00:00:00, 200s
-    Architect (5m05s)          :active, plan, after design, 305s
+    Planner (5m05s)          :active, plan, after design, 305s
     E01-S01 (1m00s)            :w1b1, after plan, 60s
     E01-S03 (1m00s)            :w1b3, after plan, 60s
     Review S01 (2m00s)         :done, r1, after w1b1, 120s
@@ -590,7 +590,7 @@ EOF
 
 The Gantt chart should include **all lifecycle phases** (design, plan, build waves, review waves, fix cycles, retro), not just the build timeline. No `section` directives — task labels are self-explanatory. No `theme` key in `%%{init}%%` — this lets GitHub auto-detect dark/light mode for text and backgrounds while custom bar colors are applied on top. Color by task tag: `:active` (violet) for design/plan/retro, default (emerald) for build, `:done` (amber) for review, `:crit` (red) for fix/re-review. Use `after` syntax for sequential dependencies. The single source of truth for the init block and colors is `scripts/templates/telemetry.md`.
 
-**Gantt label convention:** Labels follow the format `<ENN-SNN> <short label> (<duration>)`. The short label is generated by the orchestrator from the full issue title — a concise, readable summary (aim for ~30 characters max) that preserves meaning. Do not mechanically truncate; use judgement to produce a label that makes sense at a glance. For non-story phases, use the agent role (e.g., "Designer (3m20s)", "Architect (5m05s)", "Retro Agent (2m30s)").
+**Gantt label convention:** Labels follow the format `<ENN-SNN> <short label> (<duration>)`. The short label is generated by the orchestrator from the full issue title — a concise, readable summary (aim for ~30 characters max) that preserves meaning. Do not mechanically truncate; use judgement to produce a label that makes sense at a glance. For non-story phases, use the agent role (e.g., "Designer (3m20s)", "Planner (5m05s)", "Retro Agent (2m30s)").
 
 Note: the orchestrator's own token consumption runs in the parent session and is not captured. Only dispatched subagent telemetry is tracked.
 
@@ -764,7 +764,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
   },
   "dispatches": [
     { "id": 1, "agent": "designer",      "model": "opus",  "issue": null, "started_at": "...", "duration_ms": 207799, "tokens": 64000,  "tool_uses": 42, "result": "success" },
-    { "id": 2, "agent": "architect",      "model": "opus",  "issue": null, "started_at": "...", "duration_ms": 486000, "tokens": 75000,  "tool_uses": 55, "result": "success" },
+    { "id": 2, "agent": "planner",      "model": "opus",  "issue": null, "started_at": "...", "duration_ms": 486000, "tokens": 75000,  "tool_uses": 55, "result": "success" },
     { "id": 3, "agent": "builder-haiku",  "model": "haiku", "issue": 112,  "started_at": "...", "duration_ms": 109000, "tokens": 103000, "tool_uses": 18, "result": "success" },
     { "id": 4, "agent": "reviewer",       "model": "opus",  "issue": 112,  "started_at": "...", "duration_ms": 117000, "tokens": 38000,  "tool_uses": 12, "result": "APPROVE" }
   ]

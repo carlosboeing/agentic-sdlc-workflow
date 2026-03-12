@@ -41,7 +41,7 @@ The extraction must separate **process** (how work flows) from **knowledge** (wh
 
 | Category | Files | Norris-specific content to strip |
 |----------|-------|----------------------------------|
-| **Agents** | `.claude/agents/orchestrator.md`, `architect.md`, `designer.md`, `builder.md`, `builder-{haiku,sonnet,opus}.md`, `reviewer.md`, `retro.md` | All `.NET`, `NN.*`, `ITool`, `IKernelTool`, Blazor, EF Core, SQLite, DI pattern references; all `gh` CLI commands and board IDs |
+| **Agents** | `.claude/agents/orchestrator.md`, `planner.md`, `designer.md`, `builder.md`, `builder-{haiku,sonnet,opus}.md`, `reviewer.md`, `retro.md` | All `.NET`, `NN.*`, `ITool`, `IKernelTool`, Blazor, EF Core, SQLite, DI pattern references; all `gh` CLI commands and board IDs |
 | **Scripts** | `scripts/issue-start.sh`, `issue-review.sh`, `issue-telemetry.sh`, `issue-merged.sh`, `dispatch-story.sh`, `dispatch-workflow.sh`, `setup-labels.sh`, `fetch-pricing.sh` | `REPO="gavinkilbride/NeuralNorris"`, project board IDs, status option IDs |
 | **Templates** | `scripts/templates/telemetry.md` | Already generic |
 | **Config** | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/.gitignore` | `dotnet` command allowlists (tech-stack specific) |
@@ -217,7 +217,7 @@ Folder structure IS the hierarchy — no separate linking step needed:
 ### Approval gate
 
 Status-based, consistent across all adapters:
-- Designer/Architect sets item status to `review`
+- Designer/Planner sets item status to `review`
 - Human runs `sdlc approve <id>` → sets status to `done`
 - Orchestrator checks `pm_get_status <id>` before proceeding to next phase
 
@@ -329,7 +329,7 @@ claude-sdlc/                              # New standalone repo
 │   │
 │   ├── agents/                           # Generic agent definitions
 │   │   ├── orchestrator.md
-│   │   ├── architect.md
+│   │   ├── planner.md
 │   │   ├── designer.md
 │   │   ├── builder.md
 │   │   ├── builder-haiku.md
@@ -519,7 +519,7 @@ How should the framework be packaged and shared?
 The framework currently prescribes: 3-level hierarchy (Goal/Epic/Task), 6 agent roles, TDD in the builder, specific phase gates (design → plan → build → review → retro), lesson conventions, branch naming.
 
 - Should adopters be able to skip phases? (e.g., no design phase for small projects)
-- Should the agent set be configurable? (e.g., drop the designer, merge architect + planner)
+- Should the agent set be configurable? (e.g., drop the designer, merge planner + planner)
 - Should TDD be optional or enforced?
 - Should the 3-level hierarchy be reducible to 2 levels for simpler projects?
 - Leaning towards "opinionated defaults with escape hatches" — but need to define what the escape hatches look like.

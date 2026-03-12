@@ -30,7 +30,7 @@ untestable unless an interface was extracted first.
   3. Register in DI: `services.AddScoped<IClaudeDispatch>(sp => sp.GetRequiredService<ClaudeDispatchTool>())`.
   4. Depend on `IClaudeDispatch` in the consumer — never on the concrete class.
 
-- **Architect should note** this in story acceptance criteria when a new tool
+- **Planner should note** this in story acceptance criteria when a new tool
   wraps an existing tool: "Extract interface X from Tool Y to enable testability."
 
 ## Scope of fix

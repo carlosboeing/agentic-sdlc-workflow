@@ -172,7 +172,7 @@ E01-S01, E01-S02, E01-S03, and E02-S01 have no dependencies on each other. E02-S
 | **Wave 2** | E02-S01 | Sequential | Species assessment -- no dependency on Wave 1 |
 | **Wave 3** | E02-S02 | Sequential | Depends on E02-S01 (cross-references species assessment) |
 
-**Note on Wave 2:** E02-S01 has no content dependency on Wave 1 reports, but it runs in Wave 2 because it belongs to a different epic and Wave 1 already has 3 parallel stories. The architect may choose to include E02-S01 in Wave 1 (4 parallel) or keep it in Wave 2 -- either is valid.
+**Note on Wave 2:** E02-S01 has no content dependency on Wave 1 reports, but it runs in Wave 2 because it belongs to a different epic and Wave 1 already has 3 parallel stories. The planner may choose to include E02-S01 in Wave 1 (4 parallel) or keep it in Wave 2 -- either is valid.
 
 ## Acceptance Criteria
 
@@ -226,7 +226,7 @@ Run 4 stories in parallel (Wave 1) and only E02-S02 sequentially (Wave 2).
 
 ### Decision
 
-**Approach A.** The backlog issue structure is well-designed and tests the right mechanics. The architect can optimise dispatch ordering if they see an opportunity, but the design does not prescribe a change from the backlog's plan.
+**Approach A.** The backlog issue structure is well-designed and tests the right mechanics. The planner can optimise dispatch ordering if they see an opportunity, but the design does not prescribe a change from the backlog's plan.
 
 ## Assumptions and Open Questions
 
@@ -239,5 +239,5 @@ Run 4 stories in parallel (Wave 1) and only E02-S02 sequentially (Wave 2).
 
 ### Open Questions
 
-1. **Should E02-S01 run in Wave 1 or Wave 2?** The design recommends Wave 2 (matching the backlog issue), but the architect may choose Wave 1 if they want to test wider parallelism. Either is valid.
+1. **Should E02-S01 run in Wave 1 or Wave 2?** The design recommends Wave 2 (matching the backlog issue), but the planner may choose Wave 1 if they want to test wider parallelism. Either is valid.
 2. **Fictional journal consistency:** Should all reports reference the same set of fictional journals, or can each author invent their own? The design leaves this to builder discretion -- consistency is nice but not required for a workflow test.

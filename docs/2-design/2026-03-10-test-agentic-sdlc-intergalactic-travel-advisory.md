@@ -171,7 +171,7 @@ graph TD
 - **Wave 1:** E01-S01, E01-S02, E01-S03 (3 easy stories, all independent)
 - **Wave 2:** E02-S01, E02-S02 (medium + hard, concurrent)
 
-Splitting into two waves is a deliberate choice: it gives the orchestrator a clear point to verify Wave 1 board transitions before proceeding, which is one of Run 4's goals. If the architect prefers a single 5-story wave, that would also work -- the dependency graph supports it.
+Splitting into two waves is a deliberate choice: it gives the orchestrator a clear point to verify Wave 1 board transitions before proceeding, which is one of Run 4's goals. If the planner prefers a single 5-story wave, that would also work -- the dependency graph supports it.
 
 ## Difficulty Distribution
 
@@ -255,7 +255,7 @@ Total including reviews, merges, telemetry: ~8-10 minutes.
 
 1. **Should Wave 2 be parallel or sequential?** The dependency graph allows full parallelism, but running medium + hard concurrently means the opus story's board transition happens at the same time as the sonnet story's. If board concurrency is still fragile, sequential Wave 2 would be safer. **Assumed: parallel** -- the whole point is to test whether the board fix works under concurrency.
 2. **Is 5 stories sufficient, or should we add a 6th?** The backlog says "5-6 stories." Five is the minimum. **Assumed: 5 is sufficient** -- the 6th story adds time without testing new mechanics.
-3. **Combined PR or one per epic?** Run 3 used a combined PR and it worked but caused telemetry cross-contamination. **Assumed: one PR per epic** (the default convention) to validate scoped telemetry. If the architect prefers combined, that is also valid but should include explicit scoping.
+3. **Combined PR or one per epic?** Run 3 used a combined PR and it worked but caused telemetry cross-contamination. **Assumed: one PR per epic** (the default convention) to validate scoped telemetry. If the planner prefers combined, that is also valid but should include explicit scoping.
 
 ## Risks
 

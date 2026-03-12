@@ -36,7 +36,7 @@ And legacy persists from dusk to dawn.
 
 A thousand patches stitched across the years,
 Each hot-fix born from deadlines, sweat, and fears,
-No architect could trace the winding thread
+No planner could trace the winding thread
 Through layers of abstraction, poorly fed.
 
 And yet it runs. Against all reason, still

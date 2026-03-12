@@ -1,6 +1,6 @@
 ---
 date: 2026-03-10
-author: architect
+author: planner
 status: draft
 backlog: 162
 design: docs/2-design/2026-03-10-cat-performance-review.md

@@ -100,7 +100,7 @@ Six specialized agents in `.claude/agents/`:
 | Agent | Role | Writes to |
 |-------|------|-----------|
 | `designer` | Brainstorm features, write design docs | `docs/2-design/` |
-| `architect` | Create plans, GitHub Issues with difficulty labels | `docs/3-plans/`, `docs/6-adrs/` |
+| `planner` | Create plans, GitHub Issues with difficulty labels | `docs/3-plans/`, `docs/6-adrs/` |
 | `builder` | TDD implementation of stories | Code only |
 | `reviewer` | Code quality and convention review | Review comments |
 | `orchestrator` | Workflow orchestration — dispatches agents, manages board | GitHub state only |
@@ -121,14 +121,14 @@ Six specialized agents in `.claude/agents/`:
 main
 └── backlog/<N>-<slug>          ← integration branch (ONE PR to main per backlog item)
     ├── (design doc committed)  ← designer commits here (or merges docs/<slug> PR into it)
-    ├── (plan committed)        ← architect commits here (or merges docs/<slug> PR into it)
+    ├── (plan committed)        ← planner commits here (or merges docs/<slug> PR into it)
     ├── epic/eNN-slug           ← epic branch (off integration branch)
     │   └── eNN-sNN/slug        ← story branch (off epic branch)
     └── (retro, changelog, lessons committed after stories complete)
 ```
 
 - **Integration branch** (`backlog/<N>-<slug>`) is the single branch for all work under a backlog item. Created from `main` in Phase 0. ONE PR from this branch to `main` at the end.
-- **Design/plan docs** are committed or merged into the integration branch (not `main`). Designer and architect create `docs/<slug>` branches off the integration branch and open PRs targeting the integration branch, or commit directly in autonomous mode.
+- **Design/plan docs** are committed or merged into the integration branch (not `main`). Designer and planner create `docs/<slug>` branches off the integration branch and open PRs targeting the integration branch, or commit directly in autonomous mode.
 - **Epic branches** are created from the integration branch (not `main`): `git checkout backlog/<N>-<slug> && git checkout -b epic/eNN-slug`.
 - Stories merge into their epic branch, epic branches merge into the integration branch. **Delete branches after merging** — story branches after merging into epic, epic branches after merging into integration. The integration branch is deleted by `--delete-branch` when the backlog PR merges. **Safety:** Always verify the merge succeeded before deleting — use `git branch --merged HEAD | grep -q <branch>` before remote delete. `git branch -d` (lowercase) is safe (refuses unmerged), but `git push origin --delete` has no merge check. Never use `git branch -D` (force delete) in the workflow.
 - **Retro, changelog, and lessons** are committed on the integration branch after all stories complete.
@@ -164,12 +164,12 @@ All work is tracked as **work items** organised into exactly three levels. This 
 
 ```
 Designer brainstorms → one Backlog Item
-Architect decomposes → Epics and Stories within that Backlog Item
+Planner decomposes → Epics and Stories within that Backlog Item
 Builder implements   → one Story at a time
 Orchestrator manages → one Backlog Item per workflow run
 ```
 
-**The architect MUST NOT create child backlog items.** If a feature feels too large for epics, use more epics with fewer stories each. An epic with 1-2 stories is perfectly valid. If the feature truly spans multiple independent domains (e.g., "build an e-commerce platform"), the designer should split it into separate backlog items upfront — each with its own lifecycle.
+**The planner MUST NOT create child backlog items.** If a feature feels too large for epics, use more epics with fewer stories each. An epic with 1-2 stories is perfectly valid. If the feature truly spans multiple independent domains (e.g., "build an e-commerce platform"), the designer should split it into separate backlog items upfront — each with its own lifecycle.
 
 **Issue naming:** `[#<backlog>/ENN] Epic title` for epics, `[#<backlog>/ENN-SNN] Story title` for stories. The backlog issue number prefix disambiguates epics/stories across features (e.g., `[#43/E01-S01]` vs `[#5/E01-S01]`).
 
@@ -178,10 +178,10 @@ Orchestrator manages → one Backlog Item per workflow run
 ```
 Backlog item (#5)
 ├── Design doc issue (#24)              ← designer creates, links to backlog
-├── Plan issue (#25)                    ← architect creates, links to backlog
-├── [#5/E01] Epic issue (#38)           ← architect creates, links to backlog
-│   ├── [#5/E01-S01] Story (#26)       ← architect creates, links to epic
-│   ├── [#5/E01-S02] Story (#27)       ← architect creates, links to epic
+├── Plan issue (#25)                    ← planner creates, links to backlog
+├── [#5/E01] Epic issue (#38)           ← planner creates, links to backlog
+│   ├── [#5/E01-S01] Story (#26)       ← planner creates, links to epic
+│   ├── [#5/E01-S02] Story (#27)       ← planner creates, links to epic
 │   └── ...
 └── [#5/E02] Epic issue (#39)
     └── ...
@@ -195,7 +195,7 @@ CHILD_ID=$(gh issue view <child-number> --json id -q .id)
 gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
 ```
 
-**Dependency diagrams on issues:** After the architect creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `gh issue edit --body` to append below the existing body with a `---` separator. This keeps dependency structure and wave assignments visible at the top of the issue page. See `architect.md` for the exact format.
+**Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `gh issue edit --body` to append below the existing body with a `---` separator. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
 
 
 **GitHub Project board:** All issues live on the [NeuralNorris Project](https://github.com/users/gavinkilbride/projects/1) (project number 1, owner `gavinkilbride`).
@@ -205,7 +205,7 @@ Status field values and their meanings:
 | Status          | Meaning                                           | Set by                                             |
 |-----------------|---------------------------------------------------|----------------------------------------------------|
 | **Backlog**     | Unplanned work items                              | Default for new backlog items                      |
-| **Planned**     | Plan exists but not yet approved (PR not merged)  | Architect (on issue creation)                      |
+| **Planned**     | Plan exists but not yet approved (PR not merged)  | Planner (on issue creation)                      |
 | **Todo**        | Plan approved, ready for builder dispatch         | Human (on plan PR merge) / Orchestrator (autonomous mode) |
 | **In Progress** | Currently being worked on                         | Orchestrator (sequentially, before dispatch)       |
 | **In Review**   | Implementation complete, awaiting backlog PR merge | Orchestrator (sequentially, after builder completes) |
@@ -357,7 +357,7 @@ claude --agent orchestrator --dangerously-skip-permissions \
 claude --agent orchestrator --dangerously-skip-permissions \
   "Execute backlog item #42. Skip design and plan."
 
-# Interactive — designer/architect ask questions, wait for PR approval
+# Interactive — designer/planner ask questions, wait for PR approval
 claude --agent orchestrator
 
 # CLI dispatch with autonomous flag (always shows progress)
@@ -369,9 +369,9 @@ claude --agent orchestrator
 
 **Phase detection:** The orchestrator checks for existing design docs (`docs/2-design/`) and plans (`docs/3-plans/`). If artifacts exist, those phases are skipped automatically.
 
-**Autonomous mode:** When the prompt includes "autonomous" or the orchestrator is run non-interactively, the designer and architect agents skip interactive questions (brainstorming skill, `AskUserQuestion`) and instead derive all requirements from the backlog issue. Design/plan PRs are auto-merged via `gh pr merge`. The structured design process is preserved — agents still explore approaches, document trade-offs, and flag assumptions.
+**Autonomous mode:** When the prompt includes "autonomous" or the orchestrator is run non-interactively, the designer and planner agents skip interactive questions (brainstorming skill, `AskUserQuestion`) and instead derive all requirements from the backlog issue. Design/plan PRs are auto-merged via `gh pr merge`. The structured design process is preserved — agents still explore approaches, document trade-offs, and flag assumptions.
 
-**Interactive mode:** When the orchestrator is run interactively without "autonomous", the designer and architect ask clarifying questions as normal, and the orchestrator waits for the human to merge PRs before proceeding.
+**Interactive mode:** When the orchestrator is run interactively without "autonomous", the designer and planner ask clarifying questions as normal, and the orchestrator waits for the human to merge PRs before proceeding.
 
 ### Backlog PR Strategy
 
@@ -398,7 +398,7 @@ gh pr merge <N> --squash --delete-branch
 | Phase | Agents | What to capture |
 |-------|--------|----------------|
 | Design | Designer | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
-| Plan | Architect | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
+| Plan | Planner | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
 | Build | Builders (per story) | Already captured via `issue-telemetry.sh` |
 | Review | Reviewers (per story + epic) | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
 | Retro | Retro agent | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
@@ -453,7 +453,7 @@ The backlog telemetry should include a **Duration Summary** and a **Full Lifecyc
 - ADRs → `docs/6-adrs/` (numbered: `NNNN-title.md`)
 - Diagrams → use Mermaid (`\`\`\`mermaid` code blocks) for all architecture, flow, and sequence diagrams in docs
 
-**Doc approval workflow:** Design docs and plans are written on `docs/<slug>` branches off the integration branch (`backlog/<N>-<slug>`) with a corresponding GitHub Issue (`type/docs`). A PR is opened targeting the integration branch (not `main`). **Merging the PR = approval.** In autonomous mode, the orchestrator auto-merges. In interactive mode, the human merges. The next phase (architect after design, builder after plan) cannot start until the PR is merged.
+**Doc approval workflow:** Design docs and plans are written on `docs/<slug>` branches off the integration branch (`backlog/<N>-<slug>`) with a corresponding GitHub Issue (`type/docs`). A PR is opened targeting the integration branch (not `main`). **Merging the PR = approval.** In autonomous mode, the orchestrator auto-merges. In interactive mode, the human merges. The next phase (planner after design, builder after plan) cannot start until the PR is merged.
 
 ### Lesson Conventions
 
@@ -511,7 +511,7 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/       # builder lessons across
 grep -rl "tags:.*review" docs/4-reviews/lessons/         # reviewer lessons
 grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/   # orchestrator lessons
 grep -rl "tags:.*design" docs/4-reviews/lessons/         # designer lessons
-grep -rl "tags:.*architecture" docs/4-reviews/lessons/   # architect lessons
+grep -rl "tags:.*architecture" docs/4-reviews/lessons/   # planner lessons
 # Scope to current feature for faster grep:
 grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
 ```
@@ -525,7 +525,7 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
 | Orchestrator | Yes | Yes | When dispatch or board operations fail unexpectedly |
 | Retro | Yes (all) | Yes (supplements) | When it identifies cross-story patterns that individual agents missed |
 | Designer | Yes | Yes | When it discovers constraints or trade-offs worth capturing for future designs |
-| Architect | Yes | Yes | When plan assumptions prove wrong or dependency graphs need revision |
+| Planner | Yes | Yes | When plan assumptions prove wrong or dependency graphs need revision |
 
 #### Three-tier retention
 
@@ -580,7 +580,7 @@ Changes to the SDLC workflow (scripts, board management, dispatch, telemetry, ag
 |------|----------|
 | `CLAUDE.md` | Helper script signatures, board IDs, workflow conventions, dispatch protocol |
 | `.claude/agents/orchestrator.md` | Workflow phases, dispatch commands, board transitions, telemetry posting |
-| `.claude/agents/architect.md` | Issue creation, board setup, plan structure, difficulty labels |
+| `.claude/agents/planner.md` | Issue creation, board setup, plan structure, difficulty labels |
 | `.claude/agents/designer.md` | Design phase workflow, board transitions |
 | `.claude/agents/builder.md` + variants | Build workflow, script usage, TDD protocol |
 | `.claude/agents/reviewer.md` | Review criteria, verdict format |

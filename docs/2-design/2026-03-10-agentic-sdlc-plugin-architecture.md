@@ -11,7 +11,7 @@ parent: 2026-03-09-agentic-sdlc-v2-design.md
 
 ## Motivation
 
-The NeuralNorris SDLC workflow (orchestrator, designer, architect, builder, reviewer, retro) is currently tightly coupled to GitHub. Every script, agent instruction, and convention embeds `gh` CLI commands, GitHub-specific `jq` queries, project board option IDs, and GitHub vocabulary (issues, PRs, labels).
+The NeuralNorris SDLC workflow (orchestrator, designer, planner, builder, reviewer, retro) is currently tightly coupled to GitHub. Every script, agent instruction, and convention embeds `gh` CLI commands, GitHub-specific `jq` queries, project board option IDs, and GitHub vocabulary (issues, PRs, labels).
 
 This coupling creates two problems:
 
@@ -26,7 +26,7 @@ Three layers bind the workflow to GitHub:
 | Layer | Examples | Impact of swap |
 |-------|----------|---------------|
 | **Scripts** | `gh issue list`, `gh pr create`, `gh project item-edit`, `issue-start.sh`, `issue-telemetry.sh` | Rewrite every script |
-| **Agent instructions** | Literal `gh` commands and `jq` queries in orchestrator, architect, designer `.md` files | Rewrite every agent file |
+| **Agent instructions** | Literal `gh` commands and `jq` queries in orchestrator, planner, designer `.md` files | Rewrite every agent file |
 | **Concepts** | "Issues", "PRs", "labels", "project board option IDs" baked into CLAUDE.md and conventions | Re-map vocabulary throughout |
 
 Additionally, `dispatch-workflow.sh` and the orchestrator agent duplicate orchestration logic — the script as deterministic bash, the agent as LLM-interpreted prose. Both embed the same GitHub-specific operations.
@@ -40,7 +40,7 @@ Additionally, `dispatch-workflow.sh` and the orchestrator agent duplicate orches
 │  CC Plugin: "agentic-sdlc"                  │
 │                                             │
 │  Agents    orchestrator, designer,          │
-│            architect, builder, reviewer,     │
+│            planner, builder, reviewer,     │
 │            retro                            │
 │                                             │
 │  Skills    brainstorming, writing-plans,    │
@@ -97,7 +97,7 @@ Claude Code plugins can ship agents, skills, hooks, and MCP server configuration
 
 | Plugin component | Maps to |
 |-----------------|---------|
-| **Agents** | Orchestrator, designer, architect, builder, reviewer, retro `.md` files |
+| **Agents** | Orchestrator, designer, planner, builder, reviewer, retro `.md` files |
 | **Skills** | Brainstorming, writing-plans, TDD, debugging, code review |
 | **Hooks** | Pre-commit test runs, post-merge cleanup |
 | **MCP servers** | Reference GitHub provider; users configure their own |

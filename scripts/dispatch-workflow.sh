@@ -235,7 +235,7 @@ if [ "$SKIP_PLAN" = true ]; then
   log_phase "2" "Plan (SKIPPED via --skip-plan)"
 else
   log_phase "2" "Plan"
-  log_step "Dispatching architect agent for backlog item #$BACKLOG_ISSUE..."
+  log_step "Dispatching planner agent for backlog item #$BACKLOG_ISSUE..."
 
   PLAN_PROMPT="Create an implementation plan for backlog item #$BACKLOG_ISSUE ($BACKLOG_TITLE). Read the backlog issue and design doc for full context."
   if [ "$AUTONOMOUS" = true ]; then
@@ -244,17 +244,17 @@ else
 
   PLAN_EXIT=0
   run_claude -p "$PLAN_PROMPT" \
-    --agent architect \
+    --agent planner \
     --model sonnet \
     --output-format json \
     || PLAN_EXIT=$?
 
   if [ "$PLAN_EXIT" -ne 0 ]; then
-    log_step "ERROR: Architect agent exited with code $PLAN_EXIT"
+    log_step "ERROR: Planner agent exited with code $PLAN_EXIT"
     exit "$PLAN_EXIT"
   fi
 
-  log_step "Architect complete."
+  log_step "Planner complete."
 
   if [ "$AUTONOMOUS" = true ]; then
     # Auto-merge the plan PR
@@ -332,7 +332,7 @@ if [ -z "$EPIC_SLUG" ]; then
   fi
 
   if [ -z "$EPIC_TITLE" ]; then
-    echo "Error: No epic issue found. Provide --epic <eNN-slug> or ensure the architect created epic issues with the hierarchy/epic label."
+    echo "Error: No epic issue found. Provide --epic <eNN-slug> or ensure the planner created epic issues with the hierarchy/epic label."
     exit 1
   fi
 

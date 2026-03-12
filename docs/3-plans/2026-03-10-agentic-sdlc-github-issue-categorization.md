@@ -270,7 +270,7 @@ Add after the hierarchy labels section:
 
 ```bash
 echo ""
-echo "Note: backlog/* labels are created dynamically by the architect agent."
+echo "Note: backlog/* labels are created dynamically by the planner agent."
 echo "Standard color for backlog/* labels: 5319E7 (deep purple)"
 echo ""
 echo "Label color reference:"
@@ -324,7 +324,7 @@ Find the line (around 406):
 
 Replace the `(check the \`epic/\` label)` parenthetical with `(check the epic's sub-issues)` since `epic/*` labels no longer exist.
 
-**Step 4: Update architect issue creation example**
+**Step 4: Update planner issue creation example**
 
 Find the `gh issue create` example that references `--label "epic/e01-slug,type/feature,difficulty/easy"` and update to use `--label "hierarchy/story,backlog/<issue>-<slug>,type/feature,difficulty/easy"`.
 
@@ -359,7 +359,7 @@ git commit -m "docs(conventions): update CLAUDE.md label conventions for hierarc
 ## Task 8: Update Agent Files
 
 **Files:**
-- Modify: `.claude/agents/architect.md`
+- Modify: `.claude/agents/planner.md`
 - Modify: `.claude/agents/orchestrator.md`
 - Modify: `.claude/agents/builder.md`
 - Modify: `.claude/agents/builder-haiku.md`
@@ -368,9 +368,9 @@ git commit -m "docs(conventions): update CLAUDE.md label conventions for hierarc
 - Modify: `.claude/agents/reviewer.md`
 - Modify: `.claude/agents/retro.md`
 
-**Step 1: Update `architect.md`**
+**Step 1: Update `planner.md`**
 
-The architect creates issues with `epic/*` labels. Update:
+The planner creates issues with `epic/*` labels. Update:
 
 - Line 115: `gh label create "epic/eNN-slug"` → Remove this line entirely (no more epic labels to create)
 - Line 124: `--label "epic/e01-slug,type/feature,difficulty/easy"` → `--label "hierarchy/story,backlog/<issue>-<slug>,type/feature,difficulty/easy"`
@@ -422,7 +422,7 @@ No label changes needed for retro — all references are to branch names.
 **Step 7: Commit**
 
 ```bash
-git add .claude/agents/architect.md .claude/agents/orchestrator.md \
+git add .claude/agents/planner.md .claude/agents/orchestrator.md \
   .claude/agents/builder.md .claude/agents/builder-haiku.md \
   .claude/agents/builder-sonnet.md .claude/agents/builder-opus.md
 git commit -m "docs(agents): update agent files for hierarchy label conventions"

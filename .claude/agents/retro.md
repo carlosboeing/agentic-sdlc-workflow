@@ -14,7 +14,7 @@ Your job starts when an **epic is complete** and ends when a **retro doc is comm
 
 - Write or modify production code (that's the **builder**)
 - Write design docs or brainstorm features (that's the **designer**)
-- Create implementation plans or GitHub Issues (that's the **architect**)
+- Create implementation plans or GitHub Issues (that's the **planner**)
 - Modify CLAUDE.md directly — all convention changes go through a PR for human approval
 
 Your deliverables are: a retro doc in `docs/4-reviews/`, and optionally convention changes committed on the integration branch (`backlog/<N>-<slug>`). Everything ships as part of the backlog PR — no separate PR to main. Nothing else.
@@ -220,7 +220,7 @@ Convention changes ship as part of the backlog PR — no separate PR to main. Th
 **When NOT to propose a change:**
 - A lesson that is already in CLAUDE.md (it was already codified)
 - A one-off edge case with no pattern evidence
-- A suggestion that requires architectural debate — open an issue for the architect instead
+- A suggestion that requires architectural debate — open an issue for the planner instead
 
 ## Lesson Retention
 

@@ -17,7 +17,7 @@ The Intergalactic Travel Advisory (SDLC v2 Run 4) validated the operational fixe
 | Phase | Time (UTC) | Wall Clock | Activity |
 |-------|-----------|------------|----------|
 | Design | ~17:00 | ~2 min | Designer wrote design doc; orchestrator handled git workflow (branch, commit, PR #108, merge) |
-| Plan | 17:05 -- 17:10 | ~5 min | Architect wrote plan, created issues #110-#116, plan PR #117 auto-merged at 17:10:45 |
+| Plan | 17:05 -- 17:10 | ~5 min | Planner wrote plan, created issues #110-#116, plan PR #117 auto-merged at 17:10:45 |
 | Board setup | 17:10 -- 17:12 | ~2 min | Orchestrator set all 5 stories to Todo, then Wave 1 stories to In Progress |
 | Wave 1 build | 17:12 -- 17:14 | ~2 min | 3 haiku builders dispatched concurrently (#112, #113, #114) |
 | Wave 1 review | 17:15 -- 17:17 | ~2 min | Reviewer dispatched on each story; #112 REQUEST_CHANGES (empty commit), #113 APPROVE, #114 APPROVE |
@@ -67,7 +67,7 @@ The Intergalactic Travel Advisory (SDLC v2 Run 4) validated the operational fixe
 | Phase | Agent | Tokens | Duration |
 |-------|-------|--------|----------|
 | Design | Designer | 64K | 3m 28s |
-| Plan | Architect | 75K | 8m 6s |
+| Plan | Planner | 75K | 8m 6s |
 | Review | Reviewer (6 dispatches) | 180K | -- |
 | **Phase Total** | | **319K** | -- |
 
@@ -141,9 +141,9 @@ Evidence: PR #118 and #119 have no reviewer agent comments (only Sentinel review
 
 ### 5. Designer Agent Missing Bash Tool
 
-The designer agent does not have `Bash` in its tool list, so the orchestrator had to handle the entire git workflow for the design phase: branch creation, commit, issue creation, PR opening, and merging. This is the same class of issue that affected the architect in Run 3 (fixed by adding Bash to the architect's tool list in commit `cfb2231`). The fix was not propagated to the designer agent.
+The designer agent does not have `Bash` in its tool list, so the orchestrator had to handle the entire git workflow for the design phase: branch creation, commit, issue creation, PR opening, and merging. This is the same class of issue that affected the planner in Run 3 (fixed by adding Bash to the planner's tool list in commit `cfb2231`). The fix was not propagated to the designer agent.
 
-Root cause: when the architect's Bash tool gap was fixed in Run 3, the convention change propagation rule ("proactively update all files that reference the changed convention") was not applied to the designer agent.
+Root cause: when the planner's Bash tool gap was fixed in Run 3, the convention change propagation rule ("proactively update all files that reference the changed convention") was not applied to the designer agent.
 
 Evidence: designer agent file lacks `Bash`; orchestrator handled all design-phase git operations.
 
@@ -157,7 +157,7 @@ Evidence: issue #114 comment list shows only Telemetry and Code Review; compare 
 
 ## Workflow Evolution During Epic
 
-No significant convention changes were made mid-epic. Run 4 operated entirely on the conventions established by the Run 3 retro (board transitions owned by orchestrator, scoped epic telemetry, architect Bash tool).
+No significant convention changes were made mid-epic. Run 4 operated entirely on the conventions established by the Run 3 retro (board transitions owned by orchestrator, scoped epic telemetry, planner Bash tool).
 
 ## Key Learnings
 
@@ -179,7 +179,7 @@ No significant convention changes were made mid-epic. Run 4 operated entirely on
 2. **Scoped epic telemetry fix is validated.** Separate PRs per epic + explicit scoping eliminates cross-contamination. Each epic issue now receives only its own stories.
 3. **Content consistency contracts prevent cross-story contradictions.** Embedding shared facts in acceptance criteria eliminates the need for builders to read each other's output. Run 3's Stoneback Leviathan habitat contradiction would not have occurred with this approach.
 4. **`.gitignore` for `test-output/` is a persistent trap.** Three runs have now used `test-output/` for output, and it has caused issues in at least one. Either remove it from `.gitignore`, add a convention note, or include `git add -f` in plans.
-5. **The designer agent Bash tool gap mirrors the architect gap from Run 3.** Fix propagation across agents needs enforcement -- when one agent gets a tool list fix, all agents should be scanned for the same gap.
+5. **The designer agent Bash tool gap mirrors the planner gap from Run 3.** Fix propagation across agents needs enforcement -- when one agent gets a tool list fix, all agents should be scanned for the same gap.
 
 ## Comparison with Previous Runs
 
@@ -208,7 +208,7 @@ No significant convention changes were made mid-epic. Run 4 operated entirely on
 
 ## Recommendations
 
-1. **Add `Bash` to the designer agent's tool list** -- Same class of issue as the architect Bash gap in Run 3. The designer cannot handle its own git workflow without shell access. *Status: proposed for convention change.*
+1. **Add `Bash` to the designer agent's tool list** -- Same class of issue as the planner Bash gap in Run 3. The designer cannot handle its own git workflow without shell access. *Status: proposed for convention change.*
 
 2. **Require `isolation: "worktree"` for parallel dispatch** -- Parallel builders sharing a working directory is a latent failure mode. CLAUDE.md's parallel dispatch section should mandate worktree isolation. *Status: proposed for convention change.*
 

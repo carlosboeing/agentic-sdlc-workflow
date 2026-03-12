@@ -1,6 +1,6 @@
 ---
 date: 2026-03-11
-author: architect
+author: planner
 status: draft
 backlog: 205
 design: docs/2-design/2026-03-11-alien-field-study.md

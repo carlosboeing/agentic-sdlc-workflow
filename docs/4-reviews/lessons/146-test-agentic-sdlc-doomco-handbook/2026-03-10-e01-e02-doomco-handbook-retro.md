@@ -17,7 +17,7 @@ Run 5 tested the full autonomous SDLC v2 pipeline end-to-end using a creative co
 | Phase | Time (UTC) | Wall Clock | Activity |
 |-------|-----------|------------|----------|
 | Design | 06:01:40 -- 06:04:42 | ~3m 1s | Designer created design doc, PR #148 merged at 06:05:03 |
-| Plan | 06:05:00 -- 06:10:52 | ~5m 52s | Architect created plan + 7 issues, PR #157 merged at 06:11:28 |
+| Plan | 06:05:00 -- 06:10:52 | ~5m 52s | Planner created plan + 7 issues, PR #157 merged at 06:11:28 |
 | Label fix | ~06:11 -- ~06:13 | ~2m | Orchestrator retroactively added missing backlog labels to design/plan issues |
 | Wave 1 build | 06:14:15 -- 06:15:28 | ~1m 36s | 2 parallel haiku builders: E01-S01 (#152), E01-S02 (#153) |
 | Wave 1 review | ~06:15 -- ~06:16 | ~1m | 2 sequential reviews: both APPROVE |
@@ -52,7 +52,7 @@ Run 5 tested the full autonomous SDLC v2 pipeline end-to-end using a creative co
 | Phase | Agent | Model | Duration | Tokens | Est. Cost |
 |-------|-------|-------|----------|--------|-----------|
 | Design | designer | opus | 3m 1s | 43K | ~$0.44 |
-| Plan | architect | opus | 5m 52s | 52K | ~$0.53 |
+| Plan | planner | opus | 5m 52s | 52K | ~$0.53 |
 | Build (5 stories) | builders | mixed | 10m 15s | 297K | ~$1.09 |
 | Story reviews (5) | reviewer | opus | 3m 5s | 130K | ~$1.30 |
 | Epic reviews (2) | reviewer | opus | 3m 46s | 60K | ~$0.60 |
@@ -111,9 +111,9 @@ The `orchestrator.json` state file captured every dispatch with duration, tokens
 
 ### 1. Design/Plan Issues Missing Backlog Labels
 
-The designer (issue #147) and architect (issue #149) created their issues without the `backlog/146-doomco-handbook` label. The orchestrator had to retroactively fix this. The backlog issue #146 itself was also initially missing the backlog label.
+The designer (issue #147) and planner (issue #149) created their issues without the `backlog/146-doomco-handbook` label. The orchestrator had to retroactively fix this. The backlog issue #146 itself was also initially missing the backlog label.
 
-**Root cause:** Neither the designer nor architect agent instructions explicitly require adding the `backlog/<N>-<slug>` label to design doc and plan issues. The CLAUDE.md convention section lists the label pattern but does not specify that design/plan issues must carry it.
+**Root cause:** Neither the designer nor planner agent instructions explicitly require adding the `backlog/<N>-<slug>` label to design doc and plan issues. The CLAUDE.md convention section lists the label pattern but does not specify that design/plan issues must carry it.
 
 **Evidence:** Lesson file `docs/4-reviews/lessons/146-doomco-handbook/e01-role-profiles/2026-03-10-s00-design-plan-missing-backlog-label.md`.
 
@@ -160,7 +160,7 @@ No CLAUDE.md or agent file changes were made during this epic. The workflow ran 
 
 ## Recommendations
 
-1. **Add backlog label requirement to designer/architect agent instructions** -- Both agents should explicitly add `backlog/<N>-<slug>` to design doc and plan issues. This is a recurring gap (first observed in this run). *Status: proposed for convention change.*
+1. **Add backlog label requirement to designer/planner agent instructions** -- Both agents should explicitly add `backlog/<N>-<slug>` to design doc and plan issues. This is a recurring gap (first observed in this run). *Status: proposed for convention change.*
 
 2. **Add pre-epic lesson folder convention** -- Create an `e00-setup/` subfolder convention for lessons that pertain to design/plan/orchestrator-setup phases before any epic begins. *Status: proposed for convention change.*
 

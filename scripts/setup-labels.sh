@@ -36,7 +36,7 @@ create_label "hierarchy/backlog" "6E40C9" "Top-level deliverable (feature/initia
 create_label "hierarchy/epic"    "E36209" "Group of related stories within a backlog item"
 create_label "hierarchy/story"   "FBCA04" "Smallest plannable unit of work"
 
-# Note: backlog/* labels are created dynamically by the architect agent.
+# Note: backlog/* labels are created dynamically by the planner agent.
 # Standard color for backlog/* labels: 5319E7 (deep purple)
 
 echo ""

@@ -197,7 +197,6 @@ gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\"
 
 **Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `gh issue edit --body` to append below the existing body with a `---` separator. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
 
-
 **GitHub Project board:** All issues live on the [Agentic SDLC Workflow Project](https://github.com/users/carlosboeing/projects/7) (project number 7, owner `carlosboeing`).
 
 Status field values and their meanings:
@@ -264,7 +263,7 @@ Status option IDs:
 | `scripts/issue-set-status.sh <n> <status>` | Set project board status (backlog/planned/todo/in-progress/in-review/done) |
 | `scripts/issue-start.sh <n> --model <m> --agent <a>` | Post "Work Started" comment + set board to In Progress |
 | `scripts/issue-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
-| `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>]` | Post telemetry |
+| `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--summary <md>] [--footer <md>] [--pr <n>]` | Post telemetry (story, epic, or backlog) |
 | `scripts/issue-close.sh <n>` | Close issue + set board to Done |
 | `scripts/setup-labels.sh` | Create all labels (idempotent) |
 | `scripts/fetch-pricing.sh` | Fetch current Anthropic API token pricing (JSON to stdout) |
@@ -397,24 +396,25 @@ gh pr merge <N> --squash --delete-branch
 
 **Mixed-model epics:** When stories use different models, pass `--model 'mixed (model1, model2)'` and `--cost <dollars>` with the pre-computed aggregate cost (sum of per-story costs from the breakdown). For example: `--model 'mixed (haiku, sonnet)' --cost 0.67`. The `--cost` flag overrides the rate-based calculation, so the summary table shows the correct total instead of `—`.
 
-**Backlog-level telemetry:** After all stories are built, reviewed, and merged into the integration branch — and the retro is complete — the orchestrator MUST post a **full lifecycle telemetry summary** on the backlog issue and in the **backlog PR description**. This captures the total cost of the entire feature — not just builders, but all agent work:
+**Backlog-level telemetry:** After all stories are built, reviewed, and merged into the integration branch — and the retro is complete — the orchestrator MUST post a **full lifecycle telemetry summary** using `issue-telemetry.sh` with `--summary`:
 
-| Phase | Agents | What to capture |
-|-------|--------|----------------|
-| Design | Designer | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
-| Plan | Planner | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
-| Build | Builders (per story) | Already captured via `issue-telemetry.sh` |
-| Review | Reviewers (per story + epic) | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
-| Retro | Retro agent | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
+```bash
+./scripts/issue-telemetry.sh <backlog-number> \
+  --model opus --duration <total_ms> --wall-clock <wall_clock_ms> \
+  --commit <hash> --tokens <total_tokens> --cost <total_dollars> \
+  --summary "<phase-summary-rows>" \
+  --breakdown "<per-dispatch-rows>" \
+  --gantt "<mermaid-gantt-body>" \
+  --footer "<trailing-notes>" \
+  --pr <pr-number>
+```
 
-The backlog telemetry comment should include:
-1. A **per-phase breakdown** table showing agent, duration, tokens, and cost per phase (design, plan, build, review, retro)
-2. A **grand total** row summing all phases, with the total **dispatch count** in the Task cell (e.g., "Total (16 dispatches)")
-3. A **full lifecycle breakdown** table with columns: **Agent** (agent name + model, e.g., "Builder (haiku)"), **Task** (descriptive name + issue number), **Duration**, **Tokens**, **Est. Cost**. No Wave column — the Gantt chart shows parallelism. Rows cover ALL phases (design, plan, builds, reviews, fix cycles, retro). Task names: "Write Design Doc", "Write Plan Doc", "Write Retro Doc" for doc agents; "Review ENN-SNN" matching the build's story label for reviews. A single **Total** row at the bottom with dispatch count in the Task cell. No Actual/Saved rows (the Duration Summary section covers that)
-4. A **Duration** section with **Sequential Duration**, **Actual Duration** (with parallelism), and **Time Saved**
-5. A **Mermaid Gantt timeline** visualizing all lifecycle phases — design, plan, build waves (parallel bars), review waves (parallel bars), fix cycles (`crit`), and retro. Use `dateFormat HH:mm:ss`, `axisFormat %M:%S`, `after` syntax for sequential dependencies, and `crit` for fix/re-review tasks. **Theming:** use `themeVariables` without a `theme` key in `%%{init}%%` — this lets GitHub auto-detect dark/light mode for text and backgrounds while custom bar colors are applied on top. Colors and init block are defined in `scripts/templates/telemetry.md` (single source of truth)
-6. The **backlog PR number** and **commit hash** for traceability
-7. Note: the orchestrator's own token consumption is not captured (it runs in the parent session). Only dispatched subagent telemetry is tracked.
+The script renders from `scripts/templates/telemetry.md` (single source of truth for all telemetry formatting). When `--summary` is provided, the script:
+- Renders the backlog-level format: Summary → Breakdown → Duration → Timeline → Footer → Disclaimer
+- Posts the telemetry as a comment on the backlog issue
+- When `--pr` is also provided, appends the telemetry to the PR description (not as a comment)
+
+The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` from every Agent tool dispatch (designers, planners, builders, reviewers, retro) and aggregate them into the summary and breakdown rows. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for parameter details.
 
 **Value column convention:** Value cells in all telemetry tables contain only numbers and units (e.g., `~33m`, `770K`, `~$4.79`). Never add descriptive text or parenthetical notes to value cells. Annotations belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `~33m` in Value). This matches the rule in `scripts/templates/telemetry.md`.
 
@@ -433,21 +433,11 @@ The state file is updated after each agent dispatch and cleaned up after the bac
 
 See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full schema and lifecycle.
 
-Post the final aggregate using a manual `gh issue comment` (not `issue-telemetry.sh`, which is story-scoped):
-
-```bash
-gh issue comment <backlog-number> --body "## 📊 Telemetry\n\n| Phase | Tokens | Sequential Duration | Est. Cost |\n..."
-```
-
-The backlog telemetry should include a **Duration** and a **Breakdown** covering all phases (design, plan, build waves, review waves, fix cycles, retro) — not just builds.
-
 **Epic-scoped telemetry:** When posting epic-level telemetry on epic issues, include only stories that belong to that specific epic (check the epic's sub-issues). The backlog PR and backlog issue are the only places where cross-epic aggregate and full lifecycle telemetry belongs. Do not post the full breakdown on individual epic issues.
 
-**PR telemetry placement:** Full lifecycle telemetry goes in the **backlog PR description** , not as a PR comment. The PR description MUST contain the **same full telemetry** as the backlog issue comment — including the per-phase summary table, full lifecycle breakdown, and Mermaid Gantt timeline. Do not post a truncated summary on the PR; the PR body is the single source of truth for the run. Use `gh pr edit --body` to append. Backlog issue telemetry remains a `gh issue comment` since issue bodies serve a different purpose (problem statement).
+**PR telemetry placement:** Full lifecycle telemetry goes in the **backlog PR description** (appended by `issue-telemetry.sh --pr`), not as a PR comment. The PR body is the single source of truth for the run.
 
-**Cost disclaimer:** All telemetry posts that include cost estimates must end with a disclaimer note explaining that costs are estimates based on Anthropic's published API token pricing and that subscription plans are not charged per-token. The `issue-telemetry.sh` script appends this automatically. For manually composed telemetry (e.g., backlog-level comments), append the same note:
-
-> *💡 Cost estimates use Anthropic's published API token pricing with a blended rate (75% input / 25% output tokens). Actual costs vary by usage pattern. Subscription plans (Pro, Max, Team, Enterprise) include token allowances and are not charged per-token — these figures represent equivalent API value for reference only.*
+**Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically via the template. No manual disclaimer needed.
 
 ### Documentation Conventions
 

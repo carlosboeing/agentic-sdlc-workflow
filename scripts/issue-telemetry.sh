@@ -5,8 +5,13 @@ set -euo pipefail
 # Renders from scripts/templates/telemetry.md — edit the template to change the output format.
 #
 # Usage: ./scripts/issue-telemetry.sh <issue-number> --model <model> --duration <ms> --commit <hash>
-#        [--tokens <total>] [--tool-uses <n>] [--rate <cents-per-M>] [--cost <dollars>] [--breakdown <markdown>] [--pr <pr-number>]
-#        [--wall-clock <ms>] [--gantt <mermaid-body>]
+#        [--tokens <total>] [--tool-uses <n>] [--rate <cents-per-M>] [--cost <dollars>]
+#        [--breakdown <markdown>] [--pr <pr-number>] [--wall-clock <ms>] [--gantt <mermaid-body>]
+#        [--summary <markdown>] [--footer <markdown>]
+#
+# Modes:
+#   Story/epic (default): Renders a Metric/Value summary table with model, commit, tokens, cost.
+#   Backlog (--summary):  Renders a phase Summary table + full lifecycle sections.
 #
 # --duration is the sequential sum of all story durations. --wall-clock is the actual elapsed
 # time (accounting for parallel dispatch). When both are provided, parallelism metrics are shown.
@@ -15,18 +20,24 @@ set -euo pipefail
 # reads this from its state file (pricing fetched from Anthropic at session start). If omitted,
 # the script falls back to hardcoded defaults.
 #
-# The --breakdown table rows should use columns: Agent | Task | Duration | Tokens | Est. Cost.
-# The script adds the table header automatically from the template.
+# --summary provides the phase-level summary table rows (backlog-level telemetry).
+# Columns: Phase | Agent | Duration | Tokens | Est. Cost. The script adds the header.
+# When --summary is provided, --pr appends to the PR description instead of commenting.
 #
-# The --gantt parameter accepts the body of a Mermaid gantt chart (everything after the
-# ```mermaid\ngantt header). The script wraps it in the code fence automatically.
+# --breakdown provides per-dispatch detail rows.
+# Columns: Agent | Task | Duration | Tokens | Est. Cost. The script adds the header.
+#
+# --footer provides trailing text (e.g., notes, PR link) rendered before the disclaimer.
+#
+# --gantt provides the body of a Mermaid gantt chart (everything after the gantt keyword).
+# The script wraps it in the code fence and init block automatically.
 
 REPO="carlosboeing/agentic-sdlc-workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/templates/telemetry.md"
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <issue-number> --model <model> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--breakdown <markdown>] [--pr <n>] [--wall-clock <ms>] [--gantt <mermaid-body>]"
+  echo "Usage: $0 <issue-number> --model <model> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--breakdown <markdown>] [--pr <n>] [--wall-clock <ms>] [--gantt <mermaid-body>] [--summary <markdown>] [--footer <markdown>]"
   exit 1
 fi
 
@@ -49,6 +60,8 @@ WALL_CLOCK_MS=""
 GANTT=""
 RATE_OVERRIDE=""
 COST_OVERRIDE=""
+SUMMARY=""
+FOOTER=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -63,6 +76,8 @@ while [ $# -gt 0 ]; do
     --gantt) GANTT="$2"; shift 2 ;;
     --rate) RATE_OVERRIDE="$2"; shift 2 ;;
     --cost) COST_OVERRIDE="$2"; shift 2 ;;
+    --summary) SUMMARY="$2"; shift 2 ;;
+    --footer) FOOTER="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -179,11 +194,19 @@ fi
 # Shortened commit hash for display
 COMMIT_SHORT="${COMMIT:0:7}"
 
+# Detect mode: backlog (--summary provided) vs story/epic (default)
+IS_BACKLOG=false
+if [ -n "$SUMMARY" ]; then
+  IS_BACKLOG=true
+fi
+
 # ─── Template rendering ──────────────────────────────────────────────────────
 
 # Evaluate a named condition. Returns 0 (true) or 1 (false).
 eval_condition() {
   case "$1" in
+    BACKLOG)                 [ "$IS_BACKLOG" = true ] ;;
+    STORY)                   [ "$IS_BACKLOG" = false ] ;;
     TOKENS)                  [ "$TOKENS" -gt 0 ] ;;
     TOOL_USES)               [ "$TOOL_USES" -gt 0 ] ;;
     NO_PARALLELISM)          [ "$HAS_PARALLELISM" = false ] ;;
@@ -191,6 +214,7 @@ eval_condition() {
     TIME_SAVED)              [ -n "$TIME_SAVED_HUMAN" ] ;;
     BREAKDOWN)               [ -n "$BREAKDOWN" ] ;;
     GANTT)                   [ -n "$GANTT" ] ;;
+    FOOTER)                  [ -n "$FOOTER" ] ;;
     DISCLAIMER)              [ "$COST_EST" != "—" ] || [ -n "$BREAKDOWN" ] ;;
     *)                       return 1 ;;
   esac
@@ -246,12 +270,20 @@ render_template() {
     fi
 
     # Multi-line content injection (marker on its own line)
+    if [[ "$line" == "{{SUMMARY}}" ]]; then
+      [ -n "$SUMMARY" ] && printf '%s\n' "$SUMMARY"
+      continue
+    fi
     if [[ "$line" == "{{BREAKDOWN}}" ]]; then
       [ -n "$BREAKDOWN" ] && printf '%s\n' "$BREAKDOWN"
       continue
     fi
     if [[ "$line" == "{{GANTT}}" ]]; then
       [ -n "$GANTT" ] && printf '%s\n' "$GANTT"
+      continue
+    fi
+    if [[ "$line" == "{{FOOTER}}" ]]; then
+      [ -n "$FOOTER" ] && printf '%s\n' "$FOOTER"
       continue
     fi
 
@@ -274,12 +306,22 @@ render_template() {
 
 # ─── Post telemetry ──────────────────────────────────────────────────────────
 
-ISSUE_BODY=$(render_template "$TEMPLATE_FILE" "📊 Telemetry")
-gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body "$ISSUE_BODY"
+RENDERED=$(render_template "$TEMPLATE_FILE" "📊 Telemetry")
+gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body "$RENDERED"
 echo "Telemetry posted to issue #$ISSUE_NUMBER (model=$MODEL, duration=$DURATION_HUMAN)"
 
 if [ -n "$PR_NUMBER" ]; then
-  PR_BODY=$(render_template "$TEMPLATE_FILE" "📊 Telemetry")
-  gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$PR_BODY"
-  echo "Telemetry posted to PR #$PR_NUMBER"
+  if [ "$IS_BACKLOG" = true ]; then
+    # Backlog mode: append telemetry to PR description
+    EXISTING_BODY=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json body -q .body)
+    UPDATED_BODY="${EXISTING_BODY}
+
+${RENDERED}"
+    gh pr edit "$PR_NUMBER" --repo "$REPO" --body "$UPDATED_BODY"
+    echo "Telemetry appended to PR #$PR_NUMBER description"
+  else
+    # Story/epic mode: post as PR comment
+    gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$RENDERED"
+    echo "Telemetry posted to PR #$PR_NUMBER as comment"
+  fi
 fi

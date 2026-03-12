@@ -332,12 +332,12 @@ The script computes speed (tokens/s) and estimated cost automatically from the m
 
 Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Every completed story must have all three comments on its issue: "Work Started" (`issue-start.sh`, by builder), "Ready for Review" (`issue-review.sh`, by builder), and "Telemetry" (`issue-telemetry.sh`, by orchestrator).
 
-**Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. **CRITICAL: Use `isolation: "worktree"` in the Agent tool when dispatching parallel builders.** Without worktree isolation, parallel builders share the same working directory and can commit files from other stories onto the wrong branch (confirmed defect in Run 7 -- `c249257`, first flagged as risk in Run 4). Worktree isolation was validated in Run 8 — 3 parallel builders produced clean, non-contaminated branches. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
+**Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. **CRITICAL: Use `isolation: "worktree"` in the Agent tool when dispatching parallel builders.** Without worktree isolation, parallel builders share the same working directory and can commit files from other stories onto the wrong branch. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
 
 **Post-worktree cleanup (REQUIRED):** After all worktree-dispatched builders complete, the orchestrator MUST:
 1. Check for untracked files left in the main working tree: `git status --short`
 2. Clean up any stale artifacts before proceeding to merges: `git clean -fd` (after verifying no wanted files are affected)
-3. Verify each story branch was pushed to remote: `git ls-remote --heads origin <branch>` — worktree-isolated builders may not push automatically (confirmed in Run 8, E01-S02). If a branch is missing from remote, push it manually before merging.
+3. Verify each story branch was pushed to remote: `git ls-remote --heads origin <branch>` — worktree-isolated builders may not push automatically. If a branch is missing from remote, push it manually before merging.
 
 **Parallel dispatch git safety (defense-in-depth):** With worktree isolation enabled, these rules serve as a secondary safety net. They remain mandatory for any non-worktree parallel dispatch:
 - **Chain all git operations in a single Bash call:** `git checkout <branch> && git add <files> && git commit -m "msg"` — never split checkout and commit across separate Bash calls.
@@ -411,7 +411,7 @@ The backlog telemetry comment should include:
 1. A **per-phase breakdown** table showing model, tokens, sequential duration, and cost per phase (design, plan, build, review, retro)
 2. A **grand total** row summing all phases
 3. A **Duration Summary** section with **Sequential Duration**, **Actual Duration** (with parallelism), and **Time Saved**
-4. A **full lifecycle breakdown** table with **Wave**, **Dispatch** (parallel/sequential), per-task rows covering ALL phases (design, plan, builds, reviews, fix cycles, retro), **Total** row, and **Actual** row showing wall-clock time and savings. See Run 4 (#106) backlog telemetry for the reference format
+4. A **full lifecycle breakdown** table with **Wave**, **Dispatch** (parallel/sequential), per-task rows covering ALL phases (design, plan, builds, reviews, fix cycles, retro), **Total** row, and **Actual** row showing wall-clock time and savings
 5. A **Mermaid Gantt timeline** visualizing all lifecycle phases — design, plan, build waves (parallel bars), review waves (parallel bars), fix cycles (`crit`), and retro. Use `dateFormat HH:mm:ss`, `axisFormat %M:%S`, `after` syntax for sequential dependencies, and `crit` for fix/re-review tasks. **Theming:** use `themeVariables` without a `theme` key in `%%{init}%%` — this lets GitHub auto-detect dark/light mode for text and backgrounds while custom bar colors are applied on top. Colors and init block are defined in `scripts/templates/telemetry.md` (single source of truth)
 6. The **backlog PR number** and **commit hash** for traceability
 7. Note: the orchestrator's own token consumption is not captured (it runs in the parent session). Only dispatched subagent telemetry is tracked.
@@ -437,7 +437,7 @@ Post the final aggregate using a manual `gh issue comment` (not `issue-telemetry
 gh issue comment <backlog-number> --body "## 📊 Full Lifecycle Telemetry\n\n| Phase | Tokens | Sequential Duration | Est. Cost |\n..."
 ```
 
-The backlog telemetry should include a **Duration Summary** and a **Full Lifecycle Breakdown** covering all phases (design, plan, build waves, review waves, fix cycles, retro) — not just builds. See Run 4 (#106) for the reference format.
+The backlog telemetry should include a **Duration Summary** and a **Full Lifecycle Breakdown** covering all phases (design, plan, build waves, review waves, fix cycles, retro) — not just builds.
 
 **Epic-scoped telemetry:** When posting epic-level telemetry on epic issues, include only stories that belong to that specific epic (check the epic's sub-issues). The backlog PR and backlog issue are the only places where cross-epic aggregate and full lifecycle telemetry belongs. Do not post the full breakdown on individual epic issues.
 
@@ -592,7 +592,7 @@ Changes to the SDLC workflow (scripts, board management, dispatch, telemetry, ag
 | `scripts/templates/telemetry.md` | Template conditions, variable names, rendering logic |
 | `docs/2-design/` | Design docs may describe the workflow being changed |
 
-**Common propagation failures** (from actual Run 5-6 experience):
+**Common propagation failures:**
 - Changed a script flag but didn't update CLAUDE.md's helper scripts table
 - Fixed a template rendering bug but didn't update the template's documentation comment
 - Added a board transition step to the orchestrator but didn't update CLAUDE.md's board transitions section

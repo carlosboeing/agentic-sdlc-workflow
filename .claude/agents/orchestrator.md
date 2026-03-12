@@ -520,7 +520,7 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 | Build | builders (7 stories) | 548K | 25m 48s | ~$1.30 |
 | Review | reviewers (10 dispatches) | 336K | 19m 4s | ~$1.01 |
 | Retro | retro | 40K | 2m 30s | ~$0.12 |
-| **Total** | | **1,035K** | **55m 47s** | **~$2.77** |
+| **Total** | **<N> dispatches** | **1,035K** | **55m 47s** | **~$2.77** |
 
 ### ⏱️ Duration Summary
 
@@ -586,7 +586,7 @@ EOF
 )"
 ```
 
-**Also append to the backlog PR description** using `gh pr edit --body` (append below existing content with a `---` separator). This keeps telemetry visible at the top of the PR page.
+**Also include in the backlog PR description** using `gh pr edit --body` (append below existing content with a `---` separator). The PR description MUST contain the **same full telemetry** as the backlog issue comment — including the per-phase summary, full lifecycle breakdown table, and Mermaid Gantt timeline. Do not post a truncated summary on the PR. The PR body is the single source of truth for the run.
 
 The Gantt chart should include **all lifecycle phases** (design, plan, build waves, review waves, fix cycles, retro), not just the build timeline. No `section` directives — task labels are self-explanatory. No `theme` key in `%%{init}%%` — this lets GitHub auto-detect dark/light mode for text and backgrounds while custom bar colors are applied on top. Color by task tag: `:active` (violet) for design/plan/retro, default (emerald) for build, `:done` (amber) for review, `:crit` (red) for fix/re-review. Use `after` syntax for sequential dependencies. The single source of truth for the init block and colors is `scripts/templates/telemetry.md`.
 

@@ -409,7 +409,7 @@ gh pr merge <N> --squash --delete-branch
 
 The backlog telemetry comment should include:
 1. A **per-phase breakdown** table showing model, tokens, sequential duration, and cost per phase (design, plan, build, review, retro)
-2. A **grand total** row summing all phases
+2. A **grand total** row summing all phases, with the total **dispatch count** in the Agent column (e.g., "16 dispatches")
 3. A **Duration Summary** section with **Sequential Duration**, **Actual Duration** (with parallelism), and **Time Saved**
 4. A **full lifecycle breakdown** table with **Wave**, **Dispatch** (parallel/sequential), per-task rows covering ALL phases (design, plan, builds, reviews, fix cycles, retro), **Total** row, and **Actual** row showing wall-clock time and savings
 5. A **Mermaid Gantt timeline** visualizing all lifecycle phases — design, plan, build waves (parallel bars), review waves (parallel bars), fix cycles (`crit`), and retro. Use `dateFormat HH:mm:ss`, `axisFormat %M:%S`, `after` syntax for sequential dependencies, and `crit` for fix/re-review tasks. **Theming:** use `themeVariables` without a `theme` key in `%%{init}%%` — this lets GitHub auto-detect dark/light mode for text and backgrounds while custom bar colors are applied on top. Colors and init block are defined in `scripts/templates/telemetry.md` (single source of truth)
@@ -441,7 +441,7 @@ The backlog telemetry should include a **Duration Summary** and a **Full Lifecyc
 
 **Epic-scoped telemetry:** When posting epic-level telemetry on epic issues, include only stories that belong to that specific epic (check the epic's sub-issues). The backlog PR and backlog issue are the only places where cross-epic aggregate and full lifecycle telemetry belongs. Do not post the full breakdown on individual epic issues.
 
-**PR telemetry placement:** Full lifecycle telemetry goes in the **backlog PR description** (appended below the existing summary with a `---` separator), not as a PR comment. This keeps telemetry visible at the top of the PR page. Use `gh pr edit --body` to append. Backlog issue telemetry remains a `gh issue comment` since issue bodies serve a different purpose (problem statement).
+**PR telemetry placement:** Full lifecycle telemetry goes in the **backlog PR description** (appended below the existing summary with a `---` separator), not as a PR comment. The PR description MUST contain the **same full telemetry** as the backlog issue comment — including the per-phase summary table, full lifecycle breakdown, and Mermaid Gantt timeline. Do not post a truncated summary on the PR; the PR body is the single source of truth for the run. Use `gh pr edit --body` to append. Backlog issue telemetry remains a `gh issue comment` since issue bodies serve a different purpose (problem statement).
 
 **Cost disclaimer:** All telemetry posts that include cost estimates must end with a disclaimer note explaining that costs are estimates based on Anthropic's published API token pricing and that subscription plans are not charged per-token. The `issue-telemetry.sh` script appends this automatically. For manually composed telemetry (e.g., backlog-level comments), append the same note:
 

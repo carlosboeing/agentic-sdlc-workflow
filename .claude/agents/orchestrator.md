@@ -522,14 +522,6 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 | Retro | retro | 40K | 2m 30s | ~$0.12 |
 | **Total** | **<N> dispatches** | **1,035K** | **55m 47s** | **~$2.77** |
 
-### ⏱️ Duration Summary
-
-| Metric | Value |
-|--------|-------|
-| **Sequential Duration** | 55m 47s |
-| **Actual Duration** _(with parallelism)_ | ~38m |
-| **Time Saved** | ~18m (builds: 25m 48s seq → ~8m actual) |
-
 ### Full Lifecycle Breakdown
 
 | Agent | Task | Duration | Tokens | Est. Cost |
@@ -545,6 +537,14 @@ gh issue comment <backlog-number> --body "$(cat <<'EOF'
 | Reviewer (opus) | Backlog PR Review | 3m | 40K | ~$0.13 |
 | Retro (opus) | Write Retro Doc | 2m 30s | 40K | ~$0.12 |
 | | **Total (<N> dispatches)** | **~25m** | **491K** | **~$1.65** |
+
+### ⏱️ Duration Summary
+
+| Metric | Value |
+|--------|-------|
+| **Sequential Duration** | 55m 47s |
+| **Actual Duration** _(with parallelism)_ | ~38m |
+| **Time Saved** | ~18m (builds: 25m 48s seq → ~8m actual) |
 
 #### Timeline
 

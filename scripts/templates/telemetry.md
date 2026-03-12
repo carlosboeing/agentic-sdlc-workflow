@@ -15,7 +15,6 @@
     PARALLELISM              — Parallel dispatch (wall-clock data provided)
     TIME_SAVED               — Time saved > 0
     BREAKDOWN                — Per-story breakdown table provided
-    PARALLELISM_BREAKDOWN    — Parallelism data + breakdown + time saved > 0
     GANTT                    — Gantt chart data provided
     DISCLAIMER               — Cost estimates or breakdown shown
 
@@ -56,7 +55,7 @@
 
 | Metric | Value |
 |--------|-------|
-| **Sequential Duration** | {{DURATION_HUMAN}} |
+| **Duration** | {{DURATION_HUMAN}} |
 | **Actual Duration** _(with parallelism)_ | {{WALL_CLOCK_HUMAN}} |
 <!-- IF_TIME_SAVED -->
 | **Time Saved** _({{SPEEDUP}} parallel speedup)_ | {{TIME_SAVED_HUMAN}} |
@@ -66,13 +65,10 @@
 
 #### Breakdown
 
-| Wave | Dispatch | Story | Model | Duration | Tokens | Est. Cost |
-|------|----------|-------|-------|----------|--------|-----------|
+| Agent | Task | Duration | Tokens | Est. Cost |
+|-------|------|----------|--------|-----------|
 {{BREAKDOWN}}
-<!-- IF_PARALLELISM_BREAKDOWN -->
-| | | **Actual** _(with parallelism)_ | | **{{WALL_CLOCK_HUMAN}}** | | |
-| | | **Saved** _({{SPEEDUP}} parallel speedup)_ | | **{{TIME_SAVED_HUMAN}}** | | |
-<!-- END_PARALLELISM_BREAKDOWN -->
+
 <!-- END_BREAKDOWN -->
 <!-- IF_GANTT -->
 

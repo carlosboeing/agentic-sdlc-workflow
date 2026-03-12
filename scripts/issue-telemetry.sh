@@ -15,8 +15,8 @@ set -euo pipefail
 # reads this from its state file (pricing fetched from Anthropic at session start). If omitted,
 # the script falls back to hardcoded defaults.
 #
-# The --breakdown table should include a "Dispatch" column (parallel/sequential) between Wave
-# and Story columns. The script adds the table header automatically.
+# The --breakdown table rows should use columns: Agent | Task | Duration | Tokens | Est. Cost.
+# The script adds the table header automatically from the template.
 #
 # The --gantt parameter accepts the body of a Mermaid gantt chart (everything after the
 # ```mermaid\ngantt header). The script wraps it in the code fence automatically.
@@ -190,7 +190,6 @@ eval_condition() {
     PARALLELISM)             [ "$HAS_PARALLELISM" = true ] ;;
     TIME_SAVED)              [ -n "$TIME_SAVED_HUMAN" ] ;;
     BREAKDOWN)               [ -n "$BREAKDOWN" ] ;;
-    PARALLELISM_BREAKDOWN)   [ "$HAS_PARALLELISM" = true ] && [ -n "$TIME_SAVED_HUMAN" ] ;;
     GANTT)                   [ -n "$GANTT" ] ;;
     DISCLAIMER)              [ "$COST_EST" != "—" ] || [ -n "$BREAKDOWN" ] ;;
     *)                       return 1 ;;

@@ -1,6 +1,6 @@
 ## date: 2026-03-13
 author: orchestrator
-status: draft
+status: implemented
 backlog: 14
 
 # Design: Orchestrator & Board Status Diagnostic Logging
@@ -85,11 +85,13 @@ dotnet (build|test)
 
 #### Hook Script Logic
 
+Note: The Claude Code API uses `Task` as the tool name (not `Agent`). The hook checks for both names for compatibility.
+
 ```
 read JSON from stdin
 extract tool_name, tool_input, tool_output
 
-if tool_name == "Agent":
+if tool_name == "Task" (or "Agent" for compatibility):
     always log (extract subagent_type, prompt summary, duration, tokens, tool_uses)
 
 if tool_name == "Bash":
@@ -105,11 +107,13 @@ if tool_name == "Bash":
 
 ```
 [2026-03-13T02:15:00Z] session=abc123 tool=Bash cmd="./scripts/issue-set-status.sh 18 in-progress" exit=0 stdout="✓ #18 → in-progress"
-[2026-03-13T02:15:05Z] session=abc123 tool=Agent type=builder-haiku prompt="Implement story #18..." duration=149628 tokens=113527 tool_uses=43
+[2026-03-13T02:15:05Z] session=abc123 tool=Task type=builder-haiku prompt="Implement story #18..." duration=149628 tokens=113527 tool_uses=43
 [2026-03-13T02:20:00Z] session=abc123 tool=Bash cmd="git merge origin/e01-s01/kitchen-counter --no-ff" exit=0
 ```
 
 #### Hook Registration
+
+Hooks are registered in `.claude/settings.json` using a flat `matcher` string and nested `hooks` array structure. Note: Claude Code API uses `Task` as the tool name, not `Agent`.
 
 ```jsonc
 // .claude/settings.json (merged with existing permissions)
@@ -118,12 +122,22 @@ if tool_name == "Bash":
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": { "toolName": "Bash" },
-        "command": ".claude/hooks/log-tool.sh"
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/log-tool.sh"
+          }
+        ]
       },
       {
-        "matcher": { "toolName": "Agent" },
-        "command": ".claude/hooks/log-tool.sh"
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/log-tool.sh"
+          }
+        ]
       }
     ]
   }
@@ -182,4 +196,40 @@ Add `logs/` to `.claude/.gitignore` (alongside `state/` and `worktrees/`). Logs 
 1. **Should the hook truncate long stdout?** Proposed: first 500 chars. Some `gh` commands return verbose JSON.
 2. **Should the hook log stderr separately?** Proposed: yes, if non-empty (captures warnings/errors).
 3. **Should the post-mutation verification in `issue-set-status.sh` retry on mismatch?** Proposed: no — log the mismatch for diagnosis but don't retry (the current run's manual fix already handles it). We want data first, then decide on auto-remediation.
+
+---
+
+## Post-Implementation Notes
+
+### Status
+
+This design has been implemented and merged to `main` as of commit `c7d2eda`. The logging infrastructure is now fully operational.
+
+### Implementation Details
+
+All artifacts specified in the design have been implemented:
+
+- **`.claude/hooks/log-tool.sh`** — PostToolUse hook script that filters and logs tool invocations
+- **`.claude/hooks/log-filter.conf`** — allowlist patterns for Bash command filtering
+- **`.claude/settings.json`** — hook registration with updated format (flat `matcher` string + nested `hooks` array)
+- **`scripts/issue-set-status.sh`** — enhanced with board status logging and post-mutation verification
+- **`.claude/.gitignore`** — includes `logs/` directory to keep ephemeral diagnostics out of the repo
+
+### Validation
+
+A validation script is available at `scripts/validate-logs.sh` to verify log integrity after a workflow session:
+
+```bash
+# After running a workflow session, validate the logs
+./scripts/validate-logs.sh
+```
+
+This script performs basic sanity checks on both `orchestrator.log` and `board-status.log`, such as verifying timestamp ordering and checking for incomplete entries.
+
+### Key Implementation Discrepancies from Design
+
+1. **Hook registration format:** Design showed nested `matcher` object; actual implementation uses flat `matcher` string with nested `hooks` array containing `type` and `command` fields.
+2. **Tool naming:** Design referred to `Agent` tool; Claude Code API uses `Task` as the tool name in the hook payload.
+
+Both discrepancies have been documented in this file to prevent future confusion.
 

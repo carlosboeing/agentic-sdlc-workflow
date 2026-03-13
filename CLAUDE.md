@@ -333,6 +333,8 @@ Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Ever
 
 **Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. **CRITICAL: Use `isolation: "worktree"` in the Agent tool when dispatching parallel builders.** Without worktree isolation, parallel builders share the same working directory and can commit files from other stories onto the wrong branch. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
 
+**Story branch creation for parallel waves (REQUIRED):** Before dispatching parallel builders, the orchestrator MUST create all story branches from the same epic branch commit. Record this base commit hash. Do not push any story work to the epic branch until the entire wave completes. If a story branch is found to have diverged from the expected base (e.g., it includes commits from a sibling story), cherry-pick only the story's own commits onto a fresh branch from the recorded base before merging. This prevents the cross-contamination observed in Run 9 (E01-S03, issue #20) where a builder started from a sibling story's HEAD instead of the epic base.
+
 **Post-worktree cleanup (REQUIRED):** After all worktree-dispatched builders complete, the orchestrator MUST:
 1. Check for untracked files left in the main working tree: `git status --short`
 2. Clean up any stale artifacts before proceeding to merges: `git clean -fd` (after verifying no wanted files are affected)

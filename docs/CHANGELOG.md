@@ -2,6 +2,19 @@
 
 ## 2026-03-13
 
+### Test SDLC v2 Workflow (Run 10) — Orchestrator Logging
+
+- **Primary result:** Validated two-layer diagnostic logging (board-status.log + orchestrator.log) during a full autonomous lifecycle
+- Two workstreams: logging infrastructure validation (2 stories) + content creation (4 stories, Season 2 episodes)
+- Created log validation script (`scripts/validate-logs.sh`) and reconciled logging design doc with implementation
+- Created "Nature Documentary: The Open-Plan Office, Season 2" content (3 episodes + 1 formal habitat assessment)
+- 2 epics, 6 stories across 4 dispatch waves (Waves 1-2: sequential logging, Wave 3: 3 parallel content, Wave 4: sequential)
+- All three difficulty levels tested (easy x3 haiku, medium x2 sonnet, hard x1 opus)
+- Zero fix cycles — all 6 stories passed review on first attempt
+- Encountered and worked around GraphQL API rate limit exhaustion (5000 points/hour depleted by planner API calls)
+- Discovered design artifact matching bug: orchestrator grep matched wrong backlog items due to missing YAML frontmatter filtering
+- Lessons captured: artifact matching gap, rate limit workaround via lightweight GraphQL queries
+
 ### Test SDLC v2 Workflow (Run 9) — Full Autonomous Lifecycle
 
 - **Primary result:** Validated full autonomous lifecycle end-to-end — design, plan, build, review, merge, telemetry, and retro in a single unattended orchestrator session

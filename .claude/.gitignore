@@ -1,3 +1,4 @@
 # Ephemeral directories (not committed)
 state/
 worktrees/
+logs/

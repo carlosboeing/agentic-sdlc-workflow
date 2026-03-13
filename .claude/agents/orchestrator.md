@@ -227,7 +227,8 @@ Then wait for the human to merge the plan PR into the integration branch.
    Alternatively, traverse sub-issues of the epic issue using the GitHub GraphQL API.
 2. Parse the plan's Mermaid dependency graph to determine execution order.
 3. Identify which stories can run in parallel (no shared dependencies). **CRITICAL: When dispatching parallel builders, use `isolation: "worktree"` in the Agent tool to prevent workspace collisions** (confirmed defect in Run 7, commit `c249257`).
-4. Check for already-completed stories (idempotent restart):
+4. **Before dispatching a parallel wave**, record the epic branch HEAD commit as the wave's base. Create all story branches from this exact commit. Do not merge anything into the epic branch until the entire wave completes. This prevents cross-contamination where a builder inherits a sibling story's commits (confirmed defect in Run 9, E01-S03 issue #20).
+5. Check for already-completed stories (idempotent restart):
    ```bash
    # A story is complete if it has a "Ready for Review" comment
    gh issue view <number> --json comments -q '.comments[] | .body' | grep -q "Ready for Review"

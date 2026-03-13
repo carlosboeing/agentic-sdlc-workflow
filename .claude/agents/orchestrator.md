@@ -109,9 +109,9 @@ Execute these phases in order. Each phase has a verification step before proceed
    gh issue edit <N> --add-label "backlog/<N>-<slug>"
    ```
 
-5. Check for existing artifacts:
-   - **Design doc:** `grep -rl "<backlog-number>" docs/2-design/`
-   - **Plan:** `grep -rl "<backlog-number>" docs/3-plans/` and check if epic issues exist:
+5. Check for existing artifacts (use YAML frontmatter matching, not raw content grep — short numbers like "27" match incidental text in unrelated files; see Run 10 lesson `e00-setup/2026-03-13-s00-design-artifact-matching.md`):
+   - **Design doc:** `grep -rl "^backlog: <backlog-number>$" docs/2-design/`
+   - **Plan:** `grep -rl "^backlog: <backlog-number>$" docs/3-plans/` and check if epic issues exist:
      ```bash
      gh issue list --label "backlog/<number>-<slug>" --label "hierarchy/epic" --json number,title,labels
      ```

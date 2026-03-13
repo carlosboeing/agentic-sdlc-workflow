@@ -256,6 +256,22 @@ Status option IDs:
 
 **DANGER: Never use `updateProjectV2Field` to add/modify status options.** That mutation replaces the entire option set, generating new IDs and wiping all existing item statuses. To add a new status option, use the GitHub web UI (Project → Settings → Status field) and then update the option IDs in this file.
 
+**GitHub GraphQL API rate limit awareness:** The GraphQL API has a 5000 points/hour budget. Heavy commands like `gh project item-list` (fetches all items with all fields) consume many points per call — the planner's issue creation + board setup can use 50-60 calls, and `issue-set-status.sh` calls `item-list` twice per invocation (lookup + verification). When possible, prefer lightweight per-issue queries to look up board item IDs:
+
+```graphql
+query {
+  repository(owner: "carlosboeing", name: "agentic-sdlc-workflow") {
+    issue(number: $N) {
+      projectItems(first: 1) {
+        nodes { id }
+      }
+    }
+  }
+}
+```
+
+This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exhausted, use `gh api` with REST endpoints as a fallback. Evidence: Run 10 lesson `e00-setup/2026-03-13-s00-rate-limit-item-list.md`.
+
 **Helper scripts:**
 
 | Script | Usage |
@@ -372,7 +388,7 @@ claude --agent orchestrator
 
 **Headless mode (`-p`):** For CI/CD or headless compute, add `-p` to run without the interactive UI. Options: `-p --verbose` for turn-by-turn text logging, `-p --output-format stream-json` for machine-readable streaming events (pipe to `tee` for log files), or `-p` alone for silent execution. All are fully autonomous with `--dangerously-skip-permissions`.
 
-**Phase detection:** The orchestrator checks for existing design docs (`docs/2-design/`) and plans (`docs/3-plans/`). If artifacts exist, those phases are skipped automatically.
+**Phase detection:** The orchestrator checks for existing design docs (`docs/2-design/`) and plans (`docs/3-plans/`) by matching the YAML frontmatter `backlog:` field (e.g., `grep -rl "^backlog: <N>$" docs/2-design/`). Raw content grep on the backlog number is unreliable for short numbers. If artifacts exist, those phases are skipped automatically.
 
 **Autonomous mode:** When the prompt includes "autonomous" or the orchestrator is run non-interactively, the designer and planner agents skip interactive questions (brainstorming skill, `AskUserQuestion`) and instead derive all requirements from the backlog issue. Design/plan PRs are auto-merged via `gh pr merge`. The structured design process is preserved — agents still explore approaches, document trade-offs, and flag assumptions.
 

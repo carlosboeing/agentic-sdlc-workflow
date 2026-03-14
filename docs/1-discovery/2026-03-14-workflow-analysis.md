@@ -695,7 +695,19 @@ A migration from the current hardcoded 3-level system to a configurable taxonomy
 
 ## Part III: Consolidated Findings
 
-### 7. Prioritized Fix Table
+### 7. Key Observations
+
+These are structural observations about the system that don't fit neatly into a fix table but inform how to think about the workflow going forward.
+
+**Agent files are executable specifications, not documentation.** In traditional software, you have source code + docs, and documentation drift is a cosmetic problem. In this system, the agent `.md` files ARE the program — they're the instructions that determine agent behavior at runtime. An inconsistency between `builder.md` and `CLAUDE.md` isn't a documentation bug, it's a runtime bug that manifests as incorrect agent behavior. This makes "convention propagation" the equivalent of keeping API contracts in sync across microservices. Every edit to a convention must be treated as a code change that requires grep-verification across all consumers.
+
+**The phase ordering is a DAG, not a sequence.** The workflow has a human-in-the-loop synchronization point (PR merge) that splits the pipeline into pre-merge and post-merge segments. But the phase numbering (0–11) treats it as a linear sequence. The actual execution topology is a DAG: Phases 8→10→11 run pre-merge, then the human merges, then Phase 9 runs post-merge. The orchestrator has been working around this for 11 runs by implicitly reordering phases — a sign that the abstraction (numbered phases) doesn't match the actual topology. Renumbering (as proposed in Quick Win H) fixes the symptom; the deeper fix is acknowledging that post-merge work is a separate lifecycle stage, not a numbered phase.
+
+**The pricing inconsistency is a "two-failure" bug.** The inconsistent hardcoded fallback rates between `fetch-pricing.sh` ($30/M for opus) and `issue-telemetry.sh` ($10/M for opus) only manifest when the Anthropic pricing page is unreachable AND the `--rate` flag isn't passed from the state file. Both conditions must fail simultaneously. This is exactly the kind of bug that survives for months because the happy path always works — the web fetch succeeds, the state file provides rates, and the hardcoded fallbacks are never exercised. Worth fixing precisely because it will bite at the worst time (during an outage when you most need accurate cost data).
+
+**The taxonomy is a simplicity-vs-flexibility trade-off.** The current system optimizes for simplicity (fixed 3 levels, hardcoded everywhere) at the cost of flexibility. The PM tool ecosystem requires the opposite — configurable depth, tool-specific naming, adaptable mapping. The proposed depth-indexed model with configurable display names resolves this by making the "number of levels" a configuration parameter rather than an architectural constant. This is analogous to the database pattern of schema-on-read vs schema-on-write: the current system enforces the schema at write time (planner must create exactly 3 levels), while a configurable system would enforce constraints at read time (orchestrator validates the structure against configured rules). The migration path matters more than the end state — each step must leave the system functional.
+
+### 8. Prioritized Fix Table
 
 | # | Issue | Type | Effort | Impact |
 |---|-------|------|--------|--------|
@@ -714,7 +726,7 @@ A migration from the current hardcoded 3-level system to a configurable taxonomy
 | **13** | `protected-files` label timing gap on PR creation | observation | Low | Low |
 | **14** | 3-level hierarchy hardcoded in 15+ files (blocks taxonomy flexibility) | architectural | High | High |
 
-### 8. Quick Wins (< 30 minutes each)
+### 9. Quick Wins (< 30 minutes each)
 
 | # | Fix | Effort | Files |
 |---|-----|--------|-------|
@@ -727,7 +739,7 @@ A migration from the current hardcoded 3-level system to a configurable taxonomy
 | G | Add `validate-logs.sh` to retro agent gathering inputs | 5 min | `retro.md` |
 | H | Renumber phases for correct execution order (8→9=retro→10=telemetry→11=cleanup) | 10 min | `orchestrator.md` |
 
-### 9. Big Ideas
+### 10. Big Ideas
 
 | # | Idea | Problem Solved | Effort | Impact |
 |---|------|---------------|--------|--------|

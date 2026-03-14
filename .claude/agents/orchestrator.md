@@ -115,19 +115,21 @@ Execute these phases in order. Each phase has a verification step before proceed
    gh issue edit <N> --add-label "backlog/<N>-<slug>"
    ```
 
-5. Check for existing artifacts (use YAML frontmatter matching, not raw content grep — short numbers like "27" match incidental text in unrelated files; see Run 10 lesson `e00-setup/2026-03-13-s00-design-artifact-matching.md`):
+5. **Check the recommendations tracker** (`docs/4-reviews/retro-recommendations.md`) for outstanding items that may affect this run. Apply any low-effort fixes proactively.
+
+6. Check for existing artifacts (use YAML frontmatter matching, not raw content grep — short numbers like "27" match incidental text in unrelated files; see Run 10 lesson `e00-setup/2026-03-13-s00-design-artifact-matching.md`):
    - **Design doc:** `grep -rl "^backlog: <backlog-number>$" docs/2-design/`
    - **Plan:** `grep -rl "^backlog: <backlog-number>$" docs/3-plans/` and check if epic issues exist:
      ```bash
      gh issue list --label "backlog/<number>-<slug>" --label "hierarchy/epic" --json number,title,labels
      ```
 
-6. Parse the prompt for skip directives:
+7. Parse the prompt for skip directives:
    - "skip design" → skip Phase 1
    - "skip plan" → skip Phase 2
    - "skip design and plan" → skip both
 
-7. Determine execution mode:
+8. Determine execution mode:
    - If artifacts exist for a phase → skip that phase automatically
    - If the prompt says to skip a phase → skip it
    - Otherwise → run the phase (autonomous or interactive based on prompt/context)
@@ -304,6 +306,15 @@ For each story (or wave of independent stories):
      ./scripts/issue-set-status.sh $ISSUE_NUM in-review
    done
    ```
+
+10. **Verify issue comments after each parallel wave** (REQUIRED): Query each story for expected comments ("Work Started" from `issue-start.sh`, "Ready for Review" from `issue-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively:
+    ```bash
+    for ISSUE_NUM in <wave story numbers>; do
+      COMMENTS=$(gh issue view $ISSUE_NUM --json comments -q '.comments[].body')
+      echo "$COMMENTS" | grep -q "Work Started" || gh issue comment $ISSUE_NUM --body "⚠️ Work Started comment missing (posted retroactively by orchestrator)"
+      echo "$COMMENTS" | grep -q "Ready for Review" || gh issue comment $ISSUE_NUM --body "⚠️ Ready for Review comment missing (posted retroactively by orchestrator)"
+    done
+    ```
 
 **Parallel dispatch:** When the dependency graph shows independent stories, dispatch their builders concurrently using multiple Agent tool calls in a single response. Each builder works on its own story branch. Set all story statuses to In Progress **sequentially before dispatch**, then review and merge sequentially after all complete. The GitHub Projects API does not handle concurrent `item-edit` calls reliably -- all board updates must be serialized.
 
@@ -484,19 +495,38 @@ After the backlog PR is merged (by human via `gh pr merge --squash`):
 
 ### Phase 10: Dispatch Retro Agent
 
-Dispatch the retro agent to synthesize lessons and propose convention changes. The retro agent commits directly on the integration branch (not a separate PR to main):
+1. **Create a retro issue** (same pattern as design/plan issues):
+   ```bash
+   gh issue create --title "Write retrospective for <backlog title>" \
+     --label "type/docs,backlog/<N>-<slug>" \
+     --body "Write retrospective for backlog item #<N>."
+   ```
 
-```
-Agent tool → subagent_type: "retro"
-Prompt: "Write retrospective for backlog item #<backlog-number>, epic <slug>, epic issue #<number>.
-         Commit your retro doc and any convention changes directly on the integration branch: backlog/<N>-<slug>.
-         Do NOT create a separate docs/ branch or PR to main — everything goes on the integration branch."
-```
+2. **Link as sub-issue of the backlog item** and set board status to In Progress:
+   ```bash
+   PARENT_ID=$(gh issue view <backlog-number> --json id -q .id)
+   CHILD_ID=$(gh issue view <retro-issue-number> --json id -q .id)
+   gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
+   gh project item-add 7 --owner carlosboeing --url <retro-issue-url> --format json
+   ./scripts/issue-set-status.sh <retro-issue-number> in-progress
+   ```
 
-After the retro agent completes, push the integration branch:
-```bash
-git checkout backlog/<N>-<slug> && git push
-```
+3. **Dispatch the retro agent.** The retro agent commits directly on the integration branch (not a separate PR to main):
+   ```
+   Agent tool → subagent_type: "retro"
+   Prompt: "Write retrospective for backlog item #<backlog-number>, epic <slug>, epic issue #<number>.
+            Retro issue: #<retro-issue-number>.
+            Commit your retro doc and any convention changes directly on the integration branch: backlog/<N>-<slug>.
+            Do NOT create a separate docs/ branch or PR to main — everything goes on the integration branch."
+   ```
+
+4. **After the retro agent completes,** push the integration branch and close the retro issue:
+   ```bash
+   git checkout backlog/<N>-<slug> && git push
+   ./scripts/issue-close.sh <retro-issue-number>
+   ```
+
+5. **Include the retro issue in the backlog PR `Closes` list** (Phase 8) so it auto-closes on merge if not already closed.
 
 The retro doc and any convention changes will be included in the same backlog PR.
 
@@ -607,18 +637,13 @@ If no difficulty label is found, default to `"builder-sonnet"` and post a warnin
 
 All project board constants (Project ID, Status Field ID, option IDs) are defined in CLAUDE.md — that is the single source of truth. Do not duplicate them here. The orchestrator only needs three statuses: **In Progress**, **In Review**, and **Done** — look up their option IDs in CLAUDE.md's status option table.
 
-**Get the board item ID for an issue:**
+**Always use `issue-set-status.sh`** for board updates — it handles item ID lookup (via lightweight per-issue GraphQL), status mapping, validation, retry, and logging:
+
 ```bash
-ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 \
-  | tr -d '\x00-\x1f' | jq -r '.items[] | select(.content.number == <issue-number>) | .id')
+./scripts/issue-set-status.sh <issue-number> in-progress
 ```
 
-**Update status:**
-```bash
-gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
-  --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
-  --single-select-option-id "<option-id>"
-```
+Do not use `gh project item-list` or manual `item-edit` commands — they are expensive (~200 points/call) and error-prone. See CLAUDE.md § "GitHub GraphQL API rate limit awareness" for details.
 
 ### Epic Status Sync
 

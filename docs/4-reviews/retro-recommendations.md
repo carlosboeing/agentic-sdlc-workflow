@@ -90,5 +90,7 @@ Last updated: 2026-03-14 (compiled from Runs 2–11)
 | ii  | Content-only stories with detailed acceptance criteria achieve zero fix cycles | Runs 5, 6, 9, 10, 11       | 17 consecutive first-pass approvals (Runs 9–11). Builder-reviewer loop is stable for markdown and script tasks. |
 | iii | CHANGELOG conflicts with per-epic PRs                                          | Run 5                       | Moot — switched to single-PR model in Run 6.                                                                    |
 | iv  | Board status persistence bug (mutations succeed, statuses revert later)        | Runs 3, 10                  | Run 11 created diagnostic script `check-board-drift.sh`; not yet exercised in a live run.                       |
+| v   | `orchestrator.md` approaching 1000 lines — largest agent file by 5x            | Run 11                      | State schema (~200 lines) and board management examples could move to a reference doc. Monitor for readability. |
+| vi  | Reviewer doesn't reference the recommendations tracker for known patterns       | Run 11                      | Reviewer greps raw lesson files; the compiled tracker would be more efficient. Low priority — current approach works. |
 
 

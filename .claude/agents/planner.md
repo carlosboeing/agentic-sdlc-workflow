@@ -120,11 +120,11 @@ After writing a plan with epics and stories:
    Apply `hierarchy/backlog` to the backlog issue itself. `backlog/*` labels must use color `5319E7`.
 
 2. **Create one GitHub Issue per story** with:
-   - Title: `[ENN-SNN] Story title`
+   - Title: `[#<backlog>/ENN-SNN] Story title` (e.g., `[#41/E01-S01] Board Drift Detection Script`)
    - Body: acceptance criteria as checkboxes, files to create/modify, dependencies, test plan, git branch name
    - Labels: `hierarchy/story` + the `backlog/<issue>-<slug>` label + type label + **difficulty label**
    ```bash
-   gh issue create --title "[E01-S01] Add config property for feature X" \
+   gh issue create --title "[#<backlog>/E01-S01] Add config property for feature X" \
      --label "hierarchy/story,backlog/<issue>-<slug>,type/feature,difficulty/easy" \
      --body "..."
    ```
@@ -134,7 +134,7 @@ After writing a plan with epics and stories:
    - Body: checklist of all story issues
    - Labels: `hierarchy/epic` + the `backlog/<issue>-<slug>` label
    ```bash
-   gh issue create --title "[E01] Feature name" \
+   gh issue create --title "[#<backlog>/E01] Feature name" \
      --label "hierarchy/epic,backlog/<issue>-<slug>" \
      --body "## Stories\n- [ ] #N [E01-S01] Story 1\n- [ ] #N [E01-S02] Story 2"
    ```

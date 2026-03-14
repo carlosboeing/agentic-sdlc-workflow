@@ -440,6 +440,8 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 
 **Value column convention:** Value cells in all telemetry tables contain only numbers and units (e.g., `~33m`, `770K`, `~$4.79`). Never add descriptive text or parenthetical notes to value cells. Annotations belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `~33m` in Value). This matches the rule in `scripts/templates/telemetry.md`.
 
+**`--cost` flag for mixed-model epics:** When an epic's stories use different models (e.g., haiku + sonnet), the rate-based cost calculation doesn't work. Pass `--cost <dollars>` with the pre-computed sum of per-story costs from the breakdown. For single-model epics, omit `--cost` and let the script compute from the rate.
+
 **Gantt color tagging:** Gantt task tags control bar colors — `:active` (violet) for design/plan/retro, no tag (emerald) for builds, `:done` (yellow) for reviews, `:crit` (red) for fix cycles. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for the full table. Do not use `:active` on build or review tasks.
 
 **Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. To capture them:

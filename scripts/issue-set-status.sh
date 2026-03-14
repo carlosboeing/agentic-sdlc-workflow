@@ -7,6 +7,10 @@ set -euo pipefail
 # cleanup, item ID validation, retry on race conditions, diagnostic logging,
 # and post-mutation verification.
 #
+# Uses lightweight per-issue GraphQL queries (~1 point each) instead of
+# gh project item-list (~200+ points). See Run 10 lesson:
+# docs/4-reviews/lessons/27-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md
+#
 # Usage: ./scripts/issue-set-status.sh <issue-number> <status>
 #
 # Status values: backlog, planned, todo, in-progress, in-review, done
@@ -15,11 +19,10 @@ set -euo pipefail
 #   0 — status updated successfully (or already at desired status, or verify mismatch)
 #   1 — failed (issue not found on board, invalid status, or API error)
 
-PROJECT_NUMBER=7
-PROJECT_OWNER="carlosboeing"
 PROJECT_ID="PVT_kwHOADPMJc4BRg45"
 STATUS_FIELD_ID="PVTSSF_lAHOADPMJc4BRg45zg_UfJc"
-REPO="carlosboeing/agentic-sdlc-workflow"
+REPO_OWNER="carlosboeing"
+REPO_NAME="agentic-sdlc-workflow"
 
 # --- Logging ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -59,32 +62,45 @@ esac
 log_board "START caller_pid=$$"
 log_board "option_id=$OPTION_ID"
 
-# --- Fetch board data ---
-# Returns the full project item-list JSON. Used to extract both item ID and
-# current status from a single API call.
-fetch_board_data() {
-  gh project item-list "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" \
-    --format json --limit 200 \
-    | sed 's/[[:cntrl:]]//g'
+# --- Fetch item ID and current status via lightweight per-issue GraphQL query ---
+# Costs ~1 GraphQL point vs ~200+ for gh project item-list.
+fetch_item_info() {
+  gh api graphql -f query="
+  query {
+    repository(owner: \"$REPO_OWNER\", name: \"$REPO_NAME\") {
+      issue(number: $ISSUE_NUMBER) {
+        projectItems(first: 5) {
+          nodes {
+            id
+            fieldValueByName(name: \"Status\") {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }" 2>/dev/null
 }
 
-# Extract item ID and current status from board data JSON.
+# Extract item ID and current status from the GraphQL response.
 # Sets ITEM_ID and CURRENT_STATUS variables.
 extract_item_info() {
   local data="$1"
-  ITEM_ID=$(echo "$data" | jq -r ".items[] | select(.content.number == $ISSUE_NUMBER and .content.repository == \"$REPO\") | .id" 2>/dev/null) || ITEM_ID=""
-  CURRENT_STATUS=$(echo "$data" | jq -r ".items[] | select(.content.number == $ISSUE_NUMBER and .content.repository == \"$REPO\") | .status // .Status // \"unknown\"" 2>/dev/null) || CURRENT_STATUS="unknown"
+  ITEM_ID=$(echo "$data" | jq -r '.data.repository.issue.projectItems.nodes[0].id // empty' 2>/dev/null) || ITEM_ID=""
+  CURRENT_STATUS=$(echo "$data" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // "unknown"' 2>/dev/null) || CURRENT_STATUS="unknown"
 }
 
-BOARD_DATA=$(fetch_board_data)
-extract_item_info "$BOARD_DATA"
+QUERY_RESULT=$(fetch_item_info) || QUERY_RESULT=""
+extract_item_info "$QUERY_RESULT"
 
 # Retry once after a short delay if not found (handles race condition after item-add)
 if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
   log_board "item_id=NOT_FOUND retrying_in_3s"
   sleep 3
-  BOARD_DATA=$(fetch_board_data)
-  extract_item_info "$BOARD_DATA"
+  QUERY_RESULT=$(fetch_item_info) || QUERY_RESULT=""
+  extract_item_info "$QUERY_RESULT"
 fi
 
 if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
@@ -124,8 +140,9 @@ fi
 # Wait for eventual consistency, then re-fetch and compare.
 sleep 1
 
-if VERIFY_DATA=$(fetch_board_data 2>/dev/null); then
-  ACTUAL_STATUS=$(echo "$VERIFY_DATA" | jq -r ".items[] | select(.content.number == $ISSUE_NUMBER and .content.repository == \"$REPO\") | .status // .Status // \"unknown\"" 2>/dev/null) || ACTUAL_STATUS=""
+VERIFY_RESULT=$(fetch_item_info 2>/dev/null) || VERIFY_RESULT=""
+if [ -n "$VERIFY_RESULT" ]; then
+  ACTUAL_STATUS=$(echo "$VERIFY_RESULT" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // empty' 2>/dev/null) || ACTUAL_STATUS=""
 else
   ACTUAL_STATUS=""
 fi

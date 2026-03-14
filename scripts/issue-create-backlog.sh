@@ -61,6 +61,17 @@ ISSUE_URL=$("${CREATE_ARGS[@]}")
 ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
 echo "✓ Created issue #$ISSUE_NUMBER"
 
+# --- Step 1b: Replace self-referential placeholders in issue body ---
+# The issue body may contain placeholders like #<this-issue> that reference
+# the issue's own number (which wasn't known at authoring time).
+CURRENT_BODY=$(gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.body' 2>/dev/null || true)
+if echo "$CURRENT_BODY" | grep -q '<this-issue>'; then
+  echo "Replacing #<this-issue> placeholders with #$ISSUE_NUMBER..."
+  PATCHED_BODY=$(echo "$CURRENT_BODY" | sed "s/#<this-issue>/#$ISSUE_NUMBER/g")
+  gh api "repos/$REPO/issues/$ISSUE_NUMBER" --method PATCH -f body="$PATCHED_BODY" > /dev/null
+  echo "✓ Placeholders replaced"
+fi
+
 # --- Step 2: Add to project board ---
 echo "Adding to project board..."
 gh project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" \

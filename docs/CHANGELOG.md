@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-03-14
+
+### Test SDLC v2 Workflow (Run 11) — Board Drift Detection
+
+- **Primary result:** Validated board drift detection infrastructure and 3-way parallel content dispatch with worktree isolation
+- Two workstreams: board drift detection infrastructure (2 stories) + content creation (4 Fairy Tale HR incident reports)
+- Created `scripts/check-board-drift.sh` diagnostic script for detecting board status persistence drift at timed intervals
+- Extended `scripts/validate-logs.sh` with Board Drift Log section for drift event surfacing
+- Created "Incident Reports from Fairy Tale HR" content (4 incident reports from FairyTale Corp's HR department)
+- 2 epics, 6 stories across 4 dispatch waves (Waves 1-2: sequential infra, Wave 3: 3-way parallel content with worktree isolation, Wave 4: sequential hard content)
+- All three difficulty levels tested (easy x3 haiku, medium x2 sonnet, hard x1 opus)
+- Zero fix cycles — all 6 stories passed review on first attempt (5 APPROVE, 1 COMMENT)
+- Convention changes: post-wave comment verification for parallel dispatch, `gh project item-add` status warning
+- ~957K tokens across 15 agent dispatches, estimated cost ~$6.57
+
 ## 2026-03-13
 
 ### Test SDLC v2 Workflow (Run 10) — Orchestrator Logging

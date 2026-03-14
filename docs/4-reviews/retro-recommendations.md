@@ -78,39 +78,44 @@ Last updated: 2026-03-14 (compiled from Runs 2–10)
 
 ## Implemented
 
-| # | Recommendation | Source | Implemented In |
-|---|---------------|--------|----------------|
-| 1 | Orchestrator owns all board transitions in autonomous mode | Run 3 | CLAUDE.md, orchestrator.md |
-| 2 | Add `Bash` to planner agent tool list | Run 3 | Commit `cfb2231` |
-| 3 | Add `Bash` to designer agent tool list | Run 4 | Subsequent agent update |
-| 4 | Require `isolation: "worktree"` for parallel builder dispatch | Runs 4, 7 | CLAUDE.md convention |
-| 5 | Builder agents must not merge story branches into epic | Run 4 | Builder agent instructions |
-| 6 | Add `git add -f` guidance for gitignored `test-output/` paths | Run 4 | Builder agent instructions |
-| 7 | Add `backlog/<N>-<slug>` label to design/plan issues | Run 5 | Designer/planner instructions |
-| 8 | Add `e00-setup/` lesson folder convention for pre-epic lessons | Run 5 | CLAUDE.md lesson conventions |
-| 9 | Builders must verify word counts before committing | Run 3 | Builder agent instructions |
-| 10 | Cross-story consistency contracts in plans | Runs 3, 5 | Planner convention |
-| 11 | `tr -d '\x00-\x1f'` pipe for `gh project item-list` output | Run 7 | CLAUDE.md convention |
-| 12 | Worktree cleanup step after parallel dispatch | Run 8 | CLAUDE.md convention |
-| 13 | Builder must push to remote in worktree mode | Run 8 | CLAUDE.md convention |
-| 14 | CLI dispatch scope clarified (standalone terminal only) | Run 2 | CLAUDE.md convention |
-| 15 | All story issues included in backlog PR `Closes` list | Run 2 | CLAUDE.md convention |
-| 16 | `--cost` flag on `issue-telemetry.sh` for mixed-model epics | Run 2 | Script updated |
-| 17 | Reviewer dispatch is mandatory (no skip option) | Run 2 | CLAUDE.md + orchestrator.md |
-| 18 | Single-PR workflow (`backlog/<N>-<slug>` → `main`) | Run 6 | CLAUDE.md convention |
-| 19 | Fix artifact matching to use YAML frontmatter grep | Run 10 | orchestrator.md updated |
-| 20 | Replace `item-list` with per-issue GraphQL in `issue-set-status.sh` | Run 10 | Pre-Run 11 commit `487b382` |
-| 21 | `issue-create-backlog.sh` for consolidated backlog item setup | Run 10 lesson | Pre-Run 11 commit `0785196` |
-| 22 | Story branches created from recorded epic base before parallel waves | Run 9 | CLAUDE.md convention |
-| 23 | Audit agent tool lists when instructions reference CLI commands | Run 3 | CLAUDE.md convention |
+
+| #   | Recommendation                                                       | Source        | Implemented In                |
+| --- | -------------------------------------------------------------------- | ------------- | ----------------------------- |
+| 1   | Orchestrator owns all board transitions in autonomous mode           | Run 3         | CLAUDE.md, orchestrator.md    |
+| 2   | Add `Bash` to planner agent tool list                                | Run 3         | Commit `cfb2231`              |
+| 3   | Add `Bash` to designer agent tool list                               | Run 4         | Subsequent agent update       |
+| 4   | Require `isolation: "worktree"` for parallel builder dispatch        | Runs 4, 7     | CLAUDE.md convention          |
+| 5   | Builder agents must not merge story branches into epic               | Run 4         | Builder agent instructions    |
+| 6   | Add `git add -f` guidance for gitignored `test-output/` paths        | Run 4         | Builder agent instructions    |
+| 7   | Add `backlog/<N>-<slug>` label to design/plan issues                 | Run 5         | Designer/planner instructions |
+| 8   | Add `e00-setup/` lesson folder convention for pre-epic lessons       | Run 5         | CLAUDE.md lesson conventions  |
+| 9   | Builders must verify word counts before committing                   | Run 3         | Builder agent instructions    |
+| 10  | Cross-story consistency contracts in plans                           | Runs 3, 5     | Planner convention            |
+| 11  | `tr -d '\x00-\x1f'` pipe for `gh project item-list` output           | Run 7         | CLAUDE.md convention          |
+| 12  | Worktree cleanup step after parallel dispatch                        | Run 8         | CLAUDE.md convention          |
+| 13  | Builder must push to remote in worktree mode                         | Run 8         | CLAUDE.md convention          |
+| 14  | CLI dispatch scope clarified (standalone terminal only)              | Run 2         | CLAUDE.md convention          |
+| 15  | All story issues included in backlog PR `Closes` list                | Run 2         | CLAUDE.md convention          |
+| 16  | `--cost` flag on `issue-telemetry.sh` for mixed-model epics          | Run 2         | Script updated                |
+| 17  | Reviewer dispatch is mandatory (no skip option)                      | Run 2         | CLAUDE.md + orchestrator.md   |
+| 18  | Single-PR workflow (`backlog/<N>-<slug>` → `main`)                   | Run 6         | CLAUDE.md convention          |
+| 19  | Fix artifact matching to use YAML frontmatter grep                   | Run 10        | orchestrator.md updated       |
+| 20  | Replace `item-list` with per-issue GraphQL in `issue-set-status.sh`  | Run 10        | Pre-Run 11 commit `487b382`   |
+| 21  | `issue-create-backlog.sh` for consolidated backlog item setup        | Run 10 lesson | Pre-Run 11 commit `0785196`   |
+| 22  | Story branches created from recorded epic base before parallel waves | Run 9         | CLAUDE.md convention          |
+| 23  | Audit agent tool lists when instructions reference CLI commands      | Run 3         | CLAUDE.md convention          |
+
 
 ---
 
 ## Observations (no convention change warranted)
 
-| # | Observation | Source | Notes |
-|---|------------|--------|-------|
-| i | Haiku uses 3–4x more tokens than Sonnet for comparable tasks | Runs 3, 6, 7, 8, 9, 10 | Consistent across 6 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted. |
-| ii | Content-only stories with detailed acceptance criteria achieve zero fix cycles | Runs 5, 6, 9, 10 | 11 consecutive first-pass approvals (Runs 9–10). Builder-reviewer loop is stable for markdown tasks. |
-| iii | CHANGELOG conflicts with per-epic PRs | Run 5 | Moot — switched to single-PR model in Run 6. |
-| iv | Board status persistence bug (mutations succeed, statuses revert later) | Runs 3, 10 | Root cause unknown. Run 11 aims to investigate. |
+
+| #   | Observation                                                                    | Source                 | Notes                                                                                                           |
+| --- | ------------------------------------------------------------------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
+| i   | Haiku uses 3–4x more tokens than Sonnet for comparable tasks                   | Runs 3, 6, 7, 8, 9, 10 | Consistent across 6 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted. |
+| ii  | Content-only stories with detailed acceptance criteria achieve zero fix cycles | Runs 5, 6, 9, 10       | 11 consecutive first-pass approvals (Runs 9–10). Builder-reviewer loop is stable for markdown tasks.            |
+| iii | CHANGELOG conflicts with per-epic PRs                                          | Run 5                  | Moot — switched to single-PR model in Run 6.                                                                    |
+| iv  | Board status persistence bug (mutations succeed, statuses revert later)        | Runs 3, 10             | Root cause unknown. Run 11 aims to investigate.                                                                 |
+
+

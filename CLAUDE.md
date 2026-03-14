@@ -223,16 +223,17 @@ Status field values and their meanings:
 2. **Before dispatching a builder:** Set the story to **In Progress** (sequentially, before dispatch -- not delegated to builder scripts)
 3. **After builder completes:** Set the story to **In Review** (sequentially, after completion -- not delegated to builder scripts)
 4. **After parallel wave completes:** Verify board status for all stories in the wave and fix any that didn't transition correctly
+5. **After parallel wave completes (comment verification):** Query each story in the wave for expected issue comments ("Work Started" from `issue-start.sh`, "Ready for Review" from `issue-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively. Evidence: Run 4 (issue #114 missing both comments), Run 11 (issues #47 and #48 missing comments in 3-way parallel wave).
 
 Builder scripts (`issue-start.sh`, `issue-review.sh`) also update the board as defense-in-depth (they call `issue-set-status.sh` internally), but the orchestrator is the source of truth. All board updates must be serialized -- the GitHub Projects API does not handle concurrent `item-edit` calls reliably.
 
-Adding an issue to the project and setting its status:
+Adding an issue to the project and setting its status (**NOTE:** `gh project item-add` does NOT assign a default status -- the item appears with `status: null` and is invisible in status-filtered views. Always follow up with an explicit status set):
 
 ```bash
-# Add issue to project
+# Add issue to project (does NOT set status — item will have status: null)
 gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
 
-# Set status — prefer the helper script (handles control chars, validation, retry):
+# REQUIRED: Set status explicitly after adding
 ./scripts/issue-set-status.sh <issue-number> in-progress
 
 # Or manually (use the option ID from the project field):

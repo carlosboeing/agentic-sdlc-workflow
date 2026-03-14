@@ -2,7 +2,7 @@
 
 Consolidated tracker for all recommendations from workflow retrospectives. Updated manually after each retro — the retro agent should append new recommendations here, and the orchestrator should check this document before each run.
 
-Last updated: 2026-03-14 (compiled from Runs 2–10)
+Last updated: 2026-03-14 (compiled from Runs 2–11)
 
 ---
 
@@ -33,13 +33,13 @@ Last updated: 2026-03-14 (compiled from Runs 2–10)
 - **Effort:** Medium (orchestrator.md update + orchestrator behavior change)
 - **Risk:** Reviewer agents don't modify code, so worktree isolation is unnecessary. Main risk is GitHub API rate limits from concurrent issue comment posts.
 
-### D. Post-wave comment verification
+### D. ~~Post-wave comment verification~~ (IMPLEMENTED in Run 11 retro)
 
-- **Source:** Run 4 (rec 6)
-- **Recurrence:** 1 run (Run 4 issue #114 missing comments)
+- **Source:** Run 4 (rec 6), Run 11 (rec 1)
+- **Recurrence:** 2 runs (Run 4 issue #114, Run 11 issues #47 and #48)
 - **Priority:** Low
-- **Description:** After a parallel wave, the orchestrator should verify that every story has all expected issue comments (Work Started, Ready for Review). Missing comments should be posted retroactively. Run 4 found that issue #114 was missing both comments, likely due to API rate limiting during parallel dispatch.
-- **Effort:** Low (orchestrator convention + a few lines of verification)
+- **Description:** After a parallel wave, the orchestrator should verify that every story has all expected issue comments (Work Started, Ready for Review). Missing comments should be posted retroactively.
+- **Implemented:** Added to CLAUDE.md "Board transitions in autonomous mode" as item 5. Run 11 retro.
 
 ### E. Format templates for cross-story parallel content
 
@@ -63,7 +63,7 @@ Last updated: 2026-03-14 (compiled from Runs 2–10)
 - **Source:** Run 9 (rec 4)
 - **Recurrence:** 1 run (observation)
 - **Priority:** Low
-- **Description:** Establishing a baseline for autonomous run duration enables performance regression detection. Current data: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead). No formal tracking mechanism exists.
+- **Description:** Establishing a baseline for autonomous run duration enables performance regression detection. Current data: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead), Run 11 ~45m. No formal tracking mechanism exists.
 - **Effort:** Low (add a duration row to the changelog or a tracking table in this document)
 
 ### H. Capture orchestrator overhead metrics
@@ -104,6 +104,8 @@ Last updated: 2026-03-14 (compiled from Runs 2–10)
 | 21  | `issue-create-backlog.sh` for consolidated backlog item setup        | Run 10 lesson | Pre-Run 11 commit `0785196`   |
 | 22  | Story branches created from recorded epic base before parallel waves | Run 9         | CLAUDE.md convention          |
 | 23  | Audit agent tool lists when instructions reference CLI commands      | Run 3         | CLAUDE.md convention          |
+| 24  | Post-wave comment verification for parallel builders                 | Runs 4, 11    | CLAUDE.md convention (Run 11) |
+| 25  | Document `gh project item-add` does not set default status           | Run 11        | CLAUDE.md convention (Run 11) |
 
 
 ---
@@ -113,9 +115,9 @@ Last updated: 2026-03-14 (compiled from Runs 2–10)
 
 | #   | Observation                                                                    | Source                 | Notes                                                                                                           |
 | --- | ------------------------------------------------------------------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| i   | Haiku uses 3–4x more tokens than Sonnet for comparable tasks                   | Runs 3, 6, 7, 8, 9, 10 | Consistent across 6 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted. |
-| ii  | Content-only stories with detailed acceptance criteria achieve zero fix cycles | Runs 5, 6, 9, 10       | 11 consecutive first-pass approvals (Runs 9–10). Builder-reviewer loop is stable for markdown tasks.            |
-| iii | CHANGELOG conflicts with per-epic PRs                                          | Run 5                  | Moot — switched to single-PR model in Run 6.                                                                    |
-| iv  | Board status persistence bug (mutations succeed, statuses revert later)        | Runs 3, 10             | Root cause unknown. Run 11 aims to investigate.                                                                 |
+| i   | Haiku uses 3–4x more tokens than Sonnet for comparable tasks                   | Runs 3, 6, 7, 8, 9, 10, 11 | Consistent across 7 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted. |
+| ii  | Content-only stories with detailed acceptance criteria achieve zero fix cycles | Runs 5, 6, 9, 10, 11       | 17 consecutive first-pass approvals (Runs 9–11). Builder-reviewer loop is stable for markdown and script tasks. |
+| iii | CHANGELOG conflicts with per-epic PRs                                          | Run 5                       | Moot — switched to single-PR model in Run 6.                                                                    |
+| iv  | Board status persistence bug (mutations succeed, statuses revert later)        | Runs 3, 10                  | Run 11 created diagnostic script `check-board-drift.sh`; not yet exercised in a live run.                       |
 
 

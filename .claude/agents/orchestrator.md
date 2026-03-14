@@ -541,7 +541,10 @@ As the final phase, post a **full lifecycle telemetry summary** on the backlog i
     axisFormat %M:%S
     tickInterval 2minute
     Designer (3m20s)  :active, design, 00:00:00, 200s
-    Planner (5m05s)   :active, plan, after design, 305s" \
+    Planner (5m05s)   :active, plan, after design, 305s
+    E01-S01 Build (1m) :w1b, after plan, 60s
+    E01-S01 Review (2m) :done, w1r, after w1b, 120s
+    Retro Agent (2m30s) :active, retro, after w1r, 150s" \
   --footer "*Orchestrator overhead (parent session) not included.*
 *Non-builder agents inherited the orchestrator session's model.*
 
@@ -553,7 +556,18 @@ The script renders from `scripts/templates/telemetry.md` (single source of truth
 - Posts the full telemetry as a comment on the backlog issue
 - When `--pr` is provided with `--summary`, appends the telemetry to the PR description (not as a comment)
 
-The Gantt chart should include **all lifecycle phases** (design, plan, build waves, review waves, fix cycles, retro), not just the build timeline. No `section` directives — task labels are self-explanatory. Color and theming rules are defined in `scripts/templates/telemetry.md` (single source of truth).
+The Gantt chart should include **all lifecycle phases** (design, plan, build waves, review waves, fix cycles, retro), not just the build timeline. No `section` directives — task labels are self-explanatory.
+
+**Gantt color tagging (CRITICAL — apply the correct tag to each task):**
+
+| Task tag | Color | Applies to |
+|----------|-------|------------|
+| `:active` | Violet | Design, Plan, Retro |
+| _(no tag)_ | Emerald | Build tasks |
+| `:done` | Yellow | Review tasks |
+| `:crit` | Red | Fix / re-review cycles |
+
+The `%%{init}%%` block in `scripts/templates/telemetry.md` defines the hex values. The orchestrator controls color by choosing the correct task tag. **Do not use `:active` on build or review tasks** — builds have no tag (emerald default), reviews use `:done` (yellow). Evidence: Run 11 posted an all-violet Gantt because every task was tagged `:active`.
 
 **Value column convention:** Value cells in telemetry tables contain only numbers and units (e.g., `~33m`, `770K`, `~$4.79`). Never add descriptive text, annotations, or parenthetical notes to value cells — those belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `~33m` in Value).
 

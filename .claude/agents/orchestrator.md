@@ -99,13 +99,19 @@ Execute these phases in order. Each phase has a verification step before proceed
    git checkout backlog/<N>-<slug> && git pull
    ```
 
-3. **Add backlog issue to project board** with status **Backlog** (if not already added):
+3. **Add backlog issue to project board** with status **Backlog** and apply the backlog label (if not already done). If the backlog issue was created by the orchestrator, use the helper script which handles all setup:
+   ```bash
+   ./scripts/issue-create-backlog.sh --title "<title>" --slug "<slug>" --body-file /tmp/body.md
+   ```
+   If the issue already exists, add to board and set status manually:
    ```bash
    gh project item-add 7 --owner carlosboeing --url "https://github.com/carlosboeing/agentic-sdlc-workflow/issues/<N>" --format json
+   ./scripts/issue-set-status.sh <N> backlog
    ```
 
 4. **Add `backlog/<N>-<slug>` label** to the backlog issue if missing:
    ```bash
+   gh label create "backlog/<N>-<slug>" --color "5319E7" --description "Backlog: <title>" 2>/dev/null || true
    gh issue edit <N> --add-label "backlog/<N>-<slug>"
    ```
 

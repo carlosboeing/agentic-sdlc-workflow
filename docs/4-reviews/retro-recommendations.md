@@ -8,39 +8,6 @@ Last updated: 2026-03-14 (compiled from Runs 2–11)
 
 ## Outstanding (not yet implemented)
 
-### A. Add GraphQL rate limit awareness convention to CLAUDE.md
-
-- **Source:** Run 6 (rec 3), Run 7 (rec 3), Run 8 (rec 4), Run 10 (rec 3)
-- **Recurrence:** 4 runs
-- **Priority:** High
-- **Description:** Document the GitHub GraphQL API's 5000 points/hour budget in CLAUDE.md. Note that `gh project item-list` costs ~200+ points per call, and agents should prefer lightweight per-issue queries when available. The `issue-set-status.sh` script fix (Run 11 prep) reduces the problem at the script level, but the awareness convention is still missing — agents making raw `gh api graphql` calls have no guidance on cost.
-- **Effort:** Low (a paragraph in CLAUDE.md)
-
-### B. Remove duplicated status option IDs from orchestrator.md
-
-- **Source:** Run 6 (rec 2)
-- **Recurrence:** 1 run (but risk is ongoing)
-- **Priority:** Low
-- **Description:** The planner.md correctly references CLAUDE.md as the single source of truth for option IDs, but `orchestrator.md` still duplicates the option ID table. If the project board is reconfigured, these copies will drift — as happened in Run 6 when the planner had stale IDs. Either remove the duplicate table from orchestrator.md and reference CLAUDE.md, or add a note that CLAUDE.md is authoritative.
-- **Effort:** Low (edit orchestrator.md)
-
-### C. Parallel review dispatch for independent stories
-
-- **Source:** Run 6 (rec 4)
-- **Recurrence:** 1 run (observation)
-- **Priority:** Medium
-- **Description:** Reviews for independent stories within the same wave are currently dispatched sequentially after all builds complete. Dispatching reviews in parallel (same pattern as builds) could compress wall-clock time by ~50% per wave's review phase. For example, Run 6 Wave 1 had ~3 minutes of sequential reviews that could have been ~1 minute in parallel.
-- **Effort:** Medium (orchestrator.md update + orchestrator behavior change)
-- **Risk:** Reviewer agents don't modify code, so worktree isolation is unnecessary. Main risk is GitHub API rate limits from concurrent issue comment posts.
-
-### D. ~~Post-wave comment verification~~ (IMPLEMENTED in Run 11 retro)
-
-- **Source:** Run 4 (rec 6), Run 11 (rec 1)
-- **Recurrence:** 2 runs (Run 4 issue #114, Run 11 issues #47 and #48)
-- **Priority:** Low
-- **Description:** After a parallel wave, the orchestrator should verify that every story has all expected issue comments (Work Started, Ready for Review). Missing comments should be posted retroactively.
-- **Implemented:** Added to CLAUDE.md "Board transitions in autonomous mode" as item 5. Run 11 retro.
-
 ### E. Format templates for cross-story parallel content
 
 - **Source:** Run 5 (rec 3)
@@ -63,7 +30,7 @@ Last updated: 2026-03-14 (compiled from Runs 2–11)
 - **Source:** Run 9 (rec 4)
 - **Recurrence:** 1 run (observation)
 - **Priority:** Low
-- **Description:** Establishing a baseline for autonomous run duration enables performance regression detection. Current data: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead), Run 11 ~45m. No formal tracking mechanism exists.
+- **Description:** Establishing a baseline for autonomous run duration enables performance regression detection. Current data: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead), Run 11 ~41m. No formal tracking mechanism exists.
 - **Effort:** Low (add a duration row to the changelog or a tracking table in this document)
 
 ### H. Capture orchestrator overhead metrics
@@ -106,6 +73,10 @@ Last updated: 2026-03-14 (compiled from Runs 2–11)
 | 23  | Audit agent tool lists when instructions reference CLI commands      | Run 3         | CLAUDE.md convention          |
 | 24  | Post-wave comment verification for parallel builders                 | Runs 4, 11    | CLAUDE.md convention (Run 11) |
 | 25  | Document `gh project item-add` does not set default status           | Run 11        | CLAUDE.md convention (Run 11) |
+| 26  | GraphQL rate limit awareness convention in CLAUDE.md                 | Runs 6–8, 10  | CLAUDE.md (pre-Run 11), `issue-set-status.sh` fix |
+| 27  | Remove duplicated status option IDs from orchestrator.md             | Run 6         | orchestrator.md (Run 11 post-run cleanup) |
+| 28  | Parallel review dispatch for independent stories                     | Run 6         | Validated in Run 11 Wave 3 (3 parallel reviews) |
+| 29  | Inline Gantt color tagging rules in orchestrator.md                  | Run 11        | orchestrator.md + CLAUDE.md (Run 11 post-run fix) |
 
 
 ---

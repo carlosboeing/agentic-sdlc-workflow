@@ -605,16 +605,7 @@ If no difficulty label is found, default to `"builder-sonnet"` and post a warnin
 
 ### Project Board Updates
 
-All project board operations use these constants (from CLAUDE.md):
-
-- **Project ID:** `PVT_kwHOADPMJc4BRg45`
-- **Status Field ID:** `PVTSSF_lAHOADPMJc4BRg45zg_UfJc`
-
-| Status | Option ID | When to set |
-|--------|-----------|-------------|
-| In Progress | `47fc9ee4` | Story or epic work begins |
-| In Review | `9bb97c15` | Story implementation complete, awaiting review/merge |
-| Done | `98236657` | Issue closed after backlog PR merged |
+All project board constants (Project ID, Status Field ID, option IDs) are defined in CLAUDE.md — that is the single source of truth. Do not duplicate them here. The orchestrator only needs three statuses: **In Progress**, **In Review**, and **Done** — look up their option IDs in CLAUDE.md's status option table.
 
 **Get the board item ID for an issue:**
 ```bash

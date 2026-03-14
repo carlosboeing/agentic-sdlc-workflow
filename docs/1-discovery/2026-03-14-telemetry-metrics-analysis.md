@@ -11,6 +11,8 @@ sources: GitHub issue telemetry comments (gavinkilbride/NeuralNorris issues 57-2
 
 This document analyses telemetry data from 11 autonomous test runs of the agentic SDLC v2 workflow, executed between 2026-03-09 and 2026-03-14. Across 10 executed runs, the pipeline completed **58 stories** in **20 epics** with a **100% completion rate** and **zero code correctness failures**. Total estimated API cost was approximately **$55** across **~7.6M tokens** and **~158 agent dispatches**.
 
+This is an unusually rich dataset for studying multi-agent system evolution: 11 iterations of the same pipeline, each producing structured per-dispatch telemetry, with convention changes propagating between runs via a self-healing feedback loop. The data captures not just performance metrics but the system's ability to learn from its own failures — each run's retro agent proposes convention changes that measurably improve the next run's outcomes.
+
 The most significant trends:
 
 - **Quality improved dramatically** — the system achieved a 17-story zero-fix-cycle streak across Runs 9–11 (100% first-pass approval rate)
@@ -308,6 +310,8 @@ The primary cost driver in the mature pipeline is the **reviewer agent**, which 
 1. Every reviewer dispatch runs on Opus (highest per-token rate)
 2. Each run has 6–7 review dispatches (one per story + backlog PR review)
 3. Review tokens are predominantly input tokens (reading full story context + CLAUDE.md conventions)
+
+**This cost is justified by the quality outcome.** Opus reviewing Haiku/Sonnet code catches issues that same-model review would miss — the 17-story zero-fix-cycle streak across Runs 9–11 validates this investment. Before Opus reviews were added (Run 1), issues went entirely undetected. The review phase costs more than the build phase ($2.40 vs $1.40 avg), but it's what makes the pipeline's 100% late-stage first-pass rate possible.
 
 ### 4.4 Model Cost Efficiency (Runs 8–11 builders)
 
@@ -890,6 +894,7 @@ The current telemetry captures duration, tokens, tool uses, and estimated cost. 
 | **Prompt caching** | Unknown savings; could reduce input token costs significantly | Medium (verify Anthropic prompt caching compatibility with Agent tool) | Investigate |
 | **Context-aware model routing** | Route based on estimated context size, not just difficulty; large-context stories → Sonnet (lower token/work ratio) | Medium | Investigate |
 | **Aggregate reviewer dispatch** | Review all stories in a wave with a single Opus dispatch instead of per-story | Medium (requires reviewer agent changes) | Investigate |
+| **Planner internal parallelisation** | Planners are the slowest Opus role (163 tok/s, 6m44s avg) due to sequential issue creation + board setup; parallelising independent GitHub API calls could halve planner duration | Medium (refactor planner to batch issue creation) | Investigate |
 
 ### 13.4 Metrics Dashboard Suggestions
 

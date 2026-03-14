@@ -461,37 +461,30 @@ When all epics are merged into the integration branch:
 
 ### Phase 9: Post-Merge Cleanup
 
-This phase happens AFTER the human merges the backlog PR (outside the orchestrator's session). Documented here for completeness.
+This phase happens AFTER the human merges the backlog PR. If the orchestrator is still in session, it should run cleanup immediately. Otherwise, run it at the start of the next session.
 
 After the backlog PR is merged (by human via `gh pr merge --squash`):
 
-1. **Close all linked issues** and set board status to Done:
+1. **Set board status to Done** for all issues (the `Closes` clause auto-closes them, but board status needs explicit update):
    ```bash
-   ./scripts/issue-close.sh <issue-number>  # For each story + epic + backlog issue
-   ```
-   If the PR body included `Closes #NN` for all issues, GitHub auto-closes them on merge. The `issue-close.sh` script handles the board status update to Done.
-
-2. **Verify closure:**
-   ```bash
-   gh issue view <number> --json state -q '.state'  # Should be "CLOSED"
+   for ISSUE in <backlog> <design> <plan> <retro> <epic1> <epic2> <story1> <story2> ...; do
+     ./scripts/issue-close.sh $ISSUE
+   done
    ```
 
-3. **Clean up local integration branch** (remote was deleted by `--delete-branch` on PR merge):
+2. **Run the comprehensive cleanup script:**
    ```bash
    git checkout main && git pull
-   git branch -d backlog/<N>-<slug>
+   ./scripts/cleanup-post-merge.sh <backlog-number>
    ```
 
-4. **Clean up stale local branches** (docs branches, any missed story/epic branches):
-   ```bash
-   # Delete local branches that are fully merged into main
-   git branch --merged main | grep -E "docs/|backlog/|epic/|e[0-9]" | xargs -r git branch -d
-   ```
+   This single command handles everything: stale worktrees, merged and orphaned local branches, stale remote workflow branches, remote tracking ref pruning, and state directory cleanup. It also sweeps up artifacts from previous runs that weren't cleaned properly.
 
-5. **Prune stale remote tracking refs** (catch-all for any tracking refs that weren't cleaned up during the workflow):
-   ```bash
-   git remote prune origin
-   ```
+3. **Verify clean state** (the script prints this, but confirm):
+   - Only `main` branch locally
+   - No workflow branches on remote (`backlog/`, `epic/`, `e0N-*`, `docs/`)
+   - No stale worktrees
+   - `.claude/state/` empty
 
 ### Phase 10: Dispatch Retro Agent
 

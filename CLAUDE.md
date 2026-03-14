@@ -223,16 +223,17 @@ Status field values and their meanings:
 2. **Before dispatching a builder:** Set the story to **In Progress** (sequentially, before dispatch -- not delegated to builder scripts)
 3. **After builder completes:** Set the story to **In Review** (sequentially, after completion -- not delegated to builder scripts)
 4. **After parallel wave completes:** Verify board status for all stories in the wave and fix any that didn't transition correctly
+5. **After parallel wave completes (comment verification):** Query each story in the wave for expected issue comments ("Work Started" from `issue-start.sh`, "Ready for Review" from `issue-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively. Evidence: Run 4 (issue #114 missing both comments), Run 11 (issues #47 and #48 missing comments in 3-way parallel wave).
 
 Builder scripts (`issue-start.sh`, `issue-review.sh`) also update the board as defense-in-depth (they call `issue-set-status.sh` internally), but the orchestrator is the source of truth. All board updates must be serialized -- the GitHub Projects API does not handle concurrent `item-edit` calls reliably.
 
-Adding an issue to the project and setting its status:
+Adding an issue to the project and setting its status (**NOTE:** `gh project item-add` does NOT assign a default status -- the item appears with `status: null` and is invisible in status-filtered views. Always follow up with an explicit status set):
 
 ```bash
-# Add issue to project
+# Add issue to project (does NOT set status — item will have status: null)
 gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
 
-# Set status — prefer the helper script (handles control chars, validation, retry):
+# REQUIRED: Set status explicitly after adding
 ./scripts/issue-set-status.sh <issue-number> in-progress
 
 # Or manually (use the option ID from the project field):
@@ -282,6 +283,8 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/issue-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
 | `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--summary <md>] [--footer <md>] [--pr <n>]` | Post telemetry (story, epic, or backlog) |
 | `scripts/issue-close.sh <n>` | Close issue + set board to Done |
+| `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
+| `scripts/validate-logs.sh` | Report on board-status, orchestrator, and drift logs |
 | `scripts/setup-labels.sh` | Create all labels (idempotent) |
 | `scripts/fetch-pricing.sh` | Fetch current Anthropic API token pricing (JSON to stdout) |
 | `scripts/dispatch-story.sh <n> --model <m> --agent <a>` | Dispatch CC CLI worker for a story |
@@ -436,6 +439,10 @@ The script renders from `scripts/templates/telemetry.md` (single source of truth
 The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` from every Agent tool dispatch (designers, planners, builders, reviewers, retro) and aggregate them into the summary and breakdown rows. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for parameter details.
 
 **Value column convention:** Value cells in all telemetry tables contain only numbers and units (e.g., `~33m`, `770K`, `~$4.79`). Never add descriptive text or parenthetical notes to value cells. Annotations belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `~33m` in Value). This matches the rule in `scripts/templates/telemetry.md`.
+
+**`--cost` flag for mixed-model epics:** When an epic's stories use different models (e.g., haiku + sonnet), the rate-based cost calculation doesn't work. Pass `--cost <dollars>` with the pre-computed sum of per-story costs from the breakdown. For single-model epics, omit `--cost` and let the script compute from the rate.
+
+**Gantt color tagging:** Gantt task tags control bar colors — `:active` (violet) for design/plan/retro, no tag (emerald) for builds, `:done` (yellow) for reviews, `:crit` (red) for fix cycles. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for the full table. Do not use `:active` on build or review tasks.
 
 **Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. To capture them:
 1. At the **start** of the orchestrator session, note the session's running token count (visible via `/cost` in the Claude Code UI)

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # validate-logs.sh — Post-run diagnostic script for orchestrator logging.
 #
-# Reads both log files and reports whether expected events were captured.
-# Surfaces VERIFY_MISMATCH events prominently with full log line details.
+# Reads log files and reports whether expected events were captured.
+# Surfaces VERIFY_MISMATCH and DRIFT events prominently with full log line details.
 #
 # Usage: ./scripts/validate-logs.sh
 #
@@ -16,6 +16,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 BOARD_LOG="$REPO_ROOT/.claude/logs/board-status.log"
 ORCH_LOG="$REPO_ROOT/.claude/logs/orchestrator.log"
+DRIFT_LOG="$REPO_ROOT/.claude/logs/board-drift.log"
 
 count_matching() {
   local file="$1"
@@ -77,6 +78,30 @@ else
   printf "  %-22s %s\n" "Total entries:"     "$TOTAL_ORCH"
   printf "  %-22s %s\n" "Bash commands:"     "$COUNT_BASH"
   printf "  %-22s %s\n" "Agent dispatches:"  "$COUNT_AGENT"
+fi
+
+echo ""
+
+# --- Board Drift Log ---
+echo "Board Drift Log ($DRIFT_LOG)"
+if [ ! -f "$DRIFT_LOG" ]; then
+  echo "  NOT FOUND -- no drift checks have been run"
+else
+  TOTAL_DRIFT=$(wc -l < "$DRIFT_LOG" | tr -d ' ')
+  COUNT_NO_DRIFT=$(count_matching "$DRIFT_LOG" "result=NO_DRIFT")
+  COUNT_DRIFT=$(count_matching "$DRIFT_LOG" "result=DRIFT")
+
+  printf "  %-22s %s\n" "Total entries:"     "$TOTAL_DRIFT"
+  printf "  %-22s %s\n" "NO_DRIFT:"          "$COUNT_NO_DRIFT"
+  printf "  %-22s %s\n" "DRIFT:"             "$COUNT_DRIFT"
+
+  if [ "$COUNT_DRIFT" -gt 0 ]; then
+    echo ""
+    echo "  WARNING: DRIFT EVENTS FOUND:"
+    grep "result=DRIFT" "$DRIFT_LOG" | while IFS= read -r line; do
+      echo "  $line"
+    done
+  fi
 fi
 
 echo ""

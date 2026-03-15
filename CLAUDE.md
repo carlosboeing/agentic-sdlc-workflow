@@ -344,6 +344,8 @@ gh pr merge <N> --squash --delete-branch
 
 **Internal merges (epic → integration branch):** Epic branches merge into the integration branch using `--no-ff` merge (not squash). This is an internal merge — only the final PR to `main` uses squash. Design/plan PRs targeting the integration branch also use regular merge (`--merge`).
 
+**Cost computation for manual breakdown strings (CRITICAL):** When the orchestrator writes `--breakdown`, `--summary`, or `--cost` strings, it must compute cost estimates using rates from `.claude/agentic-sdlc-config.json` — never from memory or hardcoded values. Read `pricing.<model>.inputPerM` and `pricing.<model>.outputPerM` with the `pricing.tokenSplit` to compute the blended rate. The `issue-telemetry.sh` script reads config rates automatically for per-story posts, but the orchestrator writes aggregate breakdown strings manually — those must use the same rates. See `.claude/agents/orchestrator.md` § "Cost Computation" for the exact formula.
+
 **Per-epic telemetry:** When all stories in an epic are complete, the orchestrator MUST post telemetry on **the epic issue** (via `issue-telemetry.sh`). Pass `--duration` (sequential sum of story durations in that epic) and `--wall-clock` (actual elapsed time for that epic's waves). Include a `--breakdown` with only that epic's stories. Use the integration branch head for `--commit`.
 
 **Mixed-model epics:** When stories use different models, pass `--model 'mixed (model1, model2)'` and `--cost <dollars>` with the pre-computed aggregate cost (sum of per-story costs from the breakdown). For example: `--model 'mixed (haiku, sonnet)' --cost 0.67`. The `--cost` flag overrides the rate-based calculation, so the summary table shows the correct total instead of `—`.

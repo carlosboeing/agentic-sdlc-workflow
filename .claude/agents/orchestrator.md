@@ -682,6 +682,26 @@ Every completed story must have three comments on its issue:
 2. "Ready for Review" (posted by builder via `issue-review.sh`, which also sets board to In Review)
 3. "Telemetry" (posted by orchestrator via `issue-telemetry.sh`)
 
+### Cost Computation (CRITICAL)
+
+**Never hardcode or memorize token rates.** Always read rates from `.claude/agentic-sdlc-config.json` before computing cost estimates for `--breakdown`, `--summary`, or `--cost` strings. The config rates may differ significantly from `fetch-pricing.sh` defaults (e.g., Opus: $30/M blended in config vs $10/M in fetch-pricing).
+
+**How to compute a cost estimate:**
+
+```bash
+# Read blended rate from config (in dollars per million tokens)
+_CFG_FILE=".claude/agentic-sdlc-config.json"
+OPUS_RATE=$(jq -r '(.pricing.opus.inputPerM * .pricing.tokenSplit.input + .pricing.opus.outputPerM * .pricing.tokenSplit.output)' "$_CFG_FILE")
+SONNET_RATE=$(jq -r '(.pricing.sonnet.inputPerM * .pricing.tokenSplit.input + .pricing.sonnet.outputPerM * .pricing.tokenSplit.output)' "$_CFG_FILE")
+
+# Compute cost for a dispatch: tokens / 1M * rate
+# Example: opus dispatch with 45000 tokens = 45000 / 1000000 * 30 = $1.35
+```
+
+Apply this to every cost cell in `--breakdown` and `--summary` strings. The `issue-telemetry.sh` script reads config rates automatically for per-story posts (when given `--model` and `--tokens`), but the orchestrator writes breakdown strings manually — those strings must use the same rates.
+
+**Evidence:** Run 12 underreported costs by 2.6x ($4.77 vs $12.55) because the orchestrator used memorized $10/M for Opus instead of the config's $30/M.
+
 ### Epic-Level Telemetry
 
 When all stories in an epic are complete, post aggregate telemetry on the epic issue:
@@ -692,7 +712,7 @@ When all stories in an epic are complete, post aggregate telemetry on the epic i
 - **Tool uses:** Sum all story `tool_uses` values
 - **Model:** Use the highest-tier model across all stories (opus > sonnet > haiku)
 - **Commit:** Use the epic branch head (`git rev-parse epic/<slug>`)
-- **Breakdown:** Per-story rows using `Agent | Task | Duration | Tokens | Est. Cost` columns, with a Total row including dispatch count
+- **Breakdown:** Per-story rows using `Agent | Task | Duration | Tokens | Est. Cost` columns, with a Total row including dispatch count. **All cost cells must use config rates** (see Cost Computation above).
 
 ## Error Handling
 

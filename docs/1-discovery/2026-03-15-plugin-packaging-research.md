@@ -162,3 +162,31 @@ Consumer project config: `.claude/agentic-sdlc-config.json`
 - [Anthropic Official Plugins](https://github.com/anthropics/claude-plugins-official)
 - [Claude Code Plugins Docs](https://code.claude.com/docs/en/plugins-reference)
 - [Claude Code Settings Docs](https://code.claude.com/docs/en/settings)
+
+---
+
+## Expanded Plugin Landscape (added 2026-03-15, Run 12)
+
+### Plugin Runtime Data Patterns
+
+Research into how popular CC plugins handle runtime/ephemeral data — relevant for deciding where our plugin stores per-run state, cached pricing, and logs.
+
+| Plugin | Stars | Repo | Runtime data pattern |
+|--------|-------|------|---------------------|
+| **claude-mem** | 35K | [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem) | `~/.claude-mem/` (global settings/DB) + `plugin/data/` (project-local, gitignored). SQLite for persistent memory. |
+| **ruflo** (fka Claude Flow) | 21K | [ruvnet/ruflo](https://github.com/ruvnet/ruflo) | Multiple dot-dirs at project root: `.claude-flow/`, `.agentic-flow/`, `.hive-mind/`, `.swarm/`, `/memory/`, `/coordination/`. Heavy use of SQLite. |
+| **ccpm** | 7.6K | [automazeio/ccpm](https://github.com/automazeio/ccpm) | Everything inside `ccpm/` directory (agents, context, epics, scripts). Intended to be copied into project's `.claude/`. Warns about conflicts with existing `.claude/` dirs. |
+| **claude-workflow-v2** | 1.3K | [CloudAI-X/claude-workflow-v2](https://github.com/CloudAI-X/claude-workflow-v2) | Static plugin — agents, hooks, skills, templates, packages. No observed runtime state. `.claude/` gitignored entirely. |
+| **flow-next** (gmickel marketplace) | 545 | [gmickel/gmickel-claude-marketplace](https://github.com/gmickel/gmickel-claude-marketplace) | `.flow/` at project root. Partially committed (config.json, meta.json) + partially gitignored (checkpoints, receipts). Stores epics and tasks as JSON. |
+| **claude-orchestration** | 198 | [mbruhler/claude-orchestration](https://github.com/mbruhler/claude-orchestration) | `temp-agents/`, `temp-scripts/` at plugin root. Flat gitignored directories for ephemeral generated files. |
+| **superpowers** (obra) | — | [obra/superpowers](https://github.com/obra/superpowers) | `.worktrees/` (project root) or `~/.config/superpowers/worktrees/` (global). Two-tier with user choice. |
+| **ed3d-plugins** | 142 | [ed3dai/ed3d-plugins](https://github.com/ed3dai/ed3d-plugins) | Research-plan-implement workflow. Static plugin, no observed runtime state. |
+| **claude-forge** | 496 | [sangrokjung/claude-forge](https://github.com/sangrokjung/claude-forge) | 11 agents, 36 commands, 15 skills. Not investigated for runtime data. |
+
+### Observed conventions
+
+1. **Plugin-named dot-directory at project root** is the dominant pattern for project-scoped runtime data (`.flow/`, `.claude-flow/`, `.worktrees/`).
+2. **Global user-level directory** (`~/.claude-mem/`, `~/.config/superpowers/`) for data that persists across projects.
+3. **`.claude/` is platform territory** — plugins that put runtime data there (ccpm) warn about conflicts.
+4. **Static plugins** (workflow-v2, ed3d) have no runtime data needs — they're purely agents + skills + commands.
+5. **No standard convention exists** in the CC plugin ecosystem for plugin runtime data. Each plugin invents its own approach.

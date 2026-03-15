@@ -145,7 +145,11 @@ def blended_rate(model):
     if model in pricing_rates:
         inp, out = pricing_rates[model]
         return inp * split_in + out * split_out
+    print(f"Warning: No pricing data for model '{model}' — cost will show ~\$0.00", file=sys.stderr)
     return 0
+
+if not pricing_rates:
+    print("Warning: No pricing data found (no config override, no cached pricing at .agentic-workflow/pricing.json). Run fetch-pricing.sh first.", file=sys.stderr)
 
 def fmt_duration(ms):
     secs = ms // 1000

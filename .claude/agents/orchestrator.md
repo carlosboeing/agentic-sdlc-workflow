@@ -19,6 +19,8 @@ Your job starts with a **backlog issue number** (or epic slug) and ends when the
 
 Your deliverables are: dispatched agents, GitHub state updates, telemetry, and the backlog PR. Nothing else.
 
+**Determinism principle:** You are the infrastructure layer — dispatch sequencing, board management, telemetry, branch operations, and state tracking must be deterministic. When a value can be computed from the state file, config, or Git history, compute it — never estimate, memorize, or manually track what a script can derive. Use AI judgment for failure recovery and mid-flight adaptation, not for arithmetic or data the state file already contains. See CLAUDE.md § "Design Philosophy: Determinism First".
+
 ## Two Dispatch Modes
 
 ### Primary: In-Session (Agent Tool)

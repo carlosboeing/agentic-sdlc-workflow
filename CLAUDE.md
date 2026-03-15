@@ -6,6 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains an **agentic SDLC workflow** — a set of specialized AI agents, scripts, and conventions that orchestrate the full software development lifecycle: design → plan → build → review → retro. The workflow is domain-agnostic and is being developed toward packaging as a Claude Code plugin.
 
+## Design Philosophy: Determinism First
+
+This workflow turns something inherently non-deterministic (AI/LLM output) into something deterministic and reliable (defined input → structured workflow → predictable output). Every design decision should reinforce this principle.
+
+**The rule:** When a value can be computed deterministically from existing data, compute it. Never rely on an agent to remember, estimate, or manually track what a script can derive from the state file, config, or Git history.
+
+| Prefer | Over | Why |
+|--------|------|-----|
+| Compute from state file | Track with `$SECONDS` or mental arithmetic | State file is durable; memory and timers are fragile |
+| Read from config/pricing file | Memorize or hardcode rates | Config is the single source of truth; memory drifts |
+| Derive from Git history | Ask the agent "what did you do?" | Git is immutable; agent recall is approximate |
+| Script with validation | Agent judgment call | Scripts are repeatable; judgment varies by context window |
+| Convention with enforcement | Convention with trust | Enforcement catches violations; trust assumes compliance |
+
+**Where AI/LLM intelligence belongs:** The non-deterministic strengths of AI — creativity, judgment, adaptation, self-healing — are valuable for:
+- **Design and planning:** Brainstorming approaches, evaluating trade-offs, decomposing requirements
+- **Content creation:** Writing code, docs, and creative content that meets acceptance criteria
+- **Failure recovery:** Diagnosing unexpected errors, working around infrastructure issues, adapting to novel situations
+- **Code review:** Applying judgment about quality, security, and convention adherence
+
+**Where determinism must prevail:** The workflow infrastructure — dispatch sequencing, board management, telemetry computation, branch operations, state tracking, cost estimation — must be deterministic. These are the rails that make the AI's output reliable at scale. When an agent makes a mistake in infrastructure (wrong branch, incorrect cost, missed status update), the workflow's credibility degrades even if the content is perfect.
+
+**Evidence:** Run 14 posted wall-clock = sequential duration (102m 43s instead of 74m 4s) because the orchestrator relied on `$SECONDS` tracking instead of computing the critical path from the state file's dispatch log. The state file already contained all the data — `started_at` timestamps naturally encode parallelism. The fix was to compute deterministically from what was already recorded, not to "try harder" to track `$SECONDS`. See `issue-telemetry.sh` wall-clock auto-computation.
+
 ## Project Documentation
 
 - `docs/5-guides/PROJECT.md` — full architecture and technical overview

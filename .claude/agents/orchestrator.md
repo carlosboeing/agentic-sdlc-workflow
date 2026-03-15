@@ -138,6 +138,12 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 **Skip if:** design doc already exists in `docs/2-design/` referencing this backlog item, OR the prompt says "skip design".
 
+**Before starting Phase 1** (or the first non-skipped phase), set the backlog issue board status to **In Progress**:
+```bash
+./scripts/issue-set-status.sh <backlog-issue> in-progress
+```
+Design and planning are active work on the backlog item — the board should reflect that work has started, not wait until builders are dispatched.
+
 **Autonomous mode:**
 
 1. Dispatch the designer with "autonomous" in the prompt and the integration branch name:
@@ -244,11 +250,6 @@ Then wait for the human to merge the plan PR into the integration branch.
    Skip any story that already has a "Ready for Review" comment.
 
 ### Phase 5: Dispatch Builders
-
-**Before the first wave dispatch,** set the backlog issue board status to **In Progress**:
-```bash
-./scripts/issue-set-status.sh <backlog-issue> in-progress
-```
 
 For each story (or wave of independent stories):
 
@@ -457,7 +458,20 @@ When all epics are merged into the integration branch:
    ./scripts/issue-set-status.sh <backlog-issue> in-review
    ```
 
-7. **DO NOT merge the backlog PR.** Post a summary comment on the PR with the review status and leave it open for human review. The orchestrator NEVER auto-merges the backlog PR.
+7. **Verify all board statuses** (defense against board drift — a known GitHub Projects API bug where statuses silently revert after successful mutations, observed in Runs 3, 10, 11, 12):
+   ```bash
+   # Re-verify and fix all issue statuses
+   for ISSUE in <closed-issues: design, plan, retro>; do
+     ./scripts/issue-close.sh $ISSUE
+   done
+   for ISSUE in <story-issues> <epic-issues>; do
+     ./scripts/issue-set-status.sh $ISSUE in-review
+   done
+   ./scripts/issue-set-status.sh <backlog-issue> in-review
+   ```
+   This step is mandatory — do not skip even if all prior `issue-set-status.sh` calls reported success.
+
+8. **DO NOT merge the backlog PR.** Post a summary comment on the PR with the review status and leave it open for human review. The orchestrator NEVER auto-merges the backlog PR.
 
 ### Phase 9: Post-Merge Cleanup
 
@@ -484,7 +498,7 @@ After the backlog PR is merged (by human via `gh pr merge --squash`):
    - Only `main` branch locally
    - No workflow branches on remote (`backlog/`, `epic/`, `e0N-*`, `docs/`)
    - No stale worktrees
-   - `.claude/state/` empty
+   - `.agentic-workflow/runs/` empty
 
 ### Phase 10: Dispatch Retro Agent
 
@@ -537,7 +551,22 @@ As the final phase, post a **full lifecycle telemetry summary** on the backlog i
 | Reviewers (per story + backlog PR) | tokens, duration, tool uses |
 | Retro | tokens, duration, tool uses |
 
-**Post using `issue-telemetry.sh` with `--summary` for backlog-level telemetry:**
+**Preferred method — `--dispatches-from-state`:** Pass the orchestrator state file and let the script compute everything (costs, durations, totals) from the structured dispatch data using config rates. This eliminates manual cost/duration computation errors:
+
+```bash
+./scripts/issue-telemetry.sh <backlog-number> \
+  --dispatches-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
+  --model opus \
+  --commit $(git rev-parse backlog/<N>-<slug>) \
+  --wall-clock <wall_clock_ms> \
+  --gantt "<mermaid-gantt-body>" \
+  --footer "<trailing-notes>" \
+  --pr <pr-number>
+```
+
+The script reads `dispatches[]` from the state file, maps agents to phases (Design/Plan/Build/Review/Retro), computes costs using `agentic-sdlc-config.json` rates, formats durations exactly, and generates both summary and breakdown tables with correct totals. The `--gantt` and `--footer` are still provided by the orchestrator (they require layout knowledge the script doesn't have).
+
+**Legacy method — manual `--summary` and `--breakdown`:**
 
 ```bash
 ./scripts/issue-telemetry.sh <backlog-number> \
@@ -592,7 +621,9 @@ The Gantt chart should include **all lifecycle phases** (design, plan, build wav
 
 The `%%{init}%%` block in `scripts/templates/telemetry.md` defines the hex values. The orchestrator controls color by choosing the correct task tag. **Do not use `:active` on build or review tasks** — builds have no tag (emerald default), reviews use `:done` (yellow). Evidence: Run 11 posted an all-violet Gantt because every task was tagged `:active`.
 
-**Value column convention:** Value cells in telemetry tables contain only numbers and units (e.g., `~33m`, `770K`, `~$4.79`). Never add descriptive text, annotations, or parenthetical notes to value cells — those belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `~33m` in Value).
+**Value column convention:** Value cells in telemetry tables contain only numbers and units (e.g., `30m 43s`, `770K`, `~$4.79`). Never add descriptive text, annotations, or parenthetical notes to value cells — those belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `25m 12s` in Value).
+
+**Duration precision:** All duration values — including totals in Summary and Breakdown tables — must use exact `Xm Ys` format computed from summing `duration_ms` values. Do not round to approximate values like `~31m`. Use the same `format_duration()` logic as `issue-telemetry.sh`: `mins = ms / 1000 / 60`, `secs = ms / 1000 % 60`. Costs may use `~` prefix (they are estimates), but durations are measured values and must be exact.
 
 **Gantt label convention:** Labels follow the format `<ENN-SNN> <short label> (<duration>)`. The short label is generated by the orchestrator from the full issue title — a concise, readable summary (aim for ~30 characters max) that preserves meaning. Do not mechanically truncate; use judgement to produce a label that makes sense at a glance. For non-story phases, use the agent role (e.g., "Designer (3m20s)", "Planner (5m05s)", "Retro Agent (2m30s)").
 
@@ -668,6 +699,26 @@ Every completed story must have three comments on its issue:
 2. "Ready for Review" (posted by builder via `issue-review.sh`, which also sets board to In Review)
 3. "Telemetry" (posted by orchestrator via `issue-telemetry.sh`)
 
+### Cost Computation (CRITICAL)
+
+**Never hardcode or memorize token rates.** Always read rates from `.claude/agentic-sdlc-config.json` before computing cost estimates for `--breakdown`, `--summary`, or `--cost` strings. The config rates may differ significantly from `fetch-pricing.sh` defaults (e.g., Opus: $30/M blended in config vs $10/M in fetch-pricing).
+
+**How to compute a cost estimate:**
+
+```bash
+# Read blended rate from cached pricing (written by fetch-pricing.sh)
+PRICING_FILE=".agentic-workflow/pricing.json"
+OPUS_RATE=$(jq -r '(.rates.opus.inputPerM * 0.75 + .rates.opus.outputPerM * 0.25)' "$PRICING_FILE")
+SONNET_RATE=$(jq -r '(.rates.sonnet.inputPerM * 0.75 + .rates.sonnet.outputPerM * 0.25)' "$PRICING_FILE")
+
+# Compute cost for a dispatch: tokens / 1M * rate
+# Example: opus dispatch with 45000 tokens = 45000 / 1000000 * 10 = $0.45
+```
+
+Apply this to every cost cell in `--breakdown` and `--summary` strings. The preferred method is `--dispatches-from-state` which computes everything automatically from the state file and cached pricing.
+
+**Evidence:** Run 12 underreported costs by 2.6x because the orchestrator used memorized rates instead of the cached pricing file.
+
 ### Epic-Level Telemetry
 
 When all stories in an epic are complete, post aggregate telemetry on the epic issue:
@@ -678,7 +729,7 @@ When all stories in an epic are complete, post aggregate telemetry on the epic i
 - **Tool uses:** Sum all story `tool_uses` values
 - **Model:** Use the highest-tier model across all stories (opus > sonnet > haiku)
 - **Commit:** Use the epic branch head (`git rev-parse epic/<slug>`)
-- **Breakdown:** Per-story rows using `Agent | Task | Duration | Tokens | Est. Cost` columns, with a Total row including dispatch count
+- **Breakdown:** Per-story rows using `Agent | Task | Duration | Tokens | Est. Cost` columns, with a Total row including dispatch count. **All cost cells must use config rates** (see Cost Computation above).
 
 ## Error Handling
 
@@ -694,14 +745,14 @@ This defensive approach ensures we never silently lose token consumption from in
 
 ### Orchestrator State File
 
-The orchestrator persists its full workflow state to `.claude/state/<backlog>/orchestrator.json`. This file is gitignored (ephemeral workflow state, not project content) and is cleaned up after the backlog PR merges.
+The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json`. This file is gitignored (ephemeral workflow state, not project content) and is cleaned up after the backlog PR merges.
 
 **Why:** The orchestrator holds phase progress, story status, pricing, telemetry, and review results in memory. If the session is interrupted (usage limit, crash, window closed) and resumed later, all of this is lost. The state file ensures instant recovery without re-querying GitHub.
 
 **Directory structure:**
 
 ```
-.claude/state/
+.agentic-workflow/runs/
   <backlog>/                        ← per-backlog directory
     orchestrator.json               ← workflow state (orchestrator-owned)
 ```
@@ -726,9 +777,9 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
     "source_detail": "opus:4.6, sonnet:4.6, haiku:4.5",
     "fetched_at": "2026-03-10T14:00:05Z",
     "rates": {
-      "opus":   { "input_per_m": 5.00, "output_per_m": 25.00, "blended_per_m": 10.00, "blended_cents_per_m": 1000 },
-      "sonnet": { "input_per_m": 3.00, "output_per_m": 15.00, "blended_per_m": 6.00,  "blended_cents_per_m": 600 },
-      "haiku":  { "input_per_m": 1.00, "output_per_m": 5.00,  "blended_per_m": 2.00,  "blended_cents_per_m": 200 }
+      "opus":   { "inputPerM": 5.00, "outputPerM": 25.00 },
+      "sonnet": { "inputPerM": 3.00, "outputPerM": 15.00 },
+      "haiku":  { "inputPerM": 1.00, "outputPerM": 5.00 }
     }
   },
   "phases": {
@@ -767,7 +818,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 | `session.orchestrator_model` | `"opus"` | The model the orchestrator session is running. All `model: inherit` agents inherit this. Critical for accurate cost estimates. |
 | `session.git_main_sha` | `"d1c7532"` | Main branch HEAD at workflow start. Detects if main moved during the run. |
 | `pricing.rates` | `{...}` | Token rates fetched at session start. Used by `issue-telemetry.sh` via `--rate`. |
-| `pricing.source` | `"anthropic-pricing-page"` | Where rates came from (`anthropic-pricing-page` or `hardcoded-defaults`). |
+| `pricing.source` | `"anthropic-pricing-page"` | Where rates came from (`anthropic-pricing-page`, `litellm-community`, or previous cache). |
 | `phases` | `{...}` | Status of each workflow phase (pending, in_progress, complete, skipped). |
 | `epics.*.stories.*.status` | `"reviewed"` | Story status (pending, building, built, reviewing, reviewed, merged, done). |
 | `dispatches[]` | `[...]` | Append-only log of every agent dispatch. Raw data for telemetry and debugging. |
@@ -779,7 +830,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 At the very start of the workflow, before any other work:
 
 ```bash
-mkdir -p .claude/state/<backlog>
+mkdir -p .agentic-workflow/runs/<backlog>
 
 # Fetch live pricing
 PRICING=$(./scripts/fetch-pricing.sh)
@@ -788,7 +839,7 @@ PRICING=$(./scripts/fetch-pricing.sh)
 # (The orchestrator knows its own model from the session context)
 
 # Write initial state
-cat > .claude/state/<backlog>/orchestrator.json << EOF
+cat > .agentic-workflow/runs/<backlog>/orchestrator.json << EOF
 {
   "version": 1,
   "session": {
@@ -815,7 +866,7 @@ EOF
 
 **Detecting the orchestrator model:** The orchestrator knows which model it's running from the session context. If uncertain, state this in the session field and note it as unknown — do not guess.
 
-**Pricing fetch:** Always run `./scripts/fetch-pricing.sh` at session start. The script fetches current rates from Anthropic's pricing page and falls back to hardcoded defaults on failure. Log which source was used (`pricing.source`). If the source is `hardcoded-defaults`, warn the user that pricing may be stale.
+**Pricing fetch:** Always run `./scripts/fetch-pricing.sh` at session start. The script fetches live rates from Anthropic's pricing page (tier 1), falls back to the litellm community JSON (tier 2), then to the local cache from a previous successful fetch (tier 3). On success, it writes `.agentic-workflow/pricing.json`. If the config has a `pricing` section, skip fetching — the config is a user override.
 
 **2. Update (after every checkpoint event)**
 
@@ -832,7 +883,7 @@ Use `python3` or `jq` to update the JSON in place. Example:
 # Update a story's build telemetry after builder completes
 python3 -c "
 import json
-with open('.claude/state/<backlog>/orchestrator.json') as f:
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
     state = json.load(f)
 state['epics']['e01']['stories']['112']['build'] = {
     'duration_ms': 109000, 'tokens': 103000, 'tool_uses': 18
@@ -844,7 +895,7 @@ state['dispatches'].append({
     'duration_ms': 109000, 'tokens': 103000, 'tool_uses': 18,
     'result': 'success'
 })
-with open('.claude/state/<backlog>/orchestrator.json', 'w') as f:
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
     json.dump(state, f, indent=2)
 "
 ```
@@ -854,7 +905,7 @@ with open('.claude/state/<backlog>/orchestrator.json', 'w') as f:
 On session start, check for an existing state file:
 
 ```bash
-STATE_FILE=".claude/state/<backlog>/orchestrator.json"
+STATE_FILE=".agentic-workflow/runs/<backlog>/orchestrator.json"
 if [ -f "$STATE_FILE" ]; then
   # Resume: load state and skip to current phase
   CURRENT_PHASE=$(jq -r '.phases | to_entries[] | select(.value.status == "in_progress") | .key' "$STATE_FILE")
@@ -864,7 +915,7 @@ fi
 **Reading pricing for telemetry:** When calling `issue-telemetry.sh`, read the rate from state:
 
 ```bash
-RATE=$(jq -r '.pricing.rates.<model>.blended_cents_per_m' .claude/state/<backlog>/orchestrator.json)
+RATE=$(jq -r '.rates.<model>.inputPerM' and '.rates.<model>.outputPerM' .agentic-workflow/runs/<backlog>/orchestrator.json)
 ./scripts/issue-telemetry.sh <issue> --model <model> --rate "$RATE" --duration <ms> --commit <hash> ...
 ```
 
@@ -873,7 +924,7 @@ RATE=$(jq -r '.pricing.rates.<model>.blended_cents_per_m' .claude/state/<backlog
 After the backlog PR merges and all telemetry is posted:
 
 ```bash
-rm -rf .claude/state/<backlog>/
+rm -rf .agentic-workflow/runs/<backlog>/
 ```
 
 Only clean up after ALL work is complete (telemetry posted, issues closed, retro dispatched). The state directory is the last thing removed.
@@ -892,7 +943,7 @@ The state file is an optimisation for instant recovery, not a hard dependency. G
 | Reader | What it reads | When |
 |--------|--------------|------|
 | Orchestrator | Everything | On resume, before each phase |
-| `issue-telemetry.sh` | `pricing.rates.<model>.blended_cents_per_m` (via `--rate` flag) | When posting telemetry |
+| `issue-telemetry.sh` | `pricing.rates` (reads `.agentic-workflow/pricing.json` directly) | When posting telemetry |
 | Retro agent | `dispatches[]`, `epics.*` | When writing the retrospective |
 | Future agents | `session`, `pricing` (shared context) | When they need session-level info |
 

@@ -1,4 +1,2 @@
-# Ephemeral directories (not committed)
-state/
-worktrees/
-logs/
+# Local settings (not committed)
+settings.local.json

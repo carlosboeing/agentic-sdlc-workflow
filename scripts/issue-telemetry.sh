@@ -6,6 +6,7 @@ set -euo pipefail
 #
 # Usage: ./scripts/issue-telemetry.sh <issue-number> --model <model> --duration <ms> --commit <hash>
 #        [--tokens <total>] [--tool-uses <n>] [--rate <cents-per-M>] [--cost <dollars>]
+#        [--dispatches <json-file>] [--dispatches-from-state <state-file>]
 #        [--breakdown <markdown>] [--pr <pr-number>] [--wall-clock <ms>] [--gantt <mermaid-body>]
 #        [--summary <markdown>] [--footer <markdown>]
 #
@@ -27,6 +28,18 @@ set -euo pipefail
 # --breakdown provides per-dispatch detail rows.
 # Columns: Agent | Task | Duration | Tokens | Est. Cost. The script adds the header.
 #
+# --dispatches accepts a JSON file with structured dispatch data. The script computes
+# breakdown rows, summary rows, total cost, total duration, and total tokens from the data
+# using config rates. This replaces manual --breakdown, --summary, and --cost computation.
+# Format: [{"agent":"Builder (sonnet)","model":"sonnet","task":"E01-S01 (#61)",
+#           "duration_ms":146479,"tokens":49691,"phase":"Build"}, ...]
+# Phases are grouped in the summary table. The script adds total rows automatically.
+#
+# --dispatches-from-state reads the orchestrator state file (.agentic-workflow/runs/<N>/orchestrator.json)
+# and converts its dispatches[] array into the structured format above. This is the preferred
+# method for backlog-level telemetry — the orchestrator passes its state file and the script
+# does all the math, eliminating manual cost/duration computation errors.
+#
 # --footer provides trailing text (e.g., notes, PR link) rendered before the disclaimer.
 #
 # --gantt provides the body of a Mermaid gantt chart (everything after the gantt keyword).
@@ -35,6 +48,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/config.sh"
 REPO="$CFG_REPO"
+_PRICING_CACHE="$_CFG_REPO_ROOT/.agentic-workflow/pricing.json"
 TEMPLATE_FILE="$SCRIPT_DIR/templates/telemetry.md"
 
 if [ $# -lt 1 ]; then
@@ -63,6 +77,8 @@ RATE_OVERRIDE=""
 COST_OVERRIDE=""
 SUMMARY=""
 FOOTER=""
+DISPATCHES_FILE=""
+DISPATCHES_FROM_STATE=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -79,9 +95,245 @@ while [ $# -gt 0 ]; do
     --cost) COST_OVERRIDE="$2"; shift 2 ;;
     --summary) SUMMARY="$2"; shift 2 ;;
     --footer) FOOTER="$2"; shift 2 ;;
+    --dispatches) DISPATCHES_FILE="$2"; shift 2 ;;
+    --dispatches-from-state) DISPATCHES_FROM_STATE="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+
+# ─── Process --dispatches (structured data → computed breakdown/summary/cost) ──
+
+_run_dispatches_computation() {
+  local dispatches_file="$1"
+
+  _dispatches_result=$(python3 << DISPEOF
+import json, sys
+
+cfg_file = "$_CFG_FILE"
+pricing_cache = "$_PRICING_CACHE"
+
+# Read pricing: config override first, then cached pricing
+split_in, split_out = 0.75, 0.25
+pricing_rates = {}
+
+# Priority 1: Config override
+try:
+    with open(cfg_file) as f:
+        cfg = json.load(f)
+    cfg_pricing = cfg.get("pricing", {})
+    for m in ["opus", "sonnet", "haiku"]:
+        mc = cfg_pricing.get(m, {})
+        if "inputPerM" in mc and "outputPerM" in mc:
+            pricing_rates[m] = (mc["inputPerM"], mc["outputPerM"])
+except Exception:
+    pass
+
+# Priority 2: Cached pricing from fetch-pricing.sh
+if not pricing_rates:
+    try:
+        with open(pricing_cache) as f:
+            cached = json.load(f)
+        for m in ["opus", "sonnet", "haiku"]:
+            mr = cached.get("rates", {}).get(m, {})
+            if "inputPerM" in mr and "outputPerM" in mr:
+                pricing_rates[m] = (mr["inputPerM"], mr["outputPerM"])
+    except Exception:
+        pass
+
+def blended_rate(model):
+    if model in pricing_rates:
+        inp, out = pricing_rates[model]
+        return inp * split_in + out * split_out
+    print(f"Warning: No pricing data for model '{model}' — cost will show ~\$0.00", file=sys.stderr)
+    return 0
+
+if not pricing_rates:
+    print("Warning: No pricing data found (no config override, no cached pricing at .agentic-workflow/pricing.json). Run fetch-pricing.sh first.", file=sys.stderr)
+
+def fmt_duration(ms):
+    secs = ms // 1000
+    mins = secs // 60
+    rem = secs % 60
+    if mins > 0 and rem > 0: return f"{mins}m {rem}s"
+    elif mins > 0: return f"{mins}m"
+    else: return f"{rem}s"
+
+def fmt_tokens(t):
+    if t >= 1_000_000: return f"{t/1_000_000:.2f}M"
+    elif t >= 1000: return f"{t//1000}K"
+    else: return str(t)
+
+def fmt_cost(dollars):
+    return f"~\${dollars:.2f}"
+
+with open("$dispatches_file") as f:
+    dispatches = json.load(f)
+
+# Compute per-row values
+total_duration = 0
+total_tokens = 0
+total_cost = 0.0
+breakdown_rows = []
+phase_agg = {}
+
+# Preserve phase insertion order
+phase_order = []
+
+for d in dispatches:
+    model = d["model"]
+    dur_ms = d["duration_ms"]
+    tokens = d["tokens"]
+    rate = blended_rate(model)
+    cost = tokens / 1_000_000 * rate
+
+    total_duration += dur_ms
+    total_tokens += tokens
+    total_cost += cost
+
+    agent_label = d.get("agent", model.capitalize())
+    task_label = d.get("task", f"Issue #{d.get('issue', '?')}")
+    phase = d.get("phase", "Other")
+
+    breakdown_rows.append(
+        f"| {agent_label} | {task_label} | {fmt_duration(dur_ms)} | {fmt_tokens(tokens)} | {fmt_cost(cost)} |"
+    )
+
+    if phase not in phase_agg:
+        phase_agg[phase] = {"duration_ms": 0, "tokens": 0, "cost": 0.0, "count": 0}
+        phase_order.append(phase)
+    phase_agg[phase]["duration_ms"] += dur_ms
+    phase_agg[phase]["tokens"] += tokens
+    phase_agg[phase]["cost"] += cost
+    phase_agg[phase]["count"] += 1
+
+# Build breakdown total row
+breakdown_rows.append(
+    f"| | **Total ({len(dispatches)} dispatches)** | **{fmt_duration(total_duration)}** | **{fmt_tokens(total_tokens)}** | **{fmt_cost(total_cost)}** |"
+)
+
+# Build summary rows
+summary_rows = []
+for phase in phase_order:
+    a = phase_agg[phase]
+    count_suffix = ""
+    if a["count"] > 1:
+        if phase == "Build":
+            count_suffix = f" ({a['count']} stories)"
+        else:
+            count_suffix = f" ({a['count']} dispatches)"
+    # Collect unique models in this phase from dispatches
+    phase_models = list(dict.fromkeys(d["model"] for d in dispatches if d.get("phase") == phase))
+    if len(phase_models) == 1:
+        agent_desc = f"{phase_models[0]}{count_suffix}"
+    else:
+        agent_desc = f"mixed ({', '.join(phase_models)}){count_suffix}"
+    summary_rows.append(
+        f"| {phase} | {agent_desc} | {fmt_duration(a['duration_ms'])} | {fmt_tokens(a['tokens'])} | {fmt_cost(a['cost'])} |"
+    )
+summary_rows.append(
+    f"| **Total** | | **{fmt_duration(total_duration)}** | **{fmt_tokens(total_tokens)}** | **{fmt_cost(total_cost)}** |"
+)
+
+result = {
+    "breakdown": "\n".join(breakdown_rows),
+    "summary": "\n".join(summary_rows),
+    "cost": f"{total_cost:.2f}",
+    "duration_ms": str(total_duration),
+    "tokens": str(total_tokens),
+}
+json.dump(result, sys.stdout)
+DISPEOF
+  )
+
+  # Parse the result and set variables
+  BREAKDOWN=$(echo "$_dispatches_result" | jq -r '.breakdown')
+  SUMMARY=$(echo "$_dispatches_result" | jq -r '.summary')
+  COST_OVERRIDE=$(echo "$_dispatches_result" | jq -r '.cost')
+  DURATION_MS=$(echo "$_dispatches_result" | jq -r '.duration_ms')
+  TOKENS=$(echo "$_dispatches_result" | jq -r '.tokens')
+}
+
+if [ -n "$DISPATCHES_FILE" ] && [ -f "$DISPATCHES_FILE" ]; then
+  _run_dispatches_computation "$DISPATCHES_FILE"
+elif [ -n "$DISPATCHES_FROM_STATE" ] && [ -f "$DISPATCHES_FROM_STATE" ]; then
+  # Convert orchestrator state file dispatches[] to the dispatches format.
+  # Maps agent types to phases and generates human-readable task labels.
+  _state_tmp=$(mktemp)
+  trap "rm -f $_state_tmp" EXIT
+  python3 << STATEEOF > "$_state_tmp"
+import json, sys
+
+with open("$DISPATCHES_FROM_STATE") as f:
+    state = json.load(f)
+
+agent_to_phase = {
+    "designer": "Design",
+    "planner": "Plan",
+    "builder-haiku": "Build", "builder-sonnet": "Build", "builder-opus": "Build",
+    "reviewer": "Review",
+    "retro": "Retro",
+}
+
+# Build issue-to-title map from epics
+issue_titles = {}
+for epic_key, epic in state.get("epics", {}).items():
+    for issue_num, story in epic.get("stories", {}).items():
+        branch = story.get("branch", "")
+        # Derive a short label from the branch name
+        label = branch.replace(f"{epic_key}-", "").replace("/", " ").replace("-", " ").title()
+        issue_titles[int(issue_num)] = label
+
+dispatches = []
+for d in state.get("dispatches", []):
+    agent = d.get("agent", "unknown")
+    model = d.get("model", "unknown")
+    issue = d.get("issue")
+    phase = agent_to_phase.get(agent, "Other")
+
+    # Build human-readable agent label: "Builder (sonnet)" or "Reviewer (opus)"
+    agent_base = agent.split("-")[0].capitalize()
+    if agent_base == "Builder":
+        agent_label = f"Builder ({model})"
+    elif agent_base == "Reviewer":
+        agent_label = f"Reviewer ({model})"
+    else:
+        agent_label = f"{agent_base.capitalize()} ({model})"
+
+    # Build task label from issue titles or agent type
+    if phase == "Design":
+        task = f"Design Doc (#{issue})" if issue else "Design Doc"
+    elif phase == "Plan":
+        task = f"Plan Doc (#{issue})" if issue else "Plan Doc"
+    elif phase == "Retro":
+        task = f"Retrospective (#{issue})" if issue else "Retrospective"
+    elif phase == "Review" and issue:
+        if issue in issue_titles:
+            title = issue_titles[issue]
+            task = f"Review {title} (#{issue})"
+        else:
+            task = f"PR Review (#{issue})"
+    elif issue and issue in issue_titles:
+        task = f"{issue_titles[issue]} (#{issue})"
+    elif issue:
+        task = f"Issue #{issue}"
+    else:
+        task = agent
+
+    dispatches.append({
+        "agent": agent_label,
+        "model": model,
+        "task": task,
+        "duration_ms": d.get("duration_ms", 0),
+        "tokens": d.get("tokens", 0),
+        "phase": phase,
+    })
+
+json.dump(dispatches, sys.stdout, indent=2)
+STATEEOF
+  _run_dispatches_computation "$_state_tmp"
+  rm -f "$_state_tmp"
+fi
 
 # ─── Compute derived values ───────────────────────────────────────────────────
 
@@ -111,29 +363,42 @@ else
 fi
 
 # Estimate cost using blended rate per model ($/M tokens)
-# Reads pricing from .claude/agentic-sdlc-config.json via lib/config.sh.
-# Use --rate to override with live rates from the orchestrator state file.
+# Resolution order:
+#   1. Config pricing override (if pricing section exists in config)
+#   2. Cached pricing (.agentic-workflow/pricing.json from fetch-pricing.sh)
+#   3. Returns 0 (cost will show "—")
+#
+# Token split (75% input / 25% output) is a fixed constant based on
+# observed patterns across 12 test runs. Not user-configurable.
+_TOKEN_SPLIT_INPUT=0.75
+_TOKEN_SPLIT_OUTPUT=0.25
+
 _cfg_blended_rate() {
   local model="$1"
+  local inp="" out=""
+
+  # Priority 1: Config pricing override
   if [ -f "$_CFG_FILE" ]; then
-    local inp out split_in split_out
     inp=$(jq -r ".pricing.${model}.inputPerM // empty" "$_CFG_FILE" 2>/dev/null) || inp=""
     out=$(jq -r ".pricing.${model}.outputPerM // empty" "$_CFG_FILE" 2>/dev/null) || out=""
-    split_in=$(jq -r '.pricing.tokenSplit.input // empty' "$_CFG_FILE" 2>/dev/null) || split_in=""
-    split_out=$(jq -r '.pricing.tokenSplit.output // empty' "$_CFG_FILE" 2>/dev/null) || split_out=""
-    if [ -n "$inp" ] && [ -n "$out" ]; then
-      # Compute blended rate in cents/M: (input * split_in + output * split_out) * 100
-      echo "$inp $out ${split_in:-0.75} ${split_out:-0.25}" | awk '{printf "%d", ($1 * $3 + $2 * $4) * 100}'
-      return
+  fi
+
+  # Priority 2: Cached pricing from fetch-pricing.sh
+  if [ -z "$inp" ] || [ -z "$out" ]; then
+    if [ -f "$_PRICING_CACHE" ]; then
+      inp=$(jq -r ".rates.${model}.inputPerM // empty" "$_PRICING_CACHE" 2>/dev/null) || inp=""
+      out=$(jq -r ".rates.${model}.outputPerM // empty" "$_PRICING_CACHE" 2>/dev/null) || out=""
     fi
   fi
-  # Fallback defaults
-  case "$model" in
-    opus)   echo "3000" ;;
-    sonnet) echo "600" ;;
-    haiku)  echo "200" ;;
-    *)      echo "0" ;;
-  esac
+
+  # Compute blended rate in cents/M
+  if [ -n "$inp" ] && [ -n "$out" ]; then
+    echo "$inp $out $_TOKEN_SPLIT_INPUT $_TOKEN_SPLIT_OUTPUT" | awk '{printf "%d", ($1 * $3 + $2 * $4) * 100}'
+    return
+  fi
+
+  # No pricing data available
+  echo "0"
 }
 COST_EST="—"
 if [ -n "$COST_OVERRIDE" ]; then

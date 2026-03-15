@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-03-15
+
+### Test SDLC v2 Workflow (Run 12) — Time Traveler's Yelp Reviews
+
+- **Primary result:** Validated configurable workflow settings from PR #55 — scripts reading from `.claude/agentic-sdlc-config.json`, model routing, pricing, and YAML frontmatter plan detection
+- Content theme: "Time Traveler's Yelp Reviews" — formal Yelp-style reviews of historical events written by time-traveling tourists
+- 1 epic, 5 stories: Great Fire of London (1★), Great Pyramid (3★), Magna Carta (4★), Moon Landing (5★), and a ChronoTrip Comparative Guide
+- Dispatch: Wave 1 (3-way parallel with worktree isolation), Wave 2 (sequential medium), Wave 3 (sequential hard with cross-references)
+- All three difficulty levels tested: easy x2 sonnet, medium x2 sonnet, hard x1 opus
+- Zero fix cycles — all 5 stories passed review on first attempt
+- Lesson captured: backlog issue should be set to In Progress at design phase start, not at builder dispatch
+- Telemetry fix: corrected cost underreporting (was ~$4.77, correct ~$12.55) caused by using memorized $10/M Opus rate instead of config $30/M
+
+
 ## 2026-03-14
 
 ### Test SDLC v2 Workflow (Run 11) — Board Drift Detection

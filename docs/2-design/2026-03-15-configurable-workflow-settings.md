@@ -300,7 +300,7 @@ The board status option IDs table, model routing table, and GitHub project refer
 - **Label names** — `hierarchy/backlog`, `difficulty/easy`, etc. remain as literal strings in agent instructions. Making them configurable requires a label registry — deferred.
 - **Doc directory paths** — `docs/2-design/`, `docs/3-plans/`, etc. remain as conventions.
 - **Issue naming format** — `[#<backlog>/ENN-SNN]` remains as a convention.
-- **State file paths** — `.claude/state/<backlog>/orchestrator.json` remains hardcoded.
+- **State file paths** — `.agentic-workflow/runs/<backlog>/orchestrator.json` (moved from `.claude/state/` in Run 12).
 - **NeuralNorris-specific config** (`NN` section key) — this is the consumer app's configuration, not the workflow's configuration. It stays in CLAUDE.md as project documentation.
 - **Test file** — `tests/scripts/test-dispatch-workflow.sh` routing assertion was already updated in this session.
 
@@ -344,7 +344,7 @@ Values that are **deeply embedded** in agent instructions as patterns, not simpl
 | Doc paths | `docs/2-design/`, `docs/3-plans/` | Structural convention used in grep patterns for plan/design detection. |
 | Issue naming | `[#<backlog>/ENN-SNN]` | Formatting pattern embedded in planner instructions. |
 | Label colors | `#5319E7`, `#6E40C9` | Only used by `setup-labels.sh`. Low impact. |
-| State paths | `.claude/state/<backlog>/` | Only the orchestrator uses this. Low impact. |
+| State paths | `.agentic-workflow/runs/<backlog>/` | Moved to `.agentic-workflow/` in Run 12. |
 | Gantt colors | `#059669`, `#8b5cf6` | Only the telemetry template uses this. Cosmetic. |
 
 ---

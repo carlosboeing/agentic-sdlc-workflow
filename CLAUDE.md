@@ -100,7 +100,7 @@ Orchestrator manages → one Backlog Item per workflow run
 
 **The planner MUST NOT create child backlog items.** If a feature feels too large for epics, use more epics with fewer stories each. An epic with 1-2 stories is perfectly valid. If the feature truly spans multiple independent domains (e.g., "build an e-commerce platform"), the designer should split it into separate backlog items upfront — each with its own lifecycle.
 
-**Issue naming:** `[#<backlog>/ENN] Epic title` for epics, `[#<backlog>/ENN-SNN] Story title` for stories. The backlog issue number prefix disambiguates epics/stories across features (e.g., `[#43/E01-S01]` vs `[#5/E01-S01]`).
+**Issue naming:** `[#<backlog>/ENN] Epic title` for epics, `[#<backlog>/ENN-SNN] Story title` for stories, and `[#<backlog>] Write design doc for X` / `[#<backlog>] Write implementation plan for X` / `[#<backlog>] Write retrospective for X` for doc issues. The backlog issue itself is also prefixed with `[#<N>]` by the orchestrator in Phase 0 (the number is known once the issue exists). This prefix disambiguates issues across features and makes them scannable on the project board.
 
 **Issue hierarchy (sub-issues):** All work is tracked via three-level GitHub sub-issue nesting:
 
@@ -124,7 +124,7 @@ CHILD_ID=$(gh issue view <child-number> --json id -q .id)
 gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
 ```
 
-**Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `gh issue edit --body` to append below the existing body with a `---` separator. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
+**Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `gh issue edit --body` to append below the existing body. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
 
 **GitHub Project board:** All issues live on the [Agentic SDLC Workflow Project](https://github.com/users/carlosboeing/projects/7) (project number 7, owner `carlosboeing`).
 
@@ -588,6 +588,7 @@ This project validates the workflow pipeline using **test runs** — autonomous 
 | 10 | #27 | Orchestrator Logging + Nature Doc S2 | Orchestrator logging |
 | 11 | #41 | Board Drift Detection + Fairy Tale HR | Board drift detection |
 | 12 | #56 | Time Traveler's Yelp Reviews | Configurable workflow settings (config.json, model routing, pricing) |
+| 13 | #69 | Alien Tourist Bureau | Runtime data consolidation, live pricing, dispatches-from-state |
 
 Runs 1-7 were executed in the original NeuralNorris repo (gavinkilbride/NeuralNorris, issues #57-#217).
 

@@ -21,7 +21,7 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
 **Git workflow:**
 
 1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
-2. Create a GitHub Issue for the design work (title: "Write design doc for X", labels: `type/docs` + `backlog/<N>-<slug>`)
+2. Create a GitHub Issue for the design work (title: "[#<backlog>] Write design doc for X", labels: `type/docs` + `backlog/<N>-<slug>`)
 3. Link the design doc issue as a **sub-issue** of the backlog issue:
 
    ```bash

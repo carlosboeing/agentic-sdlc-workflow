@@ -706,18 +706,18 @@ Every completed story must have three comments on its issue:
 **How to compute a cost estimate:**
 
 ```bash
-# Read blended rate from config (in dollars per million tokens)
-_CFG_FILE=".claude/agentic-sdlc-config.json"
-OPUS_RATE=$(jq -r '(.pricing.opus.inputPerM * .pricing.tokenSplit.input + .pricing.opus.outputPerM * .pricing.tokenSplit.output)' "$_CFG_FILE")
-SONNET_RATE=$(jq -r '(.pricing.sonnet.inputPerM * .pricing.tokenSplit.input + .pricing.sonnet.outputPerM * .pricing.tokenSplit.output)' "$_CFG_FILE")
+# Read blended rate from cached pricing (written by fetch-pricing.sh)
+PRICING_FILE=".agentic-workflow/pricing.json"
+OPUS_RATE=$(jq -r '(.rates.opus.inputPerM * 0.75 + .rates.opus.outputPerM * 0.25)' "$PRICING_FILE")
+SONNET_RATE=$(jq -r '(.rates.sonnet.inputPerM * 0.75 + .rates.sonnet.outputPerM * 0.25)' "$PRICING_FILE")
 
 # Compute cost for a dispatch: tokens / 1M * rate
-# Example: opus dispatch with 45000 tokens = 45000 / 1000000 * 30 = $1.35
+# Example: opus dispatch with 45000 tokens = 45000 / 1000000 * 10 = $0.45
 ```
 
-Apply this to every cost cell in `--breakdown` and `--summary` strings. The `issue-telemetry.sh` script reads config rates automatically for per-story posts (when given `--model` and `--tokens`), but the orchestrator writes breakdown strings manually — those strings must use the same rates.
+Apply this to every cost cell in `--breakdown` and `--summary` strings. The preferred method is `--dispatches-from-state` which computes everything automatically from the state file and cached pricing.
 
-**Evidence:** Run 12 underreported costs by 2.6x ($4.77 vs $12.55) because the orchestrator used memorized $10/M for Opus instead of the config's $30/M.
+**Evidence:** Run 12 underreported costs by 2.6x because the orchestrator used memorized rates instead of the cached pricing file.
 
 ### Epic-Level Telemetry
 
@@ -773,13 +773,13 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
     "git_main_sha": "d1c7532"
   },
   "pricing": {
-    "source": "agentic-sdlc-config",
+    "source": "anthropic-pricing-page",
     "source_detail": "opus:4.6, sonnet:4.6, haiku:4.5",
     "fetched_at": "2026-03-10T14:00:05Z",
     "rates": {
-      "opus":   { "input_per_m": 5.00, "output_per_m": 25.00, "blended_per_m": 10.00, "blended_cents_per_m": 1000 },
-      "sonnet": { "input_per_m": 3.00, "output_per_m": 15.00, "blended_per_m": 6.00,  "blended_cents_per_m": 600 },
-      "haiku":  { "input_per_m": 1.00, "output_per_m": 5.00,  "blended_per_m": 2.00,  "blended_cents_per_m": 200 }
+      "opus":   { "inputPerM": 5.00, "outputPerM": 25.00 },
+      "sonnet": { "inputPerM": 3.00, "outputPerM": 15.00 },
+      "haiku":  { "inputPerM": 1.00, "outputPerM": 5.00 }
     }
   },
   "phases": {
@@ -818,7 +818,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 | `session.orchestrator_model` | `"opus"` | The model the orchestrator session is running. All `model: inherit` agents inherit this. Critical for accurate cost estimates. |
 | `session.git_main_sha` | `"d1c7532"` | Main branch HEAD at workflow start. Detects if main moved during the run. |
 | `pricing.rates` | `{...}` | Token rates fetched at session start. Used by `issue-telemetry.sh` via `--rate`. |
-| `pricing.source` | `"agentic-sdlc-config"` | Where rates came from (`agentic-sdlc-config` or `hardcoded-defaults`). |
+| `pricing.source` | `"anthropic-pricing-page"` | Where rates came from (`anthropic-pricing-page`, `litellm-community`, or previous cache). |
 | `phases` | `{...}` | Status of each workflow phase (pending, in_progress, complete, skipped). |
 | `epics.*.stories.*.status` | `"reviewed"` | Story status (pending, building, built, reviewing, reviewed, merged, done). |
 | `dispatches[]` | `[...]` | Append-only log of every agent dispatch. Raw data for telemetry and debugging. |
@@ -915,7 +915,7 @@ fi
 **Reading pricing for telemetry:** When calling `issue-telemetry.sh`, read the rate from state:
 
 ```bash
-RATE=$(jq -r '.pricing.rates.<model>.blended_cents_per_m' .agentic-workflow/runs/<backlog>/orchestrator.json)
+RATE=$(jq -r '.rates.<model>.inputPerM' and '.rates.<model>.outputPerM' .agentic-workflow/runs/<backlog>/orchestrator.json)
 ./scripts/issue-telemetry.sh <issue> --model <model> --rate "$RATE" --duration <ms> --commit <hash> ...
 ```
 
@@ -943,7 +943,7 @@ The state file is an optimisation for instant recovery, not a hard dependency. G
 | Reader | What it reads | When |
 |--------|--------------|------|
 | Orchestrator | Everything | On resume, before each phase |
-| `issue-telemetry.sh` | `pricing.rates.<model>.blended_cents_per_m` (via `--rate` flag) | When posting telemetry |
+| `issue-telemetry.sh` | `pricing.rates` (reads `.agentic-workflow/pricing.json` directly) | When posting telemetry |
 | Retro agent | `dispatches[]`, `epics.*` | When writing the retrospective |
 | Future agents | `session`, `pricing` (shared context) | When they need session-level info |
 

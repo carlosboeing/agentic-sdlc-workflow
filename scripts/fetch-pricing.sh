@@ -21,8 +21,6 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CACHE_DIR="$REPO_ROOT/.agentic-workflow"
 CACHE_FILE="$CACHE_DIR/pricing.json"
 
-TOKEN_SPLIT_INPUT=0.75
-TOKEN_SPLIT_OUTPUT=0.25
 
 # ─── Tier 1: Scrape anthropic.com/pricing ─────────────────────────────────────
 

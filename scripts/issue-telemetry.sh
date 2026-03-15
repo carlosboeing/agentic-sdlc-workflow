@@ -48,6 +48,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/config.sh"
 REPO="$CFG_REPO"
+_PRICING_CACHE="$_CFG_REPO_ROOT/.agentic-workflow/pricing.json"
 TEMPLATE_FILE="$SCRIPT_DIR/templates/telemetry.md"
 
 if [ $# -lt 1 ]; then
@@ -150,7 +151,7 @@ def fmt_duration(ms):
     secs = ms // 1000
     mins = secs // 60
     rem = secs % 60
-    if mins > 0 and rem > 0: return f"{mins}m {rem:02d}s"
+    if mins > 0 and rem > 0: return f"{mins}m {rem}s"
     elif mins > 0: return f"{mins}m"
     else: return f"{rem}s"
 
@@ -365,7 +366,6 @@ fi
 #
 # Token split (75% input / 25% output) is a fixed constant based on
 # observed patterns across 12 test runs. Not user-configurable.
-_PRICING_CACHE="$_CFG_REPO_ROOT/.agentic-workflow/pricing.json"
 _TOKEN_SPLIT_INPUT=0.75
 _TOKEN_SPLIT_OUTPUT=0.25
 

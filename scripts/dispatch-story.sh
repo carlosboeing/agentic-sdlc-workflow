@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/config.sh"
 REPO="$CFG_REPO"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-DISPATCH_DIR="$REPO_ROOT/.dispatch"
+DISPATCH_DIR="$REPO_ROOT/.agentic-workflow/dispatch"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <issue-number> --model <model> --agent <agent> [--epic-branch <branch>]"

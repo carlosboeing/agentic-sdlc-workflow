@@ -2,13 +2,13 @@
 # log-tool.sh — PostToolUse hook for orchestrator workflow logging.
 #
 # Reads hook JSON from stdin, filters Bash commands by allowlist, and appends
-# structured entries to .claude/logs/orchestrator.log.
+# structured entries to .agentic-workflow/logs/orchestrator.log.
 # Agent/Task dispatches are always logged (no filtering).
 #
 # This hook is diagnostic-only — it MUST always exit 0 to never block Claude Code.
 
 REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)}"
-LOG_DIR="$REPO_ROOT/.claude/logs"
+LOG_DIR="$REPO_ROOT/.agentic-workflow/logs"
 LOG_FILE="$LOG_DIR/orchestrator.log"
 FILTER_CONF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/log-filter.conf"
 

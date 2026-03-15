@@ -35,7 +35,7 @@ set -euo pipefail
 #           "duration_ms":146479,"tokens":49691,"phase":"Build"}, ...]
 # Phases are grouped in the summary table. The script adds total rows automatically.
 #
-# --dispatches-from-state reads the orchestrator state file (.claude/state/<N>/orchestrator.json)
+# --dispatches-from-state reads the orchestrator state file (.agentic-workflow/runs/<N>/orchestrator.json)
 # and converts its dispatches[] array into the structured format above. This is the preferred
 # method for backlog-level telemetry — the orchestrator passes its state file and the script
 # does all the math, eliminating manual cost/duration computation errors.
@@ -110,25 +110,41 @@ _run_dispatches_computation() {
 import json, sys
 
 cfg_file = "$_CFG_FILE"
+pricing_cache = "$_PRICING_CACHE"
 
-# Read config rates
+# Read pricing: config override first, then cached pricing
+split_in, split_out = 0.75, 0.25
+pricing_rates = {}
+
+# Priority 1: Config override
 try:
     with open(cfg_file) as f:
         cfg = json.load(f)
-    pricing = cfg.get("pricing", {})
-    split_in = pricing.get("tokenSplit", {}).get("input", 0.75)
-    split_out = pricing.get("tokenSplit", {}).get("output", 0.25)
+    cfg_pricing = cfg.get("pricing", {})
+    for m in ["opus", "sonnet", "haiku"]:
+        mc = cfg_pricing.get(m, {})
+        if "inputPerM" in mc and "outputPerM" in mc:
+            pricing_rates[m] = (mc["inputPerM"], mc["outputPerM"])
 except Exception:
-    pricing = {}
-    split_in, split_out = 0.75, 0.25
+    pass
 
-defaults = {"opus": (15.0, 75.0), "sonnet": (3.0, 15.0), "haiku": (1.0, 5.0)}
+# Priority 2: Cached pricing from fetch-pricing.sh
+if not pricing_rates:
+    try:
+        with open(pricing_cache) as f:
+            cached = json.load(f)
+        for m in ["opus", "sonnet", "haiku"]:
+            mr = cached.get("rates", {}).get(m, {})
+            if "inputPerM" in mr and "outputPerM" in mr:
+                pricing_rates[m] = (mr["inputPerM"], mr["outputPerM"])
+    except Exception:
+        pass
 
 def blended_rate(model):
-    m = pricing.get(model, {})
-    inp = m.get("inputPerM", defaults.get(model, (0,0))[0])
-    out = m.get("outputPerM", defaults.get(model, (0,0))[1])
-    return inp * split_in + out * split_out
+    if model in pricing_rates:
+        inp, out = pricing_rates[model]
+        return inp * split_in + out * split_out
+    return 0
 
 def fmt_duration(ms):
     secs = ms // 1000
@@ -342,29 +358,43 @@ else
 fi
 
 # Estimate cost using blended rate per model ($/M tokens)
-# Reads pricing from .claude/agentic-sdlc-config.json via lib/config.sh.
-# Use --rate to override with live rates from the orchestrator state file.
+# Resolution order:
+#   1. Config pricing override (if pricing section exists in config)
+#   2. Cached pricing (.agentic-workflow/pricing.json from fetch-pricing.sh)
+#   3. Returns 0 (cost will show "—")
+#
+# Token split (75% input / 25% output) is a fixed constant based on
+# observed patterns across 12 test runs. Not user-configurable.
+_PRICING_CACHE="$_CFG_REPO_ROOT/.agentic-workflow/pricing.json"
+_TOKEN_SPLIT_INPUT=0.75
+_TOKEN_SPLIT_OUTPUT=0.25
+
 _cfg_blended_rate() {
   local model="$1"
+  local inp="" out=""
+
+  # Priority 1: Config pricing override
   if [ -f "$_CFG_FILE" ]; then
-    local inp out split_in split_out
     inp=$(jq -r ".pricing.${model}.inputPerM // empty" "$_CFG_FILE" 2>/dev/null) || inp=""
     out=$(jq -r ".pricing.${model}.outputPerM // empty" "$_CFG_FILE" 2>/dev/null) || out=""
-    split_in=$(jq -r '.pricing.tokenSplit.input // empty' "$_CFG_FILE" 2>/dev/null) || split_in=""
-    split_out=$(jq -r '.pricing.tokenSplit.output // empty' "$_CFG_FILE" 2>/dev/null) || split_out=""
-    if [ -n "$inp" ] && [ -n "$out" ]; then
-      # Compute blended rate in cents/M: (input * split_in + output * split_out) * 100
-      echo "$inp $out ${split_in:-0.75} ${split_out:-0.25}" | awk '{printf "%d", ($1 * $3 + $2 * $4) * 100}'
-      return
+  fi
+
+  # Priority 2: Cached pricing from fetch-pricing.sh
+  if [ -z "$inp" ] || [ -z "$out" ]; then
+    if [ -f "$_PRICING_CACHE" ]; then
+      inp=$(jq -r ".rates.${model}.inputPerM // empty" "$_PRICING_CACHE" 2>/dev/null) || inp=""
+      out=$(jq -r ".rates.${model}.outputPerM // empty" "$_PRICING_CACHE" 2>/dev/null) || out=""
     fi
   fi
-  # Fallback defaults
-  case "$model" in
-    opus)   echo "3000" ;;
-    sonnet) echo "600" ;;
-    haiku)  echo "200" ;;
-    *)      echo "0" ;;
-  esac
+
+  # Compute blended rate in cents/M
+  if [ -n "$inp" ] && [ -n "$out" ]; then
+    echo "$inp $out $_TOKEN_SPLIT_INPUT $_TOKEN_SPLIT_OUTPUT" | awk '{printf "%d", ($1 * $3 + $2 * $4) * 100}'
+    return
+  fi
+
+  # No pricing data available
+  echo "0"
 }
 COST_EST="—"
 if [ -n "$COST_OVERRIDE" ]; then

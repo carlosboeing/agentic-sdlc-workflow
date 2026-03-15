@@ -86,7 +86,7 @@ if [ "$PRUNED" -gt 0 ]; then
 fi
 
 # --- 6. Clean up state directories ---
-STATE_DIR=".claude/state"
+STATE_DIR=".agentic-workflow/runs"
 if [ -d "$STATE_DIR" ]; then
   if [ -n "$BACKLOG_NUMBER" ]; then
     # Clean specific run

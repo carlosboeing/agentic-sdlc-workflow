@@ -498,7 +498,7 @@ After the backlog PR is merged (by human via `gh pr merge --squash`):
    - Only `main` branch locally
    - No workflow branches on remote (`backlog/`, `epic/`, `e0N-*`, `docs/`)
    - No stale worktrees
-   - `.claude/state/` empty
+   - `.agentic-workflow/runs/` empty
 
 ### Phase 10: Dispatch Retro Agent
 
@@ -555,7 +555,7 @@ As the final phase, post a **full lifecycle telemetry summary** on the backlog i
 
 ```bash
 ./scripts/issue-telemetry.sh <backlog-number> \
-  --dispatches-from-state .claude/state/<backlog>/orchestrator.json \
+  --dispatches-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
   --model opus \
   --commit $(git rev-parse backlog/<N>-<slug>) \
   --wall-clock <wall_clock_ms> \
@@ -745,14 +745,14 @@ This defensive approach ensures we never silently lose token consumption from in
 
 ### Orchestrator State File
 
-The orchestrator persists its full workflow state to `.claude/state/<backlog>/orchestrator.json`. This file is gitignored (ephemeral workflow state, not project content) and is cleaned up after the backlog PR merges.
+The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json`. This file is gitignored (ephemeral workflow state, not project content) and is cleaned up after the backlog PR merges.
 
 **Why:** The orchestrator holds phase progress, story status, pricing, telemetry, and review results in memory. If the session is interrupted (usage limit, crash, window closed) and resumed later, all of this is lost. The state file ensures instant recovery without re-querying GitHub.
 
 **Directory structure:**
 
 ```
-.claude/state/
+.agentic-workflow/runs/
   <backlog>/                        ← per-backlog directory
     orchestrator.json               ← workflow state (orchestrator-owned)
 ```
@@ -830,7 +830,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 At the very start of the workflow, before any other work:
 
 ```bash
-mkdir -p .claude/state/<backlog>
+mkdir -p .agentic-workflow/runs/<backlog>
 
 # Fetch live pricing
 PRICING=$(./scripts/fetch-pricing.sh)
@@ -839,7 +839,7 @@ PRICING=$(./scripts/fetch-pricing.sh)
 # (The orchestrator knows its own model from the session context)
 
 # Write initial state
-cat > .claude/state/<backlog>/orchestrator.json << EOF
+cat > .agentic-workflow/runs/<backlog>/orchestrator.json << EOF
 {
   "version": 1,
   "session": {
@@ -866,7 +866,7 @@ EOF
 
 **Detecting the orchestrator model:** The orchestrator knows which model it's running from the session context. If uncertain, state this in the session field and note it as unknown — do not guess.
 
-**Pricing fetch:** Always run `./scripts/fetch-pricing.sh` at session start. The script reads rates from `.claude/agentic-sdlc-config.json` (the project source of truth) and falls back to hardcoded defaults if the config is missing. Log which source was used (`pricing.source`). If the source is `hardcoded-defaults`, warn the user that pricing may be stale.
+**Pricing fetch:** Always run `./scripts/fetch-pricing.sh` at session start. The script fetches live rates from Anthropic's pricing page (tier 1), falls back to the litellm community JSON (tier 2), then to the local cache from a previous successful fetch (tier 3). On success, it writes `.agentic-workflow/pricing.json`. If the config has a `pricing` section, skip fetching — the config is a user override.
 
 **2. Update (after every checkpoint event)**
 
@@ -883,7 +883,7 @@ Use `python3` or `jq` to update the JSON in place. Example:
 # Update a story's build telemetry after builder completes
 python3 -c "
 import json
-with open('.claude/state/<backlog>/orchestrator.json') as f:
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
     state = json.load(f)
 state['epics']['e01']['stories']['112']['build'] = {
     'duration_ms': 109000, 'tokens': 103000, 'tool_uses': 18
@@ -895,7 +895,7 @@ state['dispatches'].append({
     'duration_ms': 109000, 'tokens': 103000, 'tool_uses': 18,
     'result': 'success'
 })
-with open('.claude/state/<backlog>/orchestrator.json', 'w') as f:
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
     json.dump(state, f, indent=2)
 "
 ```
@@ -905,7 +905,7 @@ with open('.claude/state/<backlog>/orchestrator.json', 'w') as f:
 On session start, check for an existing state file:
 
 ```bash
-STATE_FILE=".claude/state/<backlog>/orchestrator.json"
+STATE_FILE=".agentic-workflow/runs/<backlog>/orchestrator.json"
 if [ -f "$STATE_FILE" ]; then
   # Resume: load state and skip to current phase
   CURRENT_PHASE=$(jq -r '.phases | to_entries[] | select(.value.status == "in_progress") | .key' "$STATE_FILE")
@@ -915,7 +915,7 @@ fi
 **Reading pricing for telemetry:** When calling `issue-telemetry.sh`, read the rate from state:
 
 ```bash
-RATE=$(jq -r '.pricing.rates.<model>.blended_cents_per_m' .claude/state/<backlog>/orchestrator.json)
+RATE=$(jq -r '.pricing.rates.<model>.blended_cents_per_m' .agentic-workflow/runs/<backlog>/orchestrator.json)
 ./scripts/issue-telemetry.sh <issue> --model <model> --rate "$RATE" --duration <ms> --commit <hash> ...
 ```
 
@@ -924,7 +924,7 @@ RATE=$(jq -r '.pricing.rates.<model>.blended_cents_per_m' .claude/state/<backlog
 After the backlog PR merges and all telemetry is posted:
 
 ```bash
-rm -rf .claude/state/<backlog>/
+rm -rf .agentic-workflow/runs/<backlog>/
 ```
 
 Only clean up after ALL work is complete (telemetry posted, issues closed, retro dispatched). The state directory is the last thing removed.

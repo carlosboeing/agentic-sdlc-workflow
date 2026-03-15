@@ -216,7 +216,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
 | `scripts/validate-logs.sh` | Report on board-status, orchestrator, and drift logs |
 | `scripts/setup-labels.sh` | Create all labels (idempotent) |
-| `scripts/fetch-pricing.sh` | Read token pricing from config (JSON to stdout) |
+| `scripts/fetch-pricing.sh` | Fetch live API pricing and cache locally (JSON to stdout) |
 | `scripts/dispatch-story.sh <n> --model <m> --agent <a>` | Dispatch CC CLI worker for a story |
 | `scripts/dispatch-workflow.sh <n> [--skip-design] [--skip-plan] [--autonomous]` | Full lifecycle orchestration |
 
@@ -383,13 +383,13 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 2. At the **end**, note the final count. The difference minus all subagent tokens is the orchestrator's overhead.
 3. Include as a separate "Orchestrator" row in the backlog telemetry, or note the session total with subagent total for easy subtraction.
 
-**Orchestrator state persistence:** The orchestrator persists its full workflow state to `.claude/state/<backlog>/orchestrator.json` (gitignored). The state file is structured as versioned JSON (schema v1) with sections for session metadata, pricing, phase progress, epic/story status, and an append-only dispatch log. Key fields:
+**Orchestrator state persistence:** The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json` (gitignored). The state file is structured as versioned JSON (schema v1) with sections for session metadata, pricing, phase progress, epic/story status, and an append-only dispatch log. Key fields:
 
 - **`session.orchestrator_model`** — the model the orchestrator is running, so inherited agents' models are known for accurate cost estimates.
-- **`pricing`** — token rates read from `.claude/agentic-sdlc-config.json` at session start via `scripts/fetch-pricing.sh`. Falls back to hardcoded defaults if config is missing. Used by `issue-telemetry.sh` via the `--rate` flag.
+- **`pricing`** — token rates fetched live from Anthropic's pricing page at session start via `scripts/fetch-pricing.sh`. Cached in `.agentic-workflow/pricing.json`. Config `pricing` section is an optional override for custom/contract rates. Used by `issue-telemetry.sh` via the `--rate` flag.
 - **`dispatches[]`** — append-only log of every agent dispatch with model, duration, tokens, tool uses, and result.
 
-The state file is updated after each agent dispatch and cleaned up after the backlog PR merges. On resume, the orchestrator reads this file for instant recovery without re-querying GitHub. If the file is missing (different machine, manual deletion), it falls back to querying GitHub for issue comments and branch state. The directory structure (`.claude/state/<backlog>/`) supports future per-agent state files as siblings (e.g., `builder-112.json`).
+The state file is updated after each agent dispatch and cleaned up after the backlog PR merges. On resume, the orchestrator reads this file for instant recovery without re-querying GitHub. If the file is missing (different machine, manual deletion), it falls back to querying GitHub for issue comments and branch state. The directory structure (`.agentic-workflow/runs/<backlog>/`) supports future per-agent state files as siblings (e.g., `builder-112.json`).
 
 See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full schema and lifecycle.
 

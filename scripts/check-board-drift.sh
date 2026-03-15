@@ -24,7 +24,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_OWNER="$CFG_REPO_OWNER"
 REPO_NAME="$CFG_REPO_NAME"
 
-LOG_DIR="$REPO_ROOT/.claude/logs"
+LOG_DIR="$REPO_ROOT/.agentic-workflow/logs"
 DRIFT_LOG="$LOG_DIR/board-drift.log"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 

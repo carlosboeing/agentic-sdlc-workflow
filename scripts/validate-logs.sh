@@ -14,9 +14,9 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-BOARD_LOG="$REPO_ROOT/.claude/logs/board-status.log"
-ORCH_LOG="$REPO_ROOT/.claude/logs/orchestrator.log"
-DRIFT_LOG="$REPO_ROOT/.claude/logs/board-drift.log"
+BOARD_LOG="$REPO_ROOT/.agentic-workflow/logs/board-status.log"
+ORCH_LOG="$REPO_ROOT/.agentic-workflow/logs/orchestrator.log"
+DRIFT_LOG="$REPO_ROOT/.agentic-workflow/logs/board-drift.log"
 
 count_matching() {
   local file="$1"

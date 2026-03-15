@@ -26,7 +26,7 @@ STATUS_FIELD_ID="$CFG_STATUS_FIELD_ID"
 REPO_OWNER="$CFG_REPO_OWNER"
 REPO_NAME="$CFG_REPO_NAME"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-LOG_DIR="$REPO_ROOT/.claude/logs"
+LOG_DIR="$REPO_ROOT/.agentic-workflow/logs"
 LOG_FILE="$LOG_DIR/board-status.log"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 

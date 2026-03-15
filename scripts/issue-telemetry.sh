@@ -32,8 +32,9 @@ set -euo pipefail
 # --gantt provides the body of a Mermaid gantt chart (everything after the gantt keyword).
 # The script wraps it in the code fence and init block automatically.
 
-REPO="carlosboeing/agentic-sdlc-workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/config.sh"
+REPO="$CFG_REPO"
 TEMPLATE_FILE="$SCRIPT_DIR/templates/telemetry.md"
 
 if [ $# -lt 1 ]; then
@@ -110,12 +111,30 @@ else
 fi
 
 # Estimate cost using blended rate per model ($/M tokens)
-# Assumes ~75% input, ~25% output token split
-# These defaults reflect pricing as of 2026-03. Use --rate to override with
-# live rates from the orchestrator state file (fetched via fetch-pricing.sh).
-# Opus 4.6: $5 in / $25 out → blended ~$10/M
-# Sonnet 4.6: $3 in / $15 out → blended ~$6/M
-# Haiku 4.5: $1 in / $5 out → blended ~$2/M
+# Reads pricing from .claude/agentic-sdlc-config.json via lib/config.sh.
+# Use --rate to override with live rates from the orchestrator state file.
+_cfg_blended_rate() {
+  local model="$1"
+  if [ -f "$_CFG_FILE" ]; then
+    local inp out split_in split_out
+    inp=$(jq -r ".pricing.${model}.inputPerM // empty" "$_CFG_FILE" 2>/dev/null) || inp=""
+    out=$(jq -r ".pricing.${model}.outputPerM // empty" "$_CFG_FILE" 2>/dev/null) || out=""
+    split_in=$(jq -r '.pricing.tokenSplit.input // empty' "$_CFG_FILE" 2>/dev/null) || split_in=""
+    split_out=$(jq -r '.pricing.tokenSplit.output // empty' "$_CFG_FILE" 2>/dev/null) || split_out=""
+    if [ -n "$inp" ] && [ -n "$out" ]; then
+      # Compute blended rate in cents/M: (input * split_in + output * split_out) * 100
+      echo "$inp $out ${split_in:-0.75} ${split_out:-0.25}" | awk '{printf "%d", ($1 * $3 + $2 * $4) * 100}'
+      return
+    fi
+  fi
+  # Fallback defaults
+  case "$model" in
+    opus)   echo "3000" ;;
+    sonnet) echo "600" ;;
+    haiku)  echo "200" ;;
+    *)      echo "0" ;;
+  esac
+}
 COST_EST="—"
 if [ -n "$COST_OVERRIDE" ]; then
   # Pre-computed cost passed by orchestrator (e.g., for mixed-model epics)
@@ -124,12 +143,7 @@ elif [ "$TOKENS" -gt 0 ]; then
   if [ -n "$RATE_OVERRIDE" ]; then
     RATE_CENTS="$RATE_OVERRIDE"
   else
-    case "$MODEL" in
-      opus)   RATE_CENTS=1000 ;;
-      sonnet) RATE_CENTS=600 ;;
-      haiku)  RATE_CENTS=200 ;;
-      *)      RATE_CENTS=0 ;;
-    esac
+    RATE_CENTS=$(_cfg_blended_rate "$MODEL")
   fi
   if [ "$RATE_CENTS" -gt 0 ]; then
     COST_CENTS=$(( (TOKENS * RATE_CENTS + 500000) / 1000000 ))

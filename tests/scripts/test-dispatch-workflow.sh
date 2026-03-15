@@ -170,9 +170,12 @@ extract_func() {
   sed -n "/^${name}()/,/^}/p" "$SCRIPT_UNDER_TEST"
 }
 
+# Source config lib so CFG_ROUTE_* variables are available
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/scripts/lib/config.sh"
+
 eval "$(extract_func difficulty_to_model)"
 
-assert_eq "DifficultyEasy_MapsToHaiku" "haiku" "$(difficulty_to_model "difficulty/easy")"
+assert_eq "DifficultyEasy_MapsToSonnet" "sonnet" "$(difficulty_to_model "difficulty/easy")"
 assert_eq "DifficultyMedium_MapsToSonnet" "sonnet" "$(difficulty_to_model "difficulty/medium")"
 assert_eq "DifficultyHard_MapsToOpus" "opus" "$(difficulty_to_model "difficulty/hard")"
 assert_eq "DifficultyUnknown_DefaultsToSonnet" "sonnet" "$(difficulty_to_model "difficulty/unknown")"
@@ -282,19 +285,19 @@ echo ""
 # --- Test 14: Board status management ---
 echo "Test Group: Board status management"
 
-if grep -q "47fc9ee4" "$SCRIPT_UNDER_TEST"; then
-  echo "  PASS: Uses In Progress status ID (47fc9ee4)"
+if grep -q 'lib/config\.sh' "$SCRIPT_UNDER_TEST"; then
+  echo "  PASS: Sources shared config library"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: Missing In Progress status ID"
+  echo "  FAIL: Missing shared config library source"
   FAIL=$((FAIL + 1))
 fi
 
-if grep -q "9bb97c15" "$SCRIPT_UNDER_TEST"; then
-  echo "  PASS: Uses In Review status ID (9bb97c15)"
+if grep -q 'CFG_REPO' "$SCRIPT_UNDER_TEST"; then
+  echo "  PASS: Uses config variables for repo"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: Missing In Review status ID"
+  echo "  FAIL: Missing config variable usage"
   FAIL=$((FAIL + 1))
 fi
 

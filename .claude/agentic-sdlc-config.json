@@ -1,0 +1,39 @@
+{
+  "$comment": "See docs/2-design/2026-03-15-configurable-workflow-settings.md for field documentation",
+  "github": {
+    "repo": "carlosboeing/agentic-sdlc-workflow",
+    "projectNumber": 7,
+    "owner": "carlosboeing",
+    "projectId": "PVT_kwHOADPMJc4BRg45",
+    "statusFieldId": "PVTSSF_lAHOADPMJc4BRg45zg_UfJc"
+  },
+
+  "boardStatus": {
+    "backlog": "17425ce6",
+    "planned": "cf183d2a",
+    "todo": "f75ad846",
+    "in-progress": "47fc9ee4",
+    "in-review": "9bb97c15",
+    "done": "98236657"
+  },
+
+  "modelRouting": {
+    "easy": "sonnet",
+    "medium": "sonnet",
+    "hard": "opus"
+  },
+
+  "workflow": {
+    "autoMergePlanPR": true,
+    "autoMergeDesignPR": true,
+    "skipRetro": false,
+    "maxParallelBuilders": 3
+  },
+
+  "pricing": {
+    "tokenSplit": { "input": 0.75, "output": 0.25 },
+    "opus":   { "inputPerM": 15.00, "outputPerM": 75.00 },
+    "sonnet": { "inputPerM": 3.00,  "outputPerM": 15.00 },
+    "haiku":  { "inputPerM": 1.00,  "outputPerM": 5.00 }
+  }
+}

@@ -19,13 +19,12 @@ set -euo pipefail
 #   0 — status updated successfully (or already at desired status, or verify mismatch)
 #   1 — failed (issue not found on board, invalid status, or API error)
 
-PROJECT_ID="PVT_kwHOADPMJc4BRg45"
-STATUS_FIELD_ID="PVTSSF_lAHOADPMJc4BRg45zg_UfJc"
-REPO_OWNER="carlosboeing"
-REPO_NAME="agentic-sdlc-workflow"
-
-# --- Logging ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/config.sh"
+PROJECT_ID="$CFG_PROJECT_ID"
+STATUS_FIELD_ID="$CFG_STATUS_FIELD_ID"
+REPO_OWNER="$CFG_REPO_OWNER"
+REPO_NAME="$CFG_REPO_NAME"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$REPO_ROOT/.claude/logs"
 LOG_FILE="$LOG_DIR/board-status.log"
@@ -47,12 +46,12 @@ STATUS="$2"
 
 # Map status name to option ID and display name (as shown on the board)
 case "$STATUS" in
-  backlog)     OPTION_ID="17425ce6"; STATUS_DISPLAY="Backlog" ;;
-  planned)     OPTION_ID="cf183d2a"; STATUS_DISPLAY="Planned" ;;
-  todo)        OPTION_ID="f75ad846"; STATUS_DISPLAY="Todo" ;;
-  in-progress) OPTION_ID="47fc9ee4"; STATUS_DISPLAY="In Progress" ;;
-  in-review)   OPTION_ID="9bb97c15"; STATUS_DISPLAY="In Review" ;;
-  done)        OPTION_ID="98236657"; STATUS_DISPLAY="Done" ;;
+  backlog)     OPTION_ID="$CFG_STATUS_BACKLOG";      STATUS_DISPLAY="Backlog" ;;
+  planned)     OPTION_ID="$CFG_STATUS_PLANNED";      STATUS_DISPLAY="Planned" ;;
+  todo)        OPTION_ID="$CFG_STATUS_TODO";          STATUS_DISPLAY="Todo" ;;
+  in-progress) OPTION_ID="$CFG_STATUS_IN_PROGRESS";  STATUS_DISPLAY="In Progress" ;;
+  in-review)   OPTION_ID="$CFG_STATUS_IN_REVIEW";    STATUS_DISPLAY="In Review" ;;
+  done)        OPTION_ID="$CFG_STATUS_DONE";          STATUS_DISPLAY="Done" ;;
   *)
     echo "ERROR: Unknown status '$STATUS'. Expected: backlog, planned, todo, in-progress, in-review, done" >&2
     exit 1

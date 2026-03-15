@@ -17,10 +17,11 @@ set -euo pipefail
 #   ./scripts/issue-create-backlog.sh --title "My Feature" --slug "my-feature" --body-file /tmp/body.md
 #   ./scripts/issue-create-backlog.sh --title "Quick Fix" --slug "quick-fix" --body "One-liner description"
 
-REPO="carlosboeing/agentic-sdlc-workflow"
-PROJECT_NUMBER=7
-PROJECT_OWNER="carlosboeing"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/config.sh"
+REPO="$CFG_REPO"
+PROJECT_NUMBER="$CFG_PROJECT_NUMBER"
+PROJECT_OWNER="$CFG_PROJECT_OWNER"
 
 # --- Argument parsing ---
 TITLE=""

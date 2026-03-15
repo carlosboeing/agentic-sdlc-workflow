@@ -418,7 +418,15 @@ When all epics are merged into the integration branch:
 
    For mixed-model epics, pass `--cost` with the sum of per-story costs (from the breakdown). For single-model epics, omit `--cost` and pass `--model <model>` — the script computes cost from the rate.
 
-   **Tracking wall-clock time:** Wall-clock = sum of: `max(durations within each parallel wave) + all sequential steps between waves`. Record `$SECONDS` before dispatching Wave 1 and after the last wave completes.
+   **Tracking wall-clock time:** Wall-clock = critical path through parallel waves = `sum of max(durations) within each parallel group + all sequential segments`. **Do NOT use `$SECONDS`** as the primary source — it is unreliable across long sessions and subshells. Instead, compute the critical path from the state file's dispatch log after all dispatches complete:
+
+   ```python
+   # Group dispatches by started_at to identify parallel groups
+   # For each group: take max(duration_ms)
+   # Sum all groups = critical path (wall-clock)
+   ```
+
+   **Validation:** If the computed wall-clock equals the sequential duration sum, something is wrong — parallel dispatches should always produce a shorter critical path. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when the actual critical path was 74m 4s.
 
 3. **Open ONE backlog PR:**
    ```bash

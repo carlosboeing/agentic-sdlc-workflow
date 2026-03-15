@@ -135,7 +135,7 @@ Status field values and their meanings:
 | **Backlog**     | Unplanned work items                              | Default for new backlog items                      |
 | **Planned**     | Plan exists but not yet approved (PR not merged)  | Planner (on issue creation)                      |
 | **Todo**        | Plan approved, ready for builder dispatch         | Human (on plan PR merge) / Orchestrator (autonomous mode) |
-| **In Progress** | Currently being worked on                         | Orchestrator (sequentially, before dispatch)       |
+| **In Progress** | Currently being worked on                         | Orchestrator (at design phase start for backlog; before dispatch for stories) |
 | **In Review**   | Implementation complete, awaiting backlog PR merge | Orchestrator (sequentially, after builder completes) |
 | **Done**        | Completed and merged to `main`                    | On issue close (`issue-close.sh`)                  |
 

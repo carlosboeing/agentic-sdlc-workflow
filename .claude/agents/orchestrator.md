@@ -458,7 +458,20 @@ When all epics are merged into the integration branch:
    ./scripts/issue-set-status.sh <backlog-issue> in-review
    ```
 
-7. **DO NOT merge the backlog PR.** Post a summary comment on the PR with the review status and leave it open for human review. The orchestrator NEVER auto-merges the backlog PR.
+7. **Verify all board statuses** (defense against board drift — a known GitHub Projects API bug where statuses silently revert after successful mutations, observed in Runs 3, 10, 11, 12):
+   ```bash
+   # Re-verify and fix all issue statuses
+   for ISSUE in <closed-issues: design, plan, retro>; do
+     ./scripts/issue-close.sh $ISSUE
+   done
+   for ISSUE in <story-issues> <epic-issues>; do
+     ./scripts/issue-set-status.sh $ISSUE in-review
+   done
+   ./scripts/issue-set-status.sh <backlog-issue> in-review
+   ```
+   This step is mandatory — do not skip even if all prior `issue-set-status.sh` calls reported success.
+
+8. **DO NOT merge the backlog PR.** Post a summary comment on the PR with the review status and leave it open for human review. The orchestrator NEVER auto-merges the backlog PR.
 
 ### Phase 9: Post-Merge Cleanup
 

@@ -11,7 +11,7 @@ Last updated: 2026-03-15 (compiled from Runs 2–12)
 ### E. Format templates for cross-story parallel content
 
 - **Source:** Run 5 (rec 3)
-- **Recurrence:** 1 run (Run 5 E01 format inconsistency)
+- **Recurrence:** 2 runs (Run 5 E01 format inconsistency, Run 12 E01 dash/date inconsistency)
 - **Priority:** Low
 - **Description:** When multiple stories produce content with shared structural elements (e.g., metrics sections, rating tables), the planner should specify the exact rendering format (e.g., "use markdown tables for metrics") to prevent cosmetic divergence between parallel builders. Run 5's E01 epic had three different formats for the same structural element because different models chose different representations.
 - **Effort:** Low (planner guideline)
@@ -90,7 +90,7 @@ Last updated: 2026-03-15 (compiled from Runs 2–12)
 | i   | Haiku uses 3–4x more tokens than Sonnet for comparable tasks                   | Runs 3, 6, 7, 8, 9, 10, 11 | Consistent across 7 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted. |
 | ii  | Content-only stories with detailed acceptance criteria achieve zero fix cycles | Runs 5, 6, 9, 10, 11, 12   | 22 consecutive first-pass approvals (Runs 9–12). Builder-reviewer loop is stable for markdown and script tasks. |
 | iii | CHANGELOG conflicts with per-epic PRs                                          | Run 5                       | Moot — switched to single-PR model in Run 6.                                                                    |
-| iv  | Board status persistence bug (mutations succeed, statuses revert later)        | Runs 3, 10                  | Run 11 created diagnostic script `check-board-drift.sh`; not yet exercised in a live run.                       |
+| iv  | Board status persistence bug (mutations succeed, statuses revert later)        | Runs 3, 10, 12              | Run 11 created `check-board-drift.sh`; Run 12 confirmed drift (all stories + closed issues reverted to In Progress). Orchestrator now has mandatory post-run verification step.  |
 | v   | `orchestrator.md` approaching 1000 lines — largest agent file by 5x            | Run 11                      | State schema (~200 lines) and board management examples could move to a reference doc. Monitor for readability. |
 | vi  | Reviewer doesn't reference the recommendations tracker for known patterns       | Run 11                      | Reviewer greps raw lesson files; the compiled tracker would be more efficient. Low priority — current approach works. |
 

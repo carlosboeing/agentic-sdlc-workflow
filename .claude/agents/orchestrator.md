@@ -115,21 +115,27 @@ Execute these phases in order. Each phase has a verification step before proceed
    gh issue edit <N> --add-label "backlog/<N>-<slug>"
    ```
 
-5. **Check the recommendations tracker** (`docs/4-reviews/retro-recommendations.md`) for outstanding items that may affect this run. Apply any low-effort fixes proactively.
+5. **Prefix the backlog issue title** with `[#<N>]` if not already present (the issue is created before the orchestrator runs, so the number is known):
+   ```bash
+   TITLE=$(gh issue view <N> --json title -q '.title')
+   echo "$TITLE" | grep -q '^\[#' || gh issue edit <N> --title "[#<N>] $TITLE"
+   ```
 
-6. Check for existing artifacts (use YAML frontmatter matching, not raw content grep — short numbers like "27" match incidental text in unrelated files; see Run 10 lesson `e00-setup/2026-03-13-s00-design-artifact-matching.md`):
+6. **Check the recommendations tracker** (`docs/4-reviews/retro-recommendations.md`) for outstanding items that may affect this run. Apply any low-effort fixes proactively.
+
+7. Check for existing artifacts (use YAML frontmatter matching, not raw content grep — short numbers like "27" match incidental text in unrelated files; see Run 10 lesson `e00-setup/2026-03-13-s00-design-artifact-matching.md`):
    - **Design doc:** `grep -rl "^backlog: <backlog-number>$" docs/2-design/`
    - **Plan:** `grep -rl "^backlog: <backlog-number>$" docs/3-plans/` and check if epic issues exist:
      ```bash
      gh issue list --label "backlog/<number>-<slug>" --label "hierarchy/epic" --json number,title,labels
      ```
 
-7. Parse the prompt for skip directives:
+8. Parse the prompt for skip directives:
    - "skip design" → skip Phase 1
    - "skip plan" → skip Phase 2
    - "skip design and plan" → skip both
 
-8. Determine execution mode:
+9. Determine execution mode:
    - If artifacts exist for a phase → skip that phase automatically
    - If the prompt says to skip a phase → skip it
    - Otherwise → run the phase (autonomous or interactive based on prompt/context)

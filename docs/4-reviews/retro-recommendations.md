@@ -2,7 +2,7 @@
 
 Consolidated tracker for all recommendations from workflow retrospectives. Updated manually after each retro — the retro agent should append new recommendations here, and the orchestrator should check this document before each run.
 
-Last updated: 2026-03-15 (compiled from Runs 2–13)
+Last updated: 2026-03-15 (compiled from Runs 2–14)
 
 ---
 
@@ -19,18 +19,18 @@ Last updated: 2026-03-15 (compiled from Runs 2–13)
 ### F. Document orchestrator override pattern for pre-fixed reviewer findings
 
 - **Source:** Run 9 (rec 2)
-- **Recurrence:** 1 run (single occurrence)
+- **Recurrence:** 2 runs (Run 9 cross-contamination cherry-pick, Run 14 E01-S04 cross-contamination removal)
 - **Priority:** Low
-- **Description:** When the orchestrator has already fixed an issue before reviewer dispatch (e.g., cherry-picking to fix cross-contamination), and the reviewer flags the pre-fix state, the orchestrator may override the verdict with documented evidence. This pattern worked in Run 9 but is not a recognized convention. Needs more data before formalizing.
+- **Description:** When the orchestrator has already fixed an issue before reviewer dispatch (e.g., cherry-picking to fix cross-contamination), and the reviewer flags the pre-fix state, the orchestrator may override the verdict with documented evidence. This pattern was used in Run 9 and Run 14 (E01-S04 review3 had 0 tokens/0 duration with note "Content approved in review 2. Cross-contamination fixed by orchestrator." after commit `d537441`).
 - **Effort:** Low (orchestrator.md documentation)
-- **Status:** Waiting for more data — single occurrence is insufficient for a convention.
+- **Status:** 2 occurrences across 2 runs. Pattern is consistent -- consider formalizing.
 
 ### G. Track autonomous lifecycle duration baseline
 
 - **Source:** Run 9 (rec 4)
 - **Recurrence:** 1 run (observation)
 - **Priority:** Low
-- **Description:** Establishing a baseline for autonomous run duration enables performance regression detection. Current data: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead), Run 11 ~41m, Run 12 ~23m. No formal tracking mechanism exists.
+- **Description:** Establishing a baseline for autonomous run duration enables performance regression detection. Current data: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead), Run 11 ~41m, Run 12 ~23m, Run 13 ~25m, Run 14 ~77m (12 stories, 3 fix cycles). No formal tracking mechanism exists.
 - **Effort:** Low (add a duration row to the changelog or a tracking table in this document)
 
 ### H. Capture orchestrator overhead metrics
@@ -48,6 +48,32 @@ Last updated: 2026-03-15 (compiled from Runs 2–13)
 - **Priority:** Low
 - **Description:** `issue-telemetry.sh` is 602 lines — 3x the 200-line guideline. The `--dispatches` and `--dispatches-from-state` features added ~230 lines of Python embedded in bash heredocs. Consider extracting the dispatch computation into a separate helper script (e.g., `scripts/lib/compute-dispatches.py`) that `issue-telemetry.sh` calls. This would improve readability and make the Python logic independently testable.
 - **Effort:** Medium (refactor + update all callers)
+
+### J. Extend post-worktree cleanup to fix cycle dispatches
+
+- **Source:** Run 14 (rec 1)
+- **Recurrence:** 1 run (single occurrence, but high severity)
+- **Priority:** Medium
+- **Description:** The "Post-worktree cleanup (REQUIRED)" convention in CLAUDE.md specifies cleanup after the initial parallel wave, but does not cover fix cycle dispatches. In Run 14, E01-S04's fix cycle 2 (dispatch 19) picked up `violation-quantum-bistro.md` from E02-S01's stale worktree artifacts (commit `9aa16c7`, fixed in `d537441`). The convention should be extended: "Post-worktree cleanup is required before every worktree-dispatched builder, including fix cycle dispatches."
+- **Effort:** Low (CLAUDE.md + orchestrator.md text update)
+- **Evidence:** Run 14 lesson `e01-inspection-reports/2026-03-15-s04-fix-cycle-worktree-contamination.md`
+
+### K. Document builder AC-priority behavior as convention
+
+- **Source:** Run 14 (rec 2)
+- **Recurrence:** 1 run (but 2 independent observations within the same run)
+- **Priority:** Low
+- **Description:** Builders consistently follow acceptance criteria over story descriptions when the two contradict. In Run 14, 2/4 planted bugs were neutralized because builders satisfied the AC (E01-S01 wrote 6 violations when AC said "at least 5" despite description saying "exactly 3"; E02-S04 used MFSA-INS-2026-004 from AC despite description saying -003). This is correct behavior but is not documented as a convention.
+- **Effort:** Low (builder.md text update)
+- **Status:** Observed in 1 run (2 independent occurrences). Formalizing as a convention is low risk since it codifies existing behavior.
+
+### L. Track fix cycle overhead as a per-run metric
+
+- **Source:** Run 14 (rec 5)
+- **Recurrence:** 1 run (first run with fix cycles in v2)
+- **Priority:** Low
+- **Description:** Fix cycles in Run 14 added $1.53 (13.5% of total run cost) and 11m 29s of agent time across 3 fix cycles (E01-S04 x2, E02-S01 x1). As the workflow matures, tracking fix cycle rate and overhead per run would surface whether builder/reviewer instructions need tuning. Baseline: Run 14 = 3 fix cycles / 12 stories = 25% fix rate (inflated by deliberate bug planting).
+- **Effort:** Low (add a row to telemetry summary or this tracker)
 
 ---
 
@@ -96,11 +122,13 @@ Last updated: 2026-03-15 (compiled from Runs 2–13)
 | #   | Observation                                                                    | Source                 | Notes                                                                                                           |
 | --- | ------------------------------------------------------------------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
 | i   | Haiku uses 3–4x more tokens than Sonnet for comparable tasks                   | Runs 3, 6, 7, 8, 9, 10, 11 | Consistent across 7 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted. |
-| ii  | Content-only stories with detailed acceptance criteria achieve zero fix cycles | Runs 5, 6, 9, 10, 11, 12, 13 | 28 consecutive first-pass approvals (Runs 9–13). Builder-reviewer loop is stable for markdown and script tasks. |
+| ii  | Content-only stories with detailed acceptance criteria achieve zero fix cycles | Runs 5, 6, 9, 10, 11, 12, 13, 14 | Streak of 28 first-pass approvals (Runs 9-13) broken in Run 14 by deliberate bug planting. 10/12 Run 14 stories passed first attempt; 2 triggered fix cycles due to planted bugs (word count overflow, format contradiction). Organic (non-planted) fix cycle rate remains 0%. |
 | iii | CHANGELOG conflicts with per-epic PRs                                          | Run 5                       | Moot — switched to single-PR model in Run 6.                                                                    |
 | iv  | Board status persistence bug (mutations succeed, statuses revert later)        | Runs 3, 10, 12              | Run 11 created `check-board-drift.sh`; Run 12 confirmed drift (all stories + closed issues reverted to In Progress). Orchestrator now has mandatory post-run verification step.  |
 | v   | `orchestrator.md` approaching 1000 lines — largest agent file by 5x            | Run 11                      | State schema (~200 lines) and board management examples could move to a reference doc. Monitor for readability. |
 | vi  | Reviewer doesn't reference the recommendations tracker for known patterns       | Run 11                      | Reviewer greps raw lesson files; the compiled tracker would be more efficient. Low priority — current approach works. |
-| vii | Average tokens per build story trending downward for content-only tasks         | Run 13                      | Run 13 averaged 43K tokens/build, lowest observed. May reflect content simplicity or model efficiency gains. Track across future runs to establish baseline. |
+| vii | Average tokens per build story trending downward for content-only tasks         | Runs 13, 14                 | Run 13 averaged 43K tokens/build. Run 14 averaged 43K tokens/build (excluding fix cycles) or 54K (including fix cycles). Baseline holds for non-fix-cycle stories. |
+| viii | Fix cycles more than double the cost of affected stories                        | Run 14                      | E01-S04: +181% overhead (2 fix cycles). E02-S01: +66% overhead (1 fix cycle). Total fix overhead: $1.53 / $11.34 = 13.5% of run cost. First data point -- track across future runs with organic (non-planted) fix cycles. |
+| ix  | Builders prioritize acceptance criteria over story descriptions when they conflict | Run 14                    | 2/4 planted bugs neutralized because builders followed AC. E01-S01: AC said "at least 5 violations", builder wrote 6 (description said "exactly 3"). E02-S04: AC said MFSA-INS-2026-004, builder used it (description said -003). Robust behavioral pattern. |
 
 

@@ -2,6 +2,20 @@
 
 ## 2026-03-15
 
+### Test SDLC v2 Workflow (Run 13) — Alien Tourist Bureau
+
+- **Primary result:** Validated runtime data consolidation (.agentic-workflow/), live pricing (fetch-pricing.sh), and dispatches-from-state telemetry computation
+- Content theme: "Alien Tourist Bureau" — official travel advisories and visitor guides from the Galactic Federation Bureau of Terran Tourism (GFBTT)
+- 1 epic, 6 stories: Coffee Advisory, Traffic Advisory, Customs Form, Small Talk Guide, Dining Guide, Survival Handbook
+- Dispatch: Wave 1 (3-way parallel easy), Wave 2 (2-way parallel medium), Wave 3 (sequential hard with cross-references to all prior docs)
+- All three difficulty levels tested: easy x3 sonnet, medium x2 sonnet, hard x1 opus
+- Zero fix cycles — all 6 stories passed review on first attempt (6 APPROVE verdicts)
+- Live pricing fetched successfully from anthropic.com/pricing (Opus $5/$25, Sonnet $3/$15, Haiku $1/$5)
+- ~464K tokens across 12 build+review dispatches for epic E01
+
+
+## 2026-03-15
+
 ### Test SDLC v2 Workflow (Run 12) — Time Traveler's Yelp Reviews
 
 - **Primary result:** Validated configurable workflow settings from PR #55 — scripts reading from `.claude/agentic-sdlc-config.json`, model routing, pricing, and YAML frontmatter plan detection

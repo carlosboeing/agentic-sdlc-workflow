@@ -2,7 +2,7 @@
 date: 2026-03-15
 author: retro
 backlog-issue: 83
-backlog-pr: null
+backlog-pr: 104
 scope: "Run 14 — Interdimensional Restaurant Health Inspections: fix cycle validation, 12 stories, 2 epics, 5 waves"
 ---
 
@@ -162,7 +162,11 @@ The reviewer for E01-S01 (dispatch 6) detected the contradiction between "exactl
 
 ## Workflow Evolution During Epic
 
-No convention changes were made to CLAUDE.md or agent files during this run. The `git diff main..backlog/83-interdimensional-health-inspections -- CLAUDE.md .claude/agents/` is empty.
+Two convention changes were made to CLAUDE.md and `.claude/agents/orchestrator.md` during this run, both addressing the worktree cross-contamination incident discovered in fix cycle 2 for E01-S04.
+
+1. **CLAUDE.md — Post-worktree cleanup extended to fix cycles:** The "Post-worktree cleanup (REQUIRED)" section was updated to clarify that `git clean -fd` must also run before dispatching fix cycle builders in worktree mode, not only after the initial parallel wave. This closes the gap revealed by commit `d537441` (orchestrator manual removal of `violation-quantum-bistro.md`).
+
+2. **`orchestrator.md` — Fix cycle dispatch checklist:** The fix cycle dispatch instructions were updated to include a pre-dispatch cleanup step, mirroring the post-wave cleanup protocol.
 
 The backlog issue mentioned 8 "quick wins" (A-H) from the workflow analysis that the orchestrator should implement before dispatching builders. The orchestrator state and commit history do not show these quick wins being implemented during this run. They may have been deferred or implemented separately.
 
@@ -204,7 +208,12 @@ The backlog issue mentioned 8 "quick wins" (A-H) from the workflow analysis that
 
 ## Lesson Retention
 
-No individual lesson files were written during this run (no `e01-inspection-reports/` or `e02-regulatory-admin/` lesson files exist). All learnings are captured in this retro doc. The retro doc is the primary reference for Run 14's learnings going forward.
+Two individual lesson files were written in the `e01-inspection-reports/` directory during this run:
+
+- `2026-03-15-s04-fix-cycle-worktree-contamination.md` — documents the worktree cross-contamination incident in E01-S04 fix cycle 2, where `violation-quantum-bistro.md` from E02-S01 leaked onto the `e01-s04/probability-cafe` branch.
+- `2026-03-15-s04-fix-regression-header-trimming.md` — documents the header-field trimming regression in E01-S04 fix cycle 1, where the builder removed `Document Type` and shortened `Inspector/Author` and `Date of Inspection/Issue` header labels to reduce word count.
+
+No lesson files were written in the `e02-regulatory-admin/` directory. All learnings are also captured in this retro doc, which is the primary reference for Run 14's learnings going forward.
 
 **Lessons absorbed into recommendations:**
 - Worktree cross-contamination in fix cycles -> Recommendation 1 (proposed convention change)

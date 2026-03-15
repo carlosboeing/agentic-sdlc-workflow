@@ -591,6 +591,7 @@ This project validates the workflow pipeline using **test runs** — autonomous 
 | 11 | #41 | Board Drift Detection + Fairy Tale HR | Board drift detection |
 | 12 | #56 | Time Traveler's Yelp Reviews | Configurable workflow settings (config.json, model routing, pricing) |
 | 13 | #69 | Alien Tourist Bureau | Runtime data consolidation, live pricing, dispatches-from-state |
+| 14 | #83 | Interdimensional Health Inspections | Fix cycle validation, cross-epic merge |
 
 Runs 1-7 were executed in the original NeuralNorris repo (gavinkilbride/NeuralNorris, issues #57-#217).
 

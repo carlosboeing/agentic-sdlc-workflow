@@ -2,84 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Build & Run
+## Project Overview
 
-```bash
-dotnet build NeuralNorris.slnx                    # Build all projects
-dotnet test NeuralNorris.slnx                      # Run all tests
-dotnet test tests/NN.Agent.Tests                   # Run a single test project
-dotnet test --filter "FullyQualifiedName~ToolRegistryTests"  # Run a single test class
-cd src/NN.Gateway && dotnet run                    # Run locally → http://localhost:5050
-```
-
-EF Core migrations (from repo root):
-```bash
-dotnet ef migrations add <Name> --project src/NN.Persistence --startup-project src/NN.Gateway
-```
-
-Docker deployment:
-```bash
-docker compose up -d          # ARM64 (Raspberry Pi) or x64
-```
-
-## Architecture
-
-**NeuralNorris** is a self-hosted home AI assistant powered by Claude. It runs on a Raspberry Pi, persists memory across conversations, invokes tools, orchestrates multi-step tasks, and schedules background work.
-
-**Stack:** C# / .NET 10 · Blazor Server · Anthropic SDK · Semantic Kernel (plugin registry only) · EF Core + SQLite · Docker
-
-### Project Dependency Graph
-
-```
-NN.Gateway (ASP.NET host + Blazor UI)
-  ├── NN.Agent (agentic loop, orchestration, scheduling)
-  │     └── NN.Core (domain models, abstractions, config)
-  ├── NN.Persistence (EF Core + SQLite, migrations)
-  │     └── NN.Core
-  ├── NN.Memory (per-member long-term memory store)
-  │     └── NN.Core
-  ├── NN.Tools (web search, web fetch, memory, system status)
-  │     └── NN.Core
-  ├── NN.Tools.Finance (PocketSmith integration)
-  ├── NN.Tools.Twilio (SMS)
-  └── NN.Tools.DevOps (self-modification: code read/write, git, Docker canary/promote)
-```
-
-### Key Architectural Patterns
-
-**Agentic loop** (`AgentSession`): Drives multi-turn Claude conversations with streaming, tool invocation, iteration caps, and persistence. Uses `Anthropic.SDK` directly (not SK's model connector) for reliable streaming tool use. Semantic Kernel is only used as a plugin/function registry.
-
-**Orchestration pipeline** (Plan-Execute Hybrid): Complex queries are decomposed into a DAG of parallel sub-agent tasks:
-`ComplexityRouter` (Haiku classification) → `Planner` (DAG generation) → `Executor` (parallel via `Task.WhenAll` + `SemaphoreSlim`) → `Synthesiser` (streamed response).
-
-**Tool system**: Tools implement both `ITool` (metadata) and `IKernelTool` (marker for SK registration). Registered via DI as `ITool`, then `ToolRegistry.BuildPlugins()` filters by allowlist and registers as SK plugins. Tool names are snake_case.
-
-**Context management**: `SessionContext` loads turn history with pruning at token thresholds. `ContextCompactor` summarises older turns using Haiku when compaction triggers. All thresholds are configurable in `NNConfig.Tokens`.
-
-**Auth**: Pluggable via `IAuthProvider` — PIN auth (default, zero-config) or ASP.NET Identity with optional TOTP 2FA. Provider selected by `NN:Auth:Provider` config.
-
-**Configuration**: All config lives under the `NN` section key, bound to `NNConfig` (see `src/NN.Core/Configuration/NNConfig.cs`). API keys can come from `appsettings.Development.json` (gitignored) or env vars (`ANTHROPIC_API_KEY`, `TAVILY_API_KEY`, etc.).
-
-**Personality**: `SOUL.md` is a template with `{{agentName}}` and `{{personality}}` placeholders, loaded at runtime by `SoulService`. Hot-swappable without rebuild.
-
-**Self-modification (DevOps tools)**: Norris can read/write code, run shell commands (allowlisted), manage git worktrees, and deploy via Docker canary/promote. The `nn-promoter` sidecar watches for signal files — Norris never has direct Docker socket access.
-
-**Sentinel**: GitHub Actions workflow (`sentinel.yml`) runs an AI-powered security review on all PRs to `main` before merge.
-
-### Persistence
-
-`NNDbContext` extends `IdentityDbContext`. All `DateTimeOffset` properties are stored as Unix milliseconds (SQLite compatibility). Auto-migrates on startup via `app.Services.MigrateAsync()`.
-
-## Testing Conventions
-
-- **Framework**: xUnit + NSubstitute for mocking
-- **Pattern**: Arrange/Act/Assert with descriptive method names (`BuildPlugins_NullAllowlist_ReturnsDefaultEnabledOnly`)
-- Tests use in-memory SQLite (`Microsoft.Data.Sqlite`) for database tests
-- A pre-commit hook runs `dotnet test` before every commit (configured in `.claude/settings.json`)
-
-## CI
-
-GitHub Actions (`.github/workflows/ci.yml`): restore → build → test on push/PR to main. .NET 10.
+This repository contains an **agentic SDLC workflow** — a set of specialized AI agents, scripts, and conventions that orchestrate the full software development lifecycle: design → plan → build → review → retro. The workflow is domain-agnostic and is being developed toward packaging as a Claude Code plugin.
 
 ## Project Documentation
 
@@ -90,6 +15,10 @@ GitHub Actions (`.github/workflows/ci.yml`): restore → build → test on push/
 - `docs/3-plans/` — implementation plans
 - `docs/4-reviews/` — code reviews and retros
 - `docs/6-adrs/` — architecture decision records
+
+## Configuration
+
+Workflow configuration lives in `.claude/agentic-sdlc-config.json`. See `docs/2-design/2026-03-15-configurable-workflow-settings.md` for field documentation. All scripts read from this config file via the shared `scripts/lib/config.sh` library.
 
 ## Development Workflow
 
@@ -568,7 +497,7 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
 
 ### Known Claude Code Platform Limitations (tested 2026-03-08)
 
-These are limitations of Claude Code itself (not NeuralNorris) that affect how agents are dispatched:
+These are limitations of Claude Code itself that affect how agents are dispatched:
 
 - **Agent tool `model` parameter:** Not in the Agent tool schema (`additionalProperties: false`). You cannot pass a model override when dispatching a subagent — hence the need for builder variant files.
 - **Dynamic agent files at runtime:** Agent `.md` files created mid-session are NOT discovered. Agents are loaded at session start only. All agent files must exist before the session begins.
@@ -592,7 +521,7 @@ grep -rn "<changed-concept>" --include="*.sh" scripts/
 grep -rn "issue-telemetry" --include="*.md" .       # Changed a script flag
 grep -rn "308bbc1e" --include="*.md" .               # Changed a board status ID
 grep -rn "backlog/" --include="*.md" .claude/agents/  # Changed branch convention
-grep -rn "ITool" --include="*.md" .                   # Changed a C# interface
+grep -rn "modelRouting" --include="*.md" .              # Changed a config field
 ```
 
 **Workflow-specific files to check:**
@@ -621,13 +550,10 @@ Changes to the SDLC workflow (scripts, board management, dispatch, telemetry, ag
 
 When project conventions change, update the corresponding agent `.md` files in `.claude/agents/`. Changes that require agent updates include:
 
-- Testing framework or mocking library changes (e.g., NSubstitute → Moq)
-- Test naming convention changes
-- Build or test command changes
-- New project additions to the dependency graph
-- Configuration structure changes (NNConfig sections)
 - Branch strategy or naming convention changes
-- Tool system contract changes (ITool, IKernelTool)
+- Script flag or signature changes
+- Configuration changes (`.claude/agentic-sdlc-config.json` schema)
+- Board management or status transition changes
 - Documentation structure changes
 
 When making such changes, search agent files for affected references:
@@ -635,7 +561,7 @@ When making such changes, search agent files for affected references:
 grep -r "<old-pattern>" .claude/agents/
 ```
 
-**Agent tool list auditing:** When an agent's instructions reference CLI commands (`gh`, `git`, `dotnet`, shell commands), verify that its YAML frontmatter `tools` field includes `Bash`. An agent without `Bash` in its tool list cannot execute any shell commands, even if its instructions describe them in detail. Audit tool lists when adding new CLI-dependent instructions to any agent file.
+**Agent tool list auditing:** When an agent's instructions reference CLI commands (`gh`, `git`, shell commands), verify that its YAML frontmatter `tools` field includes `Bash`. An agent without `Bash` in its tool list cannot execute any shell commands, even if its instructions describe them in detail. Audit tool lists when adding new CLI-dependent instructions to any agent file.
 
 **Builder variant sync (CRITICAL):** `builder.md` has three model-routed variants (`builder-haiku.md`, `builder-sonnet.md`, `builder-opus.md`). These files share identical body content — only the `name` and `model` fields in the YAML front matter differ. **Any change to `builder.md` body content must be propagated to all three variants.** Use this to sync:
 
@@ -644,3 +570,30 @@ for variant in haiku sonnet opus; do
   sed "s/^name: builder$/name: builder-$variant/;s/^model: inherit$/model: $variant/" .claude/agents/builder.md > .claude/agents/builder-$variant.md
 done
 ```
+
+## Testing the Workflow
+
+This project validates the workflow pipeline using **test runs** — autonomous end-to-end executions with content-creation workloads. Test runs exercise the full lifecycle (design → plan → build → review → retro) without requiring a real software application.
+
+### Test Run History
+
+| Run | Backlog | Topic | What it tested |
+|-----|---------|-------|---------------|
+| 8 | #1 | Office Nature Documentary | Worktree isolation |
+| 9 | #14 | CIA Cat Field Reports | Full autonomous lifecycle |
+| 10 | #27 | Orchestrator Logging + Nature Doc S2 | Orchestrator logging |
+| 11 | #41 | Board Drift Detection + Fairy Tale HR | Board drift detection |
+
+Runs 1-7 were executed in the original NeuralNorris repo (gavinkilbride/NeuralNorris, issues #57-#217).
+
+### Creating a Test Run
+
+When creating a new test run backlog item, include the following in the **issue body** so all downstream agents (designer, planner, builder) inherit the conventions:
+
+1. **Title format:** `Test SDLC v2 Workflow (Run N) — <Topic>`
+2. **Labels:** Apply `test-agentic-sdlc` to the backlog issue. Instruct the planner to apply `test-agentic-sdlc` to all child issues (epics, stories, doc issues).
+3. **File naming:** Instruct the designer and planner to prefix doc filenames with `test-agentic-sdlc-` (e.g., `2026-03-15-test-agentic-sdlc-<topic>.md`).
+4. **Content guidelines:** Specify the creative theme, difficulty distribution (easy/medium/hard), word count ranges, and any cross-reference requirements.
+5. **What to validate:** State what workflow capability this run is testing (e.g., "validate configurable model routing from `.claude/agentic-sdlc-config.json`").
+
+The workflow agents are generic — they don't know they're running a test. They follow whatever the backlog item specifies.

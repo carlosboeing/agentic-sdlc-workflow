@@ -186,15 +186,13 @@ Stories are children of their **epic**, not the backlog. Epics are children of t
 
 After creating all epic and story issues, **append** the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** and each **epic issue**. This keeps the dependency structure visible at the top of the issue page — not buried in comments.
 
-Use `gh issue edit --body` to append below the existing body with a `---` separator.
+Use `gh issue edit --body` to append below the existing body (do NOT include a `---` horizontal rule — the heading provides sufficient visual separation).
 
 **On the backlog issue** — append the full cross-epic dependency graph + dispatch plan table:
 
 ```bash
 CURRENT_BODY=$(gh issue view <backlog-number> --json body -q '.body')
 gh issue edit <backlog-number> --body "$CURRENT_BODY
-
----
 
 ## 📊 Dependency Graph
 
@@ -220,8 +218,6 @@ graph TD
 ```bash
 CURRENT_BODY=$(gh issue view <epic-number> --json body -q '.body')
 gh issue edit <epic-number> --body "$CURRENT_BODY
-
----
 
 ## 📊 Epic Dependency Graph
 

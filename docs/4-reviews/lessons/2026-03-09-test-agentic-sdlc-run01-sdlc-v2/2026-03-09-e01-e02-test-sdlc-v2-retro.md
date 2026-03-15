@@ -194,4 +194,4 @@ This was the only convention/infrastructure change during the epic. No changes w
 | `2026-03-09-s00-max-turns-flag-removed.md` | Compiled | Fixed in commit `d33c03d`; no convention change needed (flag already removed) |
 | `2026-03-09-s00-nested-claude-sessions.md` | Proposed | Recommendation #3 (clarify CLI dispatch scope) |
 
-Both lesson files remain on disk in `docs/4-reviews/lessons/57-test-sdlc-v2/e01-test-poetry/` for traceability. This retro doc is now the primary reference for this epic's learnings.
+Both lesson files remain on disk in `docs/4-reviews/lessons/2026-03-09-test-agentic-sdlc-run01-sdlc-v2/e01-test-poetry/` for traceability. This retro doc is now the primary reference for this epic's learnings.

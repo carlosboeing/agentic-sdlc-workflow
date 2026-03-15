@@ -291,7 +291,7 @@ graph TD
 | 2 | E01-S04, E02-S02 | Yes (2 concurrent) | sonnet x2 | E01-S04 after E01 Wave 1; E02-S02 after E02-S01 |
 | 3 | E02-S03 | No (1 story) | opus | Final story, depends on E02-S01 + E02-S02 |
 
-**Wave 1 is the critical validation point.** The orchestrator must dispatch all 4 stories concurrently via the Agent tool. If parallel dispatch fails, fall back to sequential and document the failure in a lesson file under `docs/4-reviews/lessons/89-mythical-creatures/`.
+**Wave 1 is the critical validation point.** The orchestrator must dispatch all 4 stories concurrently via the Agent tool. If parallel dispatch fails, fall back to sequential and document the failure in a lesson file under `docs/4-reviews/lessons/2026-03-10-test-agentic-sdlc-run03-mythical-creatures/`.
 
 **Wave 2 parallelism is secondary.** E01-S04 and E02-S02 have no mutual dependency and can run concurrently, but this is less critical than Wave 1.
 

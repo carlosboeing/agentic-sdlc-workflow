@@ -125,9 +125,9 @@ Wave 1 dispatched 3 builders in parallel without `isolation: "worktree"`. The E0
 
 **Impact:** E01-S01 required a fix cycle (dispatch #9, haiku, 73s, 103K tokens) partly due to workspace contamination. E01-S03 required a fix cycle (dispatch #10, sonnet, 110s, 33K tokens) to clean up the contamination and address reviewer content feedback. Combined cost: ~$0.41 in additional build time plus ~$0.48 in re-review costs.
 
-**Pattern evidence:** This is the same issue identified in Run 4 (lesson: `docs/4-reviews/lessons/106-travel-advisory/e01-destination-profiles/2026-03-10-s00-parallel-dispatch-no-worktree-isolation.md`), where it was flagged as a theoretical risk. In Run 7, it became an actual defect. The pattern has now appeared in 2 of 4 runs that used parallel dispatch (Runs 4, 7), confirming it is not an edge case.
+**Pattern evidence:** This is the same issue identified in Run 4 (lesson: `docs/4-reviews/lessons/2026-03-10-test-agentic-sdlc-run04-travel-advisory/e01-destination-profiles/2026-03-10-s00-parallel-dispatch-no-worktree-isolation.md`), where it was flagged as a theoretical risk. In Run 7, it became an actual defect. The pattern has now appeared in 2 of 4 runs that used parallel dispatch (Runs 4, 7), confirming it is not an edge case.
 
-*Reference: lesson file `docs/4-reviews/lessons/205-alien-field-study/e01-field-reports/2026-03-11-s00-parallel-workspace-collision.md`*
+*Reference: lesson file `docs/4-reviews/lessons/2026-03-11-test-agentic-sdlc-run07-alien-field-study/e01-field-reports/2026-03-11-s00-parallel-workspace-collision.md`*
 
 ### 2. GitHub GraphQL Rate Limiting Hit During Wave 3
 
@@ -137,7 +137,7 @@ The GitHub GraphQL API rate limit was exceeded during Wave 3, blocking board upd
 
 **Impact:** Issue comments could not be retrieved during retro preparation. Board status updates may have been delayed during Wave 3. The full impact is difficult to quantify because the rate-limit errors prevent querying the very data needed to measure the impact.
 
-*Reference: lesson file `docs/4-reviews/lessons/205-alien-field-study/e02-admin-documents/2026-03-11-s02-rate-limiting-wave3.md`*
+*Reference: lesson file `docs/4-reviews/lessons/2026-03-11-test-agentic-sdlc-run07-alien-field-study/e02-admin-documents/2026-03-11-s02-rate-limiting-wave3.md`*
 
 ### 3. Higher Fix Cycle Rate Than Previous Runs
 

@@ -415,16 +415,16 @@ Agents write lessons as they discover issues — one file per lesson, organized 
 
 ```text
 docs/4-reviews/lessons/
-  <backlog-issue>-<feature-slug>/
+  YYYY-MM-DD-<feature-slug>/
     e00-setup/                    ← lessons from design/plan/orchestrator-setup phases (pre-epic)
       YYYY-MM-DD-s00-<slug>.md
     eNN-<epic-slug>/
       YYYY-MM-DD-sNN-<slug>.md
 ```
 
-Example: `docs/4-reviews/lessons/5-calendar-tool/e01-calendar-core/2026-03-09-s01-di-registration-blind-spot.md`
+Example: `docs/4-reviews/lessons/2026-03-13-test-agentic-sdlc-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`
 
-The backlog issue number is the top-level grouping (globally unique), with epic subfolders beneath. File names tie each lesson to the specific story where it was discovered. Use the `e00-setup/` subfolder for lessons discovered during design, plan, or orchestrator-setup phases before any epic begins.
+The date-prefixed directory groups lessons by feature, with epic subfolders beneath. The backlog issue number is stored in the retro doc's YAML frontmatter, not in the directory name. File names tie each lesson to the specific story where it was discovered. Use the `e00-setup/` subfolder for lessons discovered during design, plan, or orchestrator-setup phases before any epic begins.
 
 #### File format
 

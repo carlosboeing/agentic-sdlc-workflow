@@ -9,7 +9,7 @@ set -euo pipefail
 #
 # Uses lightweight per-issue GraphQL queries (~1 point each) instead of
 # gh project item-list (~200+ points). See Run 10 lesson:
-# docs/4-reviews/lessons/27-test-agentic-sdlc-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md
+# docs/4-reviews/lessons/2026-03-13-test-agentic-sdlc-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md
 #
 # Usage: ./scripts/issue-set-status.sh <issue-number> <status>
 #

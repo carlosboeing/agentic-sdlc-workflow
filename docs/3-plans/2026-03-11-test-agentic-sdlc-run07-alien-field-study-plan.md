@@ -3,7 +3,7 @@ date: 2026-03-11
 author: planner
 status: draft
 backlog: 205
-design: docs/2-design/2026-03-11-alien-field-study.md
+design: docs/2-design/2026-03-11-test-agentic-sdlc-run07-alien-field-study.md
 ---
 
 # Implementation Plan: Alien Anthropological Field Study of Earth (Run 7)

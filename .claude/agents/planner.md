@@ -23,7 +23,7 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
 **Git workflow:**
 
 1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
-2. Create a GitHub Issue for the plan work (title: "Write implementation plan for X", labels: `type/docs` + `backlog/<N>-<slug>`)
+2. Create a GitHub Issue for the plan work (title: "[#<backlog>] Write implementation plan for X", labels: `type/docs` + `backlog/<N>-<slug>`)
 3. Link the plan issue as a **sub-issue** of the backlog issue:
 
    ```bash

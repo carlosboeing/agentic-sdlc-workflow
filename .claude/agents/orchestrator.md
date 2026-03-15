@@ -504,7 +504,7 @@ After the backlog PR is merged (by human via `gh pr merge --squash`):
 
 1. **Create a retro issue** (same pattern as design/plan issues):
    ```bash
-   gh issue create --title "Write retrospective for <backlog title>" \
+   gh issue create --title "[#<N>] Write retrospective for <backlog title>" \
      --label "type/docs,backlog/<N>-<slug>" \
      --body "Write retrospective for backlog item #<N>."
    ```

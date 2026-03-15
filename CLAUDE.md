@@ -100,7 +100,7 @@ Orchestrator manages → one Backlog Item per workflow run
 
 **The planner MUST NOT create child backlog items.** If a feature feels too large for epics, use more epics with fewer stories each. An epic with 1-2 stories is perfectly valid. If the feature truly spans multiple independent domains (e.g., "build an e-commerce platform"), the designer should split it into separate backlog items upfront — each with its own lifecycle.
 
-**Issue naming:** `[#<backlog>/ENN] Epic title` for epics, `[#<backlog>/ENN-SNN] Story title` for stories. The backlog issue number prefix disambiguates epics/stories across features (e.g., `[#43/E01-S01]` vs `[#5/E01-S01]`).
+**Issue naming:** `[#<backlog>/ENN] Epic title` for epics, `[#<backlog>/ENN-SNN] Story title` for stories, and `[#<backlog>] Write design doc for X` / `[#<backlog>] Write implementation plan for X` / `[#<backlog>] Write retrospective for X` for doc issues. The backlog issue number prefix disambiguates issues across features and makes them scannable on the project board.
 
 **Issue hierarchy (sub-issues):** All work is tracked via three-level GitHub sub-issue nesting:
 

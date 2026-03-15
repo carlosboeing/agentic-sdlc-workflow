@@ -13,7 +13,6 @@
 - Live pricing fetched successfully from anthropic.com/pricing (Opus $5/$25, Sonnet $3/$15, Haiku $1/$5)
 - ~464K tokens across 12 build+review dispatches for epic E01
 
-
 ## 2026-03-15
 
 ### Test SDLC v2 Workflow (Run 12) — Time Traveler's Yelp Reviews

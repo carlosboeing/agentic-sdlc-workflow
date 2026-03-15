@@ -551,7 +551,22 @@ As the final phase, post a **full lifecycle telemetry summary** on the backlog i
 | Reviewers (per story + backlog PR) | tokens, duration, tool uses |
 | Retro | tokens, duration, tool uses |
 
-**Post using `issue-telemetry.sh` with `--summary` for backlog-level telemetry:**
+**Preferred method — `--dispatches-from-state`:** Pass the orchestrator state file and let the script compute everything (costs, durations, totals) from the structured dispatch data using config rates. This eliminates manual cost/duration computation errors:
+
+```bash
+./scripts/issue-telemetry.sh <backlog-number> \
+  --dispatches-from-state .claude/state/<backlog>/orchestrator.json \
+  --model opus \
+  --commit $(git rev-parse backlog/<N>-<slug>) \
+  --wall-clock <wall_clock_ms> \
+  --gantt "<mermaid-gantt-body>" \
+  --footer "<trailing-notes>" \
+  --pr <pr-number>
+```
+
+The script reads `dispatches[]` from the state file, maps agents to phases (Design/Plan/Build/Review/Retro), computes costs using `agentic-sdlc-config.json` rates, formats durations exactly, and generates both summary and breakdown tables with correct totals. The `--gantt` and `--footer` are still provided by the orchestrator (they require layout knowledge the script doesn't have).
+
+**Legacy method — manual `--summary` and `--breakdown`:**
 
 ```bash
 ./scripts/issue-telemetry.sh <backlog-number> \

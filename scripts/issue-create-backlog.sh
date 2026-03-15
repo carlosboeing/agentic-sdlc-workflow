@@ -73,6 +73,11 @@ if echo "$CURRENT_BODY" | grep -q '<this-issue>'; then
   echo "✓ Placeholders replaced"
 fi
 
+# --- Step 1c: Prefix title with issue number ---
+echo "Prefixing title with [#$ISSUE_NUMBER]..."
+gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --title "[#$ISSUE_NUMBER] $TITLE" > /dev/null
+echo "✓ Title prefixed"
+
 # --- Step 2: Add to project board ---
 echo "Adding to project board..."
 gh project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" \

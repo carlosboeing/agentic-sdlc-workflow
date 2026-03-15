@@ -370,7 +370,9 @@ The script renders from `scripts/templates/telemetry.md` (single source of truth
 
 The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` from every Agent tool dispatch (designers, planners, builders, reviewers, retro) and aggregate them into the summary and breakdown rows. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for parameter details.
 
-**Value column convention:** Value cells in all telemetry tables contain only numbers and units (e.g., `~33m`, `770K`, `~$4.79`). Never add descriptive text or parenthetical notes to value cells. Annotations belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `~33m` in Value). This matches the rule in `scripts/templates/telemetry.md`.
+**Value column convention:** Value cells in all telemetry tables contain only numbers and units (e.g., `30m 43s`, `770K`, `~$4.79`). Never add descriptive text or parenthetical notes to value cells. Annotations belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `25m 12s` in Value). This matches the rule in `scripts/templates/telemetry.md`.
+
+**Duration precision:** Duration values (including totals) must use exact `Xm Ys` format, not rounded approximations like `~31m`. Durations are measured from `duration_ms`, not estimated. Costs may use `~` prefix (they are estimates based on blended rates).
 
 **`--cost` flag for mixed-model epics:** When an epic's stories use different models (e.g., haiku + sonnet), the rate-based cost calculation doesn't work. Pass `--cost <dollars>` with the pre-computed sum of per-story costs from the breakdown. For single-model epics, omit `--cost` and let the script compute from the rate.
 

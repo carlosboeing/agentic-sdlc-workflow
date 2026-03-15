@@ -478,6 +478,15 @@ See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full s
 
 **Doc approval workflow:** Design docs and plans are written on `docs/<slug>` branches off the integration branch (`backlog/<N>-<slug>`) with a corresponding GitHub Issue (`type/docs`). A PR is opened targeting the integration branch (not `main`). **Merging the PR = approval.** In autonomous mode, the orchestrator auto-merges. In interactive mode, the human merges. The next phase (planner after design, builder after plan) cannot start until the PR is merged.
 
+### Test Run Conventions
+
+Test runs validate the workflow pipeline using content-creation workloads. All test run conventions (file naming, label requirements, content guidelines) are documented in the **backlog item body** for each test run — not in this file. When creating a new test run backlog item, include those conventions in the issue body so all downstream agents inherit them.
+
+Key identifiers for test run artifacts:
+- **GitHub label:** `test-agentic-sdlc` on all issues (backlog, epics, stories, docs)
+- **File prefix:** `test-agentic-sdlc-` on design docs and plans
+- **Backlog title:** `Test SDLC v2 Workflow (Run N) — <Topic>`
+
 ### Lesson Conventions
 
 Agents write lessons as they discover issues — one file per lesson, organized by epic, tagged for cross-cutting discovery. This avoids merge conflicts when parallel agents write simultaneously and keeps lessons browsable by epic.

@@ -152,8 +152,8 @@ def blended_rate(model):
     if model in pricing_rates:
         inp, out = pricing_rates[model]
         return inp * split_in + out * split_out
-    print(f"Warning: No pricing data for model '{model}' — cost will show ~\$0.00", file=sys.stderr)
-    return 0
+    print(f"Warning: No pricing data for model '{model}' — cost will show as '—'. Run fetch-pricing.sh to cache rates, or add a pricing section to agentic-sdlc-config.json.", file=sys.stderr)
+    return None
 
 if not pricing_rates:
     print("Warning: No pricing data found (no config override, no cached pricing at .agentic-workflow/pricing.json). Run fetch-pricing.sh first.", file=sys.stderr)
@@ -172,6 +172,8 @@ def fmt_tokens(t):
     else: return str(t)
 
 def fmt_cost(dollars):
+    if dollars is None:
+        return "—"
     return f"~\${dollars:.2f}"
 
 with open("$dispatches_file") as f:
@@ -192,11 +194,14 @@ for d in dispatches:
     dur_ms = d["duration_ms"]
     tokens = d["tokens"]
     rate = blended_rate(model)
-    cost = tokens / 1_000_000 * rate
+    cost = tokens / 1_000_000 * rate if rate is not None else None
 
     total_duration += dur_ms
     total_tokens += tokens
-    total_cost += cost
+    if cost is not None:
+        total_cost += cost
+    else:
+        total_cost = None  # If any dispatch has unknown cost, total is unknown
 
     agent_label = d.get("agent", model.capitalize())
     task_label = d.get("task", f"Issue #{d.get('issue', '?')}")
@@ -207,11 +212,14 @@ for d in dispatches:
     )
 
     if phase not in phase_agg:
-        phase_agg[phase] = {"duration_ms": 0, "tokens": 0, "cost": 0.0, "count": 0}
+        phase_agg[phase] = {"duration_ms": 0, "tokens": 0, "cost": 0.0, "count": 0, "has_pricing": True}
         phase_order.append(phase)
     phase_agg[phase]["duration_ms"] += dur_ms
     phase_agg[phase]["tokens"] += tokens
-    phase_agg[phase]["cost"] += cost
+    if cost is not None and phase_agg[phase]["cost"] is not None:
+        phase_agg[phase]["cost"] += cost
+    else:
+        phase_agg[phase]["cost"] = None
     phase_agg[phase]["count"] += 1
 
 # Build breakdown total row
@@ -245,7 +253,7 @@ summary_rows.append(
 result = {
     "breakdown": "\n".join(breakdown_rows),
     "summary": "\n".join(summary_rows),
-    "cost": f"{total_cost:.2f}",
+    "cost": f"{total_cost:.2f}" if total_cost is not None else "",
     "duration_ms": str(total_duration),
     "tokens": str(total_tokens),
 }

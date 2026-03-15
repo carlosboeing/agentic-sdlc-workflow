@@ -369,6 +369,21 @@ git branch --show-current  # MUST be epic/<slug>
 
 git checkout epic/<slug>
 git merge e<NN>-s<NN>/<branch> --no-ff -m "feat(epic): merge <story-title>"
+```
+
+**If the merge fails with a conflict:**
+
+1. Abort the merge: `git merge --abort`
+2. Post a comment on the story issue:
+   ```bash
+   gh issue comment <number> --body "Merge conflict detected when merging into epic branch. Files in conflict: <list>. Manual intervention required."
+   ```
+3. **Do NOT attempt to resolve the conflict automatically.** Conflict resolution in production code requires human judgment about which changes to keep. Halt the workflow and wait for human intervention.
+4. Include the conflict details in the backlog PR description when it is eventually opened.
+
+**After a successful merge:**
+
+```bash
 git push origin epic/<slug>
 
 # Clean up ONLY after verifying the merge succeeded
@@ -963,6 +978,24 @@ The state file is an optimisation for instant recovery, not a hard dependency. G
 | `issue-telemetry.sh` | `pricing.rates` (reads `.agentic-workflow/pricing.json` directly) | When posting telemetry |
 | Retro agent | `dispatches[]`, `epics.*` | When writing the retrospective |
 | Future agents | `session`, `pricing` (shared context) | When they need session-level info |
+
+### Designer/Planner Dispatch Failure
+
+If the designer or planner dispatch fails (Agent tool reports failure, usage limit hit, or produces no usable output):
+
+1. **Capture telemetry** from the Agent tool result (`duration_ms`, `total_tokens`, `tool_uses`) — failed dispatches still consume tokens.
+2. Post a failure comment on the design/plan issue:
+   ```bash
+   gh issue comment <number> --body "Designer dispatch failed. Re-dispatching..."
+   ```
+3. Re-dispatch the same agent (same prompt, same integration branch).
+4. If the second attempt fails, **abort the workflow** and post a comment on the backlog issue:
+   ```bash
+   gh issue comment <backlog-number> --body "Designer/planner dispatch failed twice. Manual intervention required. Workflow halted at Phase <N>."
+   ```
+5. Include failed dispatch telemetry in the aggregate totals.
+
+**Why abort (not continue):** Designer and planner are sequential gates — everything downstream depends on their output. Unlike a builder failure (which blocks one story), a designer/planner failure blocks the entire backlog item.
 
 ### Builder Dispatch Failure
 

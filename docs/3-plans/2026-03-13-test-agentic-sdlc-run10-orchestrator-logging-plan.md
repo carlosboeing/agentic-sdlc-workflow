@@ -3,7 +3,7 @@ date: 2026-03-13
 author: planner
 status: draft
 backlog: 27
-design: docs/2-design/2026-03-13-run10-orchestrator-logging-content.md
+design: docs/2-design/2026-03-13-test-agentic-sdlc-run10-orchestrator-logging-content.md
 ---
 
 # Implementation Plan: Run 10 -- Orchestrator Logging Validation + Office Nature Documentary (Season 2)

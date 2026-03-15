@@ -3,13 +3,13 @@ date: 2026-03-12
 author: planner
 status: draft
 backlog: 1
-design: docs/2-design/2026-03-12-test-agentic-sdlc-office-nature-documentary.md
+design: docs/2-design/2026-03-12-test-agentic-sdlc-run08-office-nature-documentary.md
 ---
 
 # Implementation Plan: The Office Worker — A Nature Documentary (Run 8)
 
 > **Backlog:** #1 — Test SDLC v2 Workflow (Run 8) — Worktree Isolation
-> **Design:** `docs/2-design/2026-03-12-test-agentic-sdlc-office-nature-documentary.md`
+> **Design:** `docs/2-design/2026-03-12-test-agentic-sdlc-run08-office-nature-documentary.md`
 
 ## Overview
 

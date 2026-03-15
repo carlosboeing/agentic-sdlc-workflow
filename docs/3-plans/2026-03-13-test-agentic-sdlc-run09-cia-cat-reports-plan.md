@@ -3,13 +3,13 @@ date: 2026-03-13
 author: planner
 status: draft
 backlog: 14
-design: docs/2-design/2026-03-13-test-agentic-sdlc-cia-cat-reports.md
+design: docs/2-design/2026-03-13-test-agentic-sdlc-run09-cia-cat-reports.md
 ---
 
 # Implementation Plan: Pet Cats — Declassified CIA Field Reports (Run 9)
 
 > **Backlog:** 14 — Test SDLC v2 Workflow (Run 9) — Full Autonomous Lifecycle
-> **Design:** `docs/2-design/2026-03-13-test-agentic-sdlc-cia-cat-reports.md`
+> **Design:** `docs/2-design/2026-03-13-test-agentic-sdlc-run09-cia-cat-reports.md`
 
 ## Overview
 

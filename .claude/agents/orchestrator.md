@@ -342,6 +342,7 @@ For each story (or wave of independent stories):
 
 3. **Handle issues found:**
    - If the review verdict is `REQUEST_CHANGES`, re-dispatch the builder to fix on the same story branch
+   - **Before fix cycle dispatch:** Run post-worktree cleanup (`git status --short` + `git clean -fd`) to remove stale artifacts from prior parallel waves. Stale files can leak into fix cycle commits. Evidence: Run 14 E01-S04 fix cycle 2 picked up E02-S01's file from a stale worktree.
    - After fixes, re-dispatch the reviewer
    - Repeat until the verdict is `APPROVE` or `COMMENT` (max 2 fix cycles)
 

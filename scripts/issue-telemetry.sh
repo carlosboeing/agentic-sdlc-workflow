@@ -40,6 +40,13 @@ set -euo pipefail
 # method for backlog-level telemetry — the orchestrator passes its state file and the script
 # does all the math, eliminating manual cost/duration computation errors.
 #
+# Wall-clock auto-computation: When --dispatches-from-state is used, the script automatically
+# computes wall-clock duration from the started_at timestamps in the dispatch log. Dispatches
+# with the same started_at are treated as parallel (take max duration); different timestamps
+# are sequential (sum durations). If --wall-clock is not provided, the computed value is used.
+# If --wall-clock is provided but equals --duration (suspicious when parallel dispatches exist),
+# the script overrides with the computed value and emits a warning.
+#
 # --footer provides trailing text (e.g., notes, PR link) rendered before the disclaimer.
 #
 # --gantt provides the body of a Mermaid gantt chart (everything after the gantt keyword).
@@ -259,10 +266,13 @@ if [ -n "$DISPATCHES_FILE" ] && [ -f "$DISPATCHES_FILE" ]; then
 elif [ -n "$DISPATCHES_FROM_STATE" ] && [ -f "$DISPATCHES_FROM_STATE" ]; then
   # Convert orchestrator state file dispatches[] to the dispatches format.
   # Maps agent types to phases and generates human-readable task labels.
+  # Also computes wall-clock duration from started_at grouping (parallel detection).
   _state_tmp=$(mktemp)
-  trap "rm -f $_state_tmp" EXIT
+  _wall_clock_tmp=$(mktemp)
+  trap "rm -f $_state_tmp $_wall_clock_tmp" EXIT
   python3 << STATEEOF > "$_state_tmp"
 import json, sys
+from collections import defaultdict
 
 with open("$DISPATCHES_FROM_STATE") as f:
     state = json.load(f)
@@ -285,7 +295,9 @@ for epic_key, epic in state.get("epics", {}).items():
         issue_titles[int(issue_num)] = label
 
 dispatches = []
-for d in state.get("dispatches", []):
+raw_dispatches = state.get("dispatches", [])
+
+for d in raw_dispatches:
     agent = d.get("agent", "unknown")
     model = d.get("model", "unknown")
     issue = d.get("issue")
@@ -330,9 +342,45 @@ for d in state.get("dispatches", []):
     })
 
 json.dump(dispatches, sys.stdout, indent=2)
+
+# Compute wall-clock from started_at grouping:
+# Dispatches with the same started_at ran in parallel -> take max(duration_ms)
+# Dispatches with different started_at ran sequentially -> sum them
+groups = defaultdict(list)
+for d in raw_dispatches:
+    groups[d.get("started_at", "")].append(d)
+
+wall_clock_ms = 0
+has_parallel = False
+for ts in sorted(groups.keys()):
+    group = groups[ts]
+    if len(group) > 1:
+        has_parallel = True
+    wall_clock_ms += max(d.get("duration_ms", 0) for d in group)
+
+with open("$_wall_clock_tmp", "w") as f:
+    json.dump({"wall_clock_ms": wall_clock_ms, "has_parallel": has_parallel}, f)
 STATEEOF
   _run_dispatches_computation "$_state_tmp"
-  rm -f "$_state_tmp"
+
+  # Read computed wall-clock from state file analysis
+  _computed_wc=$(jq -r '.wall_clock_ms' "$_wall_clock_tmp")
+  _has_parallel=$(jq -r '.has_parallel' "$_wall_clock_tmp")
+
+  if [ -z "$WALL_CLOCK_MS" ] || [ "$WALL_CLOCK_MS" = "0" ]; then
+    # No wall-clock provided — use computed value
+    WALL_CLOCK_MS="$_computed_wc"
+    if [ "$_has_parallel" = "true" ]; then
+      echo "Wall-clock auto-computed from state file: $(format_duration "$_computed_wc") (parallel dispatches detected)" >&2
+    fi
+  elif [ "$WALL_CLOCK_MS" = "$DURATION_MS" ] && [ "$_has_parallel" = "true" ]; then
+    # User passed wall-clock == duration but parallel dispatches exist — override with computed
+    echo "Warning: --wall-clock ($WALL_CLOCK_MS ms) equals --duration but parallel dispatches detected." >&2
+    echo "  Overriding with computed critical path: $(format_duration "$_computed_wc")" >&2
+    WALL_CLOCK_MS="$_computed_wc"
+  fi
+
+  rm -f "$_state_tmp" "$_wall_clock_tmp"
 fi
 
 # ─── Compute derived values ───────────────────────────────────────────────────

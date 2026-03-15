@@ -583,6 +583,7 @@ This project validates the workflow pipeline using **test runs** — autonomous 
 | 9 | #14 | CIA Cat Field Reports | Full autonomous lifecycle |
 | 10 | #27 | Orchestrator Logging + Nature Doc S2 | Orchestrator logging |
 | 11 | #41 | Board Drift Detection + Fairy Tale HR | Board drift detection |
+| 12 | #56 | Time Traveler's Yelp Reviews | Configurable workflow settings (config.json, model routing, pricing) |
 
 Runs 1-7 were executed in the original NeuralNorris repo (gavinkilbride/NeuralNorris, issues #57-#217).
 

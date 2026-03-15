@@ -138,6 +138,12 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 **Skip if:** design doc already exists in `docs/2-design/` referencing this backlog item, OR the prompt says "skip design".
 
+**Before starting Phase 1** (or the first non-skipped phase), set the backlog issue board status to **In Progress**:
+```bash
+./scripts/issue-set-status.sh <backlog-issue> in-progress
+```
+Design and planning are active work on the backlog item — the board should reflect that work has started, not wait until builders are dispatched.
+
 **Autonomous mode:**
 
 1. Dispatch the designer with "autonomous" in the prompt and the integration branch name:
@@ -244,11 +250,6 @@ Then wait for the human to merge the plan PR into the integration branch.
    Skip any story that already has a "Ready for Review" comment.
 
 ### Phase 5: Dispatch Builders
-
-**Before the first wave dispatch,** set the backlog issue board status to **In Progress**:
-```bash
-./scripts/issue-set-status.sh <backlog-issue> in-progress
-```
 
 For each story (or wave of independent stories):
 

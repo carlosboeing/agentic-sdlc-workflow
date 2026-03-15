@@ -6,8 +6,9 @@ set -euo pipefail
 #
 # Usage: ./scripts/dispatch-workflow.sh <backlog-issue-number> [--skip-design] [--skip-plan] [--autonomous] [--epic <eNN-slug>]
 
-REPO="carlosboeing/agentic-sdlc-workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/config.sh"
+REPO="$CFG_REPO"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ---------------------------------------------------------------------------
@@ -60,10 +61,10 @@ log_step() {
 difficulty_to_model() {
   local label="$1"
   case "$label" in
-    difficulty/easy)   echo "haiku"  ;;
-    difficulty/medium) echo "sonnet" ;;
-    difficulty/hard)   echo "opus"   ;;
-    *)                 echo "sonnet" ;;
+    difficulty/easy)   echo "$CFG_ROUTE_EASY"   ;;
+    difficulty/medium) echo "$CFG_ROUTE_MEDIUM" ;;
+    difficulty/hard)   echo "$CFG_ROUTE_HARD"   ;;
+    *)                 echo "$CFG_ROUTE_MEDIUM" ;;
   esac
 }
 

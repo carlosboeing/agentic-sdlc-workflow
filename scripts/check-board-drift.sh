@@ -18,10 +18,11 @@ set -uo pipefail
 #   2 — usage error or API failure
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/config.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-REPO_OWNER="carlosboeing"
-REPO_NAME="agentic-sdlc-workflow"
+REPO_OWNER="$CFG_REPO_OWNER"
+REPO_NAME="$CFG_REPO_NAME"
 
 LOG_DIR="$REPO_ROOT/.claude/logs"
 DRIFT_LOG="$LOG_DIR/board-drift.log"

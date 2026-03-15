@@ -5,7 +5,9 @@ set -euo pipefail
 # Idempotent: skips labels that already exist.
 # Usage: ./scripts/setup-labels.sh
 
-REPO="carlosboeing/agentic-sdlc-workflow"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/config.sh"
+REPO="$CFG_REPO"
 
 create_label() {
   local name="$1" color="$2" description="$3"

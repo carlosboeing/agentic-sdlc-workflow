@@ -5,8 +5,9 @@ set -euo pipefail
 #
 # Usage: ./scripts/issue-close.sh <issue-number>
 
-REPO="carlosboeing/agentic-sdlc-workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/config.sh"
+REPO="$CFG_REPO"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <issue-number>"

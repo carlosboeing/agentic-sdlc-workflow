@@ -27,7 +27,7 @@ Use the Agent tool to dispatch builders and reviewers within the current Claude 
 
 ```
 # Builder dispatch (model selected by subagent_type)
-Agent tool → subagent_type: "builder-haiku"   # difficulty/easy
+Agent tool → subagent_type: "builder-sonnet"  # difficulty/easy
 Agent tool → subagent_type: "builder-sonnet"  # difficulty/medium
 Agent tool → subagent_type: "builder-opus"    # difficulty/hard
 
@@ -221,7 +221,7 @@ Then wait for the human to merge the plan PR into the integration branch.
 
 1. Find the plan for the backlog issue:
    ```bash
-   grep -rl "<backlog-issue-number>" docs/3-plans/
+   grep -rl "^backlog: <backlog-issue-number>$" docs/3-plans/
    ```
 2. Read the plan to extract: epic slugs, story list, dependency graph, and story branches.
 3. Read the design doc referenced in the plan for additional context.
@@ -606,7 +606,7 @@ Read the difficulty label from the GitHub Issue and map to the correct builder v
 
 | Difficulty Label | Builder Variant | Model | Use Case |
 |-----------------|----------------|-------|----------|
-| `difficulty/easy` | `builder-haiku` | Haiku | Single-file, config, docs, simple tests |
+| `difficulty/easy` | `builder-sonnet` | Sonnet | Single-file, config, docs, simple tests |
 | `difficulty/medium` | `builder-sonnet` | Sonnet | Multi-file, standard patterns, EF migrations |
 | `difficulty/hard` | `builder-opus` | Opus | Cross-project, new abstractions, security |
 
@@ -618,7 +618,7 @@ DIFFICULTY=$(gh issue view <number> --json labels -q \
 ```
 
 **Map to subagent_type:**
-- `easy` -> `"builder-haiku"`
+- `easy` -> `"builder-sonnet"`
 - `medium` -> `"builder-sonnet"`
 - `hard` -> `"builder-opus"`
 

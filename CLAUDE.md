@@ -297,7 +297,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 
 Map difficulty label to builder variant:
 
-- `difficulty/easy` → `builder-haiku`
+- `difficulty/easy` → `builder-sonnet`
 - `difficulty/medium` → `builder-sonnet`
 - `difficulty/hard` → `builder-opus`
 
@@ -331,8 +331,8 @@ For humans running builds from a terminal or CI — **not usable by agents**. `c
 
 Three model-specific variants exist alongside `builder.md`:
 
-- `.claude/agents/builder-haiku.md` — for `difficulty/easy` stories
-- `.claude/agents/builder-sonnet.md` — for `difficulty/medium` stories
+- `.claude/agents/builder-haiku.md` — available but not used by default (Sonnet is preferred for easy stories)
+- `.claude/agents/builder-sonnet.md` — for `difficulty/easy` and `difficulty/medium` stories
 - `.claude/agents/builder-opus.md` — for `difficulty/hard` stories
 
 All variants share identical body content with `builder.md` (only the `model` frontmatter differs). **When updating `builder.md`, propagate changes to all three variants.**

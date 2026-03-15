@@ -216,7 +216,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
 | `scripts/validate-logs.sh` | Report on board-status, orchestrator, and drift logs |
 | `scripts/setup-labels.sh` | Create all labels (idempotent) |
-| `scripts/fetch-pricing.sh` | Fetch current Anthropic API token pricing (JSON to stdout) |
+| `scripts/fetch-pricing.sh` | Read token pricing from config (JSON to stdout) |
 | `scripts/dispatch-story.sh <n> --model <m> --agent <a>` | Dispatch CC CLI worker for a story |
 | `scripts/dispatch-workflow.sh <n> [--skip-design] [--skip-plan] [--autonomous]` | Full lifecycle orchestration |
 
@@ -384,7 +384,7 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 **Orchestrator state persistence:** The orchestrator persists its full workflow state to `.claude/state/<backlog>/orchestrator.json` (gitignored). The state file is structured as versioned JSON (schema v1) with sections for session metadata, pricing, phase progress, epic/story status, and an append-only dispatch log. Key fields:
 
 - **`session.orchestrator_model`** — the model the orchestrator is running, so inherited agents' models are known for accurate cost estimates.
-- **`pricing`** — token rates fetched from Anthropic's pricing page at session start via `scripts/fetch-pricing.sh`. Falls back to hardcoded defaults on fetch failure. Used by `issue-telemetry.sh` via the `--rate` flag.
+- **`pricing`** — token rates read from `.claude/agentic-sdlc-config.json` at session start via `scripts/fetch-pricing.sh`. Falls back to hardcoded defaults if config is missing. Used by `issue-telemetry.sh` via the `--rate` flag.
 - **`dispatches[]`** — append-only log of every agent dispatch with model, duration, tokens, tool uses, and result.
 
 The state file is updated after each agent dispatch and cleaned up after the backlog PR merges. On resume, the orchestrator reads this file for instant recovery without re-querying GitHub. If the file is missing (different machine, manual deletion), it falls back to querying GitHub for issue comments and branch state. The directory structure (`.claude/state/<backlog>/`) supports future per-agent state files as siblings (e.g., `builder-112.json`).

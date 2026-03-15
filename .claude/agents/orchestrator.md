@@ -756,7 +756,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
     "git_main_sha": "d1c7532"
   },
   "pricing": {
-    "source": "anthropic-pricing-page",
+    "source": "agentic-sdlc-config",
     "source_detail": "opus:4.6, sonnet:4.6, haiku:4.5",
     "fetched_at": "2026-03-10T14:00:05Z",
     "rates": {
@@ -801,7 +801,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 | `session.orchestrator_model` | `"opus"` | The model the orchestrator session is running. All `model: inherit` agents inherit this. Critical for accurate cost estimates. |
 | `session.git_main_sha` | `"d1c7532"` | Main branch HEAD at workflow start. Detects if main moved during the run. |
 | `pricing.rates` | `{...}` | Token rates fetched at session start. Used by `issue-telemetry.sh` via `--rate`. |
-| `pricing.source` | `"anthropic-pricing-page"` | Where rates came from (`anthropic-pricing-page` or `hardcoded-defaults`). |
+| `pricing.source` | `"agentic-sdlc-config"` | Where rates came from (`agentic-sdlc-config` or `hardcoded-defaults`). |
 | `phases` | `{...}` | Status of each workflow phase (pending, in_progress, complete, skipped). |
 | `epics.*.stories.*.status` | `"reviewed"` | Story status (pending, building, built, reviewing, reviewed, merged, done). |
 | `dispatches[]` | `[...]` | Append-only log of every agent dispatch. Raw data for telemetry and debugging. |
@@ -849,7 +849,7 @@ EOF
 
 **Detecting the orchestrator model:** The orchestrator knows which model it's running from the session context. If uncertain, state this in the session field and note it as unknown — do not guess.
 
-**Pricing fetch:** Always run `./scripts/fetch-pricing.sh` at session start. The script fetches current rates from Anthropic's pricing page and falls back to hardcoded defaults on failure. Log which source was used (`pricing.source`). If the source is `hardcoded-defaults`, warn the user that pricing may be stale.
+**Pricing fetch:** Always run `./scripts/fetch-pricing.sh` at session start. The script reads rates from `.claude/agentic-sdlc-config.json` (the project source of truth) and falls back to hardcoded defaults if the config is missing. Log which source was used (`pricing.source`). If the source is `hardcoded-defaults`, warn the user that pricing may be stale.
 
 **2. Update (after every checkpoint event)**
 

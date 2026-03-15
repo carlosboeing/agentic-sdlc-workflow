@@ -384,3 +384,115 @@ Sequenced so each step leaves the system fully functional:
 23. Multi-repo orchestration
 24. Pipelined waves (Optimization 5)
 25. Learning across projects
+
+---
+
+## Part IV: Gantt Chart Accuracy
+
+### Problem
+
+The Gantt chart in telemetry is currently **hand-crafted** by the orchestrator using Mermaid `after` dependencies. This models the *logical* sequencing (review starts after its builder) but not the *actual* wall-clock timing. In Run 13, the Gantt showed reviews starting immediately after their individual builders, but in reality the orchestrator waited for all builders in a wave to finish before dispatching any reviews.
+
+The Gantt should reflect what actually happened, not an idealized version.
+
+### Root Cause
+
+Two issues:
+
+1. **Imprecise timestamps** — the orchestrator records `started_at` as rounded estimates (e.g., `'2026-03-15T08:47:00Z'`) rather than capturing `$(date -u +%Y-%m-%dT%H:%M:%SZ)` at the exact moment of dispatch.
+
+2. **Hand-written Gantt** — the orchestrator manually constructs the Gantt string with `after` relationships that model dependency logic, not actual timing. There's no code that reads the state file and computes task positions from real timestamps.
+
+### Fix
+
+1. **Capture precise timestamps** — record `started_at` using `$(date)` immediately before each Agent tool dispatch, not after. Record `finished_at` (or compute from `started_at + duration_ms`) immediately after the dispatch returns.
+
+2. **Generate Gantt from state data** — extend `issue-telemetry.sh` (or a helper script) to accept `--gantt-from-state <state-file>` and compute the Gantt from `dispatches[].started_at` + `dispatches[].duration_ms`. Each task's position is an absolute offset from the session start, not a relative `after` dependency.
+
+3. **Use absolute Mermaid positioning** — instead of `after w1b1`, use computed start times:
+   ```
+   E01-S01 Build (2m25s)  :w1b1, 00:09:00, 146s    ← absolute start
+   E01-S01 Review (0m52s) :done, w1r1, 00:13:22, 53s  ← actual start, not "after w1b1"
+   ```
+
+### Implementation Priority
+
+This is a **data integrity issue** — telemetry should be accurate. Should be addressed alongside the `--dispatches-from-state` improvements, since the same state file data drives both cost computation and Gantt generation.
+
+---
+
+## Part V: Prioritized Next Steps
+
+What to do next, in order of priority. Each item is independently valuable — you can stop at any point and the system is better than before.
+
+### Tier 1: Fix What's Broken (before next run)
+
+These are correctness issues that affect every run.
+
+| # | What | Why it matters | Effort |
+|---|------|---------------|--------|
+| 1 | **Accurate Gantt from state data** | Telemetry Gantt doesn't reflect reality — misleads analysis | Medium |
+| 2 | **Precise dispatch timestamps** | Foundation for accurate Gantt + duration tracking | Low |
+| 3 | **Fix builder branch diagram** (Quick Win A) | Shows `epic/` branching from `main` — wrong | 5 min |
+| 4 | **Fix Phase 3 plan matching** (Quick Win B) | Uses raw grep instead of YAML frontmatter | 5 min |
+| 5 | **Align pricing fallback rates** (Quick Win F) | `fetch-pricing.sh` and `issue-telemetry.sh` disagree on Opus rate | 10 min |
+| 6 | **Add retro issue to PR `Closes` list** (Quick Win C) | Retro issue stays open after merge | 5 min |
+
+### Tier 2: Reduce Friction (next 1-2 runs)
+
+Improvements that make each run smoother and faster.
+
+| # | What | Why it matters | Effort |
+|---|------|---------------|--------|
+| 7 | **Parallel retro + PR review** | Saves ~3 min per run (easiest parallelism win) | Low |
+| 8 | **Add designer/planner failure handling** (Quick Win D) | No retry logic if these fail | 10 min |
+| 9 | **Add merge conflict handling** (Quick Win E) | Orchestrator has no documented response | 10 min |
+| 10 | **Renumber phases for correct execution order** (Quick Win G) | Phase 9 runs after 10-11, but numbered before them | 15 min |
+| 11 | **Formalize easy → sonnet routing** (Quick Win H) | Already done in practice, but docs/ADR say haiku | 15 min |
+| 12 | **Early story branch creation** | Eliminate branch setup overhead between waves | Low |
+
+### Tier 3: PM Abstraction (foundation for plugin)
+
+The gateway to tool agnosticism. Each step is independently useful.
+
+| # | What | Why it matters | Effort |
+|---|------|---------------|--------|
+| 13 | **Extract PM operations into `scripts/lib/pm.sh`** | Creates the abstraction boundary — all scripts call `pm_create_item()` instead of `gh` | Medium |
+| 14 | **Intent language in agent instructions** | Agents say "create a work item" not `gh issue create` | Medium |
+| 15 | **Build local PM adapter** (`.sdlc/` folder) | Zero-config default — no GitHub account needed | Medium-High |
+| 16 | **Config-driven adapter selection** | `"pm": "local"` or `"pm": "github"` | Low |
+
+### Tier 4: Plugin Packaging
+
+Turn the workflow into a distributable Claude Code plugin.
+
+| # | What | Why it matters | Effort |
+|---|------|---------------|--------|
+| 17 | **SKILL.md** | Teaches the methodology without reading all agent files | Medium |
+| 18 | **Plugin structure** (`plugin.json`, directory layout) | Distributable package | Medium |
+| 19 | **Onboarding command** (`/sdlc-setup`) | First-run experience | Medium |
+| 20 | **`sdlc` CLI wrapper** | Human-friendly commands | Medium |
+
+### Tier 5: Multi-PM Adapters
+
+One adapter at a time, each is a focused effort.
+
+| # | What | Why it matters | Effort |
+|---|------|---------------|--------|
+| 21 | **Jira adapter** | Largest PM user base | High |
+| 22 | **Linear adapter** | Developer-focused, clean API | Medium |
+| 23 | **Azure DevOps adapter** | Enterprise market | High |
+| 24 | **ClickUp adapter** | Growing market share | Medium |
+
+### Tier 6: Domain Expansion & Advanced
+
+Broader applicability and advanced features.
+
+| # | What | Why it matters | Effort |
+|---|------|---------------|--------|
+| 25 | **Builder/reviewer domain profiles** | Support content, research, data, marketing workflows | Medium |
+| 26 | **New specialist agents** (estimator, triage, documenter) | Automate more of the lifecycle | Medium per agent |
+| 27 | **Dashboard** (local web UI) | Visual progress without cloud tool | High |
+| 28 | **Cost budgets** | `"maxCostPerRun": 10.00` — orchestrator halts at limit | Low |
+| 29 | **Pipelined waves** | Start Wave N+1 builds while Wave N reviews run | High |
+| 30 | **Multi-repo orchestration** | Backlog spanning multiple repos | Very High |

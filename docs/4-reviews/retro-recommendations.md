@@ -41,6 +41,14 @@ Last updated: 2026-03-15 (compiled from Runs 2–12)
 - **Description:** Orchestrator overhead was 51% of wall-clock time in Run 10 (31m of 61m). The rate limit workaround contributed ~6 minutes, but branch management, merge operations, and lesson/changelog commits also add significant time. Tracking this metric across runs would surface efficiency regressions. Currently, only subagent telemetry is captured — the orchestrator's own consumption runs in the parent session.
 - **Effort:** Medium (requires capturing `/cost` output at session start/end)
 
+### I. Extract dispatch computation from issue-telemetry.sh
+
+- **Source:** Run 12 (reviewer S4)
+- **Recurrence:** 1 run (observation)
+- **Priority:** Low
+- **Description:** `issue-telemetry.sh` is 602 lines — 3x the 200-line guideline. The `--dispatches` and `--dispatches-from-state` features added ~230 lines of Python embedded in bash heredocs. Consider extracting the dispatch computation into a separate helper script (e.g., `scripts/lib/compute-dispatches.py`) that `issue-telemetry.sh` calls. This would improve readability and make the Python logic independently testable.
+- **Effort:** Medium (refactor + update all callers)
+
 ---
 
 ## Implemented

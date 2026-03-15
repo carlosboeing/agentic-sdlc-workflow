@@ -1,4 +1,5 @@
 {
+  "$comment": "See docs/2-design/2026-03-15-configurable-workflow-settings.md for field documentation",
   "github": {
     "repo": "carlosboeing/agentic-sdlc-workflow",
     "projectNumber": 7,

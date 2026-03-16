@@ -281,10 +281,23 @@ graph TD
 
 | Wave | Stories | Dispatch | Rationale |
 |------|---------|----------|-----------|
-| **Wave 1** | E01-S01, E01-S04 | Parallel | No shared files |
-| **Wave 2** | E01-S03 | Sequential | Shares orchestrator.md + CLAUDE.md with S01 |
-| **Wave 3** | E01-S02, E01-S05 | Parallel | Different orchestrator.md sections; S02 touches CLAUDE.md but S05 does not |
-| **Wave 4** | E01-S06 | Sequential | Shares orchestrator.md + CLAUDE.md with prior stories |
+| **Wave 1** | E01-S01 (#135), E01-S04 (#138) | Parallel | No shared files |
+| **Wave 2** | E01-S03 (#137) | Sequential | Shares orchestrator.md + CLAUDE.md with S01 |
+| **Wave 3** | E01-S02 (#136), E01-S05 (#139) | Parallel | Different orchestrator.md sections; S02 touches CLAUDE.md but S05 does not |
+| **Wave 4** | E01-S06 (#140) | Sequential | Shares orchestrator.md + CLAUDE.md with prior stories |
+
+### GitHub Issues
+
+| Story | Issue | Difficulty |
+|-------|-------|------------|
+| E01-S01 Sonnet Reviews for Easy Stories | #135 | medium |
+| E01-S02 Early Story Branch Creation | #136 | easy |
+| E01-S03 Batched Board Updates | #137 | medium |
+| E01-S04 Format Templates for Parallel Content | #138 | easy |
+| E01-S05 Document Orchestrator Override Pattern | #139 | easy |
+| E01-S06 Capture Orchestrator Overhead Metrics | #140 | medium |
+
+**Epic issue:** #132
 
 ---
 

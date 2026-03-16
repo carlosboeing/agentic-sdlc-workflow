@@ -7,6 +7,7 @@ set -euo pipefail
 # Usage: ./scripts/issue-telemetry.sh <issue-number> --model <model> --duration <ms> --commit <hash>
 #        [--tokens <total>] [--tool-uses <n>] [--rate <cents-per-M>] [--cost <dollars>]
 #        [--dispatches <json-file>] [--dispatches-from-state <state-file>]
+#        [--gantt-from-state <state-file>]
 #        [--breakdown <markdown>] [--pr <pr-number>] [--wall-clock <ms>] [--gantt <mermaid-body>]
 #        [--summary <markdown>] [--footer <markdown>]
 #
@@ -47,6 +48,11 @@ set -euo pipefail
 # If --wall-clock is provided but equals --duration (suspicious when parallel dispatches exist),
 # the script overrides with the computed value and emits a warning.
 #
+# --gantt-from-state reads the orchestrator state file and generates a Mermaid Gantt chart
+# body via compute-dispatches.py --gantt. Also processes dispatches from state (combines
+# --dispatches-from-state + Gantt generation in a single Python call). Takes precedence over
+# --gantt when both are provided.
+#
 # --footer provides trailing text (e.g., notes, PR link) rendered before the disclaimer.
 #
 # --gantt provides the body of a Mermaid gantt chart (everything after the gantt keyword).
@@ -59,7 +65,7 @@ _PRICING_CACHE="$_CFG_REPO_ROOT/.agentic-workflow/pricing.json"
 TEMPLATE_FILE="$SCRIPT_DIR/templates/telemetry.md"
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <issue-number> --model <model> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--breakdown <markdown>] [--pr <n>] [--wall-clock <ms>] [--gantt <mermaid-body>] [--summary <markdown>] [--footer <markdown>]"
+  echo "Usage: $0 <issue-number> --model <model> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--breakdown <markdown>] [--pr <n>] [--wall-clock <ms>] [--gantt <mermaid-body>] [--gantt-from-state <state-file>] [--summary <markdown>] [--footer <markdown>]"
   exit 1
 fi
 
@@ -80,6 +86,7 @@ BREAKDOWN=""
 PR_NUMBER=""
 WALL_CLOCK_MS=""
 GANTT=""
+GANTT_FROM_STATE=""
 RATE_OVERRIDE=""
 COST_OVERRIDE=""
 SUMMARY=""
@@ -99,6 +106,7 @@ while [ $# -gt 0 ]; do
     --pr) PR_NUMBER="$2"; shift 2 ;;
     --wall-clock) WALL_CLOCK_MS="$2"; shift 2 ;;
     --gantt) GANTT="$2"; shift 2 ;;
+    --gantt-from-state) GANTT_FROM_STATE="$2"; shift 2 ;;
     --rate) RATE_OVERRIDE="$2"; shift 2 ;;
     --cost) COST_OVERRIDE="$2"; shift 2 ;;
     --summary) SUMMARY="$2"; shift 2 ;;
@@ -109,205 +117,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# --- Shared helpers ---
 
-# ─── Process --dispatches (structured data → computed breakdown/summary/cost) ──
-
-_run_dispatches_computation() {
-  local dispatches_file="$1"
-
-  _dispatches_result=$(python3 << DISPEOF
-import json, sys
-
-cfg_file = "$_CFG_FILE"
-pricing_cache = "$_PRICING_CACHE"
-
-# Read pricing: config override first, then cached pricing
-split_in, split_out = 0.75, 0.25
-pricing_rates = {}
-
-# Priority 1: Config override
-try:
-    with open(cfg_file) as f:
-        cfg = json.load(f)
-    cfg_pricing = cfg.get("pricing", {})
-    for m in ["opus", "sonnet", "haiku"]:
-        mc = cfg_pricing.get(m, {})
-        if "inputPerM" in mc and "outputPerM" in mc:
-            pricing_rates[m] = (mc["inputPerM"], mc["outputPerM"])
-except Exception:
-    pass
-
-# Priority 2: Cached pricing from fetch-pricing.sh
-if not pricing_rates:
-    try:
-        with open(pricing_cache) as f:
-            cached = json.load(f)
-        for m in ["opus", "sonnet", "haiku"]:
-            mr = cached.get("rates", {}).get(m, {})
-            if "inputPerM" in mr and "outputPerM" in mr:
-                pricing_rates[m] = (mr["inputPerM"], mr["outputPerM"])
-    except Exception:
-        pass
-
-def blended_rate(model):
-    if model in pricing_rates:
-        inp, out = pricing_rates[model]
-        return inp * split_in + out * split_out
-    print(f"Warning: No pricing data for model '{model}' — cost will show as '—'. Run fetch-pricing.sh to cache rates, or add a pricing section to agentic-sdlc-config.json.", file=sys.stderr)
-    return None
-
-if not pricing_rates:
-    print("Warning: No pricing data found (no config override, no cached pricing at .agentic-workflow/pricing.json). Run fetch-pricing.sh first.", file=sys.stderr)
-
-def fmt_duration(ms):
-    secs = ms // 1000
-    mins = secs // 60
-    rem = secs % 60
-    if mins > 0 and rem > 0: return f"{mins}m {rem}s"
-    elif mins > 0: return f"{mins}m"
-    else: return f"{rem}s"
-
-def fmt_tokens(t):
-    if t >= 1_000_000: return f"{t/1_000_000:.2f}M"
-    elif t >= 1000: return f"{t//1000}K"
-    else: return str(t)
-
-def fmt_cost(dollars):
-    if dollars is None:
-        return "—"
-    return f"~\${dollars:.2f}"
-
-with open("$dispatches_file") as f:
-    dispatches = json.load(f)
-
-# Compute per-row values
-total_duration = 0
-total_tokens = 0
-total_cost = 0.0
-breakdown_rows = []
-phase_agg = {}
-
-# Preserve phase insertion order
-phase_order = []
-
-for d in dispatches:
-    model = d["model"]
-    dur_ms = d["duration_ms"]
-    tokens = d["tokens"]
-    rate = blended_rate(model)
-    cost = tokens / 1_000_000 * rate if rate is not None else None
-
-    total_duration += dur_ms
-    total_tokens += tokens
-    if cost is not None:
-        total_cost += cost
-    else:
-        total_cost = None  # If any dispatch has unknown cost, total is unknown
-
-    agent_label = d.get("agent", model.capitalize())
-    task_label = d.get("task", f"Issue #{d.get('issue', '?')}")
-    phase = d.get("phase", "Other")
-
-    breakdown_rows.append(
-        f"| {agent_label} | {task_label} | {fmt_duration(dur_ms)} | {fmt_tokens(tokens)} | {fmt_cost(cost)} |"
-    )
-
-    if phase not in phase_agg:
-        phase_agg[phase] = {"duration_ms": 0, "tokens": 0, "cost": 0.0, "count": 0, "has_pricing": True}
-        phase_order.append(phase)
-    phase_agg[phase]["duration_ms"] += dur_ms
-    phase_agg[phase]["tokens"] += tokens
-    if cost is not None and phase_agg[phase]["cost"] is not None:
-        phase_agg[phase]["cost"] += cost
-    else:
-        phase_agg[phase]["cost"] = None
-    phase_agg[phase]["count"] += 1
-
-# Build breakdown total row
-breakdown_rows.append(
-    f"| | **Total ({len(dispatches)} dispatches)** | **{fmt_duration(total_duration)}** | **{fmt_tokens(total_tokens)}** | **{fmt_cost(total_cost)}** |"
-)
-
-# Build summary rows
-summary_rows = []
-for phase in phase_order:
-    a = phase_agg[phase]
-    count_suffix = ""
-    if a["count"] > 1:
-        if phase == "Build":
-            count_suffix = f" ({a['count']} stories)"
-        else:
-            count_suffix = f" ({a['count']} dispatches)"
-    # Collect unique models in this phase from dispatches
-    phase_models = list(dict.fromkeys(d["model"] for d in dispatches if d.get("phase") == phase))
-    if len(phase_models) == 1:
-        agent_desc = f"{phase_models[0]}{count_suffix}"
-    else:
-        agent_desc = f"mixed ({', '.join(phase_models)}){count_suffix}"
-    summary_rows.append(
-        f"| {phase} | {agent_desc} | {fmt_duration(a['duration_ms'])} | {fmt_tokens(a['tokens'])} | {fmt_cost(a['cost'])} |"
-    )
-summary_rows.append(
-    f"| **Total** | | **{fmt_duration(total_duration)}** | **{fmt_tokens(total_tokens)}** | **{fmt_cost(total_cost)}** |"
-)
-
-result = {
-    "breakdown": "\n".join(breakdown_rows),
-    "summary": "\n".join(summary_rows),
-    "cost": f"{total_cost:.2f}" if total_cost is not None else "",
-    "duration_ms": str(total_duration),
-    "tokens": str(total_tokens),
-}
-json.dump(result, sys.stdout)
-DISPEOF
-  )
-
-  # Parse the result and set variables
-  BREAKDOWN=$(echo "$_dispatches_result" | jq -r '.breakdown')
-  SUMMARY=$(echo "$_dispatches_result" | jq -r '.summary')
-  COST_OVERRIDE=$(echo "$_dispatches_result" | jq -r '.cost')
-  DURATION_MS=$(echo "$_dispatches_result" | jq -r '.duration_ms')
-  TOKENS=$(echo "$_dispatches_result" | jq -r '.tokens')
-}
-
-if [ -n "$DISPATCHES_FILE" ] && [ -f "$DISPATCHES_FILE" ]; then
-  _run_dispatches_computation "$DISPATCHES_FILE"
-elif [ -n "$DISPATCHES_FROM_STATE" ] && [ -f "$DISPATCHES_FROM_STATE" ]; then
-  # Use compute-dispatches.py to convert the state file and compute all metrics:
-  # breakdown, summary (with fix cycles row), cost, duration_ms, tokens,
-  # wall_clock_ms, has_parallel, fix_cycles, fix_footer.
-  _state_result=$(python3 "$SCRIPT_DIR/lib/compute-dispatches.py" \
-    --from-state "$DISPATCHES_FROM_STATE" \
-    --pricing "$_PRICING_CACHE" --config "$_CFG_FILE")
-
-  BREAKDOWN=$(echo "$_state_result" | jq -r '.breakdown')
-  SUMMARY=$(echo "$_state_result" | jq -r '.summary')
-  COST_OVERRIDE=$(echo "$_state_result" | jq -r '.cost')
-  DURATION_MS=$(echo "$_state_result" | jq -r '.duration_ms')
-  TOKENS=$(echo "$_state_result" | jq -r '.tokens')
-  FIX_FOOTER=$(echo "$_state_result" | jq -r '.fix_footer // empty')
-
-  # Wall-clock auto-computation from state file started_at grouping
-  _computed_wc=$(echo "$_state_result" | jq -r '.wall_clock_ms')
-  _has_parallel=$(echo "$_state_result" | jq -r '.has_parallel')
-
-  if [ -z "$WALL_CLOCK_MS" ] || [ "$WALL_CLOCK_MS" = "0" ]; then
-    # No wall-clock provided — use computed value
-    WALL_CLOCK_MS="$_computed_wc"
-    if [ "$_has_parallel" = "true" ]; then
-      echo "Wall-clock auto-computed from state file: $(format_duration "$_computed_wc") (parallel dispatches detected)" >&2
-    fi
-  elif [ "$WALL_CLOCK_MS" = "$DURATION_MS" ] && [ "$_has_parallel" = "true" ]; then
-    # User passed wall-clock == duration but parallel dispatches exist — override with computed
-    echo "Warning: --wall-clock ($WALL_CLOCK_MS ms) equals --duration but parallel dispatches detected." >&2
-    echo "  Overriding with computed critical path: $(format_duration "$_computed_wc")" >&2
-    WALL_CLOCK_MS="$_computed_wc"
-  fi
-fi
-
-# ─── Compute derived values ───────────────────────────────────────────────────
-
-# Format milliseconds into human-readable duration
+# Format milliseconds into human-readable duration (defined here so it is available
+# during dispatch processing below -- e.g. for wall-clock warning messages)
 format_duration() {
   local ms=$1
   local secs=$((ms / 1000))
@@ -321,6 +134,81 @@ format_duration() {
     echo "${rem}s"
   fi
 }
+
+# --- Process --dispatches (structured data to computed breakdown/summary/cost) ---
+
+_run_dispatches_computation() {
+  local dispatches_file="$1"
+
+  _dispatches_result=$(python3 "$SCRIPT_DIR/lib/compute-dispatches.py" \
+    --dispatches "$dispatches_file" \
+    --pricing "$_PRICING_CACHE" \
+    --config "$_CFG_FILE")
+
+  BREAKDOWN=$(echo "$_dispatches_result" | jq -r '.breakdown')
+  SUMMARY=$(echo "$_dispatches_result" | jq -r '.summary')
+  COST_OVERRIDE=$(echo "$_dispatches_result" | jq -r '.cost')
+  DURATION_MS=$(echo "$_dispatches_result" | jq -r '.duration_ms')
+  TOKENS=$(echo "$_dispatches_result" | jq -r '.tokens')
+}
+
+_process_state_result() {
+  # Parse shared fields from a --from-state Python result (JSON string in $1).
+  # Sets: BREAKDOWN, SUMMARY, COST_OVERRIDE, DURATION_MS, TOKENS,
+  #       FIX_FOOTER, WALL_CLOCK_MS (after wall-clock override logic).
+  local result="$1"
+
+  BREAKDOWN=$(echo "$result" | jq -r '.breakdown')
+  SUMMARY=$(echo "$result" | jq -r '.summary')
+  COST_OVERRIDE=$(echo "$result" | jq -r '.cost')
+  DURATION_MS=$(echo "$result" | jq -r '.duration_ms')
+  TOKENS=$(echo "$result" | jq -r '.tokens')
+  FIX_FOOTER=$(echo "$result" | jq -r '.fix_footer // empty')
+
+  # Wall-clock auto-computation from state file started_at grouping
+  local computed_wc has_parallel
+  computed_wc=$(echo "$result" | jq -r '.wall_clock_ms')
+  has_parallel=$(echo "$result" | jq -r '.has_parallel')
+
+  if [ -z "$WALL_CLOCK_MS" ] || [ "$WALL_CLOCK_MS" = "0" ]; then
+    # No wall-clock provided -- use computed value
+    WALL_CLOCK_MS="$computed_wc"
+    if [ "$has_parallel" = "true" ]; then
+      echo "Wall-clock auto-computed from state file: $(format_duration "$computed_wc") (parallel dispatches detected)" >&2
+    fi
+  elif [ "$WALL_CLOCK_MS" = "$DURATION_MS" ] && [ "$has_parallel" = "true" ]; then
+    # User passed wall-clock == duration but parallel dispatches exist -- override with computed
+    echo "Warning: --wall-clock ($WALL_CLOCK_MS ms) equals --duration but parallel dispatches detected." >&2
+    echo "  Overriding with computed critical path: $(format_duration "$computed_wc")" >&2
+    WALL_CLOCK_MS="$computed_wc"
+  fi
+}
+
+if [ -n "$DISPATCHES_FILE" ] && [ -f "$DISPATCHES_FILE" ]; then
+  _run_dispatches_computation "$DISPATCHES_FILE"
+elif [ -n "$GANTT_FROM_STATE" ] && [ -f "$GANTT_FROM_STATE" ]; then
+  # --gantt-from-state: processes dispatches AND generates Gantt in one call.
+  # Takes precedence over --gantt when both are provided.
+  if [ -n "$GANTT" ]; then
+    echo "Warning: --gantt-from-state and --gantt both provided; --gantt-from-state takes precedence." >&2
+  fi
+  _state_result=$(python3 "$SCRIPT_DIR/lib/compute-dispatches.py" \
+    --from-state "$GANTT_FROM_STATE" \
+    --gantt \
+    --pricing "$_PRICING_CACHE" --config "$_CFG_FILE")
+  _process_state_result "$_state_result"
+  GANTT=$(echo "$_state_result" | jq -r '.gantt // empty')
+elif [ -n "$DISPATCHES_FROM_STATE" ] && [ -f "$DISPATCHES_FROM_STATE" ]; then
+  # Use compute-dispatches.py to convert the state file and compute all metrics:
+  # breakdown, summary (with fix cycles row), cost, duration_ms, tokens,
+  # wall_clock_ms, has_parallel, fix_cycles, fix_footer.
+  _state_result=$(python3 "$SCRIPT_DIR/lib/compute-dispatches.py" \
+    --from-state "$DISPATCHES_FROM_STATE" \
+    --pricing "$_PRICING_CACHE" --config "$_CFG_FILE")
+  _process_state_result "$_state_result"
+fi
+
+# --- Compute derived values ---
 
 DURATION_SECS=$((DURATION_MS / 1000))
 DURATION_HUMAN=$(format_duration "$DURATION_MS")
@@ -392,7 +280,7 @@ elif [ "$TOKENS" -gt 0 ]; then
   fi
 fi
 
-# Format token count for display (e.g. 245000 → "245K", 1220000 → "1.22M")
+# Format token count for display (e.g. 245000 -> "245K", 1220000 -> "1.22M")
 format_tokens() {
   local t=$1
   if [ "$t" -ge 1000000 ]; then
@@ -449,7 +337,7 @@ if [ -n "$SUMMARY" ]; then
   IS_BACKLOG=true
 fi
 
-# ─── Template rendering ──────────────────────────────────────────────────────
+# --- Template rendering ---
 
 # Evaluate a named condition. Returns 0 (true) or 1 (false).
 eval_condition() {
@@ -479,7 +367,7 @@ render_template() {
   local in_html_comment=false
 
   while IFS= read -r line || [ -n "$line" ]; do
-    # Strip HTML comments (<!-- ... -->) that aren't conditional blocks.
+    # Strip HTML comments (<!-- ... -->) that are not conditional blocks.
     # Handles both single-line and multi-line comments.
     if [ "$in_html_comment" = true ]; then
       if [[ "$line" =~ ^[[:space:]]*'-->'[[:space:]]*$ ]]; then
@@ -558,9 +446,9 @@ render_template() {
   done < "$template_file"
 }
 
-# ─── Post telemetry ──────────────────────────────────────────────────────────
+# --- Post telemetry ---
 
-RENDERED=$(render_template "$TEMPLATE_FILE" "📊 Telemetry")
+RENDERED=$(render_template "$TEMPLATE_FILE" "Telemetry")
 gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body "$RENDERED"
 echo "Telemetry posted to issue #$ISSUE_NUMBER (model=$MODEL, duration=$DURATION_HUMAN)"
 

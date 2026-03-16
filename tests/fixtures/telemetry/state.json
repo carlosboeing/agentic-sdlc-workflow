@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "session": {
+    "backlog": 61,
+    "started_at": "2026-03-10T10:00:00Z",
+    "orchestrator_model": "sonnet"
+  },
+  "epics": {
+    "e01": {
+      "issue": 62,
+      "branch": "epic/e01-test",
+      "stories": {
+        "63": {
+          "branch": "e01-s01/test-story",
+          "status": "done"
+        }
+      }
+    }
+  },
+  "dispatches": [
+    {
+      "id": 1,
+      "agent": "designer",
+      "model": "sonnet",
+      "issue": 64,
+      "started_at": "2026-03-10T10:00:00Z",
+      "duration_ms": 120000,
+      "tokens": 40000
+    },
+    {
+      "id": 2,
+      "agent": "builder-sonnet",
+      "model": "sonnet",
+      "issue": 63,
+      "started_at": "2026-03-10T10:02:00Z",
+      "duration_ms": 180000,
+      "tokens": 60000
+    },
+    {
+      "id": 3,
+      "agent": "reviewer",
+      "model": "sonnet",
+      "issue": 63,
+      "started_at": "2026-03-10T10:05:00Z",
+      "duration_ms": 90000,
+      "tokens": 30000
+    }
+  ]
+}

@@ -257,6 +257,136 @@ def compute_from_dispatches(dispatches, pricing_rates):
     }
 
 
+def compute_fix_cycles(raw_dispatches, pricing_rates):
+    """
+    Detect and compute metrics for fix cycles from a raw dispatch list.
+
+    A fix cycle is a builder re-dispatch for the same issue after that issue
+    already had at least one builder dispatch. The fix cycle includes:
+      - The re-build dispatch (second+ builder dispatch for that issue)
+      - The immediately following reviewer dispatch for that same issue
+
+    Returns a dict with:
+      count           — number of builder re-dispatches
+      duration_ms     — sum of duration_ms for all fix cycle dispatches
+      tokens          — sum of tokens for all fix cycle dispatches
+      cost            — sum of estimated costs as "X.XX" string
+      rate            — fix cycles / unique builder issues as "X.XX" string
+      stories_affected — count of unique issues with at least one fix cycle
+
+    Returns None when no fix cycles are detected.
+    """
+    # Track which issues have seen their first builder dispatch
+    first_builder_seen = set()
+
+    # Track issues with an unmatched fix cycle builder (awaiting their re-review)
+    pending_re_review = set()
+
+    fix_dispatches = []  # Indices of dispatches that are part of fix cycles
+
+    for i, d in enumerate(raw_dispatches):
+        agent = d.get("agent", "")
+        issue = d.get("issue")
+        is_builder = agent.startswith("builder")
+        is_reviewer = agent == "reviewer"
+
+        if is_builder and issue is not None:
+            if issue in first_builder_seen:
+                # This is a fix cycle re-build
+                fix_dispatches.append(i)
+                pending_re_review.add(issue)
+            else:
+                first_builder_seen.add(issue)
+
+        elif is_reviewer and issue is not None:
+            if issue in pending_re_review:
+                # This is the re-review that follows a fix cycle re-build
+                fix_dispatches.append(i)
+                pending_re_review.discard(issue)
+
+    if not fix_dispatches:
+        return None
+
+    # Compute aggregates for fix cycle dispatches
+    total_duration = 0
+    total_tokens = 0
+    total_cost = 0.0
+    stories_affected = set()
+    fix_cycle_count = 0  # Count only re-builds (not re-reviews)
+
+    for i in fix_dispatches:
+        d = raw_dispatches[i]
+        agent = d.get("agent", "")
+        model = d.get("model", "unknown")
+        issue = d.get("issue")
+        dur_ms = d.get("duration_ms", 0)
+        tokens = d.get("tokens", 0)
+
+        rate = blended_rate(model, pricing_rates)
+        cost = tokens / 1_000_000 * rate if rate is not None else 0.0
+
+        total_duration += dur_ms
+        total_tokens += tokens
+        total_cost += cost
+
+        if agent.startswith("builder"):
+            fix_cycle_count += 1
+            if issue is not None:
+                stories_affected.add(issue)
+
+    # Rate = fix cycle count / unique builder issues (total stories built)
+    total_unique_builder_issues = len(first_builder_seen)
+    if total_unique_builder_issues > 0:
+        rate_value = fix_cycle_count / total_unique_builder_issues
+    else:
+        rate_value = 0.0
+
+    return {
+        "count": fix_cycle_count,
+        "duration_ms": total_duration,
+        "tokens": total_tokens,
+        "cost": f"{total_cost:.2f}",
+        "rate": f"{rate_value:.2f}",
+        "stories_affected": len(stories_affected),
+    }
+
+
+def _build_fix_footer(fix_cycles, total_cost, total_duration, total_stories):
+    """
+    Build the fix cycle footer line.
+
+    Format:
+      *Fix cycles: N / M stories (X% fix rate), adding Xm Ys and ~$X.XX (N% of total cost).*
+
+    Args:
+      fix_cycles    — result dict from compute_fix_cycles (non-None)
+      total_cost    — total run cost as a float (None if unknown)
+      total_duration — total run duration_ms as int
+      total_stories  — total unique builder issues (denominator for count display)
+    """
+    count = fix_cycles["count"]
+    stories_affected = fix_cycles["stories_affected"]
+    duration_human = fmt_duration(fix_cycles["duration_ms"])
+    fc_cost = float(fix_cycles["cost"])
+    rate_pct = round(float(fix_cycles["rate"]) * 100)
+
+    cycle_word = "cycle" if count == 1 else "cycles"
+    story_word = "story" if stories_affected == 1 else "stories"
+
+    cost_str = f"~${fc_cost:.2f}"
+
+    if total_cost is not None and total_cost > 0:
+        pct = round(fc_cost / total_cost * 100)
+        cost_part = f"{cost_str} ({pct}% of total cost)"
+    else:
+        cost_part = f"{cost_str} (unknown% of total cost)"
+
+    return (
+        f"*Fix cycles: {count} / {total_stories} stories "
+        f"({rate_pct}% fix rate), adding {duration_human} and {cost_part}.*"
+    )
+
+
 def state_to_dispatches(state):
     """
     Convert orchestrator state file dispatches[] to the structured dispatch format.
@@ -358,11 +488,14 @@ def compute_from_state(state, pricing_rates):
     """
     Compute telemetry from an orchestrator state file (parsed JSON dict).
 
-    Combines state_to_dispatches + compute_wall_clock + compute_from_dispatches.
+    Combines state_to_dispatches + compute_wall_clock + compute_from_dispatches
+    + compute_fix_cycles.
 
     Returns dict with all fields from compute_from_dispatches plus:
       wall_clock_ms  — wall-clock duration accounting for parallelism
       has_parallel   — True if parallel dispatches were detected
+      fix_cycles     — fix cycle metrics dict (only when fix cycles detected)
+      fix_footer     — formatted fix cycle footer string (only when fix cycles detected)
     """
     dispatches = state_to_dispatches(state)
     raw_dispatches = state.get("dispatches", [])
@@ -371,6 +504,45 @@ def compute_from_state(state, pricing_rates):
     result = compute_from_dispatches(dispatches, pricing_rates)
     result["wall_clock_ms"] = wall_clock_ms
     result["has_parallel"] = has_parallel
+
+    # Detect and embed fix cycle metrics
+    fix_cycles = compute_fix_cycles(raw_dispatches, pricing_rates)
+    if fix_cycles is not None:
+        result["fix_cycles"] = fix_cycles
+
+        # Count unique builder issues for the footer denominator
+        total_stories = len({
+            d.get("issue")
+            for d in raw_dispatches
+            if d.get("agent", "").startswith("builder") and d.get("issue") is not None
+        })
+
+        # Total cost as float for percentage computation
+        total_cost_float = float(result["cost"]) if result["cost"] else None
+
+        result["fix_footer"] = _build_fix_footer(
+            fix_cycles, total_cost_float, int(result["duration_ms"]), total_stories
+        )
+
+        # Insert Fix Cycles summary row before the Total row
+        fc_count = fix_cycles["count"]
+        fc_stories = fix_cycles["stories_affected"]
+        cycle_word = "cycle" if fc_count == 1 else "cycles"
+        story_word = "story" if fc_stories == 1 else "stories"
+        fc_row = (
+            f"| Fix Cycles | {fc_count} {cycle_word} ({fc_stories} {story_word}) "
+            f"| {fmt_duration(fix_cycles['duration_ms'])} "
+            f"| {fmt_tokens(fix_cycles['tokens'])} "
+            f"| {fmt_cost(float(fix_cycles['cost']))} |"
+        )
+
+        summary_lines = result["summary"].splitlines()
+        total_idx = next(
+            i for i, line in enumerate(summary_lines) if line.startswith("| **Total**")
+        )
+        summary_lines.insert(total_idx, fc_row)
+        result["summary"] = "\n".join(summary_lines)
+
     return result
 
 

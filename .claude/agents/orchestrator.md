@@ -27,14 +27,18 @@ Your deliverables are: dispatched agents, GitHub state updates, telemetry, and t
 
 Use the Agent tool to dispatch builders and reviewers within the current Claude Code session. Model routing is achieved via `subagent_type` using builder variant files.
 
+**Universal worktree isolation (autonomous mode):** In autonomous mode, **every** Agent tool dispatch MUST include `isolation: "worktree"`. This applies to all agents: designers, planners, builders (parallel and sequential), reviewers, and retro. Without isolation, agents share the main working directory and are affected by stale branches, leftover artifacts, and checkout collisions from concurrent or previous backlog items. The only exception is interactive mode where a human is monitoring the session. Evidence: Run 15 (backlog #105) had repeated collisions with `backlog/106` artifacts — stale files blocked merges, `git checkout` landed on wrong branches, and a commit went to the wrong branch entirely.
+
 ```
 # Builder dispatch (model selected by subagent_type)
 Agent tool → subagent_type: "builder-sonnet"  # difficulty/easy
 Agent tool → subagent_type: "builder-sonnet"  # difficulty/medium
 Agent tool → subagent_type: "builder-opus"    # difficulty/hard
 
-# Reviewer dispatch
-Agent tool → subagent_type: "reviewer"
+# Reviewer dispatch (model selected by subagent_type based on story difficulty)
+Agent tool → subagent_type: "reviewer-sonnet"  # difficulty/easy
+Agent tool → subagent_type: "reviewer-opus"    # difficulty/medium
+Agent tool → subagent_type: "reviewer-opus"    # difficulty/hard
 ```
 
 The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` -- capture all three for telemetry.
@@ -158,6 +162,13 @@ Execute these phases in order. Each phase has a verification step before proceed
    - If the prompt says to skip a phase → skip it
    - Otherwise → run the phase (autonomous or interactive based on prompt/context)
 
+10. **Initialize the orchestrator state file** (see § "Orchestrator State File" below). Record `session.start_wall_clock` at this moment — it is the reference point used in Phase 10 to compute orchestrator overhead duration:
+    ```bash
+    START_WALL_CLOCK=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    # Write to state file: session.start_wall_clock = $START_WALL_CLOCK
+    ```
+    This timestamp must be captured before any agent is dispatched. It is the wall-clock origin for the entire run.
+
 ### Phase 1: Design (conditional)
 
 **Skip if:** design doc already exists in `docs/2-design/` referencing this backlog item, OR the prompt says "skip design".
@@ -256,7 +267,7 @@ Then wait for the human to merge the plan PR into the integration branch.
 2. Read the plan to extract: epic slugs, story list, dependency graph, and story branches.
 3. Read the design doc referenced in the plan for additional context.
 
-### Phase 4: Read Stories and Build Dependency Graph
+### Phase 4: Read Stories, Build Dependency Graph, and Create All Branches
 
 1. List stories for the epic:
    ```bash
@@ -264,8 +275,63 @@ Then wait for the human to merge the plan PR into the integration branch.
    ```
    Alternatively, traverse sub-issues of the epic issue using the GitHub GraphQL API.
 2. Parse the plan's Mermaid dependency graph to determine execution order.
-3. Identify which stories can run in parallel (no shared dependencies). **CRITICAL: When dispatching parallel builders, use `isolation: "worktree"` in the Agent tool to prevent workspace collisions** (confirmed defect in Run 7, commit `c249257`).
-4. **Before dispatching a parallel wave**, record the epic branch HEAD commit as the wave's base. Create all story branches from this exact commit. Do not merge anything into the epic branch until the entire wave completes. This prevents cross-contamination where a builder inherits a sibling story's commits (confirmed defect in Run 9, E01-S03 issue #20).
+3. Identify which stories can run in parallel (no shared dependencies). All dispatches use `isolation: "worktree"` per the universal rule (originally confirmed as critical for parallel builders in Run 7, extended to all autonomous dispatches after Run 15).
+4. **Create all epic branches and story branches upfront** — before dispatching any builders. This is the authoritative branch creation step. Phase 5 dispatches only; it does not create branches.
+
+   **Create all epic branches** from the integration branch:
+   ```bash
+   # For each epic in the plan:
+   git checkout backlog/<N>-<slug> && git pull
+   git checkout -b epic/e01-<slug>
+   git push -u origin epic/e01-<slug>
+
+   git checkout backlog/<N>-<slug>
+   git checkout -b epic/e02-<slug>
+   git push -u origin epic/e02-<slug>
+   # ... repeat for all epics
+   ```
+
+   **Record base commit SHA per epic** in the state file immediately after creating each epic branch:
+   ```bash
+   # After creating epic/e01-<slug>:
+   E01_BASE=$(git rev-parse HEAD)  # same as integration branch HEAD at this point
+
+   python3 -c "
+   import json
+   with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
+       state = json.load(f)
+   state['epics']['e01'] = {'base_sha': '$E01_BASE', 'stories': {}}
+   with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
+       json.dump(state, f, indent=2)
+   "
+   ```
+
+   **Create all story branches** for each epic from the epic branch HEAD — all from the same base commit:
+   ```bash
+   # For each story in epic e01:
+   git checkout epic/e01-<slug>
+   git checkout -b e01-s01/<story-slug>
+   git push -u origin e01-s01/<story-slug>
+
+   git checkout epic/e01-<slug>
+   git checkout -b e01-s02/<story-slug>
+   git push -u origin e01-s02/<story-slug>
+   # ... repeat for all stories in this epic
+
+   # Repeat for each epic:
+   git checkout epic/e02-<slug>
+   git checkout -b e02-s01/<story-slug>
+   git push -u origin e02-s01/<story-slug>
+   # ... etc.
+   ```
+
+   **Why upfront:** All story branches are created from the same epic branch commit. If branches were created lazily at dispatch time, later stories in a parallel wave could inherit an earlier sibling's commits (confirmed cross-contamination defect in Run 9, E01-S03 issue #20). Creating all branches from the same base commit eliminates this class of error entirely, regardless of dispatch order.
+
+   **Idempotent restart:** If a branch already exists, check it out instead of creating it:
+   ```bash
+   git checkout e01-s01/<story-slug> 2>/dev/null || (git checkout epic/e01-<slug> && git checkout -b e01-s01/<story-slug> && git push -u origin e01-s01/<story-slug>)
+   ```
+
 5. Check for already-completed stories (idempotent restart):
    ```bash
    # A story is complete if it has a "Ready for Review" comment
@@ -286,9 +352,12 @@ For each story (or wave of independent stories):
 
 3. **Set story board status to In Progress** (sequentially, before dispatch — ensures board is accurate before the builder starts):
    ```bash
+   # Single story:
    ./scripts/issue-set-status.sh <issue-number> in-progress
+   # Parallel wave — set all to In Progress before dispatching any builders:
+   ./scripts/batch-set-status.sh 112:in-progress 113:in-progress 114:in-progress
    ```
-   For parallel waves, set all stories to In Progress sequentially before dispatching any builders.
+   For parallel waves, `batch-set-status.sh` fetches current status for all issues before any mutations (skips already-correct) and applies mutations sequentially per the GitHub Projects API constraint.
 
 4. **Dispatch the builder** with the story's issue number and context. The prompt should include:
    - The issue number and title
@@ -306,7 +375,10 @@ For each story (or wave of independent stories):
 
 6. **Set story board status to In Review** (sequentially, after builder completes):
    ```bash
+   # Single story:
    ./scripts/issue-set-status.sh <issue-number> in-review
+   # After a parallel wave completes — set all to In Review at once:
+   ./scripts/batch-set-status.sh 112:in-review 113:in-review 114:in-review
    ```
 
 7. **Post telemetry** immediately after each builder completes:
@@ -325,11 +397,9 @@ For each story (or wave of independent stories):
    ./scripts/issue-set-status.sh <epic-issue> in-progress
    ```
 
-9. **Verify board status after each wave** (for parallel dispatch): Re-run `issue-set-status.sh` for each story to ensure the transition succeeded. The script's built-in validation and retry handles most failures:
+9. **Verify board status after each wave** (for parallel dispatch): Use `batch-set-status.sh` to set all stories to In Review in a single invocation. The script fetches current status before mutations (skips already-correct), applies sequentially, and runs a shared verification pass:
    ```bash
-   for ISSUE_NUM in <wave story numbers>; do
-     ./scripts/issue-set-status.sh $ISSUE_NUM in-review
-   done
+   ./scripts/batch-set-status.sh <N1>:in-review <N2>:in-review <N3>:in-review
    ```
 
 10. **Verify issue comments after each parallel wave** (REQUIRED): Query each story for expected comments ("Work Started" from `issue-start.sh`, "Ready for Review" from `issue-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively:
@@ -347,9 +417,11 @@ For each story (or wave of independent stories):
 
 **Reviewer dispatch is mandatory for every story.** After each builder completes and before merging into the epic branch, the orchestrator MUST dispatch the reviewer. There is no skip option.
 
-1. **Dispatch the reviewer** with the story issue number and branch:
+1. **Dispatch the reviewer** with the story issue number and branch. Select the reviewer variant based on story difficulty (read `reviewerRouting` from `.claude/agentic-sdlc-config.json` or use `CFG_REVIEW_*` from `scripts/lib/config.sh`):
    ```
-   Agent tool → subagent_type: "reviewer"
+   # Read difficulty label from the story issue, then route:
+   Agent tool → subagent_type: "reviewer-sonnet"  # difficulty/easy
+   Agent tool → subagent_type: "reviewer-opus"    # difficulty/medium or hard
    Prompt: "Review story #<number> on branch e<NN>-s<NN>/<slug> against epic/<slug>"
    ```
 
@@ -483,9 +555,9 @@ When all epics are merged into the integration branch:
 
    The `Closes` list MUST include the backlog issue, ALL epic issues, ALL story issues, and any design/plan issues so merging auto-closes them all.
 
-4. **Dispatch reviewer on the backlog PR** (mandatory) for a full cross-epic integration review:
+4. **Dispatch reviewer on the backlog PR** (mandatory) for a full cross-epic integration review. Always use `reviewer-opus` for the backlog PR review regardless of story difficulty — this is a cross-epic integration review:
    ```
-   Agent tool → subagent_type: "reviewer"
+   Agent tool → subagent_type: "reviewer-opus"
    Prompt: "Review PR #<pr-number> for this project. Check for cross-epic
             integration issues, convention violations, and security concerns. Post findings
             as a review on the PR."
@@ -643,7 +715,54 @@ The `%%{init}%%` block in `scripts/templates/telemetry.md` defines the hex value
 
 **Gantt label convention:** Labels follow the format `<ENN-SNN> <short label> (<duration>)`. The short label is generated by the orchestrator from the full issue title — a concise, readable summary (aim for ~30 characters max) that preserves meaning. Do not mechanically truncate; use judgement to produce a label that makes sense at a glance. For non-story phases, use the agent role (e.g., "Designer (3m20s)", "Planner (5m05s)", "Retro Agent (2m30s)").
 
-Note: the orchestrator's own token consumption runs in the parent session and is not captured. Only dispatched subagent telemetry is tracked.
+**Orchestrator overhead computation:** After all subagent dispatches complete, compute overhead using the wall-clock heuristic and update the state file:
+
+```bash
+# Read start timestamp from state file
+START_WALL=$(jq -r '.session.start_wall_clock' .agentic-workflow/runs/<backlog>/orchestrator.json)
+END_WALL=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# Compute total wall-clock ms (end - start)
+TOTAL_WALL_MS=$(python3 -c "
+from datetime import datetime
+start = datetime.fromisoformat('$START_WALL'.replace('Z', '+00:00'))
+end = datetime.fromisoformat('$END_WALL'.replace('Z', '+00:00'))
+print(int((end - start).total_seconds() * 1000))
+")
+
+# Compute critical-path subagent duration from dispatches (same logic as issue-telemetry.sh)
+# overhead_duration = total_wall_clock - sum(critical_path_subagent_ms)
+# Note: token overhead is NOT directly measurable — the parent session tokens are not
+# returned by the Agent tool. estimated_cost remains null unless /cost was captured manually.
+python3 -c "
+import json
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
+    state = json.load(f)
+dispatches = state.get('dispatches', [])
+# Group by started_at to find parallel waves; sum max(duration) per wave
+from collections import defaultdict
+waves = defaultdict(list)
+for d in dispatches:
+    waves[d.get('started_at', '')].append(d.get('duration_ms', 0))
+critical_path_ms = sum(max(group) for group in waves.values())
+overhead_ms = $TOTAL_WALL_MS - critical_path_ms
+state['overhead']['duration_ms'] = max(overhead_ms, 0)
+state['overhead']['estimated_cost'] = None  # token overhead not measurable
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
+    json.dump(state, f, indent=2)
+print(f'Overhead: {max(overhead_ms, 0) // 60000}m {(max(overhead_ms, 0) // 1000) % 60}s')
+"
+```
+
+**Include an "Orchestrator" row in the backlog telemetry summary:** When posting Phase 10 telemetry, add a row for orchestrator overhead after all other phases. Use the computed `overhead.duration_ms` from the state file. Token count is not measurable — use `—` for tokens and `—` for cost:
+
+```
+| Orchestrator | overhead (branch ops, merges, board mgmt) | 12m 30s | — | — |
+```
+
+Add this row to both `--summary` and `--breakdown` when using the legacy manual method, and append it via `--footer` when using `--dispatches-from-state` (since the script doesn't include an Orchestrator row automatically). Include a note in `--footer` that orchestrator tokens are not captured.
+
+**Token overhead note:** Orchestrator token consumption is not returned by the Agent tool (it runs in the parent session). The duration-based heuristic via `start_wall_clock` gives a reliable time estimate. Cost remains an approximation — note in the footer: `*Orchestrator token overhead not included in cost estimate.*`
 
 **Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically via the template.
 ### Phase 11: Post-Merge Cleanup
@@ -812,8 +931,13 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
     "mode": "autonomous",
     "orchestrator_model": "opus",
     "started_at": "2026-03-10T14:00:00Z",
+    "start_wall_clock": "2026-03-10T14:00:00Z",
     "repo": "carlosboeing/agentic-sdlc-workflow",
     "git_main_sha": "d1c7532"
+  },
+  "overhead": {
+    "duration_ms": null,
+    "estimated_cost": null
   },
   "pricing": {
     "source": "anthropic-pricing-page",
@@ -859,10 +983,14 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 |---------|-------|---------|
 | `version` | `1` | Schema version for forward compatibility. Readers must tolerate unknown keys. |
 | `session.orchestrator_model` | `"opus"` | The model the orchestrator session is running. All `model: inherit` agents inherit this. Critical for accurate cost estimates. |
+| `session.start_wall_clock` | `"2026-03-10T14:00:00Z"` | ISO timestamp recorded at the moment the state file is written (Phase 0). Used in Phase 10 to compute orchestrator overhead duration: `overhead_duration = total_wall_clock - sum(all_subagent_durations_critical_path)`. |
 | `session.git_main_sha` | `"d1c7532"` | Main branch HEAD at workflow start. Detects if main moved during the run. |
+| `overhead.duration_ms` | `null` (nullable) | Computed in Phase 10 after all subagent dispatches complete. Formula: `wall_clock_ms - sum(critical_path_subagent_ms)`. Null until computed. |
+| `overhead.estimated_cost` | `null` (nullable) | Not directly measurable — token overhead is not returned by the Agent tool for the parent session. Set to null unless the orchestrator captures `/cost` output manually at session start and end. |
 | `pricing.rates` | `{...}` | Token rates fetched at session start. Used by `issue-telemetry.sh` via `--rate`. |
 | `pricing.source` | `"anthropic-pricing-page"` | Where rates came from (`anthropic-pricing-page`, `litellm-community`, or previous cache). |
 | `phases` | `{...}` | Status of each workflow phase (pending, in_progress, complete, skipped). |
+| `epics.*.base_sha` | `"e6f79d6"` | The epic branch HEAD commit SHA recorded in Phase 4 when the epic branch is created. All story branches for this epic are created from this commit. Used to detect cross-contamination (a story branch diverged from the expected base). |
 | `epics.*.stories.*.status` | `"reviewed"` | Story status (pending, building, built, reviewing, reviewed, merged, done). |
 | `dispatches[]` | `[...]` | Append-only log of every agent dispatch. Raw data for telemetry and debugging. |
 
@@ -881,6 +1009,9 @@ PRICING=$(./scripts/fetch-pricing.sh)
 # Detect orchestrator model from the current session
 # (The orchestrator knows its own model from the session context)
 
+# Capture wall-clock start timestamp (used later to compute orchestrator overhead)
+START_WALL_CLOCK=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
 # Write initial state
 cat > .agentic-workflow/runs/<backlog>/orchestrator.json << EOF
 {
@@ -889,9 +1020,14 @@ cat > .agentic-workflow/runs/<backlog>/orchestrator.json << EOF
     "backlog": <number>,
     "mode": "autonomous",
     "orchestrator_model": "<model>",
-    "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "started_at": "$START_WALL_CLOCK",
+    "start_wall_clock": "$START_WALL_CLOCK",
     "repo": "carlosboeing/agentic-sdlc-workflow",
     "git_main_sha": "$(git rev-parse --short HEAD)"
+  },
+  "overhead": {
+    "duration_ms": null,
+    "estimated_cost": null
   },
   "pricing": $PRICING,
   "phases": {
@@ -1088,6 +1224,42 @@ grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/
 ```
 
 Lessons are your notes for future agents. Write them at the moment of discovery -- context is lost if you defer.
+
+## Orchestrator Override Pattern
+
+There are situations where the orchestrator has already fixed an issue before the reviewer is dispatched — for example, cherry-picking commits to remove cross-contamination from a story branch. In these cases, if the reviewer flags the pre-fix state, the orchestrator may override the reviewer verdict without triggering a fix cycle.
+
+### When an override is valid
+
+All three of the following must be true:
+
+1. **Fix committed and verifiable.** The fix must already be committed on the story branch or integration branch. The commit hash must be known and the fix must be inspectable via `git show <hash>` or `git log`.
+2. **Documented as issue comment.** The orchestrator must post a comment on the story issue that includes:
+   - The commit hash of the fix
+   - The specific reviewer finding number(s) being overridden (e.g., "Finding W3")
+   - A brief explanation of why the finding was pre-addressed
+3. **Telemetry records the override.** The story's review entry in the orchestrator state file and in the issue telemetry must note the override. When posting story telemetry, add a `(override)` marker to the review dispatch row and note "Finding Wn pre-addressed by commit `<hash>`" in the footer.
+
+**Example override comment format:**
+```
+Override: Finding W2 (cross-contamination file) was pre-addressed by orchestrator commit `d537441`
+before reviewer dispatch. The file `violation-quantum-bistro.md` was removed in that commit.
+Story content approved in prior review. Override applied — no fix cycle needed.
+```
+
+### When NOT to override
+
+Do not use the override pattern in these situations:
+
+- **Unfixed issues.** The finding describes a real problem that is still present in the committed code. Use the fix cycle (Phase 6 re-dispatch) instead.
+- **Incomplete fixes.** The fix addressed part of the finding but left related issues unresolved. The reviewer may flag the remaining issues in the next cycle.
+- **Uncertain fixes.** You are not confident the committed change fully resolves the finding. When in doubt, let the builder address it in a fix cycle rather than overriding.
+- **New findings.** The reviewer raised concerns not present in any prior review. These are not pre-addressed and require a fix cycle.
+
+### Evidence
+
+- **Run 9 (backlog #14):** Cherry-pick to fix story branch cross-contamination preceded reviewer dispatch. Reviewer flagged the contamination based on earlier state. Orchestrator applied override after verifying the cherry-pick removed the offending file.
+- **Run 14 (backlog #83, E01-S04):** Two fix cycles were run for planted bugs. After fix cycle 2, the orchestrator removed a cross-contamination file (`violation-quantum-bistro.md`) via commit `d537441` before the final review. That review had 0 tokens/0 duration (content already approved in review 2); the override was noted as "Content approved in review 2. Cross-contamination fixed by orchestrator."
 
 ## Self-Documentation
 

@@ -649,6 +649,31 @@ The `%%{init}%%` block in `scripts/templates/telemetry.md` defines the hex value
 Note: the orchestrator's own token consumption runs in the parent session and is not captured. Only dispatched subagent telemetry is tracked.
 
 **Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically via the template.
+
+**Record lifecycle_duration_ms (REQUIRED — last step before cleanup):** After all telemetry is posted, record the total wall-clock lifecycle duration in the state file. This field captures the full run duration as a comparable baseline for trend analysis across runs:
+
+```bash
+# Compute lifecycle duration: from session.started_at to now (after telemetry posted)
+python3 -c "
+import json
+from datetime import datetime, timezone
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
+    state = json.load(f)
+started_at = state['session']['started_at']
+start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+end = datetime.now(timezone.utc)
+lifecycle_ms = int((end - start).total_seconds() * 1000)
+state['session']['lifecycle_duration_ms'] = lifecycle_ms
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
+    json.dump(state, f, indent=2)
+mins = lifecycle_ms // 60000
+secs = (lifecycle_ms // 1000) % 60
+print(f'Lifecycle duration: {mins}m {secs}s')
+"
+```
+
+This must be the final state file write before Phase 11 cleanup begins.
+
 ### Phase 11: Post-Merge Cleanup
 
 This phase happens AFTER the human merges the backlog PR. If the orchestrator is still in session, it should run cleanup immediately. Otherwise, run it at the start of the next session.
@@ -815,6 +840,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
     "mode": "autonomous",
     "orchestrator_model": "opus",
     "started_at": "2026-03-10T14:00:00Z",
+    "lifecycle_duration_ms": null,
     "repo": "carlosboeing/agentic-sdlc-workflow",
     "git_main_sha": "d1c7532"
   },
@@ -862,6 +888,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 |---------|-------|---------|
 | `version` | `1` | Schema version for forward compatibility. Readers must tolerate unknown keys. |
 | `session.orchestrator_model` | `"opus"` | The model the orchestrator session is running. All `model: inherit` agents inherit this. Critical for accurate cost estimates. |
+| `session.lifecycle_duration_ms` | `null` (nullable) | Set at the end of Phase 10 after all telemetry is posted and before cleanup begins. Represents wall-clock time from `session.started_at` to the final telemetry post. Provides a comparable baseline across runs for trend analysis. |
 | `session.git_main_sha` | `"d1c7532"` | Main branch HEAD at workflow start. Detects if main moved during the run. |
 | `pricing.rates` | `{...}` | Token rates fetched at session start. Used by `issue-telemetry.sh` via `--rate`. |
 | `pricing.source` | `"anthropic-pricing-page"` | Where rates came from (`anthropic-pricing-page`, `litellm-community`, or previous cache). |

@@ -374,7 +374,7 @@ gh pr merge <N> --squash --delete-branch
 
 **Link all issues to the PR:** The backlog PR body MUST include `Closes #NN` for the backlog issue, every epic issue, AND every story issue so merging the PR auto-closes them all (e.g., `Closes #57, closes #58, closes #59, closes #60, closes #61, ...`). Design doc and plan issues should also be included. Omitting issues from the `Closes` list causes them to remain open after merge.
 
-**Update changelog:** The integration branch MUST include a `docs/CHANGELOG.md` entry before the PR is opened. Add the entry under the current date, following the existing format (feature summary + bullet points).
+**Update changelog:** The integration branch MUST include a `docs/CHANGELOG.md` entry before the PR is opened. Add the entry under the current date, following the existing format (feature summary + bullet points). For test run entries, include the wall-clock duration in the heading: `**Run N -- <Topic>** (backlog #NNN, 25m wall-clock)`. Read `session.lifecycle_duration_ms` from the orchestrator state file to get the exact duration — do not estimate.
 
 **Internal merges (epic → integration branch):** Epic branches merge into the integration branch using `--no-ff` merge (not squash). This is an internal merge — only the final PR to `main` uses squash. Design/plan PRs targeting the integration branch also use regular merge (`--merge`).
 

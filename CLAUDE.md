@@ -605,12 +605,14 @@ Changes to the SDLC workflow (scripts, board management, dispatch, telemetry, ag
 | `.claude/agents/retro.md` | Retro workflow, lesson conventions |
 | `scripts/templates/telemetry.md` | Template conditions, variable names, rendering logic |
 | `docs/2-design/` | Design docs may describe the workflow being changed |
+| `docs/ROADMAP.md` | Backlog item list, priority order, dependency graph, completion status |
 
 **Common propagation failures:**
 - Changed a script flag but didn't update CLAUDE.md's helper scripts table
 - Fixed a template rendering bug but didn't update the template's documentation comment
 - Added a board transition step to the orchestrator but didn't update CLAUDE.md's board transitions section
 - Changed "post as comment" to "append to issue body" but only updated one of two agent files
+- Created or closed a backlog item but didn't update `docs/ROADMAP.md`
 
 ### Agent File Maintenance
 

@@ -259,6 +259,32 @@ When creating task breakdowns, each story should be:
 - **Testable** — explicit acceptance criteria
 - **Sequential** — respects the dependency graph
 
+## Format Templates for Parallel Content
+
+When an epic's stories produce content with shared structural elements (e.g., metrics sections, rating tables, header formats, date formats), the plan MUST specify the exact rendering format for those elements. Parallel builders working independently will otherwise make different formatting choices, resulting in cosmetic divergence that requires a fix cycle or post-hoc normalization.
+
+**When this applies:** Any epic where two or more stories produce content of the same type (e.g., multiple review documents, multiple data files with the same schema, multiple pages with the same layout).
+
+**What to include in the plan:** Add a "Format Contract" section to the epic's plan document listing:
+
+| Element | Exact Format | Example |
+|---------|-------------|---------|
+| Element name | Exact rendering format | Snippet showing correct output |
+
+Example:
+
+```markdown
+## Format Contract
+
+| Element | Exact Format | Example |
+|---------|-------------|---------|
+| Rating | Markdown table with columns: Category, Score (N/5), Notes | `\| Ambiance \| 4/5 \| Cozy lighting \|` |
+| Date header | ISO 8601, no time component | `2157-03-14` |
+| Metrics section | H3 heading + bullet list (no table) | `### Metrics\n- Revenue: $4.2M` |
+```
+
+**Include the Format Contract in the story issue body** (under a "Format Contract" heading) so each builder sees it without needing to read the full plan. For content-creation stories, the acceptance criteria should explicitly call out format compliance (e.g., "rating table uses markdown table format as specified in the Format Contract").
+
 ## Capturing Lessons
 
 When you encounter a bug, unexpected behavior, missing convention, or anything worth remembering for future work, create a lesson file immediately — don't defer it.

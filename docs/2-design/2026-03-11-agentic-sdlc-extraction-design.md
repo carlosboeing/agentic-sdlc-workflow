@@ -105,12 +105,10 @@ Manages work items, hierarchy, status, comments, and labels.
 | `pm_create_pr <head> <base> <title> <body>` | Create pull request | `gh pr create` | No-op (local merges are `git merge`) |
 | `pm_merge_pr <number> <strategy>` | Merge pull request | `gh pr merge` | No-op |
 
-Status values are generic across all adapters:
+Status values are generic across all adapters (5 default statuses, see [Work Item Taxonomy](2026-03-11-agentic-sdlc-workitem-taxonomy.md) for rationale):
 
 ```
-backlog → planning → ready → in_progress → review → done
-                                ↑              │
-                                └── rejected ──┘
+backlog → ready → in_progress → in_review → done
 ```
 
 ### Doc Adapter (Document Storage)
@@ -151,6 +149,9 @@ Doc categories: `design`, `plan`, `adr`, `lesson`, `retro`, `changelog`, `guide`
 - **Zero dependencies** — no database, no runtime, no accounts
 
 ### Local PM folder structure
+
+> **Note:** The directory name `.sdlc/` is from the original design. The [Work Item Taxonomy](2026-03-11-agentic-sdlc-workitem-taxonomy.md) design proposes `.workflow/` as an alternative. The final name will be decided during implementation.
+
 
 ```
 .sdlc/

@@ -6,6 +6,9 @@ status: draft
 
 # Design: GitHub Issue Templates for Work Items
 
+
+> **Naming note:** This doc uses "Backlog Item," "Epic," and "Story" — the terminology from the test runs. The work item taxonomy is now configurable with the default being Epic → Story → Task. See [Work Item Taxonomy](2026-03-11-agentic-sdlc-workitem-taxonomy.md) for the full design. The template *structure* (Brief → Grouping → Micro-Spec) is stable regardless of naming.
+
 ## Problem
 
 Our GitHub issue descriptions have been inconsistent across 6 SDLC test runs. Run 1 (#57) had a clean, integrated format with dependency graphs in the body. Later runs lost this — Run 6 (#162) had the graph appended with a `---` separator that looks unprofessional. We have no formalised templates for any work item level.

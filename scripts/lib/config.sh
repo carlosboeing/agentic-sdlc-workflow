@@ -13,7 +13,8 @@
 #   CFG_PROJECT_ID, CFG_STATUS_FIELD_ID,
 #   CFG_STATUS_BACKLOG, CFG_STATUS_PLANNED, CFG_STATUS_TODO,
 #   CFG_STATUS_IN_PROGRESS, CFG_STATUS_IN_REVIEW, CFG_STATUS_DONE,
-#   CFG_ROUTE_EASY, CFG_ROUTE_MEDIUM, CFG_ROUTE_HARD
+#   CFG_ROUTE_EASY, CFG_ROUTE_MEDIUM, CFG_ROUTE_HARD,
+#   CFG_REVIEW_EASY, CFG_REVIEW_MEDIUM, CFG_REVIEW_HARD
 
 # Locate config file relative to the repo root
 _CFG_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -62,3 +63,8 @@ CFG_STATUS_DONE=$(_cfg '.boardStatus.done' "98236657")
 CFG_ROUTE_EASY=$(_cfg '.modelRouting.easy' "sonnet")
 CFG_ROUTE_MEDIUM=$(_cfg '.modelRouting.medium' "sonnet")
 CFG_ROUTE_HARD=$(_cfg '.modelRouting.hard' "opus")
+
+# --- Reviewer routing ---
+CFG_REVIEW_EASY=$(_cfg '.reviewerRouting.easy' "sonnet")
+CFG_REVIEW_MEDIUM=$(_cfg '.reviewerRouting.medium' "opus")
+CFG_REVIEW_HARD=$(_cfg '.reviewerRouting.hard' "opus")

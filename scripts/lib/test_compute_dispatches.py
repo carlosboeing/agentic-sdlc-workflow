@@ -665,5 +665,413 @@ class TestEdgeCases(unittest.TestCase):
         self.assertIn("Retrospective (#20)", result["breakdown"])
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Fix cycle detection tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+# State fixture with one fix cycle: issue 72 was built, reviewed, then re-built
+# (fix cycle) and re-reviewed.
+STATE_WITH_FIX_CYCLE = {
+    **STATE_FIXTURE,
+    "dispatches": [
+        {
+            "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 146479, "tokens": 49691,
+        },
+        {
+            "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 73, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 193000, "tokens": 60000,
+        },
+        {
+            "id": 3, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:05:00Z",
+            "duration_ms": 72000, "tokens": 18000,
+        },
+        {
+            "id": 4, "agent": "reviewer", "model": "sonnet",
+            "issue": 73, "started_at": "2026-03-15T10:05:00Z",
+            "duration_ms": 65000, "tokens": 16000,
+        },
+        # Fix cycle: re-build issue 72 after review
+        {
+            "id": 5, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:08:00Z",
+            "duration_ms": 120000, "tokens": 35000,
+        },
+        # Re-review issue 72 after fix
+        {
+            "id": 6, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:10:00Z",
+            "duration_ms": 55000, "tokens": 14000,
+        },
+    ],
+}
+
+# State fixture with two fix cycles on the same story (two re-builds)
+STATE_WITH_TWO_FIX_CYCLES_SAME_STORY = {
+    **STATE_FIXTURE,
+    "dispatches": [
+        {
+            "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 146479, "tokens": 49691,
+        },
+        {
+            "id": 2, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:05:00Z",
+            "duration_ms": 72000, "tokens": 18000,
+        },
+        # First fix cycle
+        {
+            "id": 3, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:08:00Z",
+            "duration_ms": 120000, "tokens": 35000,
+        },
+        {
+            "id": 4, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:10:00Z",
+            "duration_ms": 55000, "tokens": 14000,
+        },
+        # Second fix cycle
+        {
+            "id": 5, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:12:00Z",
+            "duration_ms": 90000, "tokens": 28000,
+        },
+        {
+            "id": 6, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:14:00Z",
+            "duration_ms": 50000, "tokens": 12000,
+        },
+    ],
+}
+
+# State fixture with fix cycles on two different stories
+STATE_WITH_FIX_CYCLES_TWO_STORIES = {
+    **STATE_FIXTURE,
+    "dispatches": [
+        {
+            "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 146479, "tokens": 49691,
+        },
+        {
+            "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 73, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 193000, "tokens": 60000,
+        },
+        {
+            "id": 3, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:05:00Z",
+            "duration_ms": 72000, "tokens": 18000,
+        },
+        {
+            "id": 4, "agent": "reviewer", "model": "sonnet",
+            "issue": 73, "started_at": "2026-03-15T10:05:00Z",
+            "duration_ms": 65000, "tokens": 16000,
+        },
+        # Fix cycle on issue 72
+        {
+            "id": 5, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:08:00Z",
+            "duration_ms": 120000, "tokens": 35000,
+        },
+        {
+            "id": 6, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:10:00Z",
+            "duration_ms": 55000, "tokens": 14000,
+        },
+        # Fix cycle on issue 73
+        {
+            "id": 7, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 73, "started_at": "2026-03-15T10:12:00Z",
+            "duration_ms": 100000, "tokens": 30000,
+        },
+        {
+            "id": 8, "agent": "reviewer", "model": "sonnet",
+            "issue": 73, "started_at": "2026-03-15T10:14:00Z",
+            "duration_ms": 60000, "tokens": 15000,
+        },
+    ],
+}
+
+
+class TestFixCycleDetection(unittest.TestCase):
+    """Tests for fix cycle detection in compute_fix_cycles()."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _pricing(self):
+        return cd.load_pricing(self.pricing_file, self.config_file)
+
+    # ── Zero fix cycles ────────────────────────────────────────────────────────
+
+    def test_no_fix_cycles_returns_none(self):
+        """When no fix cycles exist, compute_fix_cycles returns None."""
+        result = cd.compute_fix_cycles(STATE_FIXTURE["dispatches"], self._pricing())
+        self.assertIsNone(result)
+
+    def test_no_fix_cycles_absent_from_state_result(self):
+        """When no fix cycles, fix_cycles key absent from compute_from_state output."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        self.assertNotIn("fix_cycles", result)
+
+    def test_no_fix_cycles_no_fix_footer(self):
+        """When no fix cycles, fix_footer absent from compute_from_state output."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        self.assertNotIn("fix_footer", result)
+
+    def test_no_fix_cycles_no_fix_summary_row(self):
+        """When no fix cycles, no Fix Cycles row in summary."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        self.assertNotIn("Fix Cycles", result["summary"])
+
+    # ── One fix cycle ──────────────────────────────────────────────────────────
+
+    def test_one_fix_cycle_count(self):
+        """One re-build for an issue = count of 1."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(STATE_WITH_FIX_CYCLE["dispatches"], pricing)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["count"], 1)
+
+    def test_one_fix_cycle_stories_affected(self):
+        """One story re-built = stories_affected of 1."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(STATE_WITH_FIX_CYCLE["dispatches"], pricing)
+        self.assertEqual(result["stories_affected"], 1)
+
+    def test_one_fix_cycle_duration_ms(self):
+        """Fix cycle duration = sum of re-build + re-review duration_ms."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(STATE_WITH_FIX_CYCLE["dispatches"], pricing)
+        # Re-build (id 5): 120000ms, re-review (id 6): 55000ms
+        expected_duration = 120000 + 55000
+        self.assertEqual(result["duration_ms"], expected_duration)
+
+    def test_one_fix_cycle_tokens(self):
+        """Fix cycle tokens = sum of re-build + re-review tokens."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(STATE_WITH_FIX_CYCLE["dispatches"], pricing)
+        # Re-build (id 5): 35000 tokens, re-review (id 6): 14000 tokens
+        expected_tokens = 35000 + 14000
+        self.assertEqual(result["tokens"], expected_tokens)
+
+    def test_one_fix_cycle_cost_is_numeric_string(self):
+        """Fix cycle cost is a two-decimal string."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(STATE_WITH_FIX_CYCLE["dispatches"], pricing)
+        cost = float(result["cost"])
+        self.assertGreater(cost, 0)
+        self.assertRegex(result["cost"], r"^\d+\.\d{2}$")
+
+    def test_one_fix_cycle_rate_is_ratio_string(self):
+        """Fix cycle rate = fix cycles / unique builder issues as string."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(STATE_WITH_FIX_CYCLE["dispatches"], pricing)
+        # 1 fix cycle / 2 unique builder issues = 0.50
+        rate = float(result["rate"])
+        self.assertAlmostEqual(rate, 0.50, places=2)
+
+    def test_one_fix_cycle_present_in_state_result(self):
+        """When one fix cycle, fix_cycles key present in compute_from_state."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLE, pricing)
+        self.assertIn("fix_cycles", result)
+        self.assertIsNotNone(result["fix_cycles"])
+
+    # ── Two fix cycles on the same story ──────────────────────────────────────
+
+    def test_two_fix_cycles_same_story_count(self):
+        """Two re-builds for same issue = count of 2."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(
+            STATE_WITH_TWO_FIX_CYCLES_SAME_STORY["dispatches"], pricing
+        )
+        self.assertEqual(result["count"], 2)
+
+    def test_two_fix_cycles_same_story_stories_affected(self):
+        """Two fix cycles on same issue = stories_affected of 1."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(
+            STATE_WITH_TWO_FIX_CYCLES_SAME_STORY["dispatches"], pricing
+        )
+        self.assertEqual(result["stories_affected"], 1)
+
+    def test_two_fix_cycles_same_story_duration(self):
+        """Duration includes both fix cycle re-build+re-review pairs."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(
+            STATE_WITH_TWO_FIX_CYCLES_SAME_STORY["dispatches"], pricing
+        )
+        # First fix cycle: 120000 + 55000, second: 90000 + 50000
+        expected = 120000 + 55000 + 90000 + 50000
+        self.assertEqual(result["duration_ms"], expected)
+
+    # ── Fix cycles on two different stories ───────────────────────────────────
+
+    def test_fix_cycles_two_stories_count(self):
+        """One fix cycle per story = count of 2."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(
+            STATE_WITH_FIX_CYCLES_TWO_STORIES["dispatches"], pricing
+        )
+        self.assertEqual(result["count"], 2)
+
+    def test_fix_cycles_two_stories_stories_affected(self):
+        """Fix cycles on two different stories = stories_affected of 2."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(
+            STATE_WITH_FIX_CYCLES_TWO_STORIES["dispatches"], pricing
+        )
+        self.assertEqual(result["stories_affected"], 2)
+
+    def test_fix_cycles_two_stories_rate(self):
+        """Rate = 2 fix cycles / 2 unique builder issues = 1.00."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(
+            STATE_WITH_FIX_CYCLES_TWO_STORIES["dispatches"], pricing
+        )
+        rate = float(result["rate"])
+        self.assertAlmostEqual(rate, 1.00, places=2)
+
+    # ── fix_footer field ──────────────────────────────────────────────────────
+
+    def test_fix_footer_present_when_fix_cycles(self):
+        """When fix cycles exist, fix_footer key present in output."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLE, pricing)
+        self.assertIn("fix_footer", result)
+
+    def test_fix_footer_format(self):
+        """fix_footer matches expected italic markdown format."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLE, pricing)
+        footer = result["fix_footer"]
+        self.assertTrue(footer.startswith("*Fix cycles:"))
+        self.assertIn("fix rate", footer)
+        self.assertIn("adding", footer)
+        self.assertIn("of total cost", footer)
+        self.assertTrue(footer.endswith(".*"))
+
+    def test_fix_footer_contains_correct_count(self):
+        """fix_footer contains '1 / 2 stories' for one fix cycle over two stories."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLE, pricing)
+        self.assertIn("1 / 2 stories", result["fix_footer"])
+
+    def test_fix_footer_contains_pct(self):
+        """fix_footer contains '50%' fix rate for 1 cycle over 2 stories."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLE, pricing)
+        self.assertIn("50%", result["fix_footer"])
+
+    # ── Fix cycle summary row ─────────────────────────────────────────────────
+
+    def test_summary_has_fix_cycles_row(self):
+        """Summary includes Fix Cycles row when fix cycles exist."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLE, pricing)
+        self.assertIn("Fix Cycles", result["summary"])
+
+    def test_summary_fix_cycles_row_before_total(self):
+        """Fix Cycles summary row appears before the Total row."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLE, pricing)
+        lines = result["summary"].splitlines()
+        fix_idx = next(i for i, l in enumerate(lines) if "Fix Cycles" in l)
+        total_idx = next(i for i, l in enumerate(lines) if "**Total**" in l)
+        self.assertLess(fix_idx, total_idx)
+
+    def test_summary_fix_cycles_row_format(self):
+        """Fix Cycles summary row has pipe-delimited format with count and story info."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLE, pricing)
+        lines = result["summary"].splitlines()
+        fix_row = next(l for l in lines if "Fix Cycles" in l)
+        self.assertTrue(fix_row.startswith("|"))
+        self.assertTrue(fix_row.endswith("|"))
+        self.assertIn("1 cycle", fix_row)
+        self.assertIn("1 story", fix_row)
+
+    def test_summary_fix_cycles_row_plural(self):
+        """Fix Cycles row uses plural 'cycles'/'stories' when count/affected > 1."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_WITH_FIX_CYCLES_TWO_STORIES, pricing)
+        lines = result["summary"].splitlines()
+        fix_row = next(l for l in lines if "Fix Cycles" in l)
+        self.assertIn("2 cycles", fix_row)
+        self.assertIn("2 stories", fix_row)
+
+    # ── Required fields in fix_cycles object ─────────────────────────────────
+
+    def test_fix_cycles_object_has_required_fields(self):
+        """fix_cycles object has count, duration_ms, cost, rate, stories_affected, tokens."""
+        pricing = self._pricing()
+        result = cd.compute_fix_cycles(STATE_WITH_FIX_CYCLE["dispatches"], pricing)
+        for field in ["count", "duration_ms", "cost", "rate", "stories_affected", "tokens"]:
+            self.assertIn(field, result, f"Missing field in fix_cycles: {field}")
+
+    # ── CLI output includes fix_cycles ────────────────────────────────────────
+
+    def test_cli_output_includes_fix_cycles_when_present(self):
+        """End-to-end CLI output includes fix_cycles when fix cycles detected."""
+        import io
+        from unittest.mock import patch
+
+        state_file = _write_json(STATE_WITH_FIX_CYCLE)
+        pricing_file = _write_json(PRICING_FIXTURE)
+        config_file = _write_json({})
+
+        try:
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main([
+                    "--from-state", state_file,
+                    "--pricing", pricing_file,
+                    "--config", config_file,
+                ])
+            parsed = json.loads(captured.getvalue())
+            self.assertIn("fix_cycles", parsed)
+            self.assertEqual(parsed["fix_cycles"]["count"], 1)
+        finally:
+            for f in [state_file, pricing_file, config_file]:
+                os.unlink(f)
+
+    def test_cli_output_no_fix_cycles_key_when_absent(self):
+        """End-to-end CLI output: fix_cycles absent when no fix cycles."""
+        import io
+        from unittest.mock import patch
+
+        state_file = _write_json(STATE_FIXTURE)
+        pricing_file = _write_json(PRICING_FIXTURE)
+        config_file = _write_json({})
+
+        try:
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main([
+                    "--from-state", state_file,
+                    "--pricing", pricing_file,
+                    "--config", config_file,
+                ])
+            parsed = json.loads(captured.getvalue())
+            self.assertNotIn("fix_cycles", parsed)
+        finally:
+            for f in [state_file, pricing_file, config_file]:
+                os.unlink(f)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

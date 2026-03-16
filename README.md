@@ -416,6 +416,12 @@ For example, Run 9 discovered a cross-contamination bug in parallel dispatch and
 
 ---
 
+## Roadmap
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full roadmap with dependency graph, priority order, and links to all backlog items. Track current work on the [project board](https://github.com/users/carlosboeing/projects/7).
+
+---
+
 ## License
 
 This project is a research exploration of agentic software development workflows. See the repository for details.

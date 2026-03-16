@@ -493,10 +493,8 @@ When all epics are merged into the integration branch:
 
 5. **Fix issues found by the reviewer:**
    - If the review verdict is `REQUEST_CHANGES`, dispatch a builder to fix the issues on the integration branch
-   - If the verdict is `APPROVE` or `COMMENT` **with warnings**, dispatch a builder to fix the warnings before presenting to the human. The human should receive a clean PR — not one with known issues to triage.
    - After fixes, re-dispatch the reviewer on the PR
-   - Repeat until the reviewer returns a clean `APPROVE` with no warnings or only suggestions (max 2 fix cycles)
-   - **Triage rule:** Only fix findings classified as **warnings** or **critical**. Suggestions (S-prefixed) are optional improvements — note them in the PR description but do not dispatch a fix cycle for suggestions alone.
+   - Repeat until the verdict is `APPROVE` or `COMMENT` (max 2 fix cycles)
 
 6. **Set the backlog issue to In Review** (all work complete, PR open for human review):
    ```bash

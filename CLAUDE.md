@@ -124,7 +124,16 @@ Orchestrator manages → one Backlog Item per workflow run
 
 **The planner MUST NOT create child backlog items.** If a feature feels too large for epics, use more epics with fewer stories each. An epic with 1-2 stories is perfectly valid. If the feature truly spans multiple independent domains (e.g., "build an e-commerce platform"), the designer should split it into separate backlog items upfront — each with its own lifecycle.
 
-**Issue naming:** `[#<backlog>/ENN] Epic title` for epics, `[#<backlog>/ENN-SNN] Story title` for stories, and `[#<backlog>] Write design doc for X` / `[#<backlog>] Write implementation plan for X` / `[#<backlog>] Write retrospective for X` for doc issues. The backlog issue itself is also prefixed with `[#<N>]` by the orchestrator in Phase 0 (the number is known once the issue exists). This prefix disambiguates issues across features and makes them scannable on the project board.
+**Issue naming:** `[#<backlog>/ENN] Epic title` for epics, `[#<backlog>/ENN-SNN] Story title` for stories
+
+**Dependency declaration (REQUIRED on all work items):** Every issue at every level (backlog, epic, story) must include a `**Blocked by:**` line in the body. The orchestrator parses this line in Phase 0 to validate dependencies before starting work.
+
+Format: `**Blocked by:** none` or `**Blocked by:** #109, #110, #111`
+
+- Always present — use `none` explicitly, never omit the line
+- Use issue numbers with `#` prefix — renders as clickable links on GitHub
+- Optional parenthetical descriptions: `**Blocked by:** #109 (PM Abstraction Layer)`
+- Machine-parsed by the orchestrator: `grep -oP '(?<=Blocked by:\*\* ).*' | grep -oP '#\d+'`, and `[#<backlog>] Write design doc for X` / `[#<backlog>] Write implementation plan for X` / `[#<backlog>] Write retrospective for X` for doc issues. The backlog issue itself is also prefixed with `[#<N>]` by the orchestrator in Phase 0 (the number is known once the issue exists). This prefix disambiguates issues across features and makes them scannable on the project board.
 
 **Issue hierarchy (sub-issues):** All work is tracked via three-level GitHub sub-issue nesting:
 

@@ -90,6 +90,22 @@ Execute these phases in order. Each phase has a verification step before proceed
    gh issue view <backlog-number> --json title,body,labels
    ```
 
+   **Dependency pre-check (REQUIRED):** Parse the `**Blocked by:**` line from the issue body. If any referenced issues are not closed, STOP and post a comment explaining what's blocked:
+   ```bash
+   BODY=$(gh issue view <backlog-number> --json body -q '.body')
+   BLOCKED=$(echo "$BODY" | grep -oP '(?<=Blocked by:\*\* ).*' | head -1)
+   if [ "$BLOCKED" != "none" ] && [ -n "$BLOCKED" ]; then
+     for DEP in $(echo "$BLOCKED" | grep -oP '#\d+' | tr -d '#'); do
+       STATE=$(gh issue view $DEP --json state -q '.state')
+       if [ "$STATE" != "CLOSED" ]; then
+         gh issue comment <backlog-number> --body "Blocked: dependency issue #$DEP is still open (state: $STATE). Cannot proceed until all dependencies are resolved."
+         echo "BLOCKED: Issue #$DEP is $STATE"
+         exit 1
+       fi
+     done
+   fi
+   ```
+
 2. **Create the integration branch** `backlog/<N>-<slug>` from main and push to remote:
    ```bash
    git checkout main && git pull

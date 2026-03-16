@@ -114,7 +114,8 @@ After writing a plan with epics and stories:
 
 2. **Create one GitHub Issue per story** with:
    - Title: `[#<backlog>/ENN-SNN] Story title` (e.g., `[#41/E01-S01] Board Drift Detection Script`)
-   - Body: acceptance criteria as checkboxes, files to create/modify, dependencies, test plan, git branch name
+   - Body: acceptance criteria as checkboxes, files to create/modify, blocked-by metadata, test plan, git branch name
+   - **Blocked by line (REQUIRED):** Every story must include `**Blocked by:** none` or `**Blocked by:** #N, #N (description)` in the metadata block. This is machine-parsed by the orchestrator to validate dependencies before dispatch. Use `none` explicitly when there are no blockers — never omit the line.
    - Labels: `hierarchy/story` + the `backlog/<issue>-<slug>` label + type label + **difficulty label**
    ```bash
    gh issue create --title "[#<backlog>/E01-S01] Add config property for feature X" \

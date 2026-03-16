@@ -200,7 +200,7 @@ the builder doesn't need to read the parent epic or design doc.>
 
 **Branch:** `eNN-sNN/slug` (from `epic/eNN-slug`)
 **Difficulty:** easy|medium|hard
-**Dependencies:** None | #N (story title)
+**Blocked by:** none | #N (story title)
 **Design:** `docs/2-design/YYYY-MM-DD-slug.md`
 
 ## Design
@@ -226,7 +226,7 @@ Part of #<epic>.
 | Opening paragraph   | **Yes**   | Self-contained context — why and what                    |
 | Branch              | **Yes**   | Builder needs this to create the branch                  |
 | Difficulty          | **Yes**   | Determines model routing                                 |
-| Dependencies        | **Yes**   | `None` is valid — always state explicitly                |
+| Blocked by          | **Yes**   | `none` is valid — always state explicitly                |
 | Design link         | **Yes**   | Safety net — builder reads only if AC is ambiguous       |
 | Design              | Optional  | Omit for easy, recommended for medium, expected for hard |
 | Acceptance Criteria | **Yes**   | Testable checkboxes — the definition of done             |
@@ -274,7 +274,7 @@ The flow is consistent: **Why → What → How → Done**, at decreasing granula
 | Epic dependency graph       | Separate Mermaid graph per epic                  | Removed — redundant with backlog graph + table "Depends on" column      |
 | Backlog sections            | Ad-hoc, varied per run                           | Defined outline: Overview, Requirements, Context (+ planner appendix) |
 | Story self-containment      | Builder sometimes needed to read epic/design doc | Story has full context + Design section + design doc link as safety net |
-| Story metadata              | Varied                                           | Consistent: Branch, Difficulty, Dependencies, Design link               |
+| Story metadata              | Varied                                           | Consistent: Branch, Difficulty, Blocked by, Design link                 |
 | Who creates backlog         | Assumed to be human in this workflow             | Explicitly anyone — human, CC session, product workflow                 |
 
 

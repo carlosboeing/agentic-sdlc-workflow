@@ -19,6 +19,8 @@ Your job starts with a **backlog issue number** (or epic slug) and ends when the
 
 Your deliverables are: dispatched agents, GitHub state updates, telemetry, and the backlog PR. Nothing else.
 
+**Determinism principle:** You are the infrastructure layer — dispatch sequencing, board management, telemetry, branch operations, and state tracking must be deterministic. When a value can be computed from the state file, config, or Git history, compute it — never estimate, memorize, or manually track what a script can derive. Use AI judgment for failure recovery and mid-flight adaptation, not for arithmetic or data the state file already contains. See CLAUDE.md § "Design Philosophy: Determinism First".
+
 ## Two Dispatch Modes
 
 ### Primary: In-Session (Agent Tool)
@@ -342,6 +344,7 @@ For each story (or wave of independent stories):
 
 3. **Handle issues found:**
    - If the review verdict is `REQUEST_CHANGES`, re-dispatch the builder to fix on the same story branch
+   - **Before fix cycle dispatch:** Run post-worktree cleanup (`git status --short` + `git clean -fd`) to remove stale artifacts from prior parallel waves. Stale files can leak into fix cycle commits. Evidence: Run 14 E01-S04 fix cycle 2 picked up E02-S01's file from a stale worktree.
    - After fixes, re-dispatch the reviewer
    - Repeat until the verdict is `APPROVE` or `COMMENT` (max 2 fix cycles)
 
@@ -366,6 +369,21 @@ git branch --show-current  # MUST be epic/<slug>
 
 git checkout epic/<slug>
 git merge e<NN>-s<NN>/<branch> --no-ff -m "feat(epic): merge <story-title>"
+```
+
+**If the merge fails with a conflict:**
+
+1. Abort the merge: `git merge --abort`
+2. Post a comment on the story issue:
+   ```bash
+   gh issue comment <number> --body "Merge conflict detected when merging into epic branch. Files in conflict: <list>. Manual intervention required."
+   ```
+3. **Do NOT attempt to resolve the conflict automatically.** Conflict resolution in production code requires human judgment about which changes to keep. Halt the workflow and wait for human intervention.
+4. Include the conflict details in the backlog PR description when it is eventually opened.
+
+**After a successful merge:**
+
+```bash
 git push origin epic/<slug>
 
 # Clean up ONLY after verifying the merge succeeded
@@ -417,7 +435,15 @@ When all epics are merged into the integration branch:
 
    For mixed-model epics, pass `--cost` with the sum of per-story costs (from the breakdown). For single-model epics, omit `--cost` and pass `--model <model>` — the script computes cost from the rate.
 
-   **Tracking wall-clock time:** Wall-clock = sum of: `max(durations within each parallel wave) + all sequential steps between waves`. Record `$SECONDS` before dispatching Wave 1 and after the last wave completes.
+   **Tracking wall-clock time:** Wall-clock = critical path through parallel waves = `sum of max(durations) within each parallel group + all sequential segments`. **Do NOT use `$SECONDS`** as the primary source — it is unreliable across long sessions and subshells. Instead, compute the critical path from the state file's dispatch log after all dispatches complete:
+
+   ```python
+   # Group dispatches by started_at to identify parallel groups
+   # For each group: take max(duration_ms)
+   # Sum all groups = critical path (wall-clock)
+   ```
+
+   **Validation:** If the computed wall-clock equals the sequential duration sum, something is wrong — parallel dispatches should always produce a shorter critical path. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when the actual critical path was 74m 4s.
 
 3. **Open ONE backlog PR:**
    ```bash
@@ -952,6 +978,24 @@ The state file is an optimisation for instant recovery, not a hard dependency. G
 | `issue-telemetry.sh` | `pricing.rates` (reads `.agentic-workflow/pricing.json` directly) | When posting telemetry |
 | Retro agent | `dispatches[]`, `epics.*` | When writing the retrospective |
 | Future agents | `session`, `pricing` (shared context) | When they need session-level info |
+
+### Designer/Planner Dispatch Failure
+
+If the designer or planner dispatch fails (Agent tool reports failure, usage limit hit, or produces no usable output):
+
+1. **Capture telemetry** from the Agent tool result (`duration_ms`, `total_tokens`, `tool_uses`) — failed dispatches still consume tokens.
+2. Post a failure comment on the design/plan issue:
+   ```bash
+   gh issue comment <number> --body "Designer dispatch failed. Re-dispatching..."
+   ```
+3. Re-dispatch the same agent (same prompt, same integration branch).
+4. If the second attempt fails, **abort the workflow** and post a comment on the backlog issue:
+   ```bash
+   gh issue comment <backlog-number> --body "Designer/planner dispatch failed twice. Manual intervention required. Workflow halted at Phase <N>."
+   ```
+5. Include failed dispatch telemetry in the aggregate totals.
+
+**Why abort (not continue):** Designer and planner are sequential gates — everything downstream depends on their output. Unlike a builder failure (which blocks one story), a designer/planner failure blocks the entire backlog item.
 
 ### Builder Dispatch Failure
 

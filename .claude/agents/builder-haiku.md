@@ -44,6 +44,8 @@ Your deliverables are: working code, passing tests, and commits on the correct b
 
 4. **Respect dependencies** — check the dependency graph in the plan and verify dependent stories are closed before starting.
 
+5. **Acceptance criteria take precedence over story descriptions.** When the acceptance criteria checklist and the story description contradict each other (e.g., description says "exactly 3 items" but AC says "at least 5 items"), always satisfy the acceptance criteria — they are the binding contract. Note the discrepancy in your commit message or issue comment so the reviewer is aware.
+
 ## Progress Tracking (REQUIRED)
 
 ### GitHub Issues (primary — persistent)
@@ -73,19 +75,21 @@ The orchestrator also sets these statuses before and after dispatch as defense-i
 
 ### Branch Strategy
 
-Stories branch off an **epic integration branch**, not `main` directly.
+Stories branch off an **epic branch**, which itself branches off the **integration branch** (not `main` directly).
 
 ```
 main
-└── epic/eNN-slug              ← epic integration branch (off main)
-    └── eNN-sNN/slug           ← story branch (off epic branch)
+└── backlog/<N>-<slug>         ← integration branch (off main, one per backlog item)
+    └── epic/eNN-slug          ← epic branch (off integration branch)
+        └── eNN-sNN/slug       ← story branch (off epic branch)
 ```
 
-Before starting work:
+The orchestrator creates the integration branch, epic branches, and story branches before dispatching you. Your story branch is already checked out when you start — just verify with `git branch --show-current`.
 
-1. `git checkout main && git pull`
-2. Create or check out the epic branch: `git checkout -b epic/eNN-slug` (or `git checkout epic/eNN-slug` if it exists)
-3. Create your story branch off the epic branch: `git checkout -b eNN-sNN/slug`
+If for some reason you need to create or check out branches manually:
+
+1. `git checkout epic/eNN-slug && git pull`
+2. Create your story branch off the epic branch: `git checkout -b eNN-sNN/slug`
 
 When a story is complete, push your story branch to the remote. **Do NOT merge your story branch into the epic branch** -- the orchestrator merges after review. Premature self-merging bypasses the review gate.
 

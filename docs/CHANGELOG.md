@@ -2,6 +2,20 @@
 
 ## 2026-03-15
 
+### Test SDLC v2 Workflow (Run 14) — Interdimensional Restaurant Health Inspections
+
+- **Primary result:** Validated the fix cycle path (reviewer REQUEST_CHANGES → builder fix → re-review) for the first time in SDLC v2. Two fix cycles completed successfully out of 4 planted bugs
+- Content theme: "Interdimensional Restaurant Health Inspections" — official MFSA inspection reports, violation notices, appeal rulings, compliance certificates, and regulatory memos
+- 2 epics, 12 stories: E01 Inspection Reports (7 stories), E02 Regulatory & Administrative (5 stories)
+- Dispatch: 5 waves with max 3 parallel builders per wave (Wave 1-3: 3-way parallel sonnet, Wave 4: 2-way parallel opus, Wave 5: sequential opus)
+- Bug planting results: 4 bugs planted (contradictory AC, missing section, format contradiction, wrong cross-reference). 2 triggered fix cycles (E01-S04 word count, E02-S01 format), 2 were avoided by builders following acceptance criteria
+- Fix cycle machinery confirmed working: REQUEST_CHANGES → builder fix → re-review → APPROVE
+- Cross-epic dependencies validated: E02 stories reference E01 documents by MFSA document number
+- Worktree cross-contamination observed in fix cycle 2 (E01-S04) — E02-S01 file leaked into E01-S04 branch via worktree artifact
+
+
+## 2026-03-15
+
 ### Test SDLC v2 Workflow (Run 13) — Alien Tourist Bureau
 
 - **Primary result:** Validated runtime data consolidation (.agentic-workflow/), live pricing (fetch-pricing.sh), and dispatches-from-state telemetry computation

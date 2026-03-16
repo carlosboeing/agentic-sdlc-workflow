@@ -6,6 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains an **agentic SDLC workflow** — a set of specialized AI agents, scripts, and conventions that orchestrate the full software development lifecycle: design → plan → build → review → retro. The workflow is domain-agnostic and is being developed toward packaging as a Claude Code plugin.
 
+## Design Philosophy: Determinism First
+
+This workflow turns something inherently non-deterministic (AI/LLM output) into something deterministic and reliable (defined input → structured workflow → predictable output). Every design decision should reinforce this principle.
+
+**The rule:** When a value can be computed deterministically from existing data, compute it. Never rely on an agent to remember, estimate, or manually track what a script can derive from the state file, config, or Git history.
+
+| Prefer | Over | Why |
+|--------|------|-----|
+| Compute from state file | Track with `$SECONDS` or mental arithmetic | State file is durable; memory and timers are fragile |
+| Read from config/pricing file | Memorize or hardcode rates | Config is the single source of truth; memory drifts |
+| Derive from Git history | Ask the agent "what did you do?" | Git is immutable; agent recall is approximate |
+| Script with validation | Agent judgment call | Scripts are repeatable; judgment varies by context window |
+| Convention with enforcement | Convention with trust | Enforcement catches violations; trust assumes compliance |
+
+**Where AI/LLM intelligence belongs:** The non-deterministic strengths of AI — creativity, judgment, adaptation, self-healing — are valuable for:
+- **Design and planning:** Brainstorming approaches, evaluating trade-offs, decomposing requirements
+- **Content creation:** Writing code, docs, and creative content that meets acceptance criteria
+- **Failure recovery:** Diagnosing unexpected errors, working around infrastructure issues, adapting to novel situations
+- **Code review:** Applying judgment about quality, security, and convention adherence
+
+**Where determinism must prevail:** The workflow infrastructure — dispatch sequencing, board management, telemetry computation, branch operations, state tracking, cost estimation — must be deterministic. These are the rails that make the AI's output reliable at scale. When an agent makes a mistake in infrastructure (wrong branch, incorrect cost, missed status update), the workflow's credibility degrades even if the content is perfect.
+
+**Evidence:** Run 14 posted wall-clock = sequential duration (102m 43s instead of 74m 4s) because the orchestrator relied on `$SECONDS` tracking instead of computing the critical path from the state file's dispatch log. The state file already contained all the data — `started_at` timestamps naturally encode parallelism. The fix was to compute deterministically from what was already recorded, not to "try harder" to track `$SECONDS`. See `issue-telemetry.sh` wall-clock auto-computation.
+
 ## Project Documentation
 
 - `docs/5-guides/PROJECT.md` — full architecture and technical overview
@@ -290,6 +314,8 @@ Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Ever
 2. Clean up any stale artifacts before proceeding to merges: `git clean -fd` (after verifying no wanted files are affected)
 3. Verify each story branch was pushed to remote: `git ls-remote --heads origin <branch>` — worktree-isolated builders may not push automatically. If a branch is missing from remote, push it manually before merging.
 
+**This cleanup also applies before fix cycle dispatches.** When re-dispatching a builder for a fix cycle in worktree mode, run the same cleanup steps first. Stale artifacts from the original parallel wave may still be present and can leak into the fix cycle's commits. Evidence: Run 14 E01-S04 fix cycle 2 (commit `9aa16c7`) picked up E02-S01's `violation-quantum-bistro.md` from a stale worktree, requiring manual removal (commit `d537441`).
+
 **Parallel dispatch git safety (defense-in-depth):** With worktree isolation enabled, these rules serve as a secondary safety net. They remain mandatory for any non-worktree parallel dispatch:
 - **Chain all git operations in a single Bash call:** `git checkout <branch> && git add <files> && git commit -m "msg"` — never split checkout and commit across separate Bash calls.
 - **Verify branch before every commit:** Include `git branch --show-current` in the same `&&` chain, not in a separate call.
@@ -344,7 +370,9 @@ gh pr merge <N> --squash --delete-branch
 
 **Internal merges (epic → integration branch):** Epic branches merge into the integration branch using `--no-ff` merge (not squash). This is an internal merge — only the final PR to `main` uses squash. Design/plan PRs targeting the integration branch also use regular merge (`--merge`).
 
-**Cost computation for manual breakdown strings (CRITICAL):** When the orchestrator writes `--breakdown`, `--summary`, or `--cost` strings, it must compute cost estimates using rates from `.agentic-workflow/pricing.json` (cached by `fetch-pricing.sh`) — never from memory or hardcoded values. The preferred method is `--dispatches-from-state` which computes everything automatically from the orchestrator state file. See `.claude/agents/orchestrator.md` § "Cost Computation" for the exact formula.
+**Cost computation for manual breakdown strings (CRITICAL):** When the orchestrator writes `--breakdown`, `--summary`, or `--cost` strings, it must compute cost estimates using rates from `.agentic-workflow/pricing.json` (cached by `fetch-pricing.sh`) — never from memory or hardcoded values. The preferred method is `--dispatches-from-state` which computes everything automatically from the orchestrator state file, including wall-clock duration. See `.claude/agents/orchestrator.md` § "Cost Computation" for the exact formula.
+
+**Wall-clock auto-computation:** When `--dispatches-from-state` is used, `issue-telemetry.sh` automatically computes wall-clock duration from the `started_at` timestamps in the dispatch log. Dispatches with the same `started_at` ran in parallel (take `max(duration_ms)`); different timestamps ran sequentially (sum). The orchestrator does NOT need to pass `--wall-clock` when using `--dispatches-from-state` — it is computed deterministically. If `--wall-clock` is passed but equals `--duration` (which is always wrong when parallel dispatches exist), the script overrides with the computed value and warns. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when actual critical path was 74m 4s.
 
 **Per-epic telemetry:** When all stories in an epic are complete, the orchestrator MUST post telemetry on **the epic issue** (via `issue-telemetry.sh`). Pass `--duration` (sequential sum of story durations in that epic) and `--wall-clock` (actual elapsed time for that epic's waves). Include a `--breakdown` with only that epic's stories. Use the integration branch head for `--commit`.
 
@@ -589,6 +617,7 @@ This project validates the workflow pipeline using **test runs** — autonomous 
 | 11 | #41 | Board Drift Detection + Fairy Tale HR | Board drift detection |
 | 12 | #56 | Time Traveler's Yelp Reviews | Configurable workflow settings (config.json, model routing, pricing) |
 | 13 | #69 | Alien Tourist Bureau | Runtime data consolidation, live pricing, dispatches-from-state |
+| 14 | #83 | Interdimensional Health Inspections | Fix cycle validation, cross-epic merge |
 
 Runs 1-7 were executed in the original NeuralNorris repo (gavinkilbride/NeuralNorris, issues #57-#217).
 

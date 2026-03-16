@@ -1,7 +1,9 @@
-# Project Cleanup
+# Outstanding Work
 
-This repo was extracted from NeuralNorris and still contains NeuralNorris-specific references in agent files (builder, designer, planner, reviewer, orchestrator, retro). These references don't affect test runs (which use content-only workloads) but would need to be removed before the workflow can be used on a different codebase.
+See the [roadmap](docs/1-discovery/2026-03-15-roadmap.md) for the full prioritised plan and the [retro recommendations tracker](docs/4-reviews/retro-recommendations.md) for outstanding retro items.
 
-**Affected files:** All 9 agent `.md` files in `.claude/agents/` contain `.NET`, `NeuralNorris`, `Blazor`, `dotnet`, or `NN.*` references.
+## Key next steps
 
-**When to fix:** When packaging for external distribution or running the workflow on real software in this repo. See the [roadmap](docs/1-discovery/2026-03-15-roadmap.md) for the full prioritised plan.
+1. **Run the workflow on real code** — 14 test runs validated the pipeline on creative content. Never tested on actual software in this repo.
+2. **Accurate Gantt from state data** — telemetry Gantt is hand-crafted, not computed from timestamps (roadmap tier 1)
+3. **Parallel retro + PR review** — easiest parallelism win, saves ~3 min per run (roadmap tier 2)

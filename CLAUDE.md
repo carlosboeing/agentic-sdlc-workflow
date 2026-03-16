@@ -241,7 +241,8 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/issue-set-status.sh <n> <status>` | Set project board status (backlog/ready/in-progress/in-review/done) |
 | `scripts/issue-start.sh <n> --model <m> --agent <a>` | Post "Work Started" comment + set board to In Progress |
 | `scripts/issue-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
-| `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |
+| `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--gantt-from-state <state-file>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |
+| `scripts/lib/compute-dispatches.py --from-state <state-file> [--gantt] [--pricing <file>] [--config <file>]` | Compute dispatch metrics (breakdown, summary, Gantt, fix cycles) from state or dispatch JSON |
 | `scripts/issue-close.sh <n>` | Close issue + set board to Done |
 | `scripts/cleanup-post-merge.sh [<backlog-number>]` | Post-merge cleanup: stale branches, worktrees, state dirs, remote refs |
 | `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
@@ -379,7 +380,7 @@ gh pr merge <N> --squash --delete-branch
 
 **Cost computation for manual breakdown strings (CRITICAL):** When the orchestrator writes `--breakdown`, `--summary`, or `--cost` strings, it must compute cost estimates using rates from `.agentic-workflow/pricing.json` (cached by `fetch-pricing.sh`) — never from memory or hardcoded values. The preferred method is `--dispatches-from-state` which computes everything automatically from the orchestrator state file, including wall-clock duration. See `.claude/agents/orchestrator.md` § "Cost Computation" for the exact formula.
 
-**Wall-clock auto-computation:** When `--dispatches-from-state` is used, `issue-telemetry.sh` automatically computes wall-clock duration from the `started_at` timestamps in the dispatch log. Dispatches with the same `started_at` ran in parallel (take `max(duration_ms)`); different timestamps ran sequentially (sum). The orchestrator does NOT need to pass `--wall-clock` when using `--dispatches-from-state` — it is computed deterministically. If `--wall-clock` is passed but equals `--duration` (which is always wrong when parallel dispatches exist), the script overrides with the computed value and warns. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when actual critical path was 74m 4s.
+**Wall-clock auto-computation:** When `--dispatches-from-state` or `--gantt-from-state` is used, `issue-telemetry.sh` automatically computes wall-clock duration from the `started_at` timestamps in the dispatch log. Dispatches with the same `started_at` ran in parallel (take `max(duration_ms)`); different timestamps ran sequentially (sum). The orchestrator does NOT need to pass `--wall-clock` when using either flag — it is computed deterministically. If `--wall-clock` is passed but equals `--duration` (which is always wrong when parallel dispatches exist), the script overrides with the computed value and warns. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when actual critical path was 74m 4s.
 
 **Per-epic telemetry:** When all stories in an epic are complete, the orchestrator MUST post telemetry on **the epic issue** (via `issue-telemetry.sh`). Pass `--duration` (sequential sum of story durations in that epic) and `--wall-clock` (actual elapsed time for that epic's waves). Include a `--breakdown` with only that epic's stories. Use the integration branch head for `--commit`.
 
@@ -389,14 +390,16 @@ gh pr merge <N> --squash --delete-branch
 
 ```bash
 ./scripts/issue-telemetry.sh <backlog-number> \
-  --model opus --duration <total_ms> --wall-clock <wall_clock_ms> \
+  --model opus --duration <total_ms> \
   --commit <hash> --tokens <total_tokens> --cost <total_dollars> \
   --summary "<phase-summary-rows>" \
   --breakdown "<per-dispatch-rows>" \
-  --gantt "<mermaid-gantt-body>" \
+  --gantt-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
   --footer "<trailing-notes>" \
   --pr <pr-number>
 ```
+
+When `--gantt-from-state` is provided, the script calls `compute-dispatches.py` with `--from-state --gantt` to generate the Mermaid Gantt body automatically from dispatch data. Wall-clock duration is also computed automatically — `--wall-clock` does not need to be passed. Pass `--gantt "<mermaid-gantt-body>"` only as a fallback when the state file is unavailable.
 
 The script renders from `scripts/templates/telemetry.md` (single source of truth for all telemetry formatting). When `--summary` is provided, the script:
 - Renders the backlog-level format: Summary → Breakdown → Duration → Timeline → Footer → Disclaimer
@@ -411,7 +414,9 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 
 **`--cost` flag for mixed-model epics:** When an epic's stories use different models (e.g., haiku + sonnet), the rate-based cost calculation doesn't work. Pass `--cost <dollars>` with the pre-computed sum of per-story costs from the breakdown. For single-model epics, omit `--cost` and let the script compute from the rate.
 
-**Gantt color tagging:** Gantt task tags control bar colors — `:active` (violet) for design/plan/retro, no tag (emerald) for builds, `:done` (yellow) for reviews, `:crit` (red) for fix cycles. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for the full table. Do not use `:active` on build or review tasks.
+**Gantt color tagging:** Gantt task tags control bar colors — `:active` (violet) for design/plan/retro, no tag (emerald) for builds, `:done` (yellow) for reviews, `:crit` (red) for fix cycles. When using `--gantt-from-state`, `compute-dispatches.py` assigns these tags automatically based on agent type — the orchestrator does not need to set them manually. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for the full table. Do not use `:active` on build or review tasks when constructing Gantt strings manually.
+
+**Fix cycle footer convention:** When fix cycles are detected, a fix cycle summary row and footer line are automatically included in the telemetry output. This happens whenever `--dispatches-from-state` or `--gantt-from-state` is used — no manual `--footer` flag is needed to capture fix cycle metrics. The footer line is formatted: `*Fix cycles: <count> / <total_stories> stories (<rate>% fix rate), adding <duration> and <cost> (<pct>% of total cost).*`
 
 **Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. To capture them:
 1. At the **start** of the orchestrator session, note the session's running token count (visible via `/cost` in the Claude Code UI)

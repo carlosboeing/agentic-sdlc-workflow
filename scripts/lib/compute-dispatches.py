@@ -546,11 +546,13 @@ def generate_gantt(state):
     position. Dispatches within 5 seconds of each other are grouped into the
     same parallel wave and share the wave's anchor offset.
 
+    No 'section' directives are emitted — task labels are self-explanatory.
+
     Args:
         state: Parsed orchestrator state file dict.
 
     Returns:
-        str: Complete Mermaid Gantt body (header lines + section/task lines).
+        str: Complete Mermaid Gantt body (header lines + task lines).
     """
     session_started_at_str = state.get("session", {}).get("started_at", "1970-01-01T00:00:00Z")
     try:
@@ -604,14 +606,10 @@ def generate_gantt(state):
     lines.append(f"    tickInterval {tick_interval}")
 
     task_id = 1
-    wave_num = 1
 
     for wave_anchor_s, wave_dispatches in waves:
         offset_s = wave_anchor_s - session_start_s
         offset_str = _fmt_offset(offset_s)
-
-        lines.append(f"    section Wave {wave_num}")
-        wave_num += 1
 
         for d in wave_dispatches:
             agent = d.get("agent", "unknown")

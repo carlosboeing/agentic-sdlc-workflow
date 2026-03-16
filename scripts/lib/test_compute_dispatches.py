@@ -1047,13 +1047,13 @@ class TestGanttGeneration(unittest.TestCase):
         # designer: 294973ms = 294s
         self.assertIn("294s", result)
 
-    def test_section_labels_present(self):
-        """Gantt includes 'section' lines for chronological grouping."""
+    def test_no_section_directives(self):
+        """Gantt output does not include 'section' directives per project convention."""
         result = self._generate()
-        self.assertIn("section", result)
+        self.assertNotIn("section", result)
 
     def test_parallel_tolerance_within_5s(self):
-        """Dispatches within 5 seconds of each other have the same section grouping."""
+        """Dispatches within 5 seconds of each other share the same Gantt offset (parallel wave)."""
         state = {
             **GANTT_STATE_FIXTURE,
             "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},

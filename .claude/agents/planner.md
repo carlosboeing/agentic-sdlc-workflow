@@ -45,7 +45,7 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
    ```
 
 9. **Link epic issues as sub-issues of the backlog issue** (same `addSubIssue` pattern)
-10. **Add all issues to the GitHub Project and set status to Planned** (see CLAUDE.md for project IDs and status option IDs)
+10. **Add all issues to the GitHub Project and set status to Ready** (see CLAUDE.md for project IDs and status option IDs)
 11. Open a PR **targeting the integration branch** (`backlog/<N>-<slug>`), not `main`. Add `type/docs` label, referencing the plan issue
 12. End with: _"Implementation plan PR created — awaiting human approval (merge) before stories can be started by the builder agent."_
 
@@ -151,10 +151,10 @@ Every issue you create MUST be added to the project board with the correct statu
    gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
    ```
 
-2. **Set status to Planned** (stories/epics from a not-yet-approved plan):
+2. **Set status to Ready** (stories/epics from a not-yet-approved plan):
 
    ```bash
-   ./scripts/issue-set-status.sh <issue-number> planned
+   ./scripts/issue-set-status.sh <issue-number> ready
    ```
 
 3. **Set the plan work issue to In Progress** (you are actively working on it):

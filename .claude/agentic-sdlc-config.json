@@ -9,11 +9,10 @@
   },
   "boardStatus": {
     "backlog": "17425ce6",
-    "planned": "cf183d2a",
-    "todo": "f75ad846",
     "in-progress": "47fc9ee4",
     "in-review": "9bb97c15",
-    "done": "98236657"
+    "done": "98236657",
+    "ready": "f75ad846"
   },
   "modelRouting": {
     "easy": "sonnet",

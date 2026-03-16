@@ -10,7 +10,7 @@ set -uo pipefail
 #
 # Usage: ./scripts/check-board-drift.sh <issue-number> <status>
 #
-# Status values: backlog, planned, todo, in-progress, in-review, done
+# Status values: backlog, ready, in-progress, in-review, done
 #
 # Exit codes:
 #   0 — no drift detected
@@ -31,7 +31,7 @@ mkdir -p "$LOG_DIR" 2>/dev/null || true
 # --- Argument parsing ---
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <issue-number> <status>" >&2
-  echo "  status: backlog | planned | todo | in-progress | in-review | done" >&2
+  echo "  status: backlog | ready | in-progress | in-review | done" >&2
   exit 2
 fi
 
@@ -41,13 +41,12 @@ STATUS="$2"
 # Map status CLI argument to display name (same mapping as issue-set-status.sh)
 case "$STATUS" in
   backlog)     STATUS_DISPLAY="Backlog" ;;
-  planned)     STATUS_DISPLAY="Planned" ;;
-  todo)        STATUS_DISPLAY="Todo" ;;
+  ready)       STATUS_DISPLAY="Ready" ;;
   in-progress) STATUS_DISPLAY="In Progress" ;;
   in-review)   STATUS_DISPLAY="In Review" ;;
   done)        STATUS_DISPLAY="Done" ;;
   *)
-    echo "ERROR: Unknown status '$STATUS'. Expected: backlog, planned, todo, in-progress, in-review, done" >&2
+    echo "ERROR: Unknown status '$STATUS'. Expected: backlog, ready, in-progress, in-review, done" >&2
     exit 2
     ;;
 esac

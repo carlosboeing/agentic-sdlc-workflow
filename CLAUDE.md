@@ -157,8 +157,7 @@ Status field values and their meanings:
 | Status          | Meaning                                           | Set by                                             |
 |-----------------|---------------------------------------------------|----------------------------------------------------|
 | **Backlog**     | Unplanned work items                              | Default for new backlog items                      |
-| **Planned**     | Plan exists but not yet approved (PR not merged)  | Planner (on issue creation)                      |
-| **Todo**        | Plan approved, ready for builder dispatch         | Human (on plan PR merge) / Orchestrator (autonomous mode) |
+| **Ready**       | Has acceptance criteria, ready for dispatch       | Planner (on story creation)                        |
 | **In Progress** | Currently being worked on                         | Orchestrator (at design phase start for backlog; before dispatch for stories) |
 | **In Review**   | Implementation complete, awaiting backlog PR merge | Orchestrator (sequentially, after builder completes) |
 | **Done**        | Completed and merged to `main`                    | On issue close (`issue-close.sh`)                  |
@@ -166,13 +165,13 @@ Status field values and their meanings:
 **Epic status sync:** An epic's status must always reflect the aggregate of its stories:
 
 - If at least one story is **In Progress** → epic is **In Progress**
-- If all stories are **In Review** (none In Progress/Todo) → epic is **In Review**
+- If all stories are **In Review** (none In Progress/Ready) → epic is **In Review**
 - If all stories are **Done** → epic is **Done**
 - The orchestrator must update the epic's board status whenever a story transitions.
 
 **Board transitions in autonomous mode:** The orchestrator owns all board transitions that would normally be human-triggered. Specifically:
 
-1. **After plan PR merge:** Set all story issues to **Todo** (sequentially, one at a time)
+1. **After plan PR merge:** Set all story issues to **Ready** (sequentially, one at a time)
 2. **Before dispatching a builder:** Set the story to **In Progress** (sequentially, before dispatch -- not delegated to builder scripts)
 3. **After builder completes:** Set the story to **In Review** (sequentially, after completion -- not delegated to builder scripts)
 4. **After parallel wave completes:** Verify board status for all stories in the wave and fix any that didn't transition correctly
@@ -202,8 +201,7 @@ Status option IDs:
 | Status      | Option ID  |
 |-------------|------------|
 | Backlog     | `17425ce6` |
-| Planned     | `cf183d2a` |
-| Todo        | `f75ad846` |
+| Ready       | `f75ad846` |
 | In Progress | `47fc9ee4` |
 | In Review   | `9bb97c15` |
 | Done        | `98236657` |
@@ -231,7 +229,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | Script | Usage |
 |--------|-------|
 | `scripts/issue-create-backlog.sh --title <t> --slug <s> [--body <text> \| --body-file <path>]` | Create backlog item: issue + board + status + label |
-| `scripts/issue-set-status.sh <n> <status>` | Set project board status (backlog/planned/todo/in-progress/in-review/done) |
+| `scripts/issue-set-status.sh <n> <status>` | Set project board status (backlog/ready/in-progress/in-review/done) |
 | `scripts/issue-start.sh <n> --model <m> --agent <a>` | Post "Work Started" comment + set board to In Progress |
 | `scripts/issue-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
 | `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |

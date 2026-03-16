@@ -214,13 +214,13 @@ Close the plan issue and set board status to **Done**:
 ./scripts/issue-close.sh <plan-issue-number>
 ```
 
-**After plan PR merge (autonomous mode):** Set all story issues to **Todo** on the project board, sequentially:
+**After plan PR merge (autonomous mode):** Set all story issues to **Ready** on the project board, sequentially:
 ```bash
 for ISSUE_NUM in <list of story issue numbers>; do
   ./scripts/issue-set-status.sh $ISSUE_NUM todo
 done
 ```
-This replaces the human's responsibility for the Planned-to-Todo transition.
+This replaces the human's responsibility for the Ready transition.
 
 **Interactive mode:**
 ```
@@ -706,7 +706,7 @@ Do not use `gh project item-list` or manual `item-edit` commands — they are ex
 An epic's board status must reflect the aggregate of its stories. Update the epic's status whenever a story transitions:
 
 - At least one story is **In Progress** -> epic is **In Progress**
-- All stories are **In Review** (none In Progress or Todo) -> epic is **In Review**
+- All stories are **In Review** (none In Progress or Ready) -> epic is **In Review**
 - All stories are **Done** -> epic is **Done**
 
 Check story states after each transition and update the epic accordingly.

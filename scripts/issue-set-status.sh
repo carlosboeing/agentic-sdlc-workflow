@@ -13,7 +13,7 @@ set -euo pipefail
 #
 # Usage: ./scripts/issue-set-status.sh <issue-number> <status>
 #
-# Status values: backlog, planned, todo, in-progress, in-review, done
+# Status values: backlog, ready, in-progress, in-review, done
 #
 # Exit codes:
 #   0 — status updated successfully (or already at desired status, or verify mismatch)
@@ -37,7 +37,7 @@ log_board() {
 # --- Argument parsing ---
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <issue-number> <status>" >&2
-  echo "  status: backlog | planned | todo | in-progress | in-review | done" >&2
+  echo "  status: backlog | ready | in-progress | in-review | done" >&2
   exit 1
 fi
 
@@ -47,13 +47,12 @@ STATUS="$2"
 # Map status name to option ID and display name (as shown on the board)
 case "$STATUS" in
   backlog)     OPTION_ID="$CFG_STATUS_BACKLOG";      STATUS_DISPLAY="Backlog" ;;
-  planned)     OPTION_ID="$CFG_STATUS_PLANNED";      STATUS_DISPLAY="Planned" ;;
-  todo)        OPTION_ID="$CFG_STATUS_TODO";          STATUS_DISPLAY="Todo" ;;
+  ready)       OPTION_ID="$CFG_STATUS_READY";         STATUS_DISPLAY="Ready" ;;
   in-progress) OPTION_ID="$CFG_STATUS_IN_PROGRESS";  STATUS_DISPLAY="In Progress" ;;
   in-review)   OPTION_ID="$CFG_STATUS_IN_REVIEW";    STATUS_DISPLAY="In Review" ;;
   done)        OPTION_ID="$CFG_STATUS_DONE";          STATUS_DISPLAY="Done" ;;
   *)
-    echo "ERROR: Unknown status '$STATUS'. Expected: backlog, planned, todo, in-progress, in-review, done" >&2
+    echo "ERROR: Unknown status '$STATUS'. Expected: backlog, ready, in-progress, in-review, done" >&2
     exit 1
     ;;
 esac

@@ -219,7 +219,7 @@ Stories merge into epics. Epics merge into the integration branch. The integrati
 Every issue moves through a Kanban-style workflow on the [GitHub Project board](https://github.com/users/carlosboeing/projects/7):
 
 ```
-Backlog → Planned → Todo → In Progress → In Review → Done
+Backlog → Ready → In Progress → In Review → Done
 ```
 
 The orchestrator manages all transitions automatically, including keeping epic status in sync with its stories (e.g., if all stories are In Review, the epic moves to In Review).

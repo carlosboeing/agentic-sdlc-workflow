@@ -581,3 +581,17 @@ If migrating from the earlier `Backlog → Epic → Story` naming used in test r
 | Story | Level 3 (Spec) — configurable name | Same role. Name depends on preset (Task, Story, Sub-task, Issue, User Story, etc.). |
 
 The templates, information flow, and agent pipeline remain structurally identical. The internal model is role-based and name-agnostic. The naming is a configuration layer that adapts to each team's existing vocabulary.
+### Implementation Note: GitHub Labels
+
+The current codebase uses GitHub labels that encode the work item taxonomy directly:
+
+- `hierarchy/backlog`, `hierarchy/epic`, `hierarchy/story` — identify which level an issue belongs to
+- `backlog/<N>-<slug>` — groups all issues under a Level 1 item (the prefix "backlog" is the current Level 1 name)
+
+When the configurable taxonomy is implemented, `scripts/setup-labels.sh` must be updated to:
+
+1. Read the configured Level 1/2/3 names from `agentic-sdlc-config.json` (or the selected preset)
+2. Create `hierarchy/<level1-name>`, `hierarchy/<level2-name>`, `hierarchy/<level3-name>` labels instead of hardcoded names
+3. Use the configured Level 1 name as the prefix for grouping labels (e.g., `epic/<N>-<slug>` if Level 1 is "Epic")
+
+The PM adapter layer should abstract this further — labels are a GitHub concept. Other PM tools use components (Jira), labels (Linear), or tags (Asana). The adapter translates the hierarchy level into whatever the target platform uses.

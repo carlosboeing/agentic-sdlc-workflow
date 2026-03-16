@@ -103,10 +103,6 @@ When reviewing a PR or set of changes:
 APPROVE / REQUEST_CHANGES / COMMENT
 ```
 
-## Complementary to Sentinel
-
-You handle **code quality and convention adherence**. Sentinel (GitHub Actions) handles **security review**. Together they provide two layers of review. Do not duplicate Sentinel's security checklist — focus on architecture, patterns, and testing.
-
 ## Per-Story Review Mode
 
 In addition to end-of-backlog PR review, you may be dispatched to review a story **before** it is merged into the epic branch. This keeps rollback trivial — if critical issues are found, just don't merge — and catches bugs closer to their introduction.

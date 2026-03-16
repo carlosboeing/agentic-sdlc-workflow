@@ -340,8 +340,6 @@ The workflow enforces several safety mechanisms:
 - **Fix cycles** — If a reviewer requests changes, the builder is re-dispatched to fix. Up to 2 cycles before escalating to human intervention.
 - **Branch isolation** — Parallel builders run in separate git worktrees to prevent cross-contamination.
 - **No auto-merge to main** — The backlog PR is always left open for human review. The orchestrator never merges to `main`.
-- **Sentinel** — A GitHub Actions workflow runs an AI-powered security review on all PRs to `main`.
-- **Protected files** — Changes to core config files (CLAUDE.md, agent definitions, migrations) trigger stricter review via a `protected-files` label.
 - **Idempotent restart** — The orchestrator can be re-run safely on partially completed work. It detects completed stories and resumes from where it left off.
 
 ---

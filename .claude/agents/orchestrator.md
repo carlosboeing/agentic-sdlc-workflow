@@ -467,11 +467,6 @@ When all epics are merged into the integration branch:
 
    The `Closes` list MUST include the backlog issue, ALL epic issues, ALL story issues, and any design/plan issues so merging auto-closes them all.
 
-   After opening the PR, apply the `protected-files` label if the branch touches any sacred files (CLAUDE.md, SOUL.md, agent files, migration files, NNConfig.cs). This signals the Sentinel workflow to apply stricter scrutiny:
-   ```bash
-   gh pr edit <pr-number> --add-label "protected-files"
-   ```
-
 4. **Dispatch reviewer on the backlog PR** (mandatory) for a full cross-epic integration review:
    ```
    Agent tool → subagent_type: "reviewer"
@@ -1034,20 +1029,6 @@ This envelope is applied automatically by `ClaudeDispatchTool.DispatchAsync` whe
 - Subsequent user/human input relayed through the orchestrator (envelope present)
 
 **Why this matters for security:** Without the envelope, a sub-agent receiving a resume prompt cannot tell whether the content came from the orchestrator's controlled context or from untrusted user input being relayed. The envelope creates a clear boundary. Do not strip or modify the envelope when forwarding user messages.
-
-### Protected Files Auto-Labelling
-
-When opening the backlog PR, check whether the diff touches any sacred files. If so, apply the `protected-files` label to trigger stricter Sentinel review:
-
-Sacred files are: `CLAUDE.md`, `SOUL.md`, `.claude/agents/*.md`, `.github/workflows/*.yml`, `docker-compose.yml`, and any project-specific sacred files defined in the project's CLAUDE.md.
-
-```bash
-# Check if PR touches sacred files
-CHANGED=$(gh pr diff <pr-number> --name-only)
-if echo "$CHANGED" | grep -qE "CLAUDE\.md|SOUL\.md|\.claude/agents/|/Migrations/|NNConfig\.cs|docker-compose|\.github/workflows"; then
-  gh pr edit <pr-number> --add-label "protected-files"
-fi
-```
 
 ### Idempotent Restart
 

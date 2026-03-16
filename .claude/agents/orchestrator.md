@@ -288,9 +288,12 @@ For each story (or wave of independent stories):
 
 3. **Set story board status to In Progress** (sequentially, before dispatch — ensures board is accurate before the builder starts):
    ```bash
+   # Single story:
    ./scripts/issue-set-status.sh <issue-number> in-progress
+   # Parallel wave — set all to In Progress before dispatching any builders:
+   ./scripts/batch-set-status.sh 112:in-progress 113:in-progress 114:in-progress
    ```
-   For parallel waves, set all stories to In Progress sequentially before dispatching any builders.
+   For parallel waves, `batch-set-status.sh` fetches current status for all issues before any mutations (skips already-correct) and applies mutations sequentially per the GitHub Projects API constraint.
 
 4. **Dispatch the builder** with the story's issue number and context. The prompt should include:
    - The issue number and title
@@ -308,7 +311,10 @@ For each story (or wave of independent stories):
 
 6. **Set story board status to In Review** (sequentially, after builder completes):
    ```bash
+   # Single story:
    ./scripts/issue-set-status.sh <issue-number> in-review
+   # After a parallel wave completes — set all to In Review at once:
+   ./scripts/batch-set-status.sh 112:in-review 113:in-review 114:in-review
    ```
 
 7. **Post telemetry** immediately after each builder completes:
@@ -327,11 +333,9 @@ For each story (or wave of independent stories):
    ./scripts/issue-set-status.sh <epic-issue> in-progress
    ```
 
-9. **Verify board status after each wave** (for parallel dispatch): Re-run `issue-set-status.sh` for each story to ensure the transition succeeded. The script's built-in validation and retry handles most failures:
+9. **Verify board status after each wave** (for parallel dispatch): Use `batch-set-status.sh` to set all stories to In Review in a single invocation. The script fetches current status before mutations (skips already-correct), applies sequentially, and runs a shared verification pass:
    ```bash
-   for ISSUE_NUM in <wave story numbers>; do
-     ./scripts/issue-set-status.sh $ISSUE_NUM in-review
-   done
+   ./scripts/batch-set-status.sh <N1>:in-review <N2>:in-review <N3>:in-review
    ```
 
 10. **Verify issue comments after each parallel wave** (REQUIRED): Query each story for expected comments ("Work Started" from `issue-start.sh`, "Ready for Review" from `issue-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively:

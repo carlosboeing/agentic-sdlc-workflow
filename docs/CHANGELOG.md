@@ -1,4 +1,19 @@
 # Changelog
+## 2026-03-16
+
+### Telemetry Accuracy & Automation (backlog #106)
+
+- **Primary result:** Refactored the telemetry pipeline to eliminate manual Gantt construction, extract embedded Python into a testable module, and add fix cycle tracking
+- Extracted ~230 lines of embedded Python from `issue-telemetry.sh` into standalone `scripts/lib/compute-dispatches.py` (875 lines with Gantt + fix cycle features)
+- Added `--gantt-from-state` flag: generates Mermaid Gantt charts with absolute HH:MM:SS offsets from state file dispatch data (no more hand-crafted `after` dependencies)
+- Added fix cycle detection: automatically counts builder re-dispatches, computes cost/duration overhead, and includes metrics in telemetry summaries
+- Added `lifecycle_duration_ms` convention: orchestrator records wall-clock duration at end of workflow for baseline tracking
+- 123 Python unit tests + 35 bash integration tests cover the extracted module
+- Script reduced from 662 to 469 lines (29% reduction)
+- 2 epics, 7 stories: E01 Telemetry Pipeline Refactor (4 stories), E02 Conventions & Documentation (3 stories)
+- Dispatch: 4 waves — Wave 1 sequential, Wave 2 parallel (2-way), Wave 3 sequential, Wave 4 parallel (3-way)
+- 1 fix cycle: E01-S02 Gantt generation had `section Wave N` directives that violated convention (removed in fix)
+- Addresses retro recommendations G (lifecycle duration), I (Python extraction), L (fix cycle tracking)
 
 ## 2026-03-15
 

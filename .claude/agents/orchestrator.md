@@ -505,34 +505,7 @@ When all epics are merged into the integration branch:
 
 8. **DO NOT merge the backlog PR.** Post a summary comment on the PR with the review status and leave it open for human review. The orchestrator NEVER auto-merges the backlog PR.
 
-### Phase 9: Post-Merge Cleanup
-
-This phase happens AFTER the human merges the backlog PR. If the orchestrator is still in session, it should run cleanup immediately. Otherwise, run it at the start of the next session.
-
-After the backlog PR is merged (by human via `gh pr merge --squash`):
-
-1. **Set board status to Done** for all issues (the `Closes` clause auto-closes them, but board status needs explicit update):
-   ```bash
-   for ISSUE in <backlog> <design> <plan> <retro> <epic1> <epic2> <story1> <story2> ...; do
-     ./scripts/issue-close.sh $ISSUE
-   done
-   ```
-
-2. **Run the comprehensive cleanup script:**
-   ```bash
-   git checkout main && git pull
-   ./scripts/cleanup-post-merge.sh <backlog-number>
-   ```
-
-   This single command handles everything: stale worktrees, merged and orphaned local branches, stale remote workflow branches, remote tracking ref pruning, and state directory cleanup. It also sweeps up artifacts from previous runs that weren't cleaned properly.
-
-3. **Verify clean state** (the script prints this, but confirm):
-   - Only `main` branch locally
-   - No workflow branches on remote (`backlog/`, `epic/`, `e0N-*`, `docs/`)
-   - No stale worktrees
-   - `.agentic-workflow/runs/` empty
-
-### Phase 10: Dispatch Retro Agent
+### Phase 9: Dispatch Retro Agent
 
 1. **Create a retro issue** (same pattern as design/plan issues):
    ```bash
@@ -569,7 +542,7 @@ After the backlog PR is merged (by human via `gh pr merge --squash`):
 
 The retro doc and any convention changes will be included in the same backlog PR.
 
-### Phase 11: Backlog-Level Telemetry
+### Phase 10: Backlog-Level Telemetry
 
 As the final phase, post a **full lifecycle telemetry summary** on the backlog issue and in the **backlog PR description**. This captures the total cost of the entire feature across all phases — not just builders.
 
@@ -662,6 +635,33 @@ The `%%{init}%%` block in `scripts/templates/telemetry.md` defines the hex value
 Note: the orchestrator's own token consumption runs in the parent session and is not captured. Only dispatched subagent telemetry is tracked.
 
 **Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically via the template.
+### Phase 11: Post-Merge Cleanup
+
+This phase happens AFTER the human merges the backlog PR. If the orchestrator is still in session, it should run cleanup immediately. Otherwise, run it at the start of the next session.
+
+After the backlog PR is merged (by human via `gh pr merge --squash`):
+
+1. **Set board status to Done** for all issues (the `Closes` clause auto-closes them, but board status needs explicit update):
+   ```bash
+   for ISSUE in <backlog> <design> <plan> <retro> <epic1> <epic2> <story1> <story2> ...; do
+     ./scripts/issue-close.sh $ISSUE
+   done
+   ```
+
+2. **Run the comprehensive cleanup script:**
+   ```bash
+   git checkout main && git pull
+   ./scripts/cleanup-post-merge.sh <backlog-number>
+   ```
+
+   This single command handles everything: stale worktrees, merged and orphaned local branches, stale remote workflow branches, remote tracking ref pruning, and state directory cleanup. It also sweeps up artifacts from previous runs that weren't cleaned properly.
+
+3. **Verify clean state** (the script prints this, but confirm):
+   - Only `main` branch locally
+   - No workflow branches on remote (`backlog/`, `epic/`, `e0N-*`, `docs/`)
+   - No stale worktrees
+   - `.agentic-workflow/runs/` empty
+
 
 ## Model Routing
 
@@ -826,7 +826,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
       "issue": 110, "branch": "epic/e01-destination-profiles", "pr": null,
       "stories": {
         "112": {
-          "status": "reviewed", "branch": "e01-s01/kepler-442b", "difficulty": "easy", "model": "haiku",
+          "status": "reviewed", "branch": "e01-s01/kepler-442b", "difficulty": "easy", "model": "sonnet",
           "build": { "duration_ms": 109000, "tokens": 103000, "tool_uses": 18 },
           "review": { "duration_ms": 117000, "tokens": 38000, "tool_uses": 12, "verdict": "APPROVE" }
         }

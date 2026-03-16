@@ -26,6 +26,28 @@ The issue is not that the file is too large for a single file. The issue is that
 
 **61% of the extractable content is scripts written in markdown.** This violates the project's core design philosophy: "When a value can be computed deterministically from existing data, compute it. Never rely on an agent to remember, estimate, or manually track what a script can derive."
 
+## Design Principles
+
+This design is guided by two complementary principles. Both should be documented in CLAUDE.md during implementation.
+
+### Determinism First (existing)
+
+When a value can be computed deterministically from existing data, compute it. The inline Python/bash snippets in orchestrator.md are deterministic procedures -- they read structured data and produce structured output. They belong in scripts, not in agent instructions where the LLM re-interprets them on every invocation.
+
+### Fault Tolerance (new)
+
+The workflow runs long autonomous sessions where interruptions are expected: usage limits, crashes, network failures, window closures. The system must recover gracefully without human intervention.
+
+**The rule:** Every workflow checkpoint must be recoverable from durable state. If the orchestrator is interrupted at any point and restarted -- potentially on a different machine, in a different session, with no memory of prior work -- it must be able to reconstruct its position and resume without data loss.
+
+**Where this applies:**
+- **State persistence:** The orchestrator state file captures every dispatch, phase transition, and telemetry data point. If the session is interrupted, the state file enables instant recovery.
+- **State reconstruction:** If the state file itself is lost (machine failure, different machine), the `state.sh reconstruct` command rebuilds it from durable external sources (GitHub issue comments, branch state, board status). The telemetry comments posted on each issue are the write-ahead log that makes this possible.
+- **Idempotent operations:** Every phase can be re-entered safely. Branch creation checks for existing branches. Story dispatch checks for "Ready for Review" comments. Board updates are idempotent by design.
+- **No silent data loss:** Failed dispatches still record telemetry. Interrupted agents accumulate metrics defensively. The system never drops information that was paid for in tokens and time.
+
+**Where AI judgment belongs in recovery:** The orchestrator uses judgment to decide what to do after recovery (which phase to resume, whether to re-dispatch a failed builder, how to handle partial work). But the act of determining *where we are* -- reading the state file, checking GitHub, verifying branch state -- must be deterministic and scripted.
+
 ## Approaches Considered
 
 ### Approach A: Four-File Split (from the backlog issue)
@@ -64,6 +86,7 @@ Usage:
   scripts/state.sh update --epic <slug> --base-sha <sha>
   scripts/state.sh overhead
   scripts/state.sh lifecycle-duration
+  scripts/state.sh reconstruct <backlog-number>
   scripts/state.sh get <jq-path>
 ```
 
@@ -81,6 +104,21 @@ Usage:
 
 **`get`** -- Reads a value from the state file using a jq path. Replaces various inline `jq` calls scattered through the phases.
 
+**`reconstruct`** -- Rebuilds the state file from durable external sources when the state file is missing (machine failure, different machine, manual deletion). This is the fault tolerance backstop: the orchestrator calls `state.sh reconstruct <backlog-number>` and gets a usable state file without human intervention. The script reads from these data sources, in order of reliability:
+
+| Data source | What it provides | How it is read |
+|-------------|-----------------|----------------|
+| GitHub issue comments (telemetry) | Dispatch metrics: model, duration, tokens, cost per story | `gh issue view <N> --json comments` -- parse "Telemetry" comments posted by `issue-telemetry.sh` |
+| GitHub issue comments (work markers) | Story completion status | Parse "Work Started" and "Ready for Review" comments |
+| GitHub issue state + board status | Phase progress, story/epic status | `gh issue list --label backlog/<N>-<slug>` + board status queries |
+| Git branch state | Which stories are merged, epic branch heads | `git branch --merged`, `git log --oneline` |
+| Cached pricing file | Token rates | `.agentic-workflow/pricing.json` (persists across runs) |
+| Config file | Model routing, board IDs | `.claude/agentic-sdlc-config.json` |
+
+The reconstructed state file is not a perfect replica -- some fields are approximated (e.g., `started_at` timestamps derived from comment creation times rather than precise dispatch moments) and overhead cannot be recomputed without the original wall-clock start time. But it is sufficient to: resume the workflow from the correct phase, post accurate aggregate telemetry using `--dispatches-from-state`, and avoid re-dispatching already-completed stories.
+
+This subcommand fully eliminates the need for the legacy manual telemetry path. When the state file is missing, the orchestrator calls `reconstruct` rather than attempting to hand-craft telemetry strings from memory.
+
 #### Script Patterns
 
 The script follows conventions established by existing scripts in the project:
@@ -91,9 +129,9 @@ The script follows conventions established by existing scripts in the project:
 - Prints results to stdout for the orchestrator to capture
 - Returns non-zero on failure with error messages to stderr
 
-### Extend `compute-dispatches.py`
+### Extend `compute-dispatches.py` (in this backlog item)
 
-Add an `--overhead` flag that computes and formats the orchestrator overhead row for the telemetry summary. This eliminates the need for the orchestrator to manually compute and format the overhead. The existing `--from-state` flag already computes wall-clock duration from dispatch timestamps -- adding overhead is a natural extension.
+Add an `--overhead` flag that computes and formats the orchestrator overhead row for the telemetry summary. This eliminates the need for the orchestrator to manually compute and format the overhead. The existing `--from-state` flag already computes wall-clock duration from dispatch timestamps -- adding overhead is a natural extension. The overhead computation is small (~20 lines of Python) and belongs alongside the existing wall-clock and critical-path logic in `compute-dispatches.py`.
 
 ### State Schema File
 
@@ -103,7 +141,7 @@ Extract the JSON schema example (currently 55 lines of markdown) into `scripts/s
 
 | Section | Lines | Action | Rationale |
 |---------|-------|--------|-----------|
-| Phase 10: Legacy manual telemetry method | 35 | **Delete** | The `--dispatches-from-state` method is the only supported path. If the state file is unavailable, the orchestrator falls back to querying GitHub -- it does not hand-craft markdown tables from memory. |
+| Phase 10: Legacy manual telemetry method | 35 | **Delete** | The `--dispatches-from-state` method is the only supported path. If the state file is unavailable, `state.sh reconstruct` rebuilds it from GitHub comments and branch state -- the orchestrator never hand-crafts markdown tables from memory. |
 | Phase 10: Gantt color tagging table + conventions | 14 | **Delete** | `compute-dispatches.py` assigns colors automatically. The table documents what the script already does. |
 | Phase 10: Duration precision / value column rules | 7 | **Delete** | The scripts handle formatting. The orchestrator does not format durations manually. |
 | Phase 10: Orchestrator overhead computation snippet | 38 | **Replace with script call** | `./scripts/state.sh overhead` |
@@ -119,7 +157,7 @@ Extract the JSON schema example (currently 55 lines of markdown) into `scripts/s
 | State Lifecycle: Cleanup | 5 | **Delete** | `cleanup-post-merge.sh` already handles this. |
 | Timestamp recording convention | 10 | **Keep** | Timing protocol the orchestrator must follow. Cannot be scripted -- only the orchestrator knows when it is about to dispatch. |
 | State Readers table | 9 | **Keep** | Architectural context. |
-| State Fallback (no state file) | 8 | **Keep** | Protocol for missing state. |
+| State Fallback (no state file) | 8 | **Replace with script call** | `./scripts/state.sh reconstruct <backlog-number>` -- automated recovery replaces manual fallback protocol. The orchestrator's instruction becomes: "If the state file is missing, run `state.sh reconstruct` before proceeding." |
 | System Prompt Hardening | 13 | **Delete** | Legacy NeuralNorris reference. `SdlcWorkflowTool` and `ClaudeDispatchTool` do not exist in the current Claude Code architecture. |
 | Override Pattern: example comment format | 5 | **Keep** | Template with judgment-required placeholders. |
 | Override Pattern: criteria + when NOT to override | 18 | **Keep** | Decision logic requiring agent judgment. |
@@ -195,13 +233,15 @@ Token overhead is not measurable -- use "---" for tokens and cost columns.
 
 ```mermaid
 graph TD
-    O[orchestrator.md<br/>~530 lines<br/>Decision logic only] -->|calls| ST[scripts/state.sh<br/>State CRUD operations]
+    O[orchestrator.md<br/>~530 lines<br/>Decision logic only] -->|calls| ST[scripts/state.sh<br/>State CRUD + reconstruct]
     O -->|calls| IT[scripts/issue-telemetry.sh<br/>Telemetry posting]
-    O -->|calls| CD[scripts/lib/compute-dispatches.py<br/>Cost + Gantt computation]
+    O -->|calls| CD[scripts/lib/compute-dispatches.py<br/>Cost + Gantt + overhead]
     O -->|calls| IS[scripts/issue-set-status.sh<br/>Board management]
     O -->|calls| FP[scripts/fetch-pricing.sh<br/>Pricing data]
 
     ST -->|reads/writes| SF[.agentic-workflow/runs/N/orchestrator.json]
+    ST -->|reconstruct reads| GH[GitHub Issues<br/>comments, state, board]
+    ST -->|reconstruct reads| GB[Git branches<br/>merged state]
     IT -->|reads| SF
     IT -->|calls| CD
     CD -->|reads| SF
@@ -220,6 +260,8 @@ graph TD
     style SF fill:#374151,color:#fff
     style PR fill:#374151,color:#fff
     style SC fill:#6b7280,color:#fff
+    style GH fill:#374151,color:#fff
+    style GB fill:#374151,color:#fff
 ```
 
 ## Roadmap Alignment
@@ -244,23 +286,28 @@ State management is PM-agnostic. The state file contains dispatch metadata (agen
 
 ## CLAUDE.md Updates Required
 
-The CLAUDE.md helper scripts table needs a new entry for `state.sh`. The "Orchestrator State File" section in CLAUDE.md (which duplicates some of the orchestrator.md content) should be updated to reference the script instead of inline code.
+1. **Fault Tolerance principle.** Add a new section alongside "Design Philosophy: Determinism First" that documents the Fault Tolerance principle. The text from the Design Principles section of this doc is the starting point.
+2. **Helper scripts table.** Add `state.sh` with its subcommands.
+3. **Orchestrator State File section.** Update to reference `state.sh` instead of inline code. Replace the "Fallback (no state file)" subsection with a reference to `state.sh reconstruct`.
+4. **State schema.** Replace the inline JSON example with a reference to `scripts/schemas/orchestrator-state.v1.json`.
 
-## Assumptions and Open Questions
+## Assumptions and Resolved Questions
 
 ### Assumptions
 
-1. **The legacy manual telemetry method is safe to delete.** The `--dispatches-from-state` path has been the preferred method since backlog #106. If the state file is unavailable, the orchestrator should fall back to querying GitHub issue comments for dispatch data, not to hand-crafting markdown from memory. This fallback path may need a small enhancement to `compute-dispatches.py` to accept data from GitHub comments rather than the state file.
+1. **The System Prompt Hardening section is dead code.** It references `SdlcWorkflowTool` and `ClaudeDispatchTool` from the NeuralNorris era. These do not exist in the current Claude Code Agent tool architecture.
 
-2. **The System Prompt Hardening section is dead code.** It references `SdlcWorkflowTool` and `ClaudeDispatchTool` from the NeuralNorris era. These do not exist in the current Claude Code Agent tool architecture.
+2. **The subcommand pattern for state.sh is preferred over separate scripts.** This keeps the scripts directory clean and establishes a pattern for the future PM adapter. One script with clear subcommands is easier to maintain than `state-init.sh`, `state-update.sh`, `state-overhead.sh`, etc.
 
-3. **The subcommand pattern for state.sh is preferred over separate scripts.** This keeps the scripts directory clean and establishes a pattern for the future PM adapter. One script with clear subcommands is easier to maintain than `state-init.sh`, `state-update.sh`, `state-overhead.sh`, etc.
+### Resolved: State file recovery via `reconstruct`
 
-### Open Questions
+The legacy manual telemetry method is safe to delete. When the state file is missing, the orchestrator calls `state.sh reconstruct <backlog-number>` which rebuilds the state from GitHub issue comments, branch state, and board status. This is a fully automated recovery path -- the orchestrator never needs to hand-craft telemetry strings from memory, and the human never needs to manually reconstruct workflow state.
 
-1. **Should the state file fallback reconstruct from GitHub comments?** Currently, if the state file is missing, the orchestrator queries GitHub for issue states and branch merges. But telemetry data (tokens, duration, cost) from prior dispatches is lost unless the orchestrator reads it from the telemetry comments posted on each issue. A `state.sh reconstruct <backlog-number>` subcommand could parse these comments and rebuild the state file. This would fully eliminate the need for the legacy manual telemetry path.
+This decision is grounded in the Fault Tolerance principle: interruptions are expected in long autonomous sessions, and recovery must be automatic.
 
-2. **Should `compute-dispatches.py` be extended now or later?** The `--overhead` flag for the orchestrator overhead row is a small addition. It could be done in this backlog item or deferred.
+### Resolved: `compute-dispatches.py --overhead` ships in this backlog item
+
+The `--overhead` flag is a small addition (~20 lines of Python) that eliminates the orchestrator's 38-line inline overhead computation. It belongs alongside the existing wall-clock and critical-path logic already in `compute-dispatches.py`. Deferring it would leave the largest inline code block in orchestrator.md unaddressed.
 
 ## Scope Risks
 

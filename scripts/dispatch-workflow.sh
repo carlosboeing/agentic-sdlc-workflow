@@ -68,6 +68,16 @@ difficulty_to_model() {
   esac
 }
 
+difficulty_to_reviewer_model() {
+  local label="$1"
+  case "$label" in
+    difficulty/easy)   echo "$CFG_REVIEW_EASY"   ;;
+    difficulty/medium) echo "$CFG_REVIEW_MEDIUM" ;;
+    difficulty/hard)   echo "$CFG_REVIEW_HARD"   ;;
+    *)                 echo "$CFG_REVIEW_MEDIUM" ;;
+  esac
+}
+
 set_board_status() {
   local issue_number="$1"
   local status_name="$2"
@@ -413,8 +423,9 @@ else
 
     DIFFICULTY=$(echo "$STORY_JSON" | jq -r '[.labels[].name | select(startswith("difficulty/"))] | first // "difficulty/medium"')
     MODEL=$(difficulty_to_model "$DIFFICULTY")
+    REVIEWER_MODEL=$(difficulty_to_reviewer_model "$DIFFICULTY")
 
-    log_step "--- Story #$STORY_NUM: $STORY_TITLE (difficulty=$DIFFICULTY, model=$MODEL) ---"
+    log_step "--- Story #$STORY_NUM: $STORY_TITLE (difficulty=$DIFFICULTY, model=$MODEL, reviewer=$REVIEWER_MODEL) ---"
 
     # Update epic board status to In Progress
     if [ -n "$EPIC_ISSUE" ]; then
@@ -451,8 +462,8 @@ else
 
     REVIEW_EXIT=0
     run_claude -p "Review story #$STORY_NUM ($STORY_TITLE) on branch $STORY_BRANCH against epic branch $EPIC_BRANCH. Post findings as a comment on issue #$STORY_NUM." \
-      --agent reviewer \
-      --model sonnet \
+      --agent "reviewer-$REVIEWER_MODEL" \
+      --model "$REVIEWER_MODEL" \
       --output-format json \
       || REVIEW_EXIT=$?
 

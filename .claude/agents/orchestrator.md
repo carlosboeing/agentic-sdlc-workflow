@@ -33,8 +33,10 @@ Agent tool → subagent_type: "builder-sonnet"  # difficulty/easy
 Agent tool → subagent_type: "builder-sonnet"  # difficulty/medium
 Agent tool → subagent_type: "builder-opus"    # difficulty/hard
 
-# Reviewer dispatch
-Agent tool → subagent_type: "reviewer"
+# Reviewer dispatch (model selected by subagent_type based on story difficulty)
+Agent tool → subagent_type: "reviewer-sonnet"  # difficulty/easy
+Agent tool → subagent_type: "reviewer-opus"    # difficulty/medium
+Agent tool → subagent_type: "reviewer-opus"    # difficulty/hard
 ```
 
 The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` -- capture all three for telemetry.
@@ -347,9 +349,11 @@ For each story (or wave of independent stories):
 
 **Reviewer dispatch is mandatory for every story.** After each builder completes and before merging into the epic branch, the orchestrator MUST dispatch the reviewer. There is no skip option.
 
-1. **Dispatch the reviewer** with the story issue number and branch:
+1. **Dispatch the reviewer** with the story issue number and branch. Select the reviewer variant based on story difficulty (read `reviewerRouting` from `.claude/agentic-sdlc-config.json` or use `CFG_REVIEW_*` from `scripts/lib/config.sh`):
    ```
-   Agent tool → subagent_type: "reviewer"
+   # Read difficulty label from the story issue, then route:
+   Agent tool → subagent_type: "reviewer-sonnet"  # difficulty/easy
+   Agent tool → subagent_type: "reviewer-opus"    # difficulty/medium or hard
    Prompt: "Review story #<number> on branch e<NN>-s<NN>/<slug> against epic/<slug>"
    ```
 
@@ -483,9 +487,9 @@ When all epics are merged into the integration branch:
 
    The `Closes` list MUST include the backlog issue, ALL epic issues, ALL story issues, and any design/plan issues so merging auto-closes them all.
 
-4. **Dispatch reviewer on the backlog PR** (mandatory) for a full cross-epic integration review:
+4. **Dispatch reviewer on the backlog PR** (mandatory) for a full cross-epic integration review. Always use `reviewer-opus` for the backlog PR review regardless of story difficulty — this is a cross-epic integration review:
    ```
-   Agent tool → subagent_type: "reviewer"
+   Agent tool → subagent_type: "reviewer-opus"
    Prompt: "Review PR #<pr-number> for this project. Check for cross-epic
             integration issues, convention violations, and security concerns. Post findings
             as a review on the PR."

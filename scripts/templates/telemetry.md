@@ -25,6 +25,7 @@
     BREAKDOWN                — Per-story breakdown table provided
     GANTT                    — Gantt chart data provided
     FOOTER                   — Footer text provided (e.g., notes, PR link)
+    FIX_CYCLES               — Fix cycle footer line provided (computed from dispatches)
     DISCLAIMER               — Cost estimates or breakdown shown
 
   Value columns contain only numbers/formatted values — no labels.
@@ -113,6 +114,10 @@ gantt
 
 {{FOOTER}}
 <!-- END_FOOTER -->
+<!-- IF_FIX_CYCLES -->
+
+{{FIX_FOOTER}}
+<!-- END_FIX_CYCLES -->
 <!-- IF_DISCLAIMER -->
 
 ---

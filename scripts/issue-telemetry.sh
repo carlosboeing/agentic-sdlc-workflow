@@ -84,6 +84,7 @@ RATE_OVERRIDE=""
 COST_OVERRIDE=""
 SUMMARY=""
 FOOTER=""
+FIX_FOOTER=""
 DISPATCHES_FILE=""
 DISPATCHES_FROM_STATE=""
 
@@ -272,108 +273,23 @@ DISPEOF
 if [ -n "$DISPATCHES_FILE" ] && [ -f "$DISPATCHES_FILE" ]; then
   _run_dispatches_computation "$DISPATCHES_FILE"
 elif [ -n "$DISPATCHES_FROM_STATE" ] && [ -f "$DISPATCHES_FROM_STATE" ]; then
-  # Convert orchestrator state file dispatches[] to the dispatches format.
-  # Maps agent types to phases and generates human-readable task labels.
-  # Also computes wall-clock duration from started_at grouping (parallel detection).
-  _state_tmp=$(mktemp)
-  _wall_clock_tmp=$(mktemp)
-  trap "rm -f $_state_tmp $_wall_clock_tmp" EXIT
-  python3 << STATEEOF > "$_state_tmp"
-import json, sys
-from collections import defaultdict
+  # Use compute-dispatches.py to convert the state file and compute all metrics:
+  # breakdown, summary (with fix cycles row), cost, duration_ms, tokens,
+  # wall_clock_ms, has_parallel, fix_cycles, fix_footer.
+  _state_result=$(python3 "$SCRIPT_DIR/lib/compute-dispatches.py" \
+    --from-state "$DISPATCHES_FROM_STATE" \
+    --pricing "$_PRICING_CACHE" --config "$_CFG_FILE")
 
-with open("$DISPATCHES_FROM_STATE") as f:
-    state = json.load(f)
+  BREAKDOWN=$(echo "$_state_result" | jq -r '.breakdown')
+  SUMMARY=$(echo "$_state_result" | jq -r '.summary')
+  COST_OVERRIDE=$(echo "$_state_result" | jq -r '.cost')
+  DURATION_MS=$(echo "$_state_result" | jq -r '.duration_ms')
+  TOKENS=$(echo "$_state_result" | jq -r '.tokens')
+  FIX_FOOTER=$(echo "$_state_result" | jq -r '.fix_footer // empty')
 
-agent_to_phase = {
-    "designer": "Design",
-    "planner": "Plan",
-    "builder-haiku": "Build", "builder-sonnet": "Build", "builder-opus": "Build",
-    "reviewer": "Review",
-    "retro": "Retro",
-}
-
-# Build issue-to-title map from epics
-issue_titles = {}
-for epic_key, epic in state.get("epics", {}).items():
-    for issue_num, story in epic.get("stories", {}).items():
-        branch = story.get("branch", "")
-        # Derive a short label from the branch name
-        label = branch.replace(f"{epic_key}-", "").replace("/", " ").replace("-", " ").title()
-        issue_titles[int(issue_num)] = label
-
-dispatches = []
-raw_dispatches = state.get("dispatches", [])
-
-for d in raw_dispatches:
-    agent = d.get("agent", "unknown")
-    model = d.get("model", "unknown")
-    issue = d.get("issue")
-    phase = agent_to_phase.get(agent, "Other")
-
-    # Build human-readable agent label: "Builder (sonnet)" or "Reviewer (opus)"
-    agent_base = agent.split("-")[0].capitalize()
-    if agent_base == "Builder":
-        agent_label = f"Builder ({model})"
-    elif agent_base == "Reviewer":
-        agent_label = f"Reviewer ({model})"
-    else:
-        agent_label = f"{agent_base.capitalize()} ({model})"
-
-    # Build task label from issue titles or agent type
-    if phase == "Design":
-        task = f"Design Doc (#{issue})" if issue else "Design Doc"
-    elif phase == "Plan":
-        task = f"Plan Doc (#{issue})" if issue else "Plan Doc"
-    elif phase == "Retro":
-        task = f"Retrospective (#{issue})" if issue else "Retrospective"
-    elif phase == "Review" and issue:
-        if issue in issue_titles:
-            title = issue_titles[issue]
-            task = f"Review {title} (#{issue})"
-        else:
-            task = f"PR Review (#{issue})"
-    elif issue and issue in issue_titles:
-        task = f"{issue_titles[issue]} (#{issue})"
-    elif issue:
-        task = f"Issue #{issue}"
-    else:
-        task = agent
-
-    dispatches.append({
-        "agent": agent_label,
-        "model": model,
-        "task": task,
-        "duration_ms": d.get("duration_ms", 0),
-        "tokens": d.get("tokens", 0),
-        "phase": phase,
-    })
-
-json.dump(dispatches, sys.stdout, indent=2)
-
-# Compute wall-clock from started_at grouping:
-# Dispatches with the same started_at ran in parallel -> take max(duration_ms)
-# Dispatches with different started_at ran sequentially -> sum them
-groups = defaultdict(list)
-for d in raw_dispatches:
-    groups[d.get("started_at", "")].append(d)
-
-wall_clock_ms = 0
-has_parallel = False
-for ts in sorted(groups.keys()):
-    group = groups[ts]
-    if len(group) > 1:
-        has_parallel = True
-    wall_clock_ms += max(d.get("duration_ms", 0) for d in group)
-
-with open("$_wall_clock_tmp", "w") as f:
-    json.dump({"wall_clock_ms": wall_clock_ms, "has_parallel": has_parallel}, f)
-STATEEOF
-  _run_dispatches_computation "$_state_tmp"
-
-  # Read computed wall-clock from state file analysis
-  _computed_wc=$(jq -r '.wall_clock_ms' "$_wall_clock_tmp")
-  _has_parallel=$(jq -r '.has_parallel' "$_wall_clock_tmp")
+  # Wall-clock auto-computation from state file started_at grouping
+  _computed_wc=$(echo "$_state_result" | jq -r '.wall_clock_ms')
+  _has_parallel=$(echo "$_state_result" | jq -r '.has_parallel')
 
   if [ -z "$WALL_CLOCK_MS" ] || [ "$WALL_CLOCK_MS" = "0" ]; then
     # No wall-clock provided — use computed value
@@ -387,8 +303,6 @@ STATEEOF
     echo "  Overriding with computed critical path: $(format_duration "$_computed_wc")" >&2
     WALL_CLOCK_MS="$_computed_wc"
   fi
-
-  rm -f "$_state_tmp" "$_wall_clock_tmp"
 fi
 
 # ─── Compute derived values ───────────────────────────────────────────────────
@@ -550,6 +464,7 @@ eval_condition() {
     BREAKDOWN)               [ -n "$BREAKDOWN" ] ;;
     GANTT)                   [ -n "$GANTT" ] ;;
     FOOTER)                  [ -n "$FOOTER" ] ;;
+    FIX_CYCLES)              [ -n "$FIX_FOOTER" ] ;;
     DISCLAIMER)              [ "$COST_EST" != "—" ] || [ -n "$BREAKDOWN" ] ;;
     *)                       return 1 ;;
   esac
@@ -619,6 +534,10 @@ render_template() {
     fi
     if [[ "$line" == "{{FOOTER}}" ]]; then
       [ -n "$FOOTER" ] && printf '%s\n' "$FOOTER"
+      continue
+    fi
+    if [[ "$line" == "{{FIX_FOOTER}}" ]]; then
+      [ -n "$FIX_FOOTER" ] && printf '%s\n' "$FIX_FOOTER"
       continue
     fi
 

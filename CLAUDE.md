@@ -271,6 +271,8 @@ Map difficulty label to reviewer variant (configured in `reviewerRouting`):
 
 #### In-session dispatch (primary)
 
+**Universal worktree isolation (autonomous mode):** In autonomous mode, **every** Agent tool dispatch MUST use `isolation: "worktree"` — not just parallel builders. This includes designers, planners, builders (parallel and sequential), reviewers, and retro agents. Without worktree isolation, agents share the main working directory and are affected by stale branches, leftover artifacts, and checkout collisions from other active backlog items. The only exception is interactive mode where a human is actively monitoring. Evidence: Run 15 (backlog #105) had repeated checkout collisions with `backlog/106-telemetry-accuracy` artifacts, including a commit landing on the wrong branch.
+
 Use the Agent tool with `subagent_type: "builder-<model>"`:
 
 1. Read difficulty label from GitHub Issue
@@ -329,7 +331,7 @@ The script computes speed (tokens/s) and estimated cost automatically from the m
 
 Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Every completed story must have all three comments on its issue: "Work Started" (`issue-start.sh`, by builder), "Ready for Review" (`issue-review.sh`, by builder), and "Telemetry" (`issue-telemetry.sh`, by orchestrator).
 
-**Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. **CRITICAL: Use `isolation: "worktree"` in the Agent tool when dispatching parallel builders.** Without worktree isolation, parallel builders share the same working directory and can commit files from other stories onto the wrong branch. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
+**Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. All dispatches already use `isolation: "worktree"` per the universal rule above. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
 
 **Story branch creation for parallel waves (REQUIRED):** All epic branches and story branches are created upfront in **Phase 4** (before any dispatch) — not lazily at dispatch time. See `orchestrator.md` Phase 4 for the authoritative procedure with code examples. Key invariants: all story branches for an epic are created from the same epic branch commit (the base SHA is recorded in `epics.*.base_sha` in the state file); no story work is pushed to the epic branch until the entire wave completes; if a story branch is found to have diverged from the expected base, cherry-pick only that story's own commits onto a fresh branch from the recorded base before merging. This eliminates the cross-contamination class of error observed in Run 9 (E01-S03, issue #20) where a builder started from a sibling story's HEAD instead of the epic base.
 

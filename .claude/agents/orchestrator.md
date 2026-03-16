@@ -27,6 +27,8 @@ Your deliverables are: dispatched agents, GitHub state updates, telemetry, and t
 
 Use the Agent tool to dispatch builders and reviewers within the current Claude Code session. Model routing is achieved via `subagent_type` using builder variant files.
 
+**Universal worktree isolation (autonomous mode):** In autonomous mode, **every** Agent tool dispatch MUST include `isolation: "worktree"`. This applies to all agents: designers, planners, builders (parallel and sequential), reviewers, and retro. Without isolation, agents share the main working directory and are affected by stale branches, leftover artifacts, and checkout collisions from concurrent or previous backlog items. The only exception is interactive mode where a human is monitoring the session. Evidence: Run 15 (backlog #105) had repeated collisions with `backlog/106` artifacts — stale files blocked merges, `git checkout` landed on wrong branches, and a commit went to the wrong branch entirely.
+
 ```
 # Builder dispatch (model selected by subagent_type)
 Agent tool → subagent_type: "builder-sonnet"  # difficulty/easy
@@ -273,7 +275,7 @@ Then wait for the human to merge the plan PR into the integration branch.
    ```
    Alternatively, traverse sub-issues of the epic issue using the GitHub GraphQL API.
 2. Parse the plan's Mermaid dependency graph to determine execution order.
-3. Identify which stories can run in parallel (no shared dependencies). **CRITICAL: When dispatching parallel builders, use `isolation: "worktree"` in the Agent tool to prevent workspace collisions** (confirmed defect in Run 7, commit `c249257`).
+3. Identify which stories can run in parallel (no shared dependencies). All dispatches use `isolation: "worktree"` per the universal rule (originally confirmed as critical for parallel builders in Run 7, extended to all autonomous dispatches after Run 15).
 4. **Create all epic branches and story branches upfront** — before dispatching any builders. This is the authoritative branch creation step. Phase 5 dispatches only; it does not create branches.
 
    **Create all epic branches** from the integration branch:

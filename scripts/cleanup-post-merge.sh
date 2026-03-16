@@ -52,6 +52,8 @@ if [ -n "$MERGED_BRANCHES" ]; then
 fi
 
 # --- 3. Delete orphaned workflow branches (unmerged but no remote) ---
+# SAFETY: When a backlog number is provided, only delete branches that are
+# clearly orphaned (no remote) AND don't belong to another active backlog item.
 WORKFLOW_BRANCHES=$(git branch | grep -E "backlog/|epic/|e[0-9]|docs/|worktree-" | sed 's/^[* ]*//')
 if [ -n "$WORKFLOW_BRANCHES" ]; then
   echo "Checking for orphaned local branches:"
@@ -59,6 +61,14 @@ if [ -n "$WORKFLOW_BRANCHES" ]; then
     # Check if remote tracking branch exists
     REMOTE_EXISTS=$(git ls-remote --heads origin "$branch" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$REMOTE_EXISTS" -eq 0 ]; then
+      # If scoped to a backlog number, skip backlog/ branches for other items
+      if [ -n "$BACKLOG_NUMBER" ] && echo "$branch" | grep -q "^backlog/"; then
+        BRANCH_NUM=$(echo "$branch" | sed 's|backlog/||' | grep -oP '^\d+')
+        if [ "$BRANCH_NUM" != "$BACKLOG_NUMBER" ]; then
+          echo "  $branch (skipped — belongs to backlog $BRANCH_NUM)"
+          continue
+        fi
+      fi
       echo "  $branch (no remote — deleting)"
       git branch -D "$branch" 2>/dev/null && CLEANED=$((CLEANED + 1))
     fi
@@ -67,10 +77,35 @@ if [ -n "$WORKFLOW_BRANCHES" ]; then
 fi
 
 # --- 4. Delete stale remote workflow branches ---
+# SAFETY: Only delete branches belonging to the specified backlog item.
+# Without a backlog number, only delete branches whose backlog issue is CLOSED.
+# This prevents accidentally deleting branches for other active backlog items
+# (which auto-closes their PRs on GitHub).
 REMOTE_WORKFLOW=$(git branch -r | grep -E "origin/(backlog/|epic/|e[0-9]|docs/)" | sed 's/^[* ]*//' | sed 's|origin/||')
 if [ -n "$REMOTE_WORKFLOW" ]; then
   echo "Deleting stale remote workflow branches:"
   while IFS= read -r branch; do
+    if [ -n "$BACKLOG_NUMBER" ]; then
+      # Scoped mode: only delete branches matching this backlog item
+      # Match: backlog/<N>-*, epic/*-<slug> (from this backlog), e0N-s*/*, docs/*
+      # For backlog/ branches, match the number directly
+      if echo "$branch" | grep -q "^backlog/"; then
+        BRANCH_NUM=$(echo "$branch" | sed 's|backlog/||' | grep -oP '^\d+')
+        if [ "$BRANCH_NUM" != "$BACKLOG_NUMBER" ]; then
+          echo "  origin/$branch (skipped — belongs to backlog $BRANCH_NUM, not $BACKLOG_NUMBER)"
+          continue
+        fi
+      fi
+      # For other branch types (epic/, e0N-, docs/), check if they're merged into main
+      # If not merged, they may belong to another active backlog item — skip them
+      if ! echo "$branch" | grep -q "^backlog/"; then
+        IS_MERGED=$(git branch -r --merged main | grep -q "origin/$branch" && echo "yes" || echo "no")
+        if [ "$IS_MERGED" = "no" ]; then
+          echo "  origin/$branch (skipped — not merged into main, may be active)"
+          continue
+        fi
+      fi
+    fi
     echo "  origin/$branch"
     git push origin --delete "$branch" 2>/dev/null && CLEANED=$((CLEANED + 1))
   done <<< "$REMOTE_WORKFLOW"

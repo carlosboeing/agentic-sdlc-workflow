@@ -19,6 +19,11 @@
     "medium": "sonnet",
     "hard": "opus"
   },
+  "reviewerRouting": {
+    "easy": "sonnet",
+    "medium": "opus",
+    "hard": "opus"
+  },
   "workflow": {
     "autoMergePlanPR": true,
     "autoMergeDesignPR": true,

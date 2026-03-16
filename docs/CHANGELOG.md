@@ -15,6 +15,21 @@
 - 1 fix cycle: E01-S02 Gantt generation had `section Wave N` directives that violated convention (removed in fix)
 - Addresses retro recommendations G (lifecycle duration), I (Python extraction), L (fix cycle tracking)
 
+## 2026-03-16
+
+### Orchestrator Improvements (Backlog #105)
+
+- **6 orchestrator enhancements** implemented across 4 waves (2 parallel, 2 sequential):
+  - **Sonnet Reviews for Easy Stories:** Added `reviewerRouting` config and reviewer variant files (`reviewer-sonnet.md`, `reviewer-opus.md`), reducing review cost ~15-20% for easy stories
+  - **Early Story Branch Creation:** Moved all branch creation to Phase 4, eliminating ~30s per wave transition
+  - **Batched Board Updates:** New `batch-set-status.sh` script for batch status transitions at wave boundaries
+  - **Format Templates for Parallel Content:** Added planner guideline requiring format contracts for shared structural elements
+  - **Orchestrator Override Pattern:** Formalized the override convention for pre-fixed reviewer findings in `orchestrator.md`
+  - **Capture Orchestrator Overhead Metrics:** Added wall-clock heuristic for measuring orchestrator overhead
+- 2 improvements deferred: Streaming Reviews (high complexity), Batch Issue Creation (obsoleted by PM Abstraction Layer)
+- Retro recommendations E, F, H moved to Implemented
+- First real workflow-on-workflow run (orchestrator agents modifying their own instructions)
+
 ## 2026-03-15
 
 ### Test SDLC v2 Workflow (Run 14) — Interdimensional Restaurant Health Inspections

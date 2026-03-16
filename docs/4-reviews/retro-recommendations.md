@@ -49,15 +49,6 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 - **Description:** `issue-telemetry.sh` is 602 lines — 3x the 200-line guideline. The `--dispatches` and `--dispatches-from-state` features added ~230 lines of Python embedded in bash heredocs. Consider extracting the dispatch computation into a separate helper script (e.g., `scripts/lib/compute-dispatches.py`) that `issue-telemetry.sh` calls. This would improve readability and make the Python logic independently testable.
 - **Effort:** Medium (refactor + update all callers)
 
-### K. Document builder AC-priority behavior as convention
-
-- **Source:** Run 14 (rec 2)
-- **Recurrence:** 1 run (but 2 independent observations within the same run)
-- **Priority:** Low
-- **Description:** Builders consistently follow acceptance criteria over story descriptions when the two contradict. In Run 14, 2/4 planted bugs were neutralized because builders satisfied the AC (E01-S01 wrote 6 violations when AC said "at least 5" despite description saying "exactly 3"; E02-S04 used MFSA-INS-2026-004 from AC despite description saying -003). This is correct behavior but is not documented as a convention.
-- **Effort:** Low (builder.md text update)
-- **Status:** Observed in 1 run (2 independent occurrences). Formalizing as a convention is low risk since it codifies existing behavior.
-
 ### L. Track fix cycle overhead as a per-run metric
 
 - **Source:** Run 14 (rec 5)
@@ -121,6 +112,6 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 | vi   | Reviewer doesn't reference the recommendations tracker for known patterns          | Run 11                           | Reviewer greps raw lesson files; the compiled tracker would be more efficient. Low priority — current approach works.                                                                                                                                                                                |
 | vii  | Average tokens per build story trending downward for content-only tasks            | Runs 13, 14                      | Run 13 averaged 43K tokens/build. Run 14 averaged 43K tokens/build (excluding fix cycles) or 54K (including fix cycles). Baseline holds for non-fix-cycle stories.                                                                                                                                   |
 | viii | Fix cycles more than double the cost of affected stories                           | Run 14                           | E01-S04: +181% overhead (2 fix cycles). E02-S01: +66% overhead (1 fix cycle). Total fix overhead: $1.53 / $11.34 = 13.5% of run cost. First data point -- track across future runs with organic (non-planted) fix cycles.                                                                            |
-| ix   | Builders prioritize acceptance criteria over story descriptions when they conflict | Run 14                           | 2/4 planted bugs neutralized because builders followed AC. E01-S01: AC said "at least 5 violations", builder wrote 6 (description said "exactly 3"). E02-S04: AC said MFSA-INS-2026-004, builder used it (description said -003). Robust behavioral pattern.                                         |
+| ix   | Builders prioritize acceptance criteria over story descriptions when they conflict | Run 14                           | 2/4 planted bugs neutralized because builders followed AC. Correct behavior — AC is the binding contract. Rec K (document as convention) declined: this only surfaced during deliberate bug planting, not organic usage. Already captured in builder.md as existing behavior ("Acceptance criteria take precedence over story descriptions"). |
 
 

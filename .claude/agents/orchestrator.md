@@ -639,22 +639,21 @@ As the final phase, post a **full lifecycle telemetry summary** on the backlog i
 | Reviewers (per story + backlog PR) | tokens, duration, tool uses |
 | Retro | tokens, duration, tool uses |
 
-**Preferred method — `--dispatches-from-state`:** Pass the orchestrator state file and let the script compute everything (costs, durations, totals) from the structured dispatch data using config rates. This eliminates manual cost/duration computation errors:
+**Preferred method — `--dispatches-from-state` with `--gantt-from-state`:** Pass the orchestrator state file and let the script compute everything (costs, durations, totals, and Gantt chart) automatically from the structured dispatch data using config rates. This eliminates manual cost/duration computation errors and removes the need to hand-craft Gantt task lines:
 
 ```bash
 ./scripts/issue-telemetry.sh <backlog-number> \
   --dispatches-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
+  --gantt-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
   --model opus \
   --commit $(git rev-parse backlog/<N>-<slug>) \
-  --wall-clock <wall_clock_ms> \
-  --gantt "<mermaid-gantt-body>" \
   --footer "<trailing-notes>" \
   --pr <pr-number>
 ```
 
-The script reads `dispatches[]` from the state file, maps agents to phases (Design/Plan/Build/Review/Retro), computes costs using `agentic-sdlc-config.json` rates, formats durations exactly, and generates both summary and breakdown tables with correct totals. The `--gantt` and `--footer` are still provided by the orchestrator (they require layout knowledge the script doesn't have).
+The script reads `dispatches[]` from the state file, maps agents to phases (Design/Plan/Build/Review/Retro), computes costs using `agentic-sdlc-config.json` rates, formats durations exactly, and generates both summary and breakdown tables with correct totals. `--gantt-from-state` generates the full Mermaid Gantt body automatically from the dispatch log — color tags, task IDs, parallel offsets, and fix cycle detection are all computed by `compute-dispatches.py`. The `--footer` is still provided by the orchestrator (it contains run-specific notes). The `--wall-clock` flag is not needed when using `--dispatches-from-state` — wall-clock duration is computed automatically from the `started_at` timestamps.
 
-**Legacy method — manual `--summary` and `--breakdown`:**
+**Legacy method — manual `--summary`, `--breakdown`, and `--gantt` (use when state file is unavailable):**
 
 ```bash
 ./scripts/issue-telemetry.sh <backlog-number> \
@@ -698,7 +697,7 @@ The script renders from `scripts/templates/telemetry.md` (single source of truth
 
 The Gantt chart should include **all lifecycle phases** (design, plan, build waves, review waves, fix cycles, retro), not just the build timeline. No `section` directives — task labels are self-explanatory.
 
-**Gantt color tagging (CRITICAL — apply the correct tag to each task):**
+**Gantt color tagging:**
 
 | Task tag | Color | Applies to |
 |----------|-------|------------|
@@ -707,7 +706,11 @@ The Gantt chart should include **all lifecycle phases** (design, plan, build wav
 | `:done` | Yellow | Review tasks |
 | `:crit` | Red | Fix / re-review cycles |
 
-The `%%{init}%%` block in `scripts/templates/telemetry.md` defines the hex values. The orchestrator controls color by choosing the correct task tag. **Do not use `:active` on build or review tasks** — builds have no tag (emerald default), reviews use `:done` (yellow). Evidence: Run 11 posted an all-violet Gantt because every task was tagged `:active`.
+The `%%{init}%%` block in `scripts/templates/telemetry.md` defines the hex values.
+
+**When using `--gantt-from-state` (preferred):** `compute-dispatches.py` assigns all color tags automatically based on agent type — designers, planners, and retro agents get `:active`; builders get no tag (emerald); reviewers get `:done`; fix cycle dispatches get `:crit`. Fix cycle footer text is automatically included when fix cycles are detected in the dispatch log. The orchestrator does not need to manage tags manually.
+
+**When using manual `--gantt` (legacy):** The orchestrator controls color by choosing the correct task tag. **Do not use `:active` on build or review tasks** — builds have no tag (emerald default), reviews use `:done` (yellow). Evidence: Run 11 posted an all-violet Gantt because every task was tagged `:active`.
 
 **Value column convention:** Value cells in telemetry tables contain only numbers and units (e.g., `30m 43s`, `770K`, `~$4.79`). Never add descriptive text, annotations, or parenthetical notes to value cells — those belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `25m 12s` in Value).
 
@@ -765,6 +768,31 @@ Add this row to both `--summary` and `--breakdown` when using the legacy manual 
 **Token overhead note:** Orchestrator token consumption is not returned by the Agent tool (it runs in the parent session). The duration-based heuristic via `start_wall_clock` gives a reliable time estimate. Cost remains an approximation — note in the footer: `*Orchestrator token overhead not included in cost estimate.*`
 
 **Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically via the template.
+
+**Record lifecycle_duration_ms (REQUIRED — last step before cleanup):** After all telemetry is posted, record the total wall-clock lifecycle duration in the state file. This field captures the full run duration as a comparable baseline for trend analysis across runs:
+
+```bash
+# Compute lifecycle duration: from session.started_at to now (after telemetry posted)
+python3 -c "
+import json
+from datetime import datetime, timezone
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
+    state = json.load(f)
+started_at = state['session']['started_at']
+start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+end = datetime.now(timezone.utc)
+lifecycle_ms = int((end - start).total_seconds() * 1000)
+state['session']['lifecycle_duration_ms'] = lifecycle_ms
+with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
+    json.dump(state, f, indent=2)
+mins = lifecycle_ms // 60000
+secs = (lifecycle_ms // 1000) % 60
+print(f'Lifecycle duration: {mins}m {secs}s')
+"
+```
+
+This must be the final state file write before Phase 11 cleanup begins.
+
 ### Phase 11: Post-Merge Cleanup
 
 This phase happens AFTER the human merges the backlog PR. If the orchestrator is still in session, it should run cleanup immediately. Otherwise, run it at the start of the next session.
@@ -931,6 +959,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
     "mode": "autonomous",
     "orchestrator_model": "opus",
     "started_at": "2026-03-10T14:00:00Z",
+    "lifecycle_duration_ms": null,
     "start_wall_clock": "2026-03-10T14:00:00Z",
     "repo": "carlosboeing/agentic-sdlc-workflow",
     "git_main_sha": "d1c7532"
@@ -969,10 +998,10 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
     }
   },
   "dispatches": [
-    { "id": 1, "agent": "designer",      "model": "opus",  "issue": null, "started_at": "...", "duration_ms": 207799, "tokens": 64000,  "tool_uses": 42, "result": "success" },
-    { "id": 2, "agent": "planner",      "model": "opus",  "issue": null, "started_at": "...", "duration_ms": 486000, "tokens": 75000,  "tool_uses": 55, "result": "success" },
-    { "id": 3, "agent": "builder-haiku",  "model": "haiku", "issue": 112,  "started_at": "...", "duration_ms": 109000, "tokens": 103000, "tool_uses": 18, "result": "success" },
-    { "id": 4, "agent": "reviewer",       "model": "opus",  "issue": 112,  "started_at": "...", "duration_ms": 117000, "tokens": 38000,  "tool_uses": 12, "result": "APPROVE" }
+    { "id": 1, "agent": "designer",      "model": "opus",  "issue": null, "started_at": "2026-03-10T14:00:05Z", "finished_at": "2026-03-10T14:03:32Z", "duration_ms": 207799, "tokens": 64000,  "tool_uses": 42, "result": "success" },
+    { "id": 2, "agent": "planner",      "model": "opus",  "issue": null, "started_at": "2026-03-10T14:03:40Z", "finished_at": "2026-03-10T14:11:46Z", "duration_ms": 486000, "tokens": 75000,  "tool_uses": 55, "result": "success" },
+    { "id": 3, "agent": "builder-haiku",  "model": "haiku", "issue": 112,  "started_at": "2026-03-10T14:12:00Z", "finished_at": "2026-03-10T14:13:49Z", "duration_ms": 109000, "tokens": 103000, "tool_uses": 18, "result": "success" },
+    { "id": 4, "agent": "reviewer",       "model": "opus",  "issue": 112,  "started_at": "2026-03-10T14:13:55Z", "finished_at": "2026-03-10T14:15:52Z", "duration_ms": 117000, "tokens": 38000,  "tool_uses": 12, "result": "APPROVE" }
   ]
 }
 ```
@@ -983,6 +1012,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 |---------|-------|---------|
 | `version` | `1` | Schema version for forward compatibility. Readers must tolerate unknown keys. |
 | `session.orchestrator_model` | `"opus"` | The model the orchestrator session is running. All `model: inherit` agents inherit this. Critical for accurate cost estimates. |
+| `session.lifecycle_duration_ms` | `null` (nullable) | Set at the end of Phase 10 after all telemetry is posted and before cleanup begins. Represents wall-clock time from `session.started_at` to the final telemetry post. Provides a comparable baseline across runs for trend analysis. |
 | `session.start_wall_clock` | `"2026-03-10T14:00:00Z"` | ISO timestamp recorded at the moment the state file is written (Phase 0). Used in Phase 10 to compute orchestrator overhead duration: `overhead_duration = total_wall_clock - sum(all_subagent_durations_critical_path)`. |
 | `session.git_main_sha` | `"d1c7532"` | Main branch HEAD at workflow start. Detects if main moved during the run. |
 | `overhead.duration_ms` | `null` (nullable) | Computed in Phase 10 after all subagent dispatches complete. Formula: `wall_clock_ms - sum(critical_path_subagent_ms)`. Null until computed. |
@@ -992,6 +1022,8 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 | `phases` | `{...}` | Status of each workflow phase (pending, in_progress, complete, skipped). |
 | `epics.*.base_sha` | `"e6f79d6"` | The epic branch HEAD commit SHA recorded in Phase 4 when the epic branch is created. All story branches for this epic are created from this commit. Used to detect cross-contamination (a story branch diverged from the expected base). |
 | `epics.*.stories.*.status` | `"reviewed"` | Story status (pending, building, built, reviewing, reviewed, merged, done). |
+| `dispatches[].started_at` | `"2026-03-10T14:12:00Z"` | ISO timestamp captured immediately before Agent tool dispatch using `$(date -u +%Y-%m-%dT%H:%M:%SZ)`. For parallel waves, all dispatches in the wave share the same `started_at`. |
+| `dispatches[].finished_at` | `"2026-03-10T14:13:49Z"` | ISO timestamp computed as `started_at + duration_ms` after the Agent tool returns. |
 | `dispatches[]` | `[...]` | Append-only log of every agent dispatch. Raw data for telemetry and debugging. |
 
 #### State Lifecycle
@@ -1056,9 +1088,26 @@ Update the state file after each of these events:
 - Review verdict received
 - Backlog PR opened
 
+**Timestamp recording convention:**
+
+- **`started_at`:** Capture using `$(date -u +%Y-%m-%dT%H:%M:%SZ)` immediately before invoking the Agent tool — not after. This ensures the timestamp reflects when the dispatch actually began.
+- **Parallel waves:** Record a single `started_at` before the first dispatch in the wave. All dispatches in the same wave share that timestamp. This is what allows `issue-telemetry.sh` to detect parallelism (same `started_at` → parallel group → take `max(duration_ms)`).
+- **`finished_at`:** Computed after the Agent tool returns: `started_at + duration_ms`. The orchestrator adds this field when recording the dispatch.
+
 Use `python3` or `jq` to update the JSON in place. Example:
 
 ```bash
+# Capture timestamp immediately before dispatch
+DISPATCH_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+# ... invoke Agent tool ...
+# After Agent tool returns (duration_ms = 109000):
+DISPATCH_FINISHED=$(python3 -c "
+from datetime import datetime, timedelta, timezone
+start = datetime.fromisoformat('${DISPATCH_START}'.replace('Z', '+00:00'))
+end = start + timedelta(milliseconds=109000)
+print(end.strftime('%Y-%m-%dT%H:%M:%SZ'))
+")
+
 # Update a story's build telemetry after builder completes
 python3 -c "
 import json
@@ -1071,6 +1120,8 @@ state['epics']['e01']['stories']['112']['status'] = 'built'
 state['dispatches'].append({
     'id': len(state['dispatches']) + 1,
     'agent': 'builder-haiku', 'model': 'haiku', 'issue': 112,
+    'started_at': '${DISPATCH_START}',
+    'finished_at': '${DISPATCH_FINISHED}',
     'duration_ms': 109000, 'tokens': 103000, 'tool_uses': 18,
     'result': 'success'
 })

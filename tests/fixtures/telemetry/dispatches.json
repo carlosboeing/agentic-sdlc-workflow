@@ -1,0 +1,18 @@
+[
+  {
+    "agent": "Builder (sonnet)",
+    "model": "sonnet",
+    "task": "E01-S01 (#61)",
+    "duration_ms": 146479,
+    "tokens": 49691,
+    "phase": "Build"
+  },
+  {
+    "agent": "Reviewer (sonnet)",
+    "model": "sonnet",
+    "task": "Review E01-S01 (#61)",
+    "duration_ms": 52000,
+    "tokens": 18000,
+    "phase": "Review"
+  }
+]

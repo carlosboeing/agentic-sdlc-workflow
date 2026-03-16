@@ -239,6 +239,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 |--------|-------|
 | `scripts/issue-create-backlog.sh --title <t> --slug <s> [--body <text> \| --body-file <path>]` | Create backlog item: issue + board + status + label |
 | `scripts/issue-set-status.sh <n> <status>` | Set project board status (backlog/ready/in-progress/in-review/done) |
+| `scripts/batch-set-status.sh <n>:<status> [<n>:<status> ...]` | Set board status for multiple issues: fetch-all, mutate-sequentially, verify-once |
 | `scripts/issue-start.sh <n> --model <m> --agent <a>` | Post "Work Started" comment + set board to In Progress |
 | `scripts/issue-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
 | `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |
@@ -261,6 +262,13 @@ Map difficulty label to builder variant:
 - `difficulty/medium` → `builder-sonnet`
 - `difficulty/hard` → `builder-opus`
 
+Map difficulty label to reviewer variant (configured in `reviewerRouting`):
+
+- `difficulty/easy` → `reviewer-sonnet`
+- `difficulty/medium` → `reviewer-opus`
+- `difficulty/hard` → `reviewer-opus`
+- Backlog PR review (cross-epic) → `reviewer-opus` always
+
 #### In-session dispatch (primary)
 
 Use the Agent tool with `subagent_type: "builder-<model>"`:
@@ -270,11 +278,11 @@ Use the Agent tool with `subagent_type: "builder-<model>"`:
 3. Builder runs `issue-start.sh` (posts comment + sets board to **In Progress**) → implements via TDD → runs `issue-review.sh` (posts comment + sets board to **In Review**)
 4. Post telemetry (orchestrator — see below)
 5. Update epic board status (see **Epic status sync** above)
-6. **Dispatch reviewer** on the story branch (mandatory, before merging): `subagent_type: "reviewer"`
+6. **Dispatch reviewer** on the story branch (mandatory, before merging): `subagent_type: "reviewer-sonnet"` (easy) or `subagent_type: "reviewer-opus"` (medium/hard)
 7. If reviewer finds issues: re-dispatch builder to fix, then re-review (max 2 cycles)
 8. Merge story branch into epic branch (only after review passes)
 9. After all stories complete: merge epic branches into integration branch, open backlog PR, post telemetry
-10. **Dispatch reviewer** on the backlog PR (mandatory): `subagent_type: "reviewer"`
+10. **Dispatch reviewer** on the backlog PR (mandatory): `subagent_type: "reviewer-opus"` (always Opus for cross-epic integration review)
 11. If reviewer finds issues: dispatch builder to fix on integration branch, then re-review (max 2 cycles)
 12. Backlog PR is left open for human review (orchestrator NEVER auto-merges it)
 13. Dispatch retro on the integration branch: `subagent_type: "retro"`
@@ -297,6 +305,15 @@ Three model-specific variants exist alongside `builder.md`:
 
 All variants share identical body content with `builder.md` (only the `model` frontmatter differs). **When updating `builder.md`, propagate changes to all three variants.**
 
+#### Reviewer variants
+
+Two model-specific variants exist alongside `reviewer.md`:
+
+- `.claude/agents/reviewer-sonnet.md` — for `difficulty/easy` stories
+- `.claude/agents/reviewer-opus.md` — for `difficulty/medium`, `difficulty/hard` stories, and all backlog PR reviews
+
+All variants share identical body content with `reviewer.md` (only the `name` and `model` frontmatter differ). **When updating `reviewer.md`, propagate changes to both variants.**
+
 **Telemetry is mandatory:** The orchestrator MUST post telemetry after each builder completes, before moving to the next story. The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` — pass all of them. **Capture telemetry even from failed or usage-limited dispatches** — they still consume tokens and time, and zeroing them out underreports actual costs. **When resuming an interrupted agent**, capture metrics from each invocation (interrupted + resumed) and sum them — it is unknown whether the resumed result reports cumulative or delta-only metrics:
 
 ```bash
@@ -314,7 +331,7 @@ Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Ever
 
 **Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. **CRITICAL: Use `isolation: "worktree"` in the Agent tool when dispatching parallel builders.** Without worktree isolation, parallel builders share the same working directory and can commit files from other stories onto the wrong branch. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
 
-**Story branch creation for parallel waves (REQUIRED):** Before dispatching parallel builders, the orchestrator MUST create all story branches from the same epic branch commit. Record this base commit hash. Do not push any story work to the epic branch until the entire wave completes. If a story branch is found to have diverged from the expected base (e.g., it includes commits from a sibling story), cherry-pick only the story's own commits onto a fresh branch from the recorded base before merging. This prevents the cross-contamination observed in Run 9 (E01-S03, issue #20) where a builder started from a sibling story's HEAD instead of the epic base.
+**Story branch creation for parallel waves (REQUIRED):** All epic branches and story branches are created upfront in **Phase 4** (before any dispatch) — not lazily at dispatch time. See `orchestrator.md` Phase 4 for the authoritative procedure with code examples. Key invariants: all story branches for an epic are created from the same epic branch commit (the base SHA is recorded in `epics.*.base_sha` in the state file); no story work is pushed to the epic branch until the entire wave completes; if a story branch is found to have diverged from the expected base, cherry-pick only that story's own commits onto a fresh branch from the recorded base before merging. This eliminates the cross-contamination class of error observed in Run 9 (E01-S03, issue #20) where a builder started from a sibling story's HEAD instead of the epic base.
 
 **Post-worktree cleanup (REQUIRED):** After all worktree-dispatched builders complete, the orchestrator MUST:
 1. Check for untracked files left in the main working tree: `git status --short`
@@ -413,10 +430,13 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 
 **Gantt color tagging:** Gantt task tags control bar colors — `:active` (violet) for design/plan/retro, no tag (emerald) for builds, `:done` (yellow) for reviews, `:crit` (red) for fix cycles. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for the full table. Do not use `:active` on build or review tasks.
 
-**Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. To capture them:
-1. At the **start** of the orchestrator session, note the session's running token count (visible via `/cost` in the Claude Code UI)
-2. At the **end**, note the final count. The difference minus all subagent tokens is the orchestrator's overhead.
-3. Include as a separate "Orchestrator" row in the backlog telemetry, or note the session total with subagent total for easy subtraction.
+**Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. Use the wall-clock heuristic to estimate overhead duration:
+
+- **Formula:** `overhead_duration = total_wall_clock_ms - sum(critical_path_subagent_ms)`
+- **Where:** `total_wall_clock_ms` = time from `session.start_wall_clock` to Phase 10 completion; `critical_path_subagent_ms` = sum of `max(duration_ms)` per parallel wave from `dispatches[]`
+- **State file fields:** `session.start_wall_clock` (ISO timestamp set in Phase 0), `overhead.duration_ms` (computed in Phase 10), `overhead.estimated_cost` (nullable — not measurable)
+- **Token overhead is NOT directly measurable.** The parent session tokens are not returned by the Agent tool. Set `overhead.estimated_cost` to null unless `/cost` was captured manually at session start and end via the Claude Code UI.
+- **Include an "Orchestrator" row** in the backlog telemetry summary table with the computed duration. Use `—` for tokens and cost columns since they cannot be measured from the Agent tool result.
 
 **Orchestrator state persistence:** The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json` (gitignored). The state file is structured as versioned JSON (schema v1) with sections for session metadata, pricing, phase progress, epic/story status, and an append-only dispatch log. Key fields:
 
@@ -607,6 +627,14 @@ grep -r "<old-pattern>" .claude/agents/
 ```bash
 for variant in haiku sonnet opus; do
   sed "s/^name: builder$/name: builder-$variant/;s/^model: inherit$/model: $variant/" .claude/agents/builder.md > .claude/agents/builder-$variant.md
+done
+```
+
+**Reviewer variant sync (CRITICAL):** `reviewer.md` has two model-routed variants (`reviewer-sonnet.md`, `reviewer-opus.md`). These files share identical body content — only the `name` and `model` fields in the YAML front matter differ. **Any change to `reviewer.md` body content must be propagated to both variants.** Use this to sync:
+
+```bash
+for variant in sonnet opus; do
+  sed "s/^name: reviewer$/name: reviewer-$variant/;s/^model: inherit$/model: $variant/" .claude/agents/reviewer.md > .claude/agents/reviewer-$variant.md
 done
 ```
 

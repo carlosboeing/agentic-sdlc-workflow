@@ -8,23 +8,6 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 
 ## Outstanding (not yet implemented)
 
-### E. Format templates for cross-story parallel content
-
-- **Source:** Run 5 (rec 3)
-- **Recurrence:** 2 runs (Run 5 E01 format inconsistency, Run 12 E01 dash/date inconsistency)
-- **Priority:** Low
-- **Description:** When multiple stories produce content with shared structural elements (e.g., metrics sections, rating tables), the planner should specify the exact rendering format (e.g., "use markdown tables for metrics") to prevent cosmetic divergence between parallel builders. Run 5's E01 epic had three different formats for the same structural element because different models chose different representations.
-- **Effort:** Low (planner guideline)
-
-### F. Document orchestrator override pattern for pre-fixed reviewer findings
-
-- **Source:** Run 9 (rec 2)
-- **Recurrence:** 2 runs (Run 9 cross-contamination cherry-pick, Run 14 E01-S04 cross-contamination removal)
-- **Priority:** Low
-- **Description:** When the orchestrator has already fixed an issue before reviewer dispatch (e.g., cherry-picking to fix cross-contamination), and the reviewer flags the pre-fix state, the orchestrator may override the verdict with documented evidence. This pattern was used in Run 9 and Run 14 (E01-S04 review3 had 0 tokens/0 duration with note "Content approved in review 2. Cross-contamination fixed by orchestrator." after commit `d537441`).
-- **Effort:** Low (orchestrator.md documentation)
-- **Status:** 2 occurrences across 2 runs. Pattern is consistent -- consider formalizing.
-
 ### G. Track autonomous lifecycle duration baseline
 
 - **Source:** Run 9 (rec 4)
@@ -32,14 +15,6 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 - **Priority:** Low
 - **Description:** Establishing a baseline for autonomous run duration enables performance regression detection. Current data: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead), Run 11 ~41m, Run 12 ~23m, Run 13 ~25m, Run 14 ~77m (12 stories, 3 fix cycles). No formal tracking mechanism exists.
 - **Effort:** Low (add a duration row to the changelog or a tracking table in this document)
-
-### H. Capture orchestrator overhead metrics
-
-- **Source:** Run 10 (rec 5)
-- **Recurrence:** 1 run (observation)
-- **Priority:** Low
-- **Description:** Orchestrator overhead was 51% of wall-clock time in Run 10 (31m of 61m). The rate limit workaround contributed ~6 minutes, but branch management, merge operations, and lesson/changelog commits also add significant time. Tracking this metric across runs would surface efficiency regressions. Currently, only subagent telemetry is captured — the orchestrator's own consumption runs in the parent session.
-- **Effort:** Medium (requires capturing `/cost` output at session start/end)
 
 ### I. Extract dispatch computation from issue-telemetry.sh
 
@@ -95,6 +70,9 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 | 29  | Inline Gantt color tagging rules in orchestrator.md                  | Run 11        | orchestrator.md + CLAUDE.md (Run 11 post-run fix) |
 | 30  | Move backlog In Progress transition to Phase 1 (Design)              | Run 12        | orchestrator.md (Run 12 retro)                    |
 | 31  | Extend post-worktree cleanup to fix cycle dispatches                 | Run 14        | CLAUDE.md + orchestrator.md (Run 14)              |
+| E   | Format templates for cross-story parallel content                    | Runs 5, 12    | planner.md "Format Templates" section (backlog #105) |
+| F   | Document orchestrator override pattern for pre-fixed reviewer findings | Runs 9, 14  | orchestrator.md "Orchestrator Override Pattern" section (backlog #105) |
+| 32  | Capture orchestrator overhead metrics (wall-clock heuristic)         | Run 10        | CLAUDE.md + orchestrator.md (backlog 105)         |
 
 
 ---

@@ -51,7 +51,7 @@ graph TB
 | **Orchestrator** | Conducts the entire workflow. Dispatches agents, manages GitHub state, tracks telemetry, opens the final PR. Never writes code. | Backlog issue number | Reviewed PR ready for human merge |
 | **Designer** | Explores approaches, evaluates trade-offs, writes a design document. In interactive mode, asks the human clarifying questions. | Backlog issue | Design doc + PR |
 | **Planner** | Decomposes the design into epics and stories with difficulty labels. Creates GitHub Issues, dependency graphs, and the implementation plan. | Design doc | Plan doc + GitHub Issues + PR |
-| **Builder** | Implements a single story via TDD. Creates the branch, writes code, runs tests, commits. Three model variants (haiku/sonnet/opus) routed by difficulty. | Story issue + branch | Working code on story branch |
+| **Builder** | Implements a single story via TDD. Creates the branch, writes code, runs tests, commits. Model variants (sonnet/opus) routed by difficulty. | Story issue + branch | Working code on story branch |
 | **Reviewer** | Reviews every story and the final PR. Posts structured findings with severity levels. Can trigger fix cycles (re-dispatch builder → re-review). | Story branch or PR | Review verdict (APPROVE / REQUEST_CHANGES) |
 | **Retro** | Synthesizes lessons from the run, proposes convention changes, updates the changelog. | Completed epic | Retro doc + convention PRs |
 
@@ -113,20 +113,22 @@ Builders are routed to different Claude models based on story difficulty:
 
 ```mermaid
 graph LR
-    D["difficulty/easy"] --> H["🟢 Haiku<br/><i>~$2/M tokens</i>"]
-    M["difficulty/medium"] --> S["🟡 Sonnet<br/><i>~$6/M tokens</i>"]
-    X["difficulty/hard"] --> O["🔴 Opus<br/><i>~$10/M tokens</i>"]
+    D["difficulty/easy"] --> S1["🟢 Sonnet<br/><i>~$6/M tokens</i>"]
+    M["difficulty/medium"] --> S2["🟡 Sonnet<br/><i>~$6/M tokens</i>"]
+    X["difficulty/hard"] --> O["🔴 Opus<br/><i>~$30/M tokens</i>"]
 
-    style H fill:#059669,color:#fff
-    style S fill:#ca8a04,color:#fff
+    style S1 fill:#059669,color:#fff
+    style S2 fill:#ca8a04,color:#fff
     style O fill:#dc2626,color:#fff
 ```
 
 | Difficulty | Model | Use case |
 |-----------|-------|----------|
-| `difficulty/easy` | Haiku | Single-file, config, docs, simple tests |
+| `difficulty/easy` | Sonnet | Single-file, config, docs, simple tests |
 | `difficulty/medium` | Sonnet | Multi-file, standard patterns, migrations |
 | `difficulty/hard` | Opus | Cross-project, new abstractions, security |
+
+Routing is configurable via `.claude/agentic-sdlc-config.json`. Sonnet replaced Haiku as the default for easy stories based on telemetry showing Haiku uses 3-4x more tokens for comparable output at similar cost.
 
 The planner assigns difficulty labels when creating story issues. The orchestrator reads the label and dispatches the matching builder variant. Non-builder agents (designer, planner, reviewer, retro) inherit the orchestrator's model.
 
@@ -348,24 +350,34 @@ The workflow enforces several safety mechanisms:
 
 ```
 .claude/
-  agents/           ← Agent definitions (orchestrator, designer, planner, builder, reviewer, retro)
-  hooks/            ← Claude Code hooks (logging, validation)
-  state/            ← Ephemeral orchestrator state (gitignored)
-  logs/             ← Diagnostic logs (gitignored)
-  settings.json     ← Permissions and hook registration
+  agents/                  ← Agent definitions (9 files: orchestrator, designer,
+                             planner, builder + 3 variants, reviewer, retro)
+  hooks/                   ← Claude Code hooks (logging)
+  agentic-sdlc-config.json ← Workflow configuration (model routing, board IDs, pricing)
+  settings.json            ← Permissions and hook registration
+
+.agentic-workflow/         ← Runtime data (gitignored)
+  pricing.json             ← Cached API pricing (fetched live each run)
+  runs/<backlog>/          ← Per-run orchestrator state
+  logs/                    ← Diagnostic logs (board status, drift detection)
 
 scripts/
-  issue-set-status.sh    ← Board status transitions
-  issue-start.sh         ← Mark story as started
-  issue-review.sh        ← Mark story as ready for review
-  issue-telemetry.sh     ← Post telemetry to issues/PRs
-  issue-close.sh         ← Close issue and set board to Done
-  fetch-pricing.sh       ← Fetch current Anthropic API pricing
-  dispatch-story.sh      ← CLI dispatch for standalone use
-  dispatch-workflow.sh   ← CLI full lifecycle dispatch
+  issue-set-status.sh     ← Board status transitions
+  issue-start.sh          ← Mark story as started
+  issue-review.sh         ← Mark story as ready for review
+  issue-telemetry.sh      ← Post telemetry to issues/PRs
+  issue-close.sh          ← Close issue and set board to Done
+  issue-create-backlog.sh ← Create backlog item with board setup
+  fetch-pricing.sh        ← Fetch current Anthropic API pricing
+  cleanup-post-merge.sh   ← Post-merge branch and state cleanup
+  check-board-drift.sh    ← Detect board status persistence drift
+  dispatch-story.sh       ← CLI dispatch for standalone use
+  dispatch-workflow.sh    ← CLI full lifecycle dispatch
+  lib/config.sh           ← Shared config reader
+  templates/telemetry.md  ← Telemetry comment template
 
 docs/
-  1-discovery/     ← Vision and brainstorms
+  1-discovery/     ← Research, analysis, and roadmap
   2-design/        ← Feature design documents
   3-plans/         ← Implementation plans
   4-reviews/       ← Retros, reviews, and lessons
@@ -392,10 +404,17 @@ For example, Run 9 discovered a cross-contamination bug in parallel dispatch and
 
 ## Test Runs
 
+14 test runs have validated the workflow across progressively complex scenarios. Runs 1-7 were in the original NeuralNorris repo; Runs 8-14 are in this repo.
+
 | Run | Backlog | Theme | Primary Test | Stories | Cost |
 |-----|---------|-------|-------------|---------|------|
+| 14 | [#83](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/83) | Interdimensional Health Inspections | Fix cycle validation, cross-epic merge | 12 | ~$11.34 |
+| 13 | [#69](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/69) | Alien Tourist Bureau | Runtime data, live pricing, dispatches-from-state | 6 | ~$4.83 |
+| 12 | [#56](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/56) | Time Traveler's Yelp Reviews | Configurable settings, model routing | 5 | ~$2.59 |
+| 11 | [#41](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/41) | Board Drift Detection + Fairy Tale HR | Board drift detection, 3-way parallel | 6 | ~$6.57 |
+| 10 | [#27](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/27) | Orchestrator Logging + Nature Doc S2 | Orchestrator logging infrastructure | 6 | ~$5.50 |
 | 9 | [#14](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/14) | CIA Cat Field Reports | Full autonomous lifecycle | 5 | ~$4.44 |
-| 8 | [#13](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/13) | — | Worktree isolation | — | — |
+| 8 | [#1](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/1) | Office Nature Documentary | Worktree isolation | 5 | ~$3.50 |
 
 ---
 

@@ -49,15 +49,6 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 - **Description:** `issue-telemetry.sh` is 602 lines — 3x the 200-line guideline. The `--dispatches` and `--dispatches-from-state` features added ~230 lines of Python embedded in bash heredocs. Consider extracting the dispatch computation into a separate helper script (e.g., `scripts/lib/compute-dispatches.py`) that `issue-telemetry.sh` calls. This would improve readability and make the Python logic independently testable.
 - **Effort:** Medium (refactor + update all callers)
 
-### J. Extend post-worktree cleanup to fix cycle dispatches
-
-- **Source:** Run 14 (rec 1)
-- **Recurrence:** 1 run (single occurrence, but high severity)
-- **Priority:** Medium
-- **Description:** The "Post-worktree cleanup (REQUIRED)" convention in CLAUDE.md specifies cleanup after the initial parallel wave, but does not cover fix cycle dispatches. In Run 14, E01-S04's fix cycle 2 (dispatch 19) picked up `violation-quantum-bistro.md` from E02-S01's stale worktree artifacts (commit `9aa16c7`, fixed in `d537441`). The convention should be extended: "Post-worktree cleanup is required before every worktree-dispatched builder, including fix cycle dispatches."
-- **Effort:** Low (CLAUDE.md + orchestrator.md text update)
-- **Evidence:** Run 14 lesson `e01-inspection-reports/2026-03-15-s04-fix-cycle-worktree-contamination.md`
-
 ### K. Document builder AC-priority behavior as convention
 
 - **Source:** Run 14 (rec 2)
@@ -112,6 +103,7 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 | 28  | Parallel review dispatch for independent stories                     | Run 6         | Validated in Run 11 Wave 3 (3 parallel reviews)   |
 | 29  | Inline Gantt color tagging rules in orchestrator.md                  | Run 11        | orchestrator.md + CLAUDE.md (Run 11 post-run fix) |
 | 30  | Move backlog In Progress transition to Phase 1 (Design)              | Run 12        | orchestrator.md (Run 12 retro)                    |
+| 31  | Extend post-worktree cleanup to fix cycle dispatches                 | Run 14        | CLAUDE.md + orchestrator.md (Run 14)              |
 
 
 ---

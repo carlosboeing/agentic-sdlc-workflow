@@ -32,6 +32,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from datetime import datetime, timezone
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -375,6 +376,266 @@ def compute_from_state(state, pricing_rates):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Gantt generation
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Parallel tolerance window: dispatches within this many seconds of each other
+# in a batch are treated as starting at the same time (same Gantt offset).
+_PARALLEL_TOLERANCE_S = 5
+
+# Agent type → Mermaid color tag.
+# builder-* → no tag (emerald), all other agents use the values below.
+_AGENT_COLOR_TAG = {
+    "designer": ":active",
+    "planner": ":active",
+    "retro": ":active",
+    "reviewer": ":done",
+}
+
+
+def _parse_iso(ts):
+    """Parse an ISO 8601 UTC timestamp string to a datetime object."""
+    ts = ts.replace("Z", "+00:00")
+    return datetime.fromisoformat(ts).astimezone(timezone.utc)
+
+
+def _fmt_offset(seconds):
+    """Format an offset in seconds as HH:MM:SS for Mermaid dateFormat HH:mm:ss."""
+    h = int(seconds) // 3600
+    m = (int(seconds) % 3600) // 60
+    s = int(seconds) % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+
+def _build_story_labels(state):
+    """
+    Build a dict mapping issue number (int) → "ENN-SNN" story code.
+
+    Derived from state.epics: epic key "e01" + story branch "e01-s02/..." → "E01-S02"
+    """
+    story_labels = {}
+    for epic_key, epic in state.get("epics", {}).items():
+        # epic_key: "e01", "e02", etc. → extract numeric part
+        epic_num = epic_key[1:]  # "01", "02"
+        for issue_num, story in epic.get("stories", {}).items():
+            branch = story.get("branch", "")
+            # branch like "e01-s02/destination-profiles" → extract "s02"
+            # Remove epic prefix: "e01-s02/..." → "s02/..."
+            rest = branch.replace(f"{epic_key}-", "", 1)  # "s02/destination-profiles"
+            story_part = rest.split("/")[0]  # "s02"
+            story_num = story_part[1:] if story_part.startswith("s") else story_part
+            code = f"E{epic_num.upper()}-S{story_num.upper()}"
+            story_labels[int(issue_num)] = code
+    return story_labels
+
+
+def _select_tick_interval(total_seconds):
+    """Auto-select Mermaid tickInterval based on total run duration in seconds."""
+    total_minutes = total_seconds / 60
+    if total_minutes < 30:
+        return "2minute"
+    elif total_minutes < 90:
+        return "5minute"
+    else:
+        return "10minute"
+
+
+def _gantt_label_for_dispatch(d, story_labels, fix_counts):
+    """
+    Generate a Gantt task label, color tag, and duration_s for a dispatch.
+
+    story_labels: dict mapping issue int → "ENN-SNN" string
+    fix_counts: dict mapping (issue, agent_prefix) → count seen so far *before*
+                this dispatch (0 = first occurrence, not a fix cycle)
+
+    Returns (label, color_tag_str, dur_s).
+    color_tag_str is one of ":active", ":done", ":crit", or "" (no tag).
+    """
+    agent = d.get("agent", "unknown")
+    agent_prefix = agent.split("-")[0]  # "builder", "reviewer", "designer", etc.
+    issue = d.get("issue")
+    dur_ms = d.get("duration_ms", 0)
+    dur_s = dur_ms // 1000
+    dur_label = fmt_duration(dur_ms)
+
+    # Fix cycle: same (issue, agent_prefix) pair seen before
+    pair_key = (issue, agent_prefix)
+    is_fix_cycle = fix_counts.get(pair_key, 0) > 0
+
+    # Story code for build/review dispatches
+    story_code = story_labels.get(issue) if issue else None
+
+    if agent_prefix == "builder":
+        if is_fix_cycle:
+            label = f"{story_code} Fix ({dur_label})" if story_code else f"Fix ({dur_label})"
+        else:
+            label = f"{story_code} Build ({dur_label})" if story_code else f"Build ({dur_label})"
+    elif agent_prefix == "reviewer":
+        if is_fix_cycle:
+            label = (
+                f"{story_code} Re-review ({dur_label})"
+                if story_code
+                else f"Re-review ({dur_label})"
+            )
+        elif story_code:
+            label = f"{story_code} Review ({dur_label})"
+        else:
+            # Reviewer for issue not in any epic → PR Review
+            label = f"PR Review ({dur_label})"
+    elif agent_prefix == "designer":
+        label = f"Designer ({dur_label})"
+    elif agent_prefix == "planner":
+        label = f"Planner ({dur_label})"
+    elif agent_prefix == "retro":
+        label = f"Retro Agent ({dur_label})"
+    else:
+        label = f"{agent.capitalize()} ({dur_label})"
+
+    # Color tag: fix cycles always :crit; others from _AGENT_COLOR_TAG
+    if is_fix_cycle:
+        color_tag = ":crit"
+    else:
+        color_tag = _AGENT_COLOR_TAG.get(agent_prefix, "")  # "" = no tag (builder → emerald)
+
+    return label, color_tag, dur_s
+
+
+def _group_dispatches_by_parallel_wave(sorted_dispatches):
+    """
+    Group dispatches into parallel waves using a 5-second tolerance window.
+
+    Two dispatches are in the same wave if their started_at timestamps fall
+    within _PARALLEL_TOLERANCE_S seconds of the wave's anchor timestamp (the
+    first dispatch in the wave).
+
+    Returns a list of (anchor_ts_float, [dispatch, ...]) tuples.
+    All dispatches in a wave share the anchor's Gantt offset.
+    """
+    if not sorted_dispatches:
+        return []
+
+    waves = []
+    current_wave = []
+    wave_anchor_s = None
+
+    for d in sorted_dispatches:
+        try:
+            ts_s = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
+        except Exception:
+            ts_s = 0.0
+
+        if wave_anchor_s is None or (ts_s - wave_anchor_s) > _PARALLEL_TOLERANCE_S:
+            if current_wave:
+                waves.append((wave_anchor_s, current_wave))
+            current_wave = [d]
+            wave_anchor_s = ts_s
+        else:
+            current_wave.append(d)
+
+    if current_wave:
+        waves.append((wave_anchor_s, current_wave))
+
+    return waves
+
+
+def generate_gantt(state):
+    """
+    Generate a Mermaid Gantt chart body from an orchestrator state file dict.
+
+    Uses absolute HH:MM:SS offsets from session.started_at for each task
+    position. Dispatches within 5 seconds of each other are grouped into the
+    same parallel wave and share the wave's anchor offset.
+
+    Args:
+        state: Parsed orchestrator state file dict.
+
+    Returns:
+        str: Complete Mermaid Gantt body (header lines + section/task lines).
+    """
+    session_started_at_str = state.get("session", {}).get("started_at", "1970-01-01T00:00:00Z")
+    try:
+        session_start = _parse_iso(session_started_at_str)
+    except Exception:
+        session_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+    session_start_s = session_start.timestamp()
+
+    # Build story label map (issue → "E01-S01")
+    story_labels = _build_story_labels(state)
+
+    # Sort dispatches by started_at, then by id for stable ordering within same second
+    raw_dispatches = state.get("dispatches", [])
+
+    def _sort_key(d):
+        try:
+            ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
+        except Exception:
+            ts = 0.0
+        return (ts, d.get("id", 0))
+
+    sorted_dispatches = sorted(raw_dispatches, key=_sort_key)
+
+    # Compute total run duration for tick interval selection.
+    # = max(offset_s + duration_ms/1000) across all dispatches.
+    total_duration_s = 0.0
+    for d in raw_dispatches:
+        try:
+            ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
+        except Exception:
+            ts = session_start_s
+        offset_s = ts - session_start_s
+        end_s = offset_s + d.get("duration_ms", 0) / 1000
+        total_duration_s = max(total_duration_s, end_s)
+
+    tick_interval = _select_tick_interval(total_duration_s)
+
+    # Group into parallel waves using tolerance window
+    waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
+
+    # Track fix cycle counts: (issue, agent_prefix) → number of dispatches seen
+    fix_counts: dict = {}
+
+    lines = []
+
+    # Gantt header
+    lines.append("    title Full Lifecycle Timeline")
+    lines.append("    dateFormat HH:mm:ss")
+    lines.append("    axisFormat %M:%S")
+    lines.append(f"    tickInterval {tick_interval}")
+
+    task_id = 1
+    wave_num = 1
+
+    for wave_anchor_s, wave_dispatches in waves:
+        offset_s = wave_anchor_s - session_start_s
+        offset_str = _fmt_offset(offset_s)
+
+        lines.append(f"    section Wave {wave_num}")
+        wave_num += 1
+
+        for d in wave_dispatches:
+            agent = d.get("agent", "unknown")
+            agent_prefix = agent.split("-")[0]
+            issue = d.get("issue")
+            pair_key = (issue, agent_prefix)
+
+            label, color_tag, dur_s = _gantt_label_for_dispatch(d, story_labels, fix_counts)
+
+            # Increment fix count *after* generating label for this dispatch
+            fix_counts[pair_key] = fix_counts.get(pair_key, 0) + 1
+
+            if color_tag:
+                task_line = f"    {label}   {color_tag},:t{task_id}, {offset_str}, {dur_s}s"
+            else:
+                task_line = f"    {label}   :t{task_id}, {offset_str}, {dur_s}s"
+
+            lines.append(task_line)
+            task_id += 1
+
+    return "\n".join(lines)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # CLI entry point
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -410,8 +671,19 @@ def main(argv=None):
         default=".claude/agentic-sdlc-config.json",
         help="Config JSON file (default: .claude/agentic-sdlc-config.json)",
     )
+    parser.add_argument(
+        "--gantt",
+        action="store_true",
+        default=False,
+        help="Also generate Mermaid Gantt chart body (only valid with --from-state)",
+    )
 
     args = parser.parse_args(argv)
+
+    # --gantt is only valid with --from-state
+    if args.gantt and not args.from_state:
+        parser.error("--gantt requires --from-state")
+
     pricing_rates = load_pricing(args.pricing, args.config)
 
     if args.dispatches:
@@ -423,6 +695,8 @@ def main(argv=None):
         with open(args.from_state) as f:
             state = json.load(f)
         result = compute_from_state(state, pricing_rates)
+        if args.gantt:
+            result["gantt"] = generate_gantt(state)
 
     json.dump(result, sys.stdout)
 

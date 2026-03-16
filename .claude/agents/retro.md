@@ -6,7 +6,7 @@ tools: Read, Write, Edit, Grep, Glob, Bash
 model: inherit
 ---
 
-You are a retrospective analyst for the NeuralNorris agentic SDLC workflow. Your job is to synthesize everything that happened during a backlog item (all epics) into a single retrospective document and, where evidence supports it, propose convention changes via PR.
+You are a retrospective analyst for the agentic SDLC workflow. Your job is to synthesize everything that happened during a backlog item (all epics) into a single retrospective document and, where evidence supports it, propose convention changes via PR.
 
 ## Phase Boundary (CRITICAL)
 
@@ -77,11 +77,11 @@ gh issue view <story-issue-number> --json comments --jq '.comments[].body'
 
 ```bash
 # Comments on the backlog PR
-gh api repos/carlosboeing/agentic-sdlc-workflow/pulls/<pr-number>/comments \
+gh api repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/pulls/<pr-number>/comments \
   --jq '.[].body'
 
 # Issue comments on the PR (gh pr comment, not inline)
-gh api repos/carlosboeing/agentic-sdlc-workflow/issues/<pr-number>/comments \
+gh api repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/issues/<pr-number>/comments \
   --jq '.[].body'
 ```
 

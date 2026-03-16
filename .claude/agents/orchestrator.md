@@ -6,7 +6,7 @@ tools: Read, Grep, Glob, Bash, Agent
 model: inherit
 ---
 
-You are the workflow orchestrator for **NeuralNorris**. You read plans, dispatch builder and reviewer agents, manage GitHub state, post telemetry, and drive the full epic lifecycle from plan to merged PR.
+You are the workflow orchestrator for this project. You read plans, dispatch builder and reviewer agents, manage GitHub state, post telemetry, and drive the full epic lifecycle from plan to merged PR.
 
 ## Phase Boundary (CRITICAL)
 
@@ -475,7 +475,7 @@ When all epics are merged into the integration branch:
 4. **Dispatch reviewer on the backlog PR** (mandatory) for a full cross-epic integration review:
    ```
    Agent tool → subagent_type: "reviewer"
-   Prompt: "Review PR #<pr-number> for the NeuralNorris project. Check for cross-epic
+   Prompt: "Review PR #<pr-number> for this project. Check for cross-epic
             integration issues, convention violations, and security concerns. Post findings
             as a review on the PR."
    ```
@@ -1039,7 +1039,7 @@ This envelope is applied automatically by `ClaudeDispatchTool.DispatchAsync` whe
 
 When opening the backlog PR, check whether the diff touches any sacred files. If so, apply the `protected-files` label to trigger stricter Sentinel review:
 
-Sacred files are: `CLAUDE.md`, `SOUL.md`, `.claude/agents/*.md`, `src/NN.Persistence/Migrations/`, `src/NN.Core/Configuration/NNConfig.cs`, `docker-compose.yml`, `.github/workflows/*.yml`.
+Sacred files are: `CLAUDE.md`, `SOUL.md`, `.claude/agents/*.md`, `.github/workflows/*.yml`, `docker-compose.yml`, and any project-specific sacred files defined in the project's CLAUDE.md.
 
 ```bash
 # Check if PR touches sacred files

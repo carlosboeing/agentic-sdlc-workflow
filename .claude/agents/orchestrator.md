@@ -1097,6 +1097,42 @@ grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/
 
 Lessons are your notes for future agents. Write them at the moment of discovery -- context is lost if you defer.
 
+## Orchestrator Override Pattern
+
+There are situations where the orchestrator has already fixed an issue before the reviewer is dispatched — for example, cherry-picking commits to remove cross-contamination from a story branch. In these cases, if the reviewer flags the pre-fix state, the orchestrator may override the reviewer verdict without triggering a fix cycle.
+
+### When an override is valid
+
+All three of the following must be true:
+
+1. **Fix committed and verifiable.** The fix must already be committed on the story branch or integration branch. The commit hash must be known and the fix must be inspectable via `git show <hash>` or `git log`.
+2. **Documented as issue comment.** The orchestrator must post a comment on the story issue that includes:
+   - The commit hash of the fix
+   - The specific reviewer finding number(s) being overridden (e.g., "Finding W3")
+   - A brief explanation of why the finding was pre-addressed
+3. **Telemetry records the override.** The story's review entry in the orchestrator state file and in the issue telemetry must note the override. When posting story telemetry, add a `(override)` marker to the review dispatch row and note "Finding Wn pre-addressed by commit `<hash>`" in the footer.
+
+**Example override comment format:**
+```
+Override: Finding W2 (cross-contamination file) was pre-addressed by orchestrator commit `d537441`
+before reviewer dispatch. The file `violation-quantum-bistro.md` was removed in that commit.
+Story content approved in prior review. Override applied — no fix cycle needed.
+```
+
+### When NOT to override
+
+Do not use the override pattern in these situations:
+
+- **Unfixed issues.** The finding describes a real problem that is still present in the committed code. Use the fix cycle (Phase 6 re-dispatch) instead.
+- **Incomplete fixes.** The fix addressed part of the finding but left related issues unresolved. The reviewer may flag the remaining issues in the next cycle.
+- **Uncertain fixes.** You are not confident the committed change fully resolves the finding. When in doubt, let the builder address it in a fix cycle rather than overriding.
+- **New findings.** The reviewer raised concerns not present in any prior review. These are not pre-addressed and require a fix cycle.
+
+### Evidence
+
+- **Run 9 (backlog #14):** Cherry-pick to fix story branch cross-contamination preceded reviewer dispatch. Reviewer flagged the contamination based on earlier state. Orchestrator applied override after verifying the cherry-pick removed the offending file.
+- **Run 14 (backlog #83, E01-S04):** Two fix cycles were run for planted bugs. After fix cycle 2, the orchestrator removed a cross-contamination file (`violation-quantum-bistro.md`) via commit `d537441` before the final review. That review had 0 tokens/0 duration (content already approved in review 2); the override was noted as "Content approved in review 2. Cross-contamination fixed by orchestrator."
+
 ## Self-Documentation
 
 When you encounter any of the following, you MUST update the relevant documentation before completing your task:

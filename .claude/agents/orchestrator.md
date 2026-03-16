@@ -258,7 +258,7 @@ Then wait for the human to merge the plan PR into the integration branch.
 2. Read the plan to extract: epic slugs, story list, dependency graph, and story branches.
 3. Read the design doc referenced in the plan for additional context.
 
-### Phase 4: Read Stories and Build Dependency Graph
+### Phase 4: Read Stories, Build Dependency Graph, and Create All Branches
 
 1. List stories for the epic:
    ```bash
@@ -267,7 +267,62 @@ Then wait for the human to merge the plan PR into the integration branch.
    Alternatively, traverse sub-issues of the epic issue using the GitHub GraphQL API.
 2. Parse the plan's Mermaid dependency graph to determine execution order.
 3. Identify which stories can run in parallel (no shared dependencies). **CRITICAL: When dispatching parallel builders, use `isolation: "worktree"` in the Agent tool to prevent workspace collisions** (confirmed defect in Run 7, commit `c249257`).
-4. **Before dispatching a parallel wave**, record the epic branch HEAD commit as the wave's base. Create all story branches from this exact commit. Do not merge anything into the epic branch until the entire wave completes. This prevents cross-contamination where a builder inherits a sibling story's commits (confirmed defect in Run 9, E01-S03 issue #20).
+4. **Create all epic branches and story branches upfront** — before dispatching any builders. This is the authoritative branch creation step. Phase 5 dispatches only; it does not create branches.
+
+   **Create all epic branches** from the integration branch:
+   ```bash
+   # For each epic in the plan:
+   git checkout backlog/<N>-<slug> && git pull
+   git checkout -b epic/e01-<slug>
+   git push -u origin epic/e01-<slug>
+
+   git checkout backlog/<N>-<slug>
+   git checkout -b epic/e02-<slug>
+   git push -u origin epic/e02-<slug>
+   # ... repeat for all epics
+   ```
+
+   **Record base commit SHA per epic** in the state file immediately after creating each epic branch:
+   ```bash
+   # After creating epic/e01-<slug>:
+   E01_BASE=$(git rev-parse HEAD)  # same as integration branch HEAD at this point
+
+   python3 -c "
+   import json
+   with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
+       state = json.load(f)
+   state['epics']['e01'] = {'base_sha': '$E01_BASE', 'stories': {}}
+   with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
+       json.dump(state, f, indent=2)
+   "
+   ```
+
+   **Create all story branches** for each epic from the epic branch HEAD — all from the same base commit:
+   ```bash
+   # For each story in epic e01:
+   git checkout epic/e01-<slug>
+   git checkout -b e01-s01/<story-slug>
+   git push -u origin e01-s01/<story-slug>
+
+   git checkout epic/e01-<slug>
+   git checkout -b e01-s02/<story-slug>
+   git push -u origin e01-s02/<story-slug>
+   # ... repeat for all stories in this epic
+
+   # Repeat for each epic:
+   git checkout epic/e02-<slug>
+   git checkout -b e02-s01/<story-slug>
+   git push -u origin e02-s01/<story-slug>
+   # ... etc.
+   ```
+
+   **Why upfront:** All story branches are created from the same epic branch commit. If branches were created lazily at dispatch time, later stories in a parallel wave could inherit an earlier sibling's commits (confirmed cross-contamination defect in Run 9, E01-S03 issue #20). Creating all branches from the same base commit eliminates this class of error entirely, regardless of dispatch order.
+
+   **Idempotent restart:** If a branch already exists, check it out instead of creating it:
+   ```bash
+   git checkout e01-s01/<story-slug> 2>/dev/null || (git checkout epic/e01-<slug> && git checkout -b e01-s01/<story-slug> && git push -u origin e01-s01/<story-slug>)
+   ```
+
 5. Check for already-completed stories (idempotent restart):
    ```bash
    # A story is complete if it has a "Ready for Review" comment
@@ -871,6 +926,7 @@ Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.jso
 | `pricing.rates` | `{...}` | Token rates fetched at session start. Used by `issue-telemetry.sh` via `--rate`. |
 | `pricing.source` | `"anthropic-pricing-page"` | Where rates came from (`anthropic-pricing-page`, `litellm-community`, or previous cache). |
 | `phases` | `{...}` | Status of each workflow phase (pending, in_progress, complete, skipped). |
+| `epics.*.base_sha` | `"e6f79d6"` | The epic branch HEAD commit SHA recorded in Phase 4 when the epic branch is created. All story branches for this epic are created from this commit. Used to detect cross-contamination (a story branch diverged from the expected base). |
 | `epics.*.stories.*.status` | `"reviewed"` | Story status (pending, building, built, reviewing, reviewed, merged, done). |
 | `dispatches[]` | `[...]` | Append-only log of every agent dispatch. Raw data for telemetry and debugging. |
 

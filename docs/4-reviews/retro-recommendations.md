@@ -8,14 +8,6 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 
 ## Outstanding (not yet implemented)
 
-### E. Format templates for cross-story parallel content
-
-- **Source:** Run 5 (rec 3)
-- **Recurrence:** 2 runs (Run 5 E01 format inconsistency, Run 12 E01 dash/date inconsistency)
-- **Priority:** Low
-- **Description:** When multiple stories produce content with shared structural elements (e.g., metrics sections, rating tables), the planner should specify the exact rendering format (e.g., "use markdown tables for metrics") to prevent cosmetic divergence between parallel builders. Run 5's E01 epic had three different formats for the same structural element because different models chose different representations.
-- **Effort:** Low (planner guideline)
-
 ### F. Document orchestrator override pattern for pre-fixed reviewer findings
 
 - **Source:** Run 9 (rec 2)
@@ -95,6 +87,7 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 | 29  | Inline Gantt color tagging rules in orchestrator.md                  | Run 11        | orchestrator.md + CLAUDE.md (Run 11 post-run fix) |
 | 30  | Move backlog In Progress transition to Phase 1 (Design)              | Run 12        | orchestrator.md (Run 12 retro)                    |
 | 31  | Extend post-worktree cleanup to fix cycle dispatches                 | Run 14        | CLAUDE.md + orchestrator.md (Run 14)              |
+| E   | Format templates for cross-story parallel content                    | Runs 5, 12    | planner.md "Format Templates" section (backlog #105) |
 
 
 ---

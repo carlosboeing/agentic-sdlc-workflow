@@ -16,14 +16,6 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 - **Description:** Establishing a baseline for autonomous run duration enables performance regression detection. Current data: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead), Run 11 ~41m, Run 12 ~23m, Run 13 ~25m, Run 14 ~77m (12 stories, 3 fix cycles). No formal tracking mechanism exists.
 - **Effort:** Low (add a duration row to the changelog or a tracking table in this document)
 
-### H. Capture orchestrator overhead metrics
-
-- **Source:** Run 10 (rec 5)
-- **Recurrence:** 1 run (observation)
-- **Priority:** Low
-- **Description:** Orchestrator overhead was 51% of wall-clock time in Run 10 (31m of 61m). The rate limit workaround contributed ~6 minutes, but branch management, merge operations, and lesson/changelog commits also add significant time. Tracking this metric across runs would surface efficiency regressions. Currently, only subagent telemetry is captured — the orchestrator's own consumption runs in the parent session.
-- **Effort:** Medium (requires capturing `/cost` output at session start/end)
-
 ### I. Extract dispatch computation from issue-telemetry.sh
 
 - **Source:** Run 12 (reviewer S4)
@@ -80,6 +72,7 @@ Last updated: 2026-03-15 (compiled from Runs 2–14)
 | 31  | Extend post-worktree cleanup to fix cycle dispatches                 | Run 14        | CLAUDE.md + orchestrator.md (Run 14)              |
 | E   | Format templates for cross-story parallel content                    | Runs 5, 12    | planner.md "Format Templates" section (backlog #105) |
 | F   | Document orchestrator override pattern for pre-fixed reviewer findings | Runs 9, 14  | orchestrator.md "Orchestrator Override Pattern" section (backlog #105) |
+| 32  | Capture orchestrator overhead metrics (wall-clock heuristic)         | Run 10        | CLAUDE.md + orchestrator.md (backlog 105)         |
 
 
 ---

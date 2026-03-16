@@ -430,10 +430,13 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 
 **Gantt color tagging:** Gantt task tags control bar colors — `:active` (violet) for design/plan/retro, no tag (emerald) for builds, `:done` (yellow) for reviews, `:crit` (red) for fix cycles. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for the full table. Do not use `:active` on build or review tasks.
 
-**Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. To capture them:
-1. At the **start** of the orchestrator session, note the session's running token count (visible via `/cost` in the Claude Code UI)
-2. At the **end**, note the final count. The difference minus all subagent tokens is the orchestrator's overhead.
-3. Include as a separate "Orchestrator" row in the backlog telemetry, or note the session total with subagent total for easy subtraction.
+**Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. Use the wall-clock heuristic to estimate overhead duration:
+
+- **Formula:** `overhead_duration = total_wall_clock_ms - sum(critical_path_subagent_ms)`
+- **Where:** `total_wall_clock_ms` = time from `session.start_wall_clock` to Phase 10 completion; `critical_path_subagent_ms` = sum of `max(duration_ms)` per parallel wave from `dispatches[]`
+- **State file fields:** `session.start_wall_clock` (ISO timestamp set in Phase 0), `overhead.duration_ms` (computed in Phase 10), `overhead.estimated_cost` (nullable — not measurable)
+- **Token overhead is NOT directly measurable.** The parent session tokens are not returned by the Agent tool. Set `overhead.estimated_cost` to null unless `/cost` was captured manually at session start and end via the Claude Code UI.
+- **Include an "Orchestrator" row** in the backlog telemetry summary table with the computed duration. Use `—` for tokens and cost columns since they cannot be measured from the Agent tool result.
 
 **Orchestrator state persistence:** The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json` (gitignored). The state file is structured as versioned JSON (schema v1) with sections for session metadata, pricing, phase progress, epic/story status, and an append-only dispatch log. Key fields:
 

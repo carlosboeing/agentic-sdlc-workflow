@@ -276,7 +276,7 @@ Use the Agent tool with `subagent_type: "builder-<model>"`:
 8. Merge story branch into epic branch (only after review passes)
 9. After all stories complete: merge epic branches into integration branch, open backlog PR, post telemetry
 10. **Dispatch reviewer** on the backlog PR (mandatory): `subagent_type: "reviewer"`
-11. If reviewer finds issues: dispatch builder to fix on integration branch, then re-review (max 2 cycles)
+11. If reviewer finds warnings or critical issues: dispatch builder to fix on integration branch, then re-review. Human should receive a clean PR (max 2 fix cycles; suggestions are noted but don't trigger fix cycles)
 12. Backlog PR is left open for human review (orchestrator NEVER auto-merges it)
 13. Dispatch retro on the integration branch: `subagent_type: "retro"`
 

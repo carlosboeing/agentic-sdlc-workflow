@@ -111,6 +111,15 @@ _cmd_init() {
     exit 1
   fi
 
+  # Validate mode enum
+  case "$mode" in
+    autonomous|interactive) ;;
+    *)
+      echo "Error: invalid --mode '$mode'. Valid values: autonomous, interactive" >&2
+      exit 1
+      ;;
+  esac
+
   if [ -z "$model" ]; then
     echo "Error: --model is required for init" >&2
     _usage
@@ -376,18 +385,25 @@ _cmd_update_story() {
   local state_file
   state_file=$(_find_state_file "$backlog_override")
 
-  python3 << PYEOF
-import json, sys
+  # Pass variable data via environment variables and use a quoted heredoc marker
+  # ('PYEOF') to prevent bash from expanding variables inside the Python code.
+  export _STATE_FILE="$state_file"
+  export _STATE_STORY_NUMBER="$story_number"
+  export _STATE_STORY_STATUS="$status"
+  python3 << 'PYEOF'
+import json, os, sys
 
-with open("$state_file") as f:
+story_number = os.environ["_STATE_STORY_NUMBER"]
+status = os.environ["_STATE_STORY_STATUS"]
+
+with open(os.environ["_STATE_FILE"]) as f:
     state = json.load(f)
 
-story_number = "$story_number"
 found = False
 for epic_slug, epic in state.get("epics", {}).items():
     stories = epic.get("stories", {})
     if story_number in stories:
-        stories[story_number]["status"] = "$status"
+        stories[story_number]["status"] = status
         found = True
         break
 
@@ -395,12 +411,13 @@ if not found:
     print(f"Error: story {story_number} not found in any epic in the state file", file=sys.stderr)
     sys.exit(1)
 
-with open("$state_file", "w") as f:
+with open(os.environ["_STATE_FILE"], "w") as f:
     json.dump(state, f, indent=2)
     f.write("\n")
 
-print(f"Story {story_number} status updated to $status")
+print(f"Story {story_number} status updated to {status}")
 PYEOF
+  unset _STATE_FILE _STATE_STORY_NUMBER _STATE_STORY_STATUS
 }
 
 _cmd_update_phase() {
@@ -536,34 +553,42 @@ _cmd_update_epic() {
   local state_file
   state_file=$(_find_state_file "$backlog_override")
 
-  python3 << PYEOF
-import json, sys
+  # Pass variable data via environment variables and use a quoted heredoc marker
+  # ('PYEOF') to prevent bash from expanding variables inside the Python code.
+  export _STATE_FILE="$state_file"
+  export _STATE_EPIC_SLUG="$epic_slug"
+  export _STATE_BASE_SHA="$base_sha"
+  python3 << 'PYEOF'
+import json, os, sys
 
-with open("$state_file") as f:
+epic_slug = os.environ["_STATE_EPIC_SLUG"]
+base_sha = os.environ["_STATE_BASE_SHA"]
+
+with open(os.environ["_STATE_FILE"]) as f:
     state = json.load(f)
 
 if "epics" not in state:
     state["epics"] = {}
 
-epic_slug = "$epic_slug"
 if epic_slug not in state["epics"]:
     # Create new epic entry
     state["epics"][epic_slug] = {
-        "base_sha": "$base_sha",
+        "base_sha": base_sha,
         "stories": {}
     }
 else:
     # Update base_sha on existing entry (preserve other fields)
-    state["epics"][epic_slug]["base_sha"] = "$base_sha"
+    state["epics"][epic_slug]["base_sha"] = base_sha
     if "stories" not in state["epics"][epic_slug]:
         state["epics"][epic_slug]["stories"] = {}
 
-with open("$state_file", "w") as f:
+with open(os.environ["_STATE_FILE"], "w") as f:
     json.dump(state, f, indent=2)
     f.write("\n")
 
-print(f"Epic {epic_slug} updated with base_sha $base_sha")
+print(f"Epic {epic_slug} updated with base_sha {base_sha}")
 PYEOF
+  unset _STATE_FILE _STATE_EPIC_SLUG _STATE_BASE_SHA
 }
 
 # ─── Subcommand: get ──────────────────────────────────────────────────────────

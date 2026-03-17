@@ -30,6 +30,20 @@ This workflow turns something inherently non-deterministic (AI/LLM output) into 
 
 **Evidence:** Run 14 posted wall-clock = sequential duration (102m 43s instead of 74m 4s) because the orchestrator relied on `$SECONDS` tracking instead of computing the critical path from the state file's dispatch log. The state file already contained all the data — `started_at` timestamps naturally encode parallelism. The fix was to compute deterministically from what was already recorded, not to "try harder" to track `$SECONDS`. See `issue-telemetry.sh` wall-clock auto-computation.
 
+## Design Philosophy: Fault Tolerance
+
+The workflow runs long autonomous sessions where interruptions are expected: usage limits, crashes, network failures, window closures. The system must recover gracefully without human intervention.
+
+**The rule:** Every workflow checkpoint must be recoverable from durable state. If the orchestrator is interrupted at any point and restarted — potentially on a different machine, in a different session, with no memory of prior work — it must be able to reconstruct its position and resume without data loss.
+
+**Where this applies:**
+- **State persistence:** The orchestrator state file captures every dispatch, phase transition, and telemetry data point. If the session is interrupted, the state file enables instant recovery.
+- **State reconstruction:** If the state file itself is lost, `state.sh reconstruct` rebuilds it from durable external sources (GitHub issue comments, branch state, board status). The telemetry comments posted on each issue are the write-ahead log that makes this possible.
+- **Idempotent operations:** Every phase can be re-entered safely. Branch creation checks for existing branches. Story dispatch checks for "Ready for Review" comments. Board updates are idempotent by design.
+- **No silent data loss:** Failed dispatches still record telemetry. Interrupted agents accumulate metrics defensively. The system never drops information that was paid for in tokens and time.
+
+**Where AI judgment belongs in recovery:** The orchestrator uses judgment to decide what to do after recovery (which phase to resume, whether to re-dispatch a failed builder, how to handle partial work). But determining *where we are* — reading the state file, checking GitHub, verifying branch state — must be deterministic and scripted.
+
 ## Project Documentation
 
 - `docs/5-guides/PROJECT.md` — full architecture and technical overview
@@ -244,6 +258,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/issue-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
 | `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--gantt-from-state <state-file>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |
 | `scripts/lib/compute-dispatches.py --from-state <state-file> [--gantt] [--pricing <file>] [--config <file>]` | Compute dispatch metrics (breakdown, summary, Gantt, fix cycles) from state or dispatch JSON |
+| `scripts/state.sh <subcommand> [args]` | Orchestrator state CRUD: init, update, get, overhead, lifecycle-duration, reconstruct |
 | `scripts/issue-close.sh <n>` | Close issue + set board to Done |
 | `scripts/cleanup-post-merge.sh [<backlog-number>]` | Post-merge cleanup: stale branches, worktrees, state dirs, remote refs |
 | `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
@@ -397,7 +412,7 @@ gh pr merge <N> --squash --delete-branch
 
 **Internal merges (epic → integration branch):** Epic branches merge into the integration branch using `--no-ff` merge (not squash). This is an internal merge — only the final PR to `main` uses squash. Design/plan PRs targeting the integration branch also use regular merge (`--merge`).
 
-**Cost computation for manual breakdown strings (CRITICAL):** When the orchestrator writes `--breakdown`, `--summary`, or `--cost` strings, it must compute cost estimates using rates from `.agentic-workflow/pricing.json` (cached by `fetch-pricing.sh`) — never from memory or hardcoded values. The preferred method is `--dispatches-from-state` which computes everything automatically from the orchestrator state file, including wall-clock duration. See `.claude/agents/orchestrator.md` § "Cost Computation" for the exact formula.
+**Cost computation for manual breakdown strings (CRITICAL):** When the orchestrator writes `--breakdown`, `--summary`, or `--cost` strings, it must compute cost estimates using rates from `.agentic-workflow/pricing.json` (cached by `fetch-pricing.sh`) — never from memory or hardcoded values. The preferred method is `--dispatches-from-state` which computes everything automatically from the orchestrator state file, including wall-clock duration. See `.claude/agents/orchestrator.md` § "Cost Computation" for the rule.
 
 **Wall-clock auto-computation:** When `--dispatches-from-state` or `--gantt-from-state` is used, `issue-telemetry.sh` automatically computes wall-clock duration from the `started_at` timestamps in the dispatch log. Dispatches with the same `started_at` ran in parallel (take `max(duration_ms)`); different timestamps ran sequentially (sum). The orchestrator does NOT need to pass `--wall-clock` when using either flag — it is computed deterministically. If `--wall-clock` is passed but equals `--duration` (which is always wrong when parallel dispatches exist), the script overrides with the computed value and warns. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when actual critical path was 74m 4s.
 
@@ -425,7 +440,7 @@ The script renders from `scripts/templates/telemetry.md` (single source of truth
 - Posts the telemetry as a comment on the backlog issue
 - When `--pr` is also provided, appends the telemetry to the PR description (not as a comment)
 
-The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` from every Agent tool dispatch (designers, planners, builders, reviewers, retro) and aggregate them into the summary and breakdown rows. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for parameter details.
+The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` from every Agent tool dispatch (designers, planners, builders, reviewers, retro) and aggregate them into the summary and breakdown rows. See `.claude/agents/orchestrator.md` § "Phase 10: Backlog-Level Telemetry" for the full command.
 
 **Value column convention:** Value cells in all telemetry tables contain only numbers and units (e.g., `30m 43s`, `770K`, `~$4.79`). Never add descriptive text or parenthetical notes to value cells. Annotations belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `25m 12s` in Value). This matches the rule in `scripts/templates/telemetry.md`.
 
@@ -433,7 +448,7 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 
 **`--cost` flag for mixed-model epics:** When an epic's stories use different models (e.g., haiku + sonnet), the rate-based cost calculation doesn't work. Pass `--cost <dollars>` with the pre-computed sum of per-story costs from the breakdown. For single-model epics, omit `--cost` and let the script compute from the rate.
 
-**Gantt color tagging:** Gantt task tags control bar colors — `:active` (violet) for design/plan/retro, no tag (emerald) for builds, `:done` (yellow) for reviews, `:crit` (red) for fix cycles. When using `--gantt-from-state`, `compute-dispatches.py` assigns these tags automatically based on agent type — the orchestrator does not need to set them manually. See `.claude/agents/orchestrator.md` § "Backlog-Level Telemetry" for the full table. Do not use `:active` on build or review tasks when constructing Gantt strings manually.
+**Gantt color tagging:** Gantt task tags control bar colors — `:active` (violet) for design/plan/retro, no tag (emerald) for builds, `:done` (yellow) for reviews, `:crit` (red) for fix cycles. When using `--gantt-from-state`, `compute-dispatches.py` assigns these tags automatically based on agent type — the orchestrator does not need to set them manually. Do not use `:active` on build or review tasks when constructing Gantt strings manually.
 
 **Fix cycle footer convention:** When fix cycles are detected, a fix cycle summary row and footer line are automatically included in the telemetry output. This happens whenever `--dispatches-from-state` or `--gantt-from-state` is used — no manual `--footer` flag is needed to capture fix cycle metrics. The footer line is formatted: `*Fix cycles: <count> / <total_stories> stories (<rate>% fix rate), adding <duration> and <cost> (<pct>% of total cost).*`
 
@@ -445,15 +460,27 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 - **Token overhead is NOT directly measurable.** The parent session tokens are not returned by the Agent tool. Set `overhead.estimated_cost` to null unless `/cost` was captured manually at session start and end via the Claude Code UI.
 - **Include an "Orchestrator" row** in the backlog telemetry summary table with the computed duration. Use `—` for tokens and cost columns since they cannot be measured from the Agent tool result.
 
-**Orchestrator state persistence:** The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json` (gitignored). The state file is structured as versioned JSON (schema v1) with sections for session metadata, pricing, phase progress, epic/story status, and an append-only dispatch log. Key fields:
+**Orchestrator state persistence:** The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json` (gitignored). Schema defined in `scripts/schemas/orchestrator-state.v1.json`. Key fields:
 
 - **`session.orchestrator_model`** — the model the orchestrator is running, so inherited agents' models are known for accurate cost estimates.
 - **`pricing`** — token rates fetched live from Anthropic's pricing page at session start via `scripts/fetch-pricing.sh`. Cached in `.agentic-workflow/pricing.json`. Config `pricing` section is an optional override for custom/contract rates. Used by `issue-telemetry.sh` via the `--rate` flag.
 - **`dispatches[]`** — append-only log of every agent dispatch with model, duration, tokens, tool uses, and result.
 
-The state file is updated after each agent dispatch and cleaned up after the backlog PR merges. On resume, the orchestrator reads this file for instant recovery without re-querying GitHub. If the file is missing (different machine, manual deletion), it falls back to querying GitHub for issue comments and branch state. The directory structure (`.agentic-workflow/runs/<backlog>/`) supports future per-agent state files as siblings (e.g., `builder-112.json`).
+**Initialize:** `./scripts/state.sh init <N> --mode autonomous --model <model>`
 
-See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full schema and lifecycle.
+**Update** after phase changes, dispatches, story transitions:
+```bash
+./scripts/state.sh update --dispatch '<json>'
+./scripts/state.sh update --story <N> --status <status>
+./scripts/state.sh update --phase <name> --status <status>
+./scripts/state.sh update --epic <slug> --base-sha <sha>
+```
+
+**Read:** `./scripts/state.sh get '<jq-path>'`
+
+**Fallback (no state file):** Run `./scripts/state.sh reconstruct <backlog-number>` to rebuild from GitHub issue comments, branch state, and board status. **Note:** `reconstruct` is currently a stub (not yet implemented). Until then, use idempotent restart: check "Ready for Review" comments, merged branches, re-fetch pricing.
+
+See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full lifecycle and state readers table.
 
 **Epic-scoped telemetry:** When posting epic-level telemetry on epic issues, include only stories that belong to that specific epic (check the epic's sub-issues). The backlog PR and backlog issue are the only places where cross-epic aggregate and full lifecycle telemetry belongs. Do not post the full breakdown on individual epic issues.
 

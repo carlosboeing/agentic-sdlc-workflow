@@ -1654,5 +1654,271 @@ class TestGanttCLI(unittest.TestCase):
             )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Overhead computation tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Wall-clock for STATE_FIXTURE:
+# designer:  10:01-10:06 = 294973ms  → wave 1
+# planner:   10:06-10:11 = 300000ms  → wave 2
+# builders:  10:12 parallel, max(146479, 193000) = 193000ms  → wave 3
+# reviewer:  10:16 = 72000ms  → wave 4
+# wall_clock = 294973 + 300000 + 193000 + 72000 = 859973ms
+
+
+def _make_overhead_state(overhead_duration_ms=None, lifecycle_duration_ms=None):
+    """
+    Build a state fixture for overhead tests by extending STATE_FIXTURE.
+
+    Args:
+        overhead_duration_ms: value for state.overhead.duration_ms (None = unset)
+        lifecycle_duration_ms: value for session.lifecycle_duration_ms (None = unset)
+    """
+    state = {
+        **STATE_FIXTURE,
+        "session": {**STATE_FIXTURE["session"]},
+        "overhead": {"duration_ms": overhead_duration_ms, "estimated_cost": None},
+    }
+    if lifecycle_duration_ms is not None:
+        state["session"]["lifecycle_duration_ms"] = lifecycle_duration_ms
+    return state
+
+
+class TestComputeOverhead(unittest.TestCase):
+    """Unit tests for compute_overhead() function."""
+
+    def _pricing(self):
+        return cd.load_pricing("/dev/null", "/dev/null")
+
+    # Wall-clock for STATE_FIXTURE dispatches (computed from started_at grouping):
+    #   wave 1 (10:01): 294973ms
+    #   wave 2 (10:06): 300000ms
+    #   wave 3 (10:12): max(146479, 193000) = 193000ms
+    #   wave 4 (10:16): 72000ms
+    #   wall_clock_ms = 859973ms
+    WALL_CLOCK_MS = 859973
+
+    def test_overhead_direct_from_state_overhead_field(self):
+        """When state.overhead.duration_ms is set, use that value directly."""
+        state = _make_overhead_state(overhead_duration_ms=120000)
+        result = cd.compute_overhead(state)
+        self.assertEqual(result["overhead_ms"], 120000)
+
+    def test_overhead_zero_from_state_is_valid(self):
+        """overhead.duration_ms = 0 is a valid direct value (not treated as missing)."""
+        state = _make_overhead_state(overhead_duration_ms=0)
+        result = cd.compute_overhead(state)
+        self.assertEqual(result["overhead_ms"], 0)
+
+    def test_overhead_fallback_from_lifecycle_duration(self):
+        """When overhead.duration_ms is null, compute lifecycle_duration_ms - wall_clock_ms."""
+        lifecycle_ms = self.WALL_CLOCK_MS + 50000  # 50s overhead
+        state = _make_overhead_state(overhead_duration_ms=None, lifecycle_duration_ms=lifecycle_ms)
+        result = cd.compute_overhead(state)
+        self.assertEqual(result["overhead_ms"], 50000)
+
+    def test_overhead_clamped_to_zero_when_negative(self):
+        """Overhead clamped to 0 when lifecycle_duration_ms < wall_clock_ms (clock skew)."""
+        lifecycle_ms = self.WALL_CLOCK_MS - 5000  # would be negative
+        state = _make_overhead_state(overhead_duration_ms=None, lifecycle_duration_ms=lifecycle_ms)
+        result = cd.compute_overhead(state)
+        self.assertEqual(result["overhead_ms"], 0)
+
+    def test_overhead_null_when_neither_field_set(self):
+        """When neither overhead.duration_ms nor lifecycle_duration_ms is set, overhead_ms is null."""
+        state = {
+            **STATE_FIXTURE,
+            "session": {**STATE_FIXTURE["session"]},
+            # No "overhead" key, no lifecycle_duration_ms
+        }
+        result = cd.compute_overhead(state)
+        self.assertIsNone(result["overhead_ms"])
+
+    def test_overhead_null_when_overhead_key_missing(self):
+        """Missing 'overhead' key in state → overhead_ms is null (no lifecycle fallback either)."""
+        state = {**STATE_FIXTURE}
+        # STATE_FIXTURE has no overhead key and no lifecycle_duration_ms
+        result = cd.compute_overhead(state)
+        self.assertIsNone(result["overhead_ms"])
+
+    def test_overhead_row_present_when_computable(self):
+        """overhead_row is a non-empty string when overhead_ms is computable."""
+        state = _make_overhead_state(overhead_duration_ms=120000)
+        result = cd.compute_overhead(state)
+        self.assertIsNotNone(result["overhead_row"])
+        self.assertIsInstance(result["overhead_row"], str)
+        self.assertGreater(len(result["overhead_row"]), 0)
+
+    def test_overhead_row_null_when_overhead_ms_null(self):
+        """overhead_row is null when overhead_ms is null."""
+        state = {**STATE_FIXTURE}
+        result = cd.compute_overhead(state)
+        self.assertIsNone(result["overhead_row"])
+
+    def test_overhead_row_format(self):
+        """overhead_row matches the expected markdown table row format."""
+        state = _make_overhead_state(overhead_duration_ms=750000)  # 12m 30s
+        result = cd.compute_overhead(state)
+        row = result["overhead_row"]
+        # Must be a pipe-delimited markdown table row
+        self.assertTrue(row.startswith("| "), f"Row should start with '| ', got: {row!r}")
+        self.assertTrue(row.endswith(" |"), f"Row should end with ' |', got: {row!r}")
+        # Must contain "Orchestrator"
+        self.assertIn("Orchestrator", row)
+        # Must contain the formatted duration (12m 30s)
+        self.assertIn("12m 30s", row)
+        # Must contain dash placeholders for tokens and cost
+        self.assertIn("---", row)
+
+    def test_overhead_row_duration_formatting(self):
+        """overhead_row uses fmt_duration for the duration column."""
+        state = _make_overhead_state(overhead_duration_ms=62000)  # 1m 2s
+        result = cd.compute_overhead(state)
+        self.assertIn("1m 2s", result["overhead_row"])
+
+    def test_overhead_zero_row_shows_zero_duration(self):
+        """When overhead_ms is 0, overhead_row still renders with '0s' duration."""
+        state = _make_overhead_state(overhead_duration_ms=0)
+        result = cd.compute_overhead(state)
+        self.assertIsNotNone(result["overhead_row"])
+        self.assertIn("0s", result["overhead_row"])
+
+    def test_overhead_no_overhead_key_with_lifecycle_fallback(self):
+        """No 'overhead' key but lifecycle_duration_ms set → uses fallback computation."""
+        lifecycle_ms = self.WALL_CLOCK_MS + 30000
+        state = {
+            **STATE_FIXTURE,
+            "session": {
+                **STATE_FIXTURE["session"],
+                "lifecycle_duration_ms": lifecycle_ms,
+            },
+            # No "overhead" key at all
+        }
+        result = cd.compute_overhead(state)
+        self.assertEqual(result["overhead_ms"], 30000)
+
+
+class TestOverheadCLI(unittest.TestCase):
+    """Tests for --overhead flag in the CLI entry point."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _run_cli(self, state, extra_args=None):
+        """Write state to temp file, run main() with --from-state and --overhead."""
+        import io
+        from unittest.mock import patch
+
+        state_file = _write_json(state)
+        try:
+            args = [
+                "--from-state", state_file,
+                "--pricing", self.pricing_file,
+                "--config", self.config_file,
+                "--overhead",
+            ]
+            if extra_args:
+                args.extend(extra_args)
+
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main(args)
+            return json.loads(captured.getvalue())
+        finally:
+            os.unlink(state_file)
+
+    def test_overhead_flag_adds_overhead_ms_to_output(self):
+        """--overhead adds overhead_ms field to JSON output."""
+        state = _make_overhead_state(overhead_duration_ms=90000)
+        result = self._run_cli(state)
+        self.assertIn("overhead_ms", result)
+
+    def test_overhead_flag_adds_overhead_row_to_output(self):
+        """--overhead adds overhead_row field to JSON output."""
+        state = _make_overhead_state(overhead_duration_ms=90000)
+        result = self._run_cli(state)
+        self.assertIn("overhead_row", result)
+
+    def test_overhead_flag_direct_value(self):
+        """--overhead with state.overhead.duration_ms uses that value."""
+        state = _make_overhead_state(overhead_duration_ms=90000)
+        result = self._run_cli(state)
+        self.assertEqual(result["overhead_ms"], 90000)
+
+    def test_overhead_flag_fallback_value(self):
+        """--overhead with lifecycle fallback computes correctly."""
+        wall_clock_ms = 859973  # STATE_FIXTURE wall-clock
+        lifecycle_ms = wall_clock_ms + 45000
+        state = _make_overhead_state(overhead_duration_ms=None, lifecycle_duration_ms=lifecycle_ms)
+        result = self._run_cli(state)
+        self.assertEqual(result["overhead_ms"], 45000)
+
+    def test_overhead_flag_null_when_no_data(self):
+        """--overhead with no overhead or lifecycle data yields null overhead_ms."""
+        result = self._run_cli(STATE_FIXTURE)  # no overhead key, no lifecycle_duration_ms
+        self.assertIsNone(result["overhead_ms"])
+        self.assertIsNone(result["overhead_row"])
+
+    def test_overhead_without_from_state_exits_error(self):
+        """--overhead without --from-state exits with a non-zero error code."""
+        import io
+        from unittest.mock import patch
+
+        dispatches_file = _write_json([
+            {"agent": "Builder (sonnet)", "model": "sonnet", "task": "S01",
+             "duration_ms": 100000, "tokens": 30000, "phase": "Build"},
+        ])
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                with patch("sys.stderr", io.StringIO()):
+                    cd.main([
+                        "--dispatches", dispatches_file,
+                        "--overhead",
+                        "--pricing", self.pricing_file,
+                        "--config", self.config_file,
+                    ])
+            self.assertNotEqual(cm.exception.code, 0)
+        finally:
+            os.unlink(dispatches_file)
+
+    def test_overhead_does_not_affect_other_fields(self):
+        """--overhead flag does not change breakdown/summary/cost/duration_ms/wall_clock_ms."""
+        import io
+        from unittest.mock import patch
+
+        state = _make_overhead_state(overhead_duration_ms=90000)
+        state_file = _write_json(state)
+        try:
+            # Without --overhead
+            args_base = [
+                "--from-state", state_file,
+                "--pricing", self.pricing_file,
+                "--config", self.config_file,
+            ]
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main(args_base)
+            without = json.loads(captured.getvalue())
+
+            # With --overhead
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main(args_base + ["--overhead"])
+            with_oh = json.loads(captured.getvalue())
+
+            for field in ["breakdown", "summary", "cost", "duration_ms", "tokens", "wall_clock_ms"]:
+                self.assertEqual(
+                    without[field], with_oh[field],
+                    f"Field '{field}' differs with/without --overhead"
+                )
+        finally:
+            os.unlink(state_file)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

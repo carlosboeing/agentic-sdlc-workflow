@@ -9,47 +9,47 @@
 **Scene(s):** All scenes
 
 ### Description
-Six desks in two facing rows — stacked monitors, sticky notes on every surface. Upstage-center: a whiteboard covered in sprint boards, a Kanban with everything stuck in "In Progress," and a sign reading "WE ARE AGILE." Stage left: a 2m server rack with amber LEDs humming at 60Hz throughout the show.
+Six desks in two facing rows — stacked monitors, sticky notes. Upstage-center: whiteboard with Kanban, sign reading "WE ARE AGILE." Stage left: 2m server rack with amber LEDs at 60Hz.
 
 ### Technical Requirements
-- Server rack LED panel: DMX-programmable, defaults to amber, cues to red on demand
-- Continuous 60Hz tone via speakers in the rack prop
+- Server rack LED panel: DMX-programmable, amber default, cues to red
+- Continuous 60Hz tone via rack prop speakers
 
 ---
 
 ## Upstage: Server Room
 
-**Location:** Behind semi-transparent scrim, upstage
-**Scene(s):** Act I Scene 3, Act II Scene 3 (primary); visible throughout
+**Location:** Behind scrim (upstage)
+**Scene(s):** Act I/II Scene 3 (primary)
 
 ### Description
-Darker mechanical space behind a frosted glass partition. The Legacy Codebase ensemble performs here: exposed cable runs, blinking racks, industrial tile. Scrim allows simultaneous sightlines with independent lighting.
+Mechanical space behind the scrim: exposed cables, blinking racks. Legacy Codebase ensemble; independent lighting for simultaneous sightlines.
 
 ### Technical Requirements
-- Scrim minimum 4m wide with LED strip; independent lighting circuit
-- Sprung floor overlay for ensemble choreography (4m × 3m)
+- Scrim 4m wide with LED strip; independent lighting circuit
+- Sprung floor overlay, 4m × 3m, for ensemble choreography
 
 ---
 
 ## Lighting: Fire Effect (Act II Scene 1)
 
 **Location:** Full stage
-**Scene(s):** Act II, Scene 1 — "It Worked on My Machine"
+**Scene(s):** Act II, Scene 1
 
 ### Description
-Amber and red flicker simulates server overload during the demo failure. Builds through Priya's chorus; snaps to cold white on Jordan's pivot. No pyrotechnics.
+Amber and red flicker simulates server overload. Snaps to cold white on Jordan's pivot. No pyrotechnics.
 
 ### Technical Requirements
-- Four DMX flicker fresnels (channels 40–43); server room to full red at LX-21
+- Four DMX flicker fresnels (channels 40–43); server room full red at LX-21
 
 ### Cue Sheet
 
 | Cue | Trigger | Action | Duration |
 |-----|---------|--------|----------|
 | LX-20 | Demo app launched | Amber wash 20%, slight flicker | 8s fade |
-| LX-21 | First error message | Amber/red 80%, server room full red | 3s snap |
-| LX-22 | Priya: "It worked on MY machine!" | Full fire 100%, 6Hz flicker | Hold |
-| LX-23 | Jordan: "What if we called it a feature?" | Cold white snap, fire out | Instant |
+| LX-21 | First error | Amber/red 80%, server room full red | 3s snap |
+| LX-22 | Priya: chorus peak | Full fire 100%, 6Hz flicker | Hold |
+| LX-23 | Jordan: pivot | Cold white snap, fire out | Instant |
 
 ---
 
@@ -57,6 +57,9 @@ Amber and red flicker simulates server overload during the demo failure. Builds 
 
 **Location:** Full stage
 **Scene(s):** Act II, Scene 2
+
+### Description
+Cool blue wash evoking the cold logic of reverting progress; paired with the fog machine.
 
 ### Technical Requirements
 - Full overhead cool blue (Lee 161); server room at 40% blue, independent circuit
@@ -67,7 +70,10 @@ Amber and red flicker simulates server overload during the demo failure. Builds 
 ## Lighting: Merge Conflict Red
 
 **Location:** Stage left and right booms
-**Scene(s):** Act I, Scene 3 — "The Merge Conflict" tango
+**Scene(s):** Act I, Scene 3
+
+### Description
+Opposing red sidelight mirrors the conflict structure, throwing the whiteboard into sharp relief for the diverging-branch choreography.
 
 ### Technical Requirements
 - Two Source Four ellipsoidals, red gel (Lee 026), stage left and right
@@ -77,27 +83,27 @@ Amber and red flicker simulates server overload during the demo failure. Builds 
 
 ## Fog Machine: "The Rollback Waltz"
 
-**Location:** Stage left/right wings; server room floor
+**Location:** Stage left/right wings and server room floor
 **Scene(s):** Act II, Scene 2
 
 ### Description
-Low-lying fog at ankle height rolls across the stage, representing the rollback washing over the codebase. Builds through the number; dissipates before Scene 3.
+Ankle-height fog rolls across the stage representing the rollback. Clears before Scene 3.
 
 ### Technical Requirements
-- Two chilled-output fog units in wings; one unit inside server room
-- Non-toxic fluid; trigger at number start, cutoff at final chorus
+- Two chilled-output fog units in wings; one in server room
+- Non-toxic fluid; trigger at number start, cut at final chorus
 
 ---
 
 ## Projections
 
-**Location:** Upstage surface, shared with server room scrim
-**Scene(s):** Act I Scene 1 (slide deck), Act II Scene 1 (error messages)
+**Location:** Upstage, shared with server room scrim
+**Scene(s):** Act I Scene 1, Act II Scene 1
 
 ### Description
-Act I: pitch deck aesthetic. Act II: red-on-black terminal with scrolling errors.
+Act I: pitch deck aesthetic. Act II: red-on-black terminal errors.
 
 ### Technical Requirements
-- Projector: 10,000 lumens minimum, short-throw
-- Act I: "10x the undo," "Ctrl+Z as a Service," "Series A: $50M pending"
-- Act II: `NullPointerException`, `FATAL: main branch unreachable`, `git merge: CONFLICT` — triggered by LX-21
+- Projector: 10,000 lumens, short-throw
+- Act I: pitch deck slides
+- Act II: `NullPointerException`, `git merge: CONFLICT` — triggered by LX-21

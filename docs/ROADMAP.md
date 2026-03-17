@@ -25,6 +25,7 @@ graph TD
     148["#148 Adversarial<br/>Deliberation (M)"]
     149["#149 Universal Worktree<br/>Isolation (M)"]
     150["#150 Split<br/>orchestrator.md (S)"]
+    166["#166 Telemetry<br/>Diagrams (S)"]
 
     105 --> 108
     106 --> 108
@@ -59,6 +60,7 @@ graph TD
     style 148 fill:#059669,color:#fff
     style 149 fill:#059669,color:#fff
     style 150 fill:#059669,color:#fff
+    style 166 fill:#374151,color:#fff
 ```
 
 ✅ Done · 🟢 Active (ready now) · 🟣 Plugin track · ⚫ Future ideas
@@ -84,6 +86,7 @@ graph TD
 | 13 | [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | Dashboard | XL | 111 | Future |
 | 14 | [#117](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/117) | Multi-Repo Orchestration | XL | 109, 112 | Future |
 | 15 | [#118](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/118) | Learning Across Projects | L | 107, 112 | Future |
+| 16 | [#166](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/166) | Telemetry Diagrams | S | — | Future |
 
 ## Backlog Summaries
 
@@ -145,3 +148,6 @@ Backlog items spanning multiple repos with cross-repo branch coordination and me
 
 **[#118 Learning Across Projects](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/118)** — `size/L`
 Global lessons database fed by workflow feedback from multiple projects. Institutional memory beyond per-project retros.
+
+**[#166 Telemetry Diagrams](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/166)** — `size/S`
+Add a flow diagram showing workflow structure (dependencies, fix cycle loops, review verdicts) alongside the Gantt timeline. Standardize naming conventions across both diagrams. Add relative offset mode for interactive sessions.

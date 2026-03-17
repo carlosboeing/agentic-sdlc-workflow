@@ -15,6 +15,7 @@ Options:
   --from-state <file>   Orchestrator state file (.agentic-workflow/runs/<N>/orchestrator.json)
   --pricing <file>      Pricing JSON (default: .agentic-workflow/pricing.json)
   --config <file>       Config JSON (default: .claude/agentic-sdlc-config.json)
+  --overhead            Compute orchestrator overhead (only valid with --from-state)
 
 Output: JSON to stdout with fields:
   breakdown     — Markdown table rows for per-dispatch detail
@@ -24,6 +25,8 @@ Output: JSON to stdout with fields:
   tokens        — Total token count as string
   wall_clock_ms — (--from-state only) Wall-clock duration accounting for parallelism
   has_parallel  — (--from-state only) True if parallel dispatches were detected
+  overhead_ms   — (--from-state --overhead only) Orchestrator overhead in ms, or null
+  overhead_row  — (--from-state --overhead only) Markdown table row for overhead, or null
 
 Importable: All logic lives in top-level functions for unit testing.
 """
@@ -485,6 +488,59 @@ def compute_wall_clock(raw_dispatches):
     return wall_clock_ms, has_parallel
 
 
+def compute_overhead(state):
+    """
+    Compute orchestrator overhead from an orchestrator state file dict.
+
+    Resolution order:
+      1. state.overhead.duration_ms — direct read if set (including 0)
+      2. session.lifecycle_duration_ms - wall_clock_ms — fallback computation
+      3. null — when neither field is available
+
+    Overhead is clamped to >= 0 to handle clock skew.
+
+    Returns dict with:
+      overhead_ms   — integer (ms) or None if not computable
+      overhead_row  — markdown table row string or None if overhead_ms is None
+    """
+    raw_dispatches = state.get("dispatches", [])
+    wall_clock_ms, _ = compute_wall_clock(raw_dispatches)
+
+    # Resolution 1: direct state.overhead.duration_ms (if present and not None)
+    overhead_section = state.get("overhead")
+    if overhead_section is not None:
+        direct_ms = overhead_section.get("duration_ms")
+        if direct_ms is not None:
+            overhead_ms = max(0, int(direct_ms))
+            return {
+                "overhead_ms": overhead_ms,
+                "overhead_row": _build_overhead_row(overhead_ms),
+            }
+
+    # Resolution 2: fallback from session.lifecycle_duration_ms
+    lifecycle_ms = state.get("session", {}).get("lifecycle_duration_ms")
+    if lifecycle_ms is not None:
+        overhead_ms = max(0, int(lifecycle_ms) - wall_clock_ms)
+        return {
+            "overhead_ms": overhead_ms,
+            "overhead_row": _build_overhead_row(overhead_ms),
+        }
+
+    # Resolution 3: not computable
+    return {"overhead_ms": None, "overhead_row": None}
+
+
+def _build_overhead_row(overhead_ms):
+    """
+    Build the orchestrator overhead markdown table row.
+
+    Format:
+      | Orchestrator | overhead (branch ops, merges, board mgmt) | Xm Ys | --- | --- |
+    """
+    dur = fmt_duration(overhead_ms)
+    return f"| Orchestrator | overhead (branch ops, merges, board mgmt) | {dur} | --- | --- |"
+
+
 def compute_from_state(state, pricing_rates):
     """
     Compute telemetry from an orchestrator state file (parsed JSON dict).
@@ -774,7 +830,12 @@ def generate_gantt(state):
     # Gantt header
     lines.append("    title Full Lifecycle Timeline")
     lines.append("    dateFormat HH:mm:ss")
-    lines.append("    axisFormat %M:%S")
+    # Adapt axis format to timeline duration
+    if total_duration_s > 3600:
+        axis_fmt = "%H:%M"
+    else:
+        axis_fmt = "%M:%S"
+    lines.append(f"    axisFormat {axis_fmt}")
     lines.append(f"    tickInterval {tick_interval}")
 
     task_id = 1
@@ -847,12 +908,22 @@ def main(argv=None):
         default=False,
         help="Also generate Mermaid Gantt chart body (only valid with --from-state)",
     )
+    parser.add_argument(
+        "--overhead",
+        action="store_true",
+        default=False,
+        help="Compute orchestrator overhead and include overhead_ms/overhead_row in output (only valid with --from-state)",
+    )
 
     args = parser.parse_args(argv)
 
     # --gantt is only valid with --from-state
     if args.gantt and not args.from_state:
         parser.error("--gantt requires --from-state")
+
+    # --overhead is only valid with --from-state
+    if args.overhead and not args.from_state:
+        parser.error("--overhead requires --from-state")
 
     pricing_rates = load_pricing(args.pricing, args.config)
 
@@ -867,6 +938,10 @@ def main(argv=None):
         result = compute_from_state(state, pricing_rates)
         if args.gantt:
             result["gantt"] = generate_gantt(state)
+        if args.overhead:
+            overhead = compute_overhead(state)
+            result["overhead_ms"] = overhead["overhead_ms"]
+            result["overhead_row"] = overhead["overhead_row"]
 
     json.dump(result, sys.stdout)
 

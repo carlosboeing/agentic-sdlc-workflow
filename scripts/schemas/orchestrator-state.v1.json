@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/carlosboeing/agentic-sdlc-workflow/scripts/schemas/orchestrator-state.v1.json",
+  "title": "Orchestrator State File v1",
+  "description": "Schema for the orchestrator workflow state file stored at .agentic-workflow/runs/<backlog>/orchestrator.json. This file is the single source of truth for a workflow session: it tracks session metadata, pricing, phase progress, epic/story status, and an append-only dispatch log.",
+  "type": "object",
+  "required": ["version", "session", "overhead", "pricing", "phases", "epics", "dispatches"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Always 1 for this schema. Increment when breaking changes are introduced."
+    },
+    "session": {
+      "type": "object",
+      "description": "Metadata about the current workflow session.",
+      "required": ["backlog", "mode", "orchestrator_model", "started_at", "start_wall_clock", "repo"],
+      "properties": {
+        "backlog": {
+          "type": "integer",
+          "description": "GitHub issue number of the backlog item being executed (e.g. 150)."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["autonomous", "interactive"],
+          "description": "Execution mode: 'autonomous' skips human-interactive steps; 'interactive' waits for PR approvals and human input."
+        },
+        "orchestrator_model": {
+          "type": "string",
+          "description": "Model variant the orchestrator agent is running on (e.g. 'opus', 'sonnet'). Used for cost estimation of orchestrator overhead rows in telemetry."
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp when the orchestrator session began. Used by 'state.sh lifecycle-duration' to compute total elapsed time."
+        },
+        "lifecycle_duration_ms": {
+          "type": ["integer", "null"],
+          "description": "Computed by 'state.sh lifecycle-duration': milliseconds from session.started_at to the time the command ran. Null until computed."
+        },
+        "start_wall_clock": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp captured at session start for wall-clock computation. Used by 'state.sh overhead' to compute orchestrator overhead (wall-clock minus critical path)."
+        },
+        "repo": {
+          "type": "string",
+          "description": "GitHub repository in 'owner/name' format (e.g. 'carlosboeing/agentic-sdlc-workflow'). Captured from 'gh repo view' at init time."
+        },
+        "git_main_sha": {
+          "type": "string",
+          "description": "Short SHA of the git HEAD at session start. Useful for identifying the baseline commit when diagnosing branch contamination."
+        }
+      }
+    },
+    "overhead": {
+      "type": "object",
+      "description": "Computed orchestrator overhead: wall-clock time minus the critical path of sub-agent dispatches. Represents time spent on branch operations, board management, merges, and other orchestrator work outside of sub-agent dispatches.",
+      "required": ["duration_ms", "estimated_cost"],
+      "properties": {
+        "duration_ms": {
+          "type": ["integer", "null"],
+          "description": "Orchestrator overhead duration in milliseconds. Computed by 'state.sh overhead' as max(0, total_wall_clock_ms - critical_path_ms). Null until computed. Critical path groups dispatches by started_at and sums max(duration_ms) per parallel wave."
+        },
+        "estimated_cost": {
+          "type": ["number", "null"],
+          "description": "Estimated cost of orchestrator overhead in USD. Always null — orchestrator token usage is not directly measurable from the Agent tool result. Included for schema completeness."
+        }
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "description": "Live pricing data fetched from Anthropic's pricing page at session start via 'scripts/fetch-pricing.sh'. Stored verbatim from fetch-pricing.sh output. Used by 'compute-dispatches.py' for cost estimation.",
+      "required": ["source", "fetched_at", "rates"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Data origin identifier. One of: 'anthropic-pricing-page', 'litellm-community', or 'local-cache'. Set by fetch-pricing.sh."
+        },
+        "source_detail": {
+          "type": "string",
+          "description": "Human-readable description of the exact models and versions found (e.g. 'opus:4.6, sonnet:4.6, haiku:4.5')."
+        },
+        "fetched_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp when pricing data was fetched."
+        },
+        "rates": {
+          "type": "object",
+          "description": "Per-model pricing rates. Keys are model family names ('opus', 'sonnet', 'haiku'). Values use camelCase property names matching fetch-pricing.sh output.",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Pricing for a single model family.",
+            "required": ["inputPerM", "outputPerM"],
+            "properties": {
+              "inputPerM": {
+                "type": "number",
+                "description": "Cost in USD per million input tokens."
+              },
+              "outputPerM": {
+                "type": "number",
+                "description": "Cost in USD per million output tokens."
+              }
+            }
+          }
+        }
+      }
+    },
+    "phases": {
+      "type": "object",
+      "description": "Tracks the status of each workflow phase. Keys are phase names: design, plan, build, review, retro.",
+      "additionalProperties": false,
+      "properties": {
+        "design": { "$ref": "#/$defs/phase" },
+        "plan":   { "$ref": "#/$defs/phase" },
+        "build":  { "$ref": "#/$defs/phase" },
+        "review": { "$ref": "#/$defs/phase" },
+        "retro":  { "$ref": "#/$defs/phase" }
+      }
+    },
+    "epics": {
+      "type": "object",
+      "description": "Map of epic slug to epic metadata. Keys are epic slugs (e.g. 'e01-script-extraction'). Populated by 'state.sh update --epic'. Used for cross-contamination detection (base_sha) and story telemetry aggregation.",
+      "additionalProperties": {
+        "$ref": "#/$defs/epic"
+      }
+    },
+    "dispatches": {
+      "type": "array",
+      "description": "Append-only log of every agent dispatch in this workflow session. Each entry records the agent type, model, timing, token usage, and result. Used by 'compute-dispatches.py' for wall-clock, Gantt, and cost computation. Never modified — only appended.",
+      "items": {
+        "$ref": "#/$defs/dispatch"
+      }
+    }
+  },
+  "$defs": {
+    "phase": {
+      "type": "object",
+      "description": "Status of a single workflow phase.",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in_progress", "complete", "skipped"],
+          "description": "Current status of this phase. 'pending': not yet started. 'in_progress': actively running. 'complete': finished successfully. 'skipped': intentionally bypassed (e.g. design skipped when doc already exists)."
+        },
+        "pr": {
+          "type": "integer",
+          "description": "GitHub PR number associated with this phase (e.g. the design doc PR or plan PR). Optional."
+        },
+        "telemetry": {
+          "type": "object",
+          "description": "Telemetry data for this phase (duration_ms, tokens, tool_uses). Set by the orchestrator after the phase agent completes. Optional."
+        }
+      }
+    },
+    "epic": {
+      "type": "object",
+      "description": "Metadata for a single epic within the workflow session.",
+      "required": ["base_sha", "stories"],
+      "properties": {
+        "base_sha": {
+          "type": "string",
+          "description": "Git SHA of the epic branch at the time story branches were created. Used to detect cross-contamination: if a story branch diverges from this SHA, its commits may contain unintended work from a sibling story."
+        },
+        "stories": {
+          "type": "object",
+          "description": "Map of story issue number (as string) to story metadata. Keys are GitHub issue numbers as strings (e.g. '157', '158').",
+          "additionalProperties": {
+            "$ref": "#/$defs/story"
+          }
+        }
+      }
+    },
+    "story": {
+      "type": "object",
+      "description": "Metadata and telemetry for a single story.",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "building", "built", "reviewing", "reviewed", "merged", "done"],
+          "description": "Current status of this story in the workflow lifecycle."
+        },
+        "build": {
+          "type": "object",
+          "description": "Telemetry from the builder agent dispatch for this story. Set automatically by 'state.sh update --dispatch' when agent contains 'builder'.",
+          "properties": {
+            "duration_ms": { "type": "integer", "description": "Builder agent wall-clock duration in milliseconds." },
+            "tokens":      { "type": "integer", "description": "Total tokens consumed by the builder agent." },
+            "tool_uses":   { "type": "integer", "description": "Number of tool calls made by the builder agent." }
+          }
+        },
+        "review": {
+          "type": "object",
+          "description": "Telemetry from the reviewer agent dispatch for this story. Set automatically by 'state.sh update --dispatch' when agent contains 'reviewer'.",
+          "properties": {
+            "duration_ms": { "type": "integer", "description": "Reviewer agent wall-clock duration in milliseconds." },
+            "tokens":      { "type": "integer", "description": "Total tokens consumed by the reviewer agent." },
+            "tool_uses":   { "type": "integer", "description": "Number of tool calls made by the reviewer agent." },
+            "verdict":     { "type": "string",  "description": "Reviewer result string (e.g. 'APPROVE', 'REQUEST_CHANGES', 'COMMENT'). Matches values used in reviewer.md and orchestrator.md Phase 6." }
+          }
+        }
+      }
+    },
+    "dispatch": {
+      "type": "object",
+      "description": "A single agent dispatch record. Appended by 'state.sh update --dispatch'. Never modified after creation.",
+      "required": ["id", "agent", "model", "issue", "started_at", "finished_at", "duration_ms", "tokens", "tool_uses", "result"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Sequential dispatch ID. Assigned as len(dispatches) + 1 at the time of append."
+        },
+        "agent": {
+          "type": "string",
+          "description": "Agent type identifier (e.g. 'builder-sonnet', 'reviewer-opus', 'designer', 'planner', 'retro')."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model variant used for this dispatch (e.g. 'sonnet', 'opus', 'haiku')."
+        },
+        "issue": {
+          "type": ["integer", "null"],
+          "description": "GitHub issue number associated with this dispatch. Null for non-story dispatches (design, plan, retro). When set and matching a story in epics.*.stories, automatically updates that story's build or review telemetry."
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp when this dispatch began. Dispatches with the same started_at are treated as a parallel wave by 'compute-dispatches.py' for wall-clock computation."
+        },
+        "finished_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp when this dispatch completed. Computed as started_at + duration_ms."
+        },
+        "duration_ms": {
+          "type": "integer",
+          "description": "Total agent wall-clock duration in milliseconds as reported by the Agent tool result."
+        },
+        "tokens": {
+          "type": "integer",
+          "description": "Total tokens consumed by this dispatch (input + output combined)."
+        },
+        "tool_uses": {
+          "type": "integer",
+          "description": "Number of tool calls made during this dispatch."
+        },
+        "result": {
+          "type": "string",
+          "description": "Outcome of this dispatch (e.g. 'success', 'failed', 'usage_limited')."
+        }
+      }
+    }
+  }
+}

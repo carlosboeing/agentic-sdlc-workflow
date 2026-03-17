@@ -2,7 +2,7 @@
 
 Consolidated tracker for all recommendations from workflow retrospectives. Updated manually after each retro — the retro agent should append new recommendations here, and the orchestrator should check this document before each run.
 
-Last updated: 2026-03-16 (compiled from Runs 2-14 + backlogs 105, 106)
+Last updated: 2026-03-17 (compiled from Runs 2-14 + backlogs 105, 106, 150)
 
 ---
 
@@ -19,10 +19,10 @@ Last updated: 2026-03-16 (compiled from Runs 2-14 + backlogs 105, 106)
 ### N. Validate Sonnet reviewer quality on easy stories
 
 - **Source:** Backlog 105 retro (rec 3)
-- **Recurrence:** 1 run (first implementation)
-- **Priority:** Medium
-- **Description:** Backlog 105 implemented reviewer routing (Sonnet for easy, Opus for medium/hard) but could not use it in the same session (Claude Code loads agents at session start only). The next run will be the first to dispatch `reviewer-sonnet` for easy stories. Monitor for false negatives (issues Sonnet misses that Opus would catch). Design doc assumption: across Runs 8-14, zero easy-story reviews found critical issues that required Opus-level analysis.
-- **Effort:** None (monitoring only in next run)
+- **Recurrence:** 2 runs (first validation in BL150)
+- **Priority:** Medium -- trending toward observation
+- **Description:** Backlog 105 implemented reviewer routing (Sonnet for easy, Opus for medium/hard) but could not use it in the same session (Claude Code loads agents at session start only). BL150 E01-S03 (difficulty/easy) was the first story reviewed by `reviewer-sonnet`. The review was thorough: verified all 7 acceptance criteria, confirmed 142 tests passed, provided 3 constructive suggestions, and the verdict (APPROVE) was correct. First data point positive. Continue monitoring; 3+ positive data points would move this to an observation.
+- **Effort:** None (monitoring only)
 
 ### O. Add `Files to modify` boundary enforcement to builder instructions
 
@@ -55,6 +55,30 @@ Last updated: 2026-03-16 (compiled from Runs 2-14 + backlogs 105, 106)
 - **Priority:** Medium
 - **Description:** A misplaced `if __name__ == "__main__"` block at line 1076 caused `unittest.main()` to exit before loading Gantt test classes defined after line 1078. All 123 tests passed with pytest but only 88 passed with `python3` direct execution. Add a convention that Python test files must pass both runners, ensuring the `__name__` guard is at the end of the file.
 - **Effort:** Low (convention + optional CI check)
+
+### S. Add "grep for pattern" convention to builder fix cycle instructions
+
+- **Source:** Backlog 150 (rec 1)
+- **Recurrence:** 1 run (E01-S01 required 2 fix cycle rounds because builder only fixed 3 of 5 vulnerable heredocs)
+- **Priority:** Medium
+- **Description:** When a reviewer flags a pattern-based bug (same vulnerability in multiple locations), the builder's fix cycle should include a file-wide grep for the pattern before committing. E01-S01's builder fixed the 3 explicitly cited heredocs (C1-C3) but missed 2 more with the identical unquoted `<< PYEOF` pattern. The reviewer's second review found C4-C5, adding ~6 minutes of wall clock. Add to builder.md: "When fixing a pattern-based bug, grep the entire file (and related files) for all instances of the pattern before committing."
+- **Effort:** Low (builder.md instruction update)
+
+### T. Add "always quote heredoc markers" convention
+
+- **Source:** Backlog 150 (rec 2)
+- **Recurrence:** 1 run (5 critical heredoc injection vulnerabilities in a single script)
+- **Priority:** High
+- **Description:** Unquoted bash heredoc markers (`python3 << PYEOF`) allow shell variable expansion into the heredoc body, enabling code injection. The fix pattern is: quote the marker (`<< 'PYEOF'`), pass data via environment variables, read with `os.environ[]` in Python. Add to builder.md: "Always quote heredoc delimiters when embedding another language in bash." Add to reviewer.md checklist: "Verify all heredoc markers in bash scripts are quoted when the body contains non-bash code." Evidence: 5 critical issues on issue 157, lesson file `150-split-orchestrator-md/e01-script-extraction/2026-03-17-s01-python-heredoc-injection.md`.
+- **Effort:** Low (builder.md + reviewer.md instruction updates)
+
+### U. Require reviewer agents to commit lesson files before completing
+
+- **Source:** Backlog 150 (rec 3)
+- **Recurrence:** 1 run (reviewer wrote lesson file in worktree, file lost on cleanup)
+- **Priority:** Low
+- **Description:** The E01-S01 reviewer stated it wrote a lesson file at a specific path, but the file was never committed to the branch. Worktree-isolated agents' file writes are lost when the worktree is cleaned up. Add to reviewer.md: "If you write a lesson file, commit and push it to the story branch before posting your verdict."
+- **Effort:** Low (reviewer.md instruction update)
 
 ---
 
@@ -110,10 +134,10 @@ Last updated: 2026-03-16 (compiled from Runs 2-14 + backlogs 105, 106)
 | #    | Observation                                                                        | Source                           | Notes                                                                                                                                                                                                                                                                                                |
 | ---- | ---------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | i    | Haiku uses 3-4x more tokens than Sonnet for comparable tasks                       | Runs 3, 6, 7, 8, 9, 10, 11       | Consistent across 7 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted.                                                                                                                                                                                      |
-| ii   | Stories with detailed acceptance criteria achieve zero organic fix cycles          | Runs 5, 6, 9-14, BL105           | 46+ consecutive first-pass approvals across content-creation AND self-referential convention work. Run 14 had 2 fix cycles from deliberate bug planting. Backlog 105 added 6 more (self-modifying agent instructions) with 0 fix cycles. Organic fix cycle rate remains 0%.                           |
+| ii   | Stories with detailed acceptance criteria achieve zero organic fix cycles          | Runs 5, 6, 9-14, BL105, BL106    | 53+ consecutive first-pass approvals across content-creation AND infrastructure work. Run 14 had 2 fix cycles from deliberate bug planting. BL150 had 2 fix cycle rounds on E01-S01 for a genuine security vulnerability (heredoc injection) -- first organic fix cycle in the workflow. Organic fix cycle rate: 1/53 stories (1.9%). The fix was for a security pattern invisible to tests (heredoc expansion happens at bash level before Python runs), not a functional failure. |
 | iii  | CHANGELOG conflicts with per-epic PRs                                              | Run 5                            | Moot -- switched to single-PR model in Run 6.                                                                                                                                                                                                                                                         |
 | iv   | Board status persistence bug (mutations succeed, statuses revert later)            | Runs 3, 10, 12, 14               | Run 11 created `check-board-drift.sh`; Run 12 confirmed drift (all stories + closed issues reverted to In Progress). Run 14: all 18 issues reverted to In Progress despite successful `issue-set-status.sh` calls. Orchestrator now has mandatory post-run verification step -- confirmed essential. |
-| v    | `orchestrator.md` now at 1270 lines -- largest agent file by 6.4x                  | Runs 11, BL105                   | Was ~1000 lines at Run 11. Backlog 105 added +185 lines (Phase 4 branch creation, overhead computation, override pattern, state schema). State schema (~200 lines), board management examples, and code snippets could move to a reference doc. Monitor for readability; consider extraction at 1500 lines. |
+| v    | `orchestrator.md` reduced from 1,323 to 503 lines (62%)                            | Runs 11, BL105, BL150            | Was ~1000 lines at Run 11, grew to 1,323 by BL105. BL150 extracted inline scripts to `state.sh`, deleted dead code (System Prompt Hardening), and condensed verbose sections. Now 503 lines. The monitoring threshold ("consider extraction at 1500 lines") is no longer relevant. |
 | vi   | Reviewer doesn't reference the recommendations tracker for known patterns          | Run 11                           | Reviewer greps raw lesson files; the compiled tracker would be more efficient. Low priority -- current approach works.                                                                                                                                                                                |
 | vii  | Average tokens per build story: convention work uses more tokens than content       | Runs 13, 14, BL105               | Content stories: Run 13 averaged 43K tokens/build, Run 14 averaged 43K (excl. fix cycles). Convention/docs stories (BL105): averaged 68K tokens/build. S02 (easy docs change) used 90K due to Edit tool worktree issues. Higher token usage likely reflects reading existing large files (orchestrator.md, CLAUDE.md) for context. |
 | viii | Fix cycles more than double the cost of affected stories                           | Run 14                           | E01-S04: +181% overhead (2 fix cycles). E02-S01: +66% overhead (1 fix cycle). Total fix overhead: $1.53 / $11.34 = 13.5% of run cost. First data point -- track across future runs with organic (non-planted) fix cycles.                                                                            |
@@ -123,3 +147,6 @@ Last updated: 2026-03-16 (compiled from Runs 2-14 + backlogs 105, 106)
 | xii  | Infrastructure refactoring stories take 3-4x longer than content-creation stories | BL106                            | Average build duration: 11m 6s (infrastructure) vs ~3m 40s (content, Run 14). Average tool uses: 134/story vs ~56/story. Infrastructure builders must read existing code, understand dependencies, and write tests. First infrastructure backlog item in the workflow. |
 | xiii | Reviewer cost dominates total cost in infrastructure runs (47.8% of total)        | BL106                            | All reviewers inherit orchestrator's Opus model. Reviewers consumed $6.65 of $13.92 total (47.8%) despite only 28.7% of duration. For infrastructure where correctness is critical, Opus review is appropriate. For docs-only stories, may be overkill (see rec P). |
 | xiv  | PR-level review catches structural bugs invisible to story-level reviews          | BL106                            | Premature `if __name__` block at line 1076 of test file caused 35/123 tests to be skipped. Each story reviewer only saw their own additions and missed the structural issue. The PR reviewer saw the full file and caught it. Validates two-tier review model. |
+| xv   | Interactive design produces better architectural decisions than autonomous for refactoring | BL150                   | Design evolved from "split into reference docs" (original backlog proposal) to "extract inline scripts" through interactive Q&A. The designer's critical analysis revealed 61% of extractable content was "scripts written in markdown." Autonomous mode would have accepted the initial approach without this re-evaluation. For greenfield or content work, autonomous is efficient; for refactoring existing infrastructure, interactive design yields superior results. |
+| xvi  | First organic fix cycle in the workflow was for a security pattern invisible to tests | BL150                        | E01-S01 had 2 fix cycle rounds for heredoc injection (5 critical issues). This is the first non-planted fix cycle in 53+ stories. The vulnerability (unquoted bash heredoc markers) is invisible to functional tests because bash variable expansion happens before Python execution. The reviewer demonstrated working exploits. This validates the review process: reviewers catch classes of bugs that tests cannot. |
+| xvii | Incomplete fix cycle pattern: builders fix only cited locations, not file-wide pattern | BL150                       | E01-S01 fix cycle 1 addressed 3 of 5 vulnerable heredocs (the 3 explicitly cited by the reviewer). The builder did not grep for the pattern across the file. Fix cycle 2 was needed to catch the remaining 2. This "fix the cited lines, not the pattern" behavior cost ~6 minutes of additional wall clock. See rec S for proposed convention. |

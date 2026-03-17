@@ -25,63 +25,33 @@ Your deliverables are: dispatched agents, GitHub state updates, telemetry, and t
 
 ### Primary: In-Session (Agent Tool)
 
-Use the Agent tool to dispatch builders and reviewers within the current Claude Code session. Model routing is achieved via `subagent_type` using builder variant files.
+Use the Agent tool to dispatch builders and reviewers. Model routing via `subagent_type` using variant files.
 
-**Universal worktree isolation (autonomous mode):** In autonomous mode, **every** Agent tool dispatch MUST include `isolation: "worktree"`. This applies to all agents: designers, planners, builders (parallel and sequential), reviewers, and retro. Without isolation, agents share the main working directory and are affected by stale branches, leftover artifacts, and checkout collisions from concurrent or previous backlog items. The only exception is interactive mode where a human is monitoring the session. Evidence: Run 15 (backlog #105) had repeated collisions with `backlog/106` artifacts — stale files blocked merges, `git checkout` landed on wrong branches, and a commit went to the wrong branch entirely.
+**Universal worktree isolation (autonomous mode):** Every Agent tool dispatch MUST include `isolation: "worktree"`. Applies to all agents: designers, planners, builders, reviewers, retro. Only exception: interactive mode with human monitoring. Evidence: Run 15 (backlog #105) had collisions with `backlog/106` artifacts.
 
 ```
 # Builder dispatch (model selected by subagent_type)
-Agent tool → subagent_type: "builder-sonnet"  # difficulty/easy
-Agent tool → subagent_type: "builder-sonnet"  # difficulty/medium
+Agent tool → subagent_type: "builder-sonnet"  # difficulty/easy or medium
 Agent tool → subagent_type: "builder-opus"    # difficulty/hard
 
-# Reviewer dispatch (model selected by subagent_type based on story difficulty)
+# Reviewer dispatch
 Agent tool → subagent_type: "reviewer-sonnet"  # difficulty/easy
-Agent tool → subagent_type: "reviewer-opus"    # difficulty/medium
-Agent tool → subagent_type: "reviewer-opus"    # difficulty/hard
+Agent tool → subagent_type: "reviewer-opus"    # difficulty/medium or hard
 ```
 
-The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` -- capture all three for telemetry.
+The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` — capture all three for telemetry.
 
 ### Secondary: CLI (Bash)
 
-Use `dispatch-story.sh` for out-of-session or test dispatches.
-
-```bash
-./scripts/dispatch-story.sh <issue-number> --model <model> --agent <agent> \
-  [--epic-branch <branch>]
-```
-
-For parallel CLI dispatch of independent stories:
-
-```bash
-./scripts/dispatch-story.sh 27 --model haiku --agent builder &
-./scripts/dispatch-story.sh 28 --model sonnet --agent builder &
-wait
-```
+For out-of-session or human-initiated dispatches only. See `scripts/dispatch-story.sh --help`. Not usable by agents (nested session detection).
 
 ## Autonomous Mode
 
-The orchestrator supports two modes for the design and plan phases:
-
 **Autonomous mode** — activated when the prompt includes "autonomous". Design/plan PRs are auto-merged after the designer/planner completes.
 
-**Interactive mode** — when the orchestrator is run in an interactive session without "autonomous" in the prompt. The designer/planner will ask clarifying questions via `AskUserQuestion`, and the orchestrator waits for the human to merge the PRs.
+**Interactive mode** — without "autonomous". Designer/planner ask clarifying questions via `AskUserQuestion`, orchestrator waits for human to merge PRs.
 
-**Auto-merge protocol (autonomous mode only):**
-1. After the designer/planner subagent completes and opens a PR targeting the integration branch, find the PR:
-   ```bash
-   gh pr list --head "docs/" --state open --json number,headRefName
-   ```
-2. Merge the PR into the integration branch:
-   ```bash
-   gh pr merge <N> --merge --delete-branch
-   ```
-3. Pull the integration branch:
-   ```bash
-   git checkout backlog/<N>-<slug> && git pull
-   ```
-4. If the merge fails (e.g., conflicts), halt the workflow and post a comment on the PR explaining the failure. Do NOT force-merge.
+**Auto-merge protocol (autonomous only):** After designer/planner opens a PR targeting the integration branch: find it (`gh pr list --head "docs/" --state open`), merge it (`gh pr merge <N> --merge --delete-branch`), pull the integration branch. If merge fails, halt and post a comment. Do NOT force-merge.
 
 ## Workflow Phases
 
@@ -89,1235 +59,445 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 ### Phase 0: Detect Mode and Prerequisites
 
-1. Read the backlog issue:
-   ```bash
-   gh issue view <backlog-number> --json title,body,labels
-   ```
+1. **Read the backlog issue** (`gh issue view <N> --json title,body,labels`).
 
-   **Dependency pre-check (REQUIRED):** Parse the `**Blocked by:**` line from the issue body. If any referenced issues are not closed, STOP and post a comment explaining what's blocked:
+2. **Dependency pre-check (REQUIRED):** Parse `**Blocked by:**` from the issue body. For each referenced issue, verify it is closed. If any are open, post a blocking comment and halt:
    ```bash
-   BODY=$(gh issue view <backlog-number> --json body -q '.body')
+   BODY=$(gh issue view <N> --json body -q '.body')
    BLOCKED=$(echo "$BODY" | grep -oP '(?<=Blocked by:\*\* ).*' | head -1)
    if [ "$BLOCKED" != "none" ] && [ -n "$BLOCKED" ]; then
      for DEP in $(echo "$BLOCKED" | grep -oP '#\d+' | tr -d '#'); do
        STATE=$(gh issue view $DEP --json state -q '.state')
-       if [ "$STATE" != "CLOSED" ]; then
-         gh issue comment <backlog-number> --body "Blocked: dependency issue #$DEP is still open (state: $STATE). Cannot proceed until all dependencies are resolved."
-         echo "BLOCKED: Issue #$DEP is $STATE"
-         exit 1
-       fi
+       [ "$STATE" != "CLOSED" ] && echo "BLOCKED: Issue #$DEP is $STATE" && exit 1
      done
    fi
    ```
 
-2. **Create the integration branch** `backlog/<N>-<slug>` from main and push to remote:
+3. **Create integration branch** `backlog/<N>-<slug>` from main, push to remote. If it already exists, check it out and pull.
+
+4. **Board setup:** Add backlog issue to project board (use `issue-create-backlog.sh` or `gh project item-add` + `issue-set-status.sh`). Add `backlog/<N>-<slug>` label. Prefix title with `[#<N>]` if missing.
+
+5. **Check recommendations tracker** (`docs/4-reviews/retro-recommendations.md`).
+
+6. **Check for existing artifacts** (use YAML frontmatter matching, not raw grep — short numbers match incidental text; see Run 10 lesson):
+   - Design doc: `grep -rl "^backlog: <N>$" docs/2-design/`
+   - Plan: `grep -rl "^backlog: <N>$" docs/3-plans/` + check for epic issues
+
+7. **Parse skip directives** from prompt ("skip design", "skip plan") and determine execution mode. If artifacts exist, skip automatically.
+
+8. **Initialize state file:**
    ```bash
-   git checkout main && git pull
-   git checkout -b backlog/<N>-<slug>
-   git push -u origin backlog/<N>-<slug>
+   ./scripts/state.sh init <backlog-number> --mode autonomous --model <model>
    ```
-   If the branch already exists (idempotent restart), check it out instead:
-   ```bash
-   git checkout backlog/<N>-<slug> && git pull
-   ```
-
-3. **Add backlog issue to project board** with status **Backlog** and apply the backlog label (if not already done). If the backlog issue was created by the orchestrator, use the helper script which handles all setup:
-   ```bash
-   ./scripts/issue-create-backlog.sh --title "<title>" --slug "<slug>" --body-file /tmp/body.md
-   ```
-   If the issue already exists, add to board and set status manually:
-   ```bash
-   gh project item-add 7 --owner carlosboeing --url "https://github.com/carlosboeing/agentic-sdlc-workflow/issues/<N>" --format json
-   ./scripts/issue-set-status.sh <N> backlog
-   ```
-
-4. **Add `backlog/<N>-<slug>` label** to the backlog issue if missing:
-   ```bash
-   gh label create "backlog/<N>-<slug>" --color "5319E7" --description "Backlog: <title>" 2>/dev/null || true
-   gh issue edit <N> --add-label "backlog/<N>-<slug>"
-   ```
-
-5. **Prefix the backlog issue title** with `[#<N>]` if not already present (the issue is created before the orchestrator runs, so the number is known):
-   ```bash
-   TITLE=$(gh issue view <N> --json title -q '.title')
-   echo "$TITLE" | grep -q '^\[#' || gh issue edit <N> --title "[#<N>] $TITLE"
-   ```
-
-6. **Check the recommendations tracker** (`docs/4-reviews/retro-recommendations.md`) for outstanding items that may affect this run. Apply any low-effort fixes proactively.
-
-7. Check for existing artifacts (use YAML frontmatter matching, not raw content grep — short numbers like "27" match incidental text in unrelated files; see Run 10 lesson `e00-setup/2026-03-13-s00-design-artifact-matching.md`):
-   - **Design doc:** `grep -rl "^backlog: <backlog-number>$" docs/2-design/`
-   - **Plan:** `grep -rl "^backlog: <backlog-number>$" docs/3-plans/` and check if epic issues exist:
-     ```bash
-     gh issue list --label "backlog/<number>-<slug>" --label "hierarchy/epic" --json number,title,labels
-     ```
-
-8. Parse the prompt for skip directives:
-   - "skip design" → skip Phase 1
-   - "skip plan" → skip Phase 2
-   - "skip design and plan" → skip both
-
-9. Determine execution mode:
-   - If artifacts exist for a phase → skip that phase automatically
-   - If the prompt says to skip a phase → skip it
-   - Otherwise → run the phase (autonomous or interactive based on prompt/context)
-
-10. **Initialize the orchestrator state file** (see § "Orchestrator State File" below). Record `session.start_wall_clock` at this moment — it is the reference point used in Phase 10 to compute orchestrator overhead duration:
-    ```bash
-    START_WALL_CLOCK=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    # Write to state file: session.start_wall_clock = $START_WALL_CLOCK
-    ```
-    This timestamp must be captured before any agent is dispatched. It is the wall-clock origin for the entire run.
+   Creates state directory, fetches pricing, captures `start_wall_clock`. Must happen before any agent dispatch — this timestamp is the reference for Phase 10 overhead.
 
 ### Phase 1: Design (conditional)
 
-**Skip if:** design doc already exists in `docs/2-design/` referencing this backlog item, OR the prompt says "skip design".
+**Skip if:** design doc exists referencing this backlog item, OR prompt says "skip design".
 
-**Before starting Phase 1** (or the first non-skipped phase), set the backlog issue board status to **In Progress**:
-```bash
-./scripts/issue-set-status.sh <backlog-issue> in-progress
-```
-Design and planning are active work on the backlog item — the board should reflect that work has started, not wait until builders are dispatched.
+**Before Phase 1** (or first non-skipped phase), set backlog board status to **In Progress** (`issue-set-status.sh`).
 
-**Autonomous mode:**
-
-1. Dispatch the designer with "autonomous" in the prompt and the integration branch name:
+**Autonomous:**
+1. Dispatch designer:
    ```
    Agent tool → subagent_type: "designer"
    Prompt: "autonomous — Design a feature for backlog item #<N> (<title>).
             Read the backlog issue on GitHub for full context.
             Integration branch: backlog/<N>-<slug>"
    ```
+2. Auto-merge the design doc PR into integration branch.
+3. Close the design issue (`issue-close.sh`).
 
-2. After the designer completes, find and auto-merge the design doc PR into the integration branch:
-   ```bash
-   gh pr list --head "docs/" --state open --json number,headRefName
-   gh pr merge <N> --merge --delete-branch
-   git checkout backlog/<N>-<slug> && git pull
-   ```
-
-3. Close the design doc issue and set board status to **Done**:
-   ```bash
-   ./scripts/issue-close.sh <design-issue-number>
-   ```
-   The script handles control character cleanup, item ID validation, and retry internally. No separate verification step is needed.
-
-**Interactive mode:**
-
-1. Dispatch the designer WITHOUT "autonomous" in the prompt, but include the integration branch:
-   ```
-   Agent tool → subagent_type: "designer"
-   Prompt: "Design a feature for backlog item #<N> (<title>).
-            Read the backlog issue on GitHub for full context.
-            Integration branch: backlog/<N>-<slug>"
-   ```
-
-2. The designer will use the brainstorming skill and ask the user questions via `AskUserQuestion`.
-
-3. After the designer opens a PR targeting the integration branch, prompt the user to review and merge it before continuing.
+**Interactive:** Dispatch designer without "autonomous". Wait for human to merge the PR.
 
 ### Phase 2: Plan (conditional)
 
-**Skip if:** implementation plan already exists in `docs/3-plans/` referencing this backlog item AND epic issues exist, OR the prompt says "skip plan".
+**Skip if:** plan exists AND epic issues exist, OR prompt says "skip plan".
 
 Same dual-mode pattern as Phase 1, dispatching the planner:
-
-**Autonomous mode:**
 ```
 Agent tool → subagent_type: "planner"
-Prompt: "autonomous — Create an implementation plan for backlog item #<N> (<title>).
+Prompt: "[autonomous —] Create an implementation plan for backlog item #<N> (<title>).
          Read the backlog issue and design doc for full context.
          Integration branch: backlog/<N>-<slug>"
 ```
-Then auto-merge the plan PR into the integration branch:
-```bash
-gh pr list --head "docs/" --state open --json number,headRefName
-gh pr merge <N> --merge --delete-branch
-git checkout backlog/<N>-<slug> && git pull
-```
 
-Close the plan issue and set board status to **Done**:
-```bash
-./scripts/issue-close.sh <plan-issue-number>
-```
-
-**After plan PR merge (autonomous mode):** Set all story issues to **Ready** on the project board, sequentially:
-```bash
-for ISSUE_NUM in <list of story issue numbers>; do
-  ./scripts/issue-set-status.sh $ISSUE_NUM todo
-done
-```
-This replaces the human's responsibility for the Ready transition.
-
-**Interactive mode:**
-```
-Agent tool → subagent_type: "planner"
-Prompt: "Create an implementation plan for backlog item #<N> (<title>).
-         Read the backlog issue and design doc for full context.
-         Integration branch: backlog/<N>-<slug>"
-```
-Then wait for the human to merge the plan PR into the integration branch.
+**After plan PR merge (autonomous):** Set all story issues to **Ready** sequentially (`issue-set-status.sh`). Close the plan issue.
 
 ### Phase 3: Read the Plan
 
-1. Find the plan for the backlog issue:
-   ```bash
-   grep -rl "^backlog: <backlog-issue-number>$" docs/3-plans/
-   ```
-2. Read the plan to extract: epic slugs, story list, dependency graph, and story branches.
-3. Read the design doc referenced in the plan for additional context.
+1. Find the plan: `grep -rl "^backlog: <N>$" docs/3-plans/`
+2. Extract epic slugs, story list, dependency graph, and story branches.
+3. Read the design doc referenced in the plan.
 
 ### Phase 4: Read Stories, Build Dependency Graph, and Create All Branches
 
-1. List stories for the epic:
-   ```bash
-   gh issue list --label "backlog/<issue>-<slug>" --label "hierarchy/story" --state open --limit 100 --json number,title,labels,state
-   ```
-   Alternatively, traverse sub-issues of the epic issue using the GitHub GraphQL API.
-2. Parse the plan's Mermaid dependency graph to determine execution order.
-3. Identify which stories can run in parallel (no shared dependencies). All dispatches use `isolation: "worktree"` per the universal rule (originally confirmed as critical for parallel builders in Run 7, extended to all autonomous dispatches after Run 15).
-4. **Create all epic branches and story branches upfront** — before dispatching any builders. This is the authoritative branch creation step. Phase 5 dispatches only; it does not create branches.
+1. List stories (`gh issue list --label "backlog/<N>-<slug>" --label "hierarchy/story" --state open --limit 100 --json number,title,labels,state`).
+2. Parse the plan's dependency graph to determine execution order.
+3. Identify parallel stories (no shared dependencies). All dispatches use `isolation: "worktree"`.
+4. **Create all epic and story branches upfront** — before dispatching builders:
 
-   **Create all epic branches** from the integration branch:
+   For each epic: checkout integration branch, create epic branch, push, record base SHA:
    ```bash
-   # For each epic in the plan:
    git checkout backlog/<N>-<slug> && git pull
-   git checkout -b epic/e01-<slug>
-   git push -u origin epic/e01-<slug>
-
-   git checkout backlog/<N>-<slug>
-   git checkout -b epic/e02-<slug>
-   git push -u origin epic/e02-<slug>
-   # ... repeat for all epics
+   git checkout -b epic/e01-<slug> && git push -u origin epic/e01-<slug>
+   ./scripts/state.sh update --epic e01 --base-sha "$(git rev-parse HEAD)"
    ```
 
-   **Record base commit SHA per epic** in the state file immediately after creating each epic branch:
+   For each story in the epic: checkout epic branch, create story branch, push:
    ```bash
-   # After creating epic/e01-<slug>:
-   E01_BASE=$(git rev-parse HEAD)  # same as integration branch HEAD at this point
-
-   python3 -c "
-   import json
-   with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
-       state = json.load(f)
-   state['epics']['e01'] = {'base_sha': '$E01_BASE', 'stories': {}}
-   with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
-       json.dump(state, f, indent=2)
-   "
-   ```
-
-   **Create all story branches** for each epic from the epic branch HEAD — all from the same base commit:
-   ```bash
-   # For each story in epic e01:
    git checkout epic/e01-<slug>
-   git checkout -b e01-s01/<story-slug>
-   git push -u origin e01-s01/<story-slug>
-
-   git checkout epic/e01-<slug>
-   git checkout -b e01-s02/<story-slug>
-   git push -u origin e01-s02/<story-slug>
-   # ... repeat for all stories in this epic
-
-   # Repeat for each epic:
-   git checkout epic/e02-<slug>
-   git checkout -b e02-s01/<story-slug>
-   git push -u origin e02-s01/<story-slug>
-   # ... etc.
+   git checkout -b e01-s01/<slug> && git push -u origin e01-s01/<slug>
    ```
+   All story branches for an epic are created from the same commit. **Why:** If created lazily, later stories in a parallel wave could inherit sibling commits (Run 9, E01-S03 cross-contamination). Idempotent: if branch exists, check it out instead.
 
-   **Why upfront:** All story branches are created from the same epic branch commit. If branches were created lazily at dispatch time, later stories in a parallel wave could inherit an earlier sibling's commits (confirmed cross-contamination defect in Run 9, E01-S03 issue #20). Creating all branches from the same base commit eliminates this class of error entirely, regardless of dispatch order.
-
-   **Idempotent restart:** If a branch already exists, check it out instead of creating it:
-   ```bash
-   git checkout e01-s01/<story-slug> 2>/dev/null || (git checkout epic/e01-<slug> && git checkout -b e01-s01/<story-slug> && git push -u origin e01-s01/<story-slug>)
-   ```
-
-5. Check for already-completed stories (idempotent restart):
-   ```bash
-   # A story is complete if it has a "Ready for Review" comment
-   gh issue view <number> --json comments -q '.comments[] | .body' | grep -q "Ready for Review"
-   ```
-   Skip any story that already has a "Ready for Review" comment.
+5. **Skip completed stories** (idempotent restart): check for "Ready for Review" comment on each issue.
 
 ### Phase 5: Dispatch Builders
 
 For each story (or wave of independent stories):
 
-1. **Read the difficulty label** from the issue:
+1. **Read difficulty label** and **route to model** (see Model Routing below).
+
+2. **Set board to In Progress** before dispatch:
    ```bash
-   gh issue view <number> --json labels -q '.labels[].name' | grep "difficulty/"
+   ./scripts/issue-set-status.sh <N> in-progress
+   # Parallel wave — use batch:
+   ./scripts/batch-set-status.sh 112:in-progress 113:in-progress
    ```
 
-2. **Route to the correct model** (see Model Routing below).
+3. **Dispatch the builder** with issue number, epic branch, story branch, and plan context.
 
-3. **Set story board status to In Progress** (sequentially, before dispatch — ensures board is accurate before the builder starts):
+4. **After builder returns:** Verify "Ready for Review" comment exists. Check commits on story branch. Set board to **In Review** (`issue-set-status.sh` or `batch-set-status.sh`).
+
+5. **Post per-story telemetry** immediately:
    ```bash
-   # Single story:
-   ./scripts/issue-set-status.sh <issue-number> in-progress
-   # Parallel wave — set all to In Progress before dispatching any builders:
-   ./scripts/batch-set-status.sh 112:in-progress 113:in-progress 114:in-progress
-   ```
-   For parallel waves, `batch-set-status.sh` fetches current status for all issues before any mutations (skips already-correct) and applies mutations sequentially per the GitHub Projects API constraint.
-
-4. **Dispatch the builder** with the story's issue number and context. The prompt should include:
-   - The issue number and title
-   - The epic branch name
-   - The story branch name
-   - Any relevant context from the plan
-
-5. **Verify completion** after the builder returns:
-   ```bash
-   # Check for "Ready for Review" comment
-   gh issue view <number> --json comments -q '.comments[] | .body' | grep -q "Ready for Review"
-   # Check for commits on story branch
-   git log --oneline epic/<slug>..e<NN>-s<NN>/<branch> | head -5
+   ./scripts/issue-telemetry.sh <N> --model <model> --duration <ms> \
+     --commit $(git rev-parse e<NN>-s<NN>/<branch>) --tokens <tokens> --tool-uses <uses>
    ```
 
-6. **Set story board status to In Review** (sequentially, after builder completes):
+6. **Record dispatch in state file:**
    ```bash
-   # Single story:
-   ./scripts/issue-set-status.sh <issue-number> in-review
-   # After a parallel wave completes — set all to In Review at once:
-   ./scripts/batch-set-status.sh 112:in-review 113:in-review 114:in-review
+   ./scripts/state.sh update --dispatch '{"agent":"builder-sonnet","model":"sonnet","issue":112,"started_at":"...","duration_ms":109000,"tokens":103000,"tool_uses":18,"result":"success"}'
    ```
 
-7. **Post telemetry** immediately after each builder completes:
+7. **Update epic board status** to In Progress when first story starts.
+
+8. **After each parallel wave:** Verify board statuses (`batch-set-status.sh`). Verify issue comments — post any missing retroactively:
    ```bash
-   ./scripts/issue-telemetry.sh <issue-number> \
-     --model <haiku|sonnet|opus> \
-     --duration <duration_ms> \
-     --commit <commit-hash> \
-     --tokens <total_tokens> \
-     --tool-uses <tool_uses>
+   for ISSUE_NUM in <wave story numbers>; do
+     COMMENTS=$(gh issue view $ISSUE_NUM --json comments -q '.comments[].body')
+     echo "$COMMENTS" | grep -q "Work Started" || gh issue comment $ISSUE_NUM --body "Work Started (posted retroactively by orchestrator)"
+     echo "$COMMENTS" | grep -q "Ready for Review" || gh issue comment $ISSUE_NUM --body "Ready for Review (posted retroactively by orchestrator)"
+   done
    ```
-   The commit hash comes from the story branch head: `git rev-parse e<NN>-s<NN>/<branch>`
+   Parallel builders may fail to post comments due to API contention (see Run 4, Run 11).
 
-8. **Update epic board status** to In Progress when the first story starts:
-   ```bash
-   ./scripts/issue-set-status.sh <epic-issue> in-progress
-   ```
-
-9. **Verify board status after each wave** (for parallel dispatch): Use `batch-set-status.sh` to set all stories to In Review in a single invocation. The script fetches current status before mutations (skips already-correct), applies sequentially, and runs a shared verification pass:
-   ```bash
-   ./scripts/batch-set-status.sh <N1>:in-review <N2>:in-review <N3>:in-review
-   ```
-
-10. **Verify issue comments after each parallel wave** (REQUIRED): Query each story for expected comments ("Work Started" from `issue-start.sh`, "Ready for Review" from `issue-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively:
-    ```bash
-    for ISSUE_NUM in <wave story numbers>; do
-      COMMENTS=$(gh issue view $ISSUE_NUM --json comments -q '.comments[].body')
-      echo "$COMMENTS" | grep -q "Work Started" || gh issue comment $ISSUE_NUM --body "⚠️ Work Started comment missing (posted retroactively by orchestrator)"
-      echo "$COMMENTS" | grep -q "Ready for Review" || gh issue comment $ISSUE_NUM --body "⚠️ Ready for Review comment missing (posted retroactively by orchestrator)"
-    done
-    ```
-
-**Parallel dispatch:** When the dependency graph shows independent stories, dispatch their builders concurrently using multiple Agent tool calls in a single response. Each builder works on its own story branch. Set all story statuses to In Progress **sequentially before dispatch**, then review and merge sequentially after all complete. The GitHub Projects API does not handle concurrent `item-edit` calls reliably -- all board updates must be serialized.
+**Parallel dispatch:** Dispatch independent stories concurrently via multiple Agent tool calls. Set all statuses to In Progress **before** dispatch (serialized). Review and merge sequentially after. The GitHub Projects API does not handle concurrent `item-edit` calls reliably.
 
 ### Phase 6: Review Story (Mandatory)
 
-**Reviewer dispatch is mandatory for every story.** After each builder completes and before merging into the epic branch, the orchestrator MUST dispatch the reviewer. There is no skip option.
+**Reviewer dispatch is mandatory for every story.** No skip option.
 
-1. **Dispatch the reviewer** with the story issue number and branch. Select the reviewer variant based on story difficulty (read `reviewerRouting` from `.claude/agentic-sdlc-config.json` or use `CFG_REVIEW_*` from `scripts/lib/config.sh`):
-   ```
-   # Read difficulty label from the story issue, then route:
-   Agent tool → subagent_type: "reviewer-sonnet"  # difficulty/easy
-   Agent tool → subagent_type: "reviewer-opus"    # difficulty/medium or hard
-   Prompt: "Review story #<number> on branch e<NN>-s<NN>/<slug> against epic/<slug>"
-   ```
+1. **Dispatch reviewer** with story issue and branch. Route by difficulty: `reviewer-sonnet` (easy), `reviewer-opus` (medium/hard).
 
-2. **Check the review findings** on the issue comments:
-   ```bash
-   gh issue view <number> --json comments -q '.comments[-1].body'
-   ```
-
-3. **Handle issues found:**
-   - If the review verdict is `REQUEST_CHANGES`, re-dispatch the builder to fix on the same story branch
-   - **Before fix cycle dispatch:** Run post-worktree cleanup (`git status --short` + `git clean -fd`) to remove stale artifacts from prior parallel waves. Stale files can leak into fix cycle commits. Evidence: Run 14 E01-S04 fix cycle 2 picked up E02-S01's file from a stale worktree.
-   - After fixes, re-dispatch the reviewer
-   - Repeat until the verdict is `APPROVE` or `COMMENT` (max 2 fix cycles)
-
-4. **Review approved:** Proceed to merge.
+2. **Handle verdict:**
+   - `APPROVE` or `COMMENT` -> proceed to merge
+   - `REQUEST_CHANGES` -> re-dispatch builder to fix on same branch, then re-review (max 2 fix cycles)
+   - **Before fix cycle dispatch:** Run post-worktree cleanup (`git status --short` + `git clean -fd`). Evidence: Run 14 stale artifact leaked into fix cycle.
 
 ### Phase 7: Merge Story Branches
 
-**Pre-merge gate:** Before merging any story, verify a reviewer comment exists. Do NOT merge without a review:
+**Pre-merge gate:** Verify reviewer comment exists before merging. Do NOT merge without review.
 
+Merge each story into the epic branch:
 ```bash
-REVIEW_EXISTS=$(gh issue view <number> --json comments -q '[.comments[].body | select(test("Verdict|APPROVE|REQUEST_CHANGES"))] | length')
-if [ "$REVIEW_EXISTS" -eq 0 ]; then
-  # STOP — dispatch reviewer before proceeding, do not merge without review
-fi
-```
-
-After review approval, merge each story branch into the epic branch:
-
-```bash
-# Verify correct branch
-git branch --show-current  # MUST be epic/<slug>
-
 git checkout epic/<slug>
 git merge e<NN>-s<NN>/<branch> --no-ff -m "feat(epic): merge <story-title>"
+git push origin epic/<slug>
 ```
 
-**If the merge fails with a conflict:**
+**If merge conflicts:**
+1. Abort: `git merge --abort`
+2. Post a comment on the story issue with conflict details.
+3. **Do NOT resolve automatically** — conflict resolution requires human judgment. Halt and wait.
+4. Include conflict details in the backlog PR description.
 
-1. Abort the merge: `git merge --abort`
-2. Post a comment on the story issue:
-   ```bash
-   gh issue comment <number> --body "Merge conflict detected when merging into epic branch. Files in conflict: <list>. Manual intervention required."
-   ```
-3. **Do NOT attempt to resolve the conflict automatically.** Conflict resolution in production code requires human judgment about which changes to keep. Halt the workflow and wait for human intervention.
-4. Include the conflict details in the backlog PR description when it is eventually opened.
-
-**After a successful merge:**
-
+**After successful merge:** Clean up story branch only after verifying with `git branch --merged HEAD`:
 ```bash
-git push origin epic/<slug>
-
-# Clean up ONLY after verifying the merge succeeded
-# git branch -d (lowercase) refuses to delete unmerged branches — safe guardrail
-# Verify merge before deleting remote (git push --delete has NO merge check)
 git branch --merged HEAD | grep -q "e<NN>-s<NN>/<branch>" && \
   git branch -d e<NN>-s<NN>/<branch> && \
   git push origin --delete e<NN>-s<NN>/<branch>
 ```
 
-After merging all stories for an epic, merge the epic branch into the integration branch:
-
-```bash
-git checkout backlog/<N>-<slug>
-git merge epic/<slug> --no-ff -m "feat: merge epic <slug> into integration branch"
-git push origin backlog/<N>-<slug>
-
-# Clean up ONLY after verifying the merge succeeded
-git branch --merged HEAD | grep -q "epic/<slug>" && \
-  git branch -d epic/<slug> && \
-  git push origin --delete epic/<slug>
-```
-
-After merging, update the epic board status based on aggregate story state (see Epic Status Sync below).
+After all stories for an epic, merge epic into integration branch (`--no-ff`), push, clean up epic branch. Update epic board status.
 
 ### Phase 8: Open Backlog PR
 
-When all epics are merged into the integration branch:
+1. **Verify all stories complete** (no open story issues remaining).
 
-1. **Verify all stories are complete:**
-   ```bash
-   gh issue list --label "backlog/<issue>-<slug>" --label "hierarchy/story" --state open --json number,title \
-     | jq 'length'  # Should be 0 open stories (or all in review)
-   ```
-
-2. **Post per-epic telemetry** on each epic issue (scoped to that epic's stories only):
+2. **Post per-epic telemetry** on each epic issue:
    ```bash
    ./scripts/issue-telemetry.sh <epic-issue> \
-     --model "mixed (haiku, sonnet)" \
-     --cost <aggregate-dollars> \
-     --duration <total_ms> \
-     --wall-clock <wall_clock_ms> \
-     --tokens <total_tokens> \
-     --tool-uses <total_tool_uses> \
-     --commit $(git rev-parse backlog/<N>-<slug>) \
-     --breakdown "| Builder (haiku) | E01-S01 Coffee Machine (#N) | 1m | 50K | ~\$0.02 |
-   | | **Total (3 dispatches)** | **~1m** | **50K** | **~\$0.02** |"
+     --dispatches-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
+     --commit $(git rev-parse backlog/<N>-<slug>)
    ```
-
-   For mixed-model epics, pass `--cost` with the sum of per-story costs (from the breakdown). For single-model epics, omit `--cost` and pass `--model <model>` — the script computes cost from the rate.
-
-   **Tracking wall-clock time:** Wall-clock = critical path through parallel waves = `sum of max(durations) within each parallel group + all sequential segments`. **Do NOT use `$SECONDS`** as the primary source — it is unreliable across long sessions and subshells. Instead, compute the critical path from the state file's dispatch log after all dispatches complete:
-
-   ```python
-   # Group dispatches by started_at to identify parallel groups
-   # For each group: take max(duration_ms)
-   # Sum all groups = critical path (wall-clock)
-   ```
-
-   **Validation:** If the computed wall-clock equals the sequential duration sum, something is wrong — parallel dispatches should always produce a shorter critical path. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when the actual critical path was 74m 4s.
+   For mixed-model epics, add `--model 'mixed (model1, model2)' --cost <dollars>`.
 
 3. **Open ONE backlog PR:**
    ```bash
    gh pr create --base main --head backlog/<N>-<slug> \
      --title "<Backlog item title>" \
-     --body "$(cat <<'EOF'
-   ## Summary
+     --body "## Summary
    <bullet points>
 
-   Closes #<backlog-issue>, closes #<epic1-issue>, closes #<epic2-issue>, closes #<story1-issue>, closes #<story2-issue>, ...
+   Closes #<backlog>, closes #<epic1>, closes #<epic2>, closes #<story1>, ...
 
    ## Epics
    - #E1 — epic title
-     - #S1 — story title
-     - #S2 — story title
-   - #E2 — epic title
-     - #S3 — story title
-   EOF
-   )"
+     - #S1 — story title"
    ```
+   The `Closes` list MUST include backlog, ALL epics, ALL stories, and design/plan issues.
 
-   The `Closes` list MUST include the backlog issue, ALL epic issues, ALL story issues, and any design/plan issues so merging auto-closes them all.
-
-4. **Dispatch reviewer on the backlog PR** (mandatory) for a full cross-epic integration review. Always use `reviewer-opus` for the backlog PR review regardless of story difficulty — this is a cross-epic integration review:
+4. **Dispatch reviewer** on the PR (`reviewer-opus` always for cross-epic integration review):
    ```
    Agent tool → subagent_type: "reviewer-opus"
-   Prompt: "Review PR #<pr-number> for this project. Check for cross-epic
-            integration issues, convention violations, and security concerns. Post findings
-            as a review on the PR."
+   Prompt: "Review PR #<pr-number>. Check for cross-epic integration issues,
+            convention violations, and security concerns."
    ```
+   Handle fix cycles same as Phase 6 (max 2).
 
-5. **Fix issues found by the reviewer:**
-   - If the review verdict is `REQUEST_CHANGES`, dispatch a builder to fix the issues on the integration branch
-   - After fixes, re-dispatch the reviewer on the PR
-   - Repeat until the verdict is `APPROVE` or `COMMENT` (max 2 fix cycles)
-
-6. **Set the backlog issue to In Review** (all work complete, PR open for human review):
+5. **Set backlog to In Review.** Re-verify ALL board statuses (defense against drift — observed in Runs 3, 10, 11, 12):
    ```bash
-   ./scripts/issue-set-status.sh <backlog-issue> in-review
+   for ISSUE in <design> <plan> <retro>; do ./scripts/issue-close.sh $ISSUE; done
+   for ISSUE in <stories> <epics>; do ./scripts/issue-set-status.sh $ISSUE in-review; done
+   ./scripts/issue-set-status.sh <backlog> in-review
    ```
+   This step is mandatory — do not skip even if prior status calls reported success.
 
-7. **Verify all board statuses** (defense against board drift — a known GitHub Projects API bug where statuses silently revert after successful mutations, observed in Runs 3, 10, 11, 12):
-   ```bash
-   # Re-verify and fix all issue statuses
-   for ISSUE in <closed-issues: design, plan, retro>; do
-     ./scripts/issue-close.sh $ISSUE
-   done
-   for ISSUE in <story-issues> <epic-issues>; do
-     ./scripts/issue-set-status.sh $ISSUE in-review
-   done
-   ./scripts/issue-set-status.sh <backlog-issue> in-review
-   ```
-   This step is mandatory — do not skip even if all prior `issue-set-status.sh` calls reported success.
-
-8. **DO NOT merge the backlog PR.** Post a summary comment on the PR with the review status and leave it open for human review. The orchestrator NEVER auto-merges the backlog PR.
+6. **DO NOT merge the backlog PR.** Leave open for human review.
 
 ### Phase 9: Dispatch Retro Agent
 
-1. **Create a retro issue** (same pattern as design/plan issues):
-   ```bash
-   gh issue create --title "[#<N>] Write retrospective for <backlog title>" \
-     --label "type/docs,backlog/<N>-<slug>" \
-     --body "Write retrospective for backlog item #<N>."
-   ```
+1. **Create a retro issue**, link as sub-issue of backlog (`addSubIssue` GraphQL mutation), add to project board, set to In Progress.
 
-2. **Link as sub-issue of the backlog item** and set board status to In Progress:
-   ```bash
-   PARENT_ID=$(gh issue view <backlog-number> --json id -q .id)
-   CHILD_ID=$(gh issue view <retro-issue-number> --json id -q .id)
-   gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
-   gh project item-add 7 --owner carlosboeing --url <retro-issue-url> --format json
-   ./scripts/issue-set-status.sh <retro-issue-number> in-progress
-   ```
-
-3. **Dispatch the retro agent.** The retro agent commits directly on the integration branch (not a separate PR to main):
+2. **Dispatch retro agent** — commits directly on integration branch (no separate PR):
    ```
    Agent tool → subagent_type: "retro"
    Prompt: "Write retrospective for backlog item #<backlog-number>, epic <slug>, epic issue #<number>.
             Retro issue: #<retro-issue-number>.
-            Commit your retro doc and any convention changes directly on the integration branch: backlog/<N>-<slug>.
-            Do NOT create a separate docs/ branch or PR to main — everything goes on the integration branch."
+            Commit on integration branch: backlog/<N>-<slug>.
+            Do NOT create a separate docs/ branch or PR to main."
    ```
 
-4. **After the retro agent completes,** push the integration branch and close the retro issue:
-   ```bash
-   git checkout backlog/<N>-<slug> && git push
-   ./scripts/issue-close.sh <retro-issue-number>
-   ```
-
-5. **Include the retro issue in the backlog PR `Closes` list** (Phase 8) so it auto-closes on merge if not already closed.
-
-The retro doc and any convention changes will be included in the same backlog PR.
+3. Push integration branch, close retro issue (`issue-close.sh`). Include in backlog PR `Closes` list.
 
 ### Phase 10: Backlog-Level Telemetry
 
-As the final phase, post a **full lifecycle telemetry summary** on the backlog issue and in the **backlog PR description**. This captures the total cost of the entire feature across all phases — not just builders.
+Post a **full lifecycle telemetry summary** on the backlog issue and PR description.
 
-**Capture telemetry from every Agent tool dispatch throughout the workflow — including failed or limited dispatches.** The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` for each dispatched agent, regardless of whether the agent succeeded. Record these values as each agent completes or fails:
+**Record every dispatch** throughout the workflow via `state.sh update --dispatch` — including failed/limited dispatches. Capture designers, planners, builders, reviewers, and retro.
 
-| Phase | What to record |
-|-------|---------------|
-| Designer | tokens, duration, tool uses |
-| Planner | tokens, duration, tool uses |
-| Builders (per story) | tokens, duration, tool uses (already posted via `issue-telemetry.sh`) |
-| Reviewers (per story + backlog PR) | tokens, duration, tool uses |
-| Retro | tokens, duration, tool uses |
-
-**Preferred method — `--dispatches-from-state` with `--gantt-from-state`:** Pass the orchestrator state file and let the script compute everything (costs, durations, totals, and Gantt chart) automatically from the structured dispatch data using config rates. This eliminates manual cost/duration computation errors and removes the need to hand-craft Gantt task lines:
-
+**Post telemetry:**
 ```bash
 ./scripts/issue-telemetry.sh <backlog-number> \
   --dispatches-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
   --gantt-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
   --model opus \
   --commit $(git rev-parse backlog/<N>-<slug>) \
-  --footer "<trailing-notes>" \
+  --footer "<run-specific-notes>" \
   --pr <pr-number>
 ```
 
-The script reads `dispatches[]` from the state file, maps agents to phases (Design/Plan/Build/Review/Retro), computes costs using `agentic-sdlc-config.json` rates, formats durations exactly, and generates both summary and breakdown tables with correct totals. `--gantt-from-state` generates the full Mermaid Gantt body automatically from the dispatch log — color tags, task IDs, parallel offsets, and fix cycle detection are all computed by `compute-dispatches.py`. The `--footer` is still provided by the orchestrator (it contains run-specific notes). The `--wall-clock` flag is not needed when using `--dispatches-from-state` — wall-clock duration is computed automatically from the `started_at` timestamps.
+The script computes everything from the state file: costs, durations, totals, Gantt chart (with color tags and fix cycle detection), and wall-clock duration. Renders from `scripts/templates/telemetry.md`. Posts as comment on backlog issue; with `--pr`, appends to PR description.
 
-**Legacy method — manual `--summary`, `--breakdown`, and `--gantt` (use when state file is unavailable):**
+**Gantt label convention:** `<ENN-SNN> <short label> (<duration>)` for stories; agent role for non-story phases.
 
+**Compute orchestrator overhead:**
 ```bash
-./scripts/issue-telemetry.sh <backlog-number> \
-  --model opus \
-  --duration <total_sequential_ms> \
-  --wall-clock <total_wall_clock_ms> \
-  --commit $(git rev-parse backlog/<N>-<slug>) \
-  --tokens <total_tokens> \
-  --cost <total_dollars> \
-  --summary "| Design | designer | 3m 20s | 45K | ~\$0.14 |
-| Plan | planner | 5m 5s | 66K | ~\$0.20 |
-| Build | builders (7 stories) | 25m 48s | 548K | ~\$1.30 |
-| Review | reviewers (10 dispatches) | 19m 4s | 336K | ~\$1.01 |
-| Retro | retro | 2m 30s | 40K | ~\$0.12 |
-| **Total** | | **55m 47s** | **1,035K** | **~\$2.77** |" \
-  --breakdown "| Designer (opus) | Write Design Doc (#N) | 3m 20s | 45K | ~\$0.14 |
-| Planner (opus) | Write Plan Doc (#N) | 5m 05s | 66K | ~\$0.20 |
-| Builder (haiku) | E01-S01 Coffee Machine (#26) | 1m | 50K | ~\$0.02 |
-| Reviewer (opus) | Review E01-S01 (#26) | 2m | 30K | ~\$0.10 |
-| Retro (opus) | Write Retro Doc | 2m 30s | 40K | ~\$0.12 |
-| | **Total (<N> dispatches)** | **~25m** | **491K** | **~\$1.65** |" \
-  --gantt "    title Full Lifecycle Timeline
-    dateFormat HH:mm:ss
-    axisFormat %M:%S
-    tickInterval 2minute
-    Designer (3m20s)  :active, design, 00:00:00, 200s
-    Planner (5m05s)   :active, plan, after design, 305s
-    E01-S01 Build (1m) :w1b, after plan, 60s
-    E01-S01 Review (2m) :done, w1r, after w1b, 120s
-    Retro Agent (2m30s) :active, retro, after w1r, 150s" \
-  --footer "*Orchestrator overhead (parent session) not included.*
-*Non-builder agents inherited the orchestrator session's model.*
-
-Backlog PR: #104 | Commit: \`abc1234\`" \
-  --pr <pr-number>
+./scripts/state.sh overhead
 ```
+Computes `overhead_ms = wall_clock - critical_path` from dispatch timestamps. Include an "Orchestrator" row in `--footer` with overhead duration; use `---` for tokens and cost (not measurable).
 
-The script renders from `scripts/templates/telemetry.md` (single source of truth for all telemetry formatting) and:
-- Posts the full telemetry as a comment on the backlog issue
-- When `--pr` is provided with `--summary`, appends the telemetry to the PR description (not as a comment)
-
-The Gantt chart should include **all lifecycle phases** (design, plan, build waves, review waves, fix cycles, retro), not just the build timeline. No `section` directives — task labels are self-explanatory.
-
-**Gantt color tagging:**
-
-| Task tag | Color | Applies to |
-|----------|-------|------------|
-| `:active` | Violet | Design, Plan, Retro |
-| _(no tag)_ | Emerald | Build tasks |
-| `:done` | Yellow | Review tasks |
-| `:crit` | Red | Fix / re-review cycles |
-
-The `%%{init}%%` block in `scripts/templates/telemetry.md` defines the hex values.
-
-**When using `--gantt-from-state` (preferred):** `compute-dispatches.py` assigns all color tags automatically based on agent type — designers, planners, and retro agents get `:active`; builders get no tag (emerald); reviewers get `:done`; fix cycle dispatches get `:crit`. Fix cycle footer text is automatically included when fix cycles are detected in the dispatch log. The orchestrator does not need to manage tags manually.
-
-**When using manual `--gantt` (legacy):** The orchestrator controls color by choosing the correct task tag. **Do not use `:active` on build or review tasks** — builds have no tag (emerald default), reviews use `:done` (yellow). Evidence: Run 11 posted an all-violet Gantt because every task was tagged `:active`.
-
-**Value column convention:** Value cells in telemetry tables contain only numbers and units (e.g., `30m 43s`, `770K`, `~$4.79`). Never add descriptive text, annotations, or parenthetical notes to value cells — those belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `25m 12s` in Value).
-
-**Duration precision:** All duration values — including totals in Summary and Breakdown tables — must use exact `Xm Ys` format computed from summing `duration_ms` values. Do not round to approximate values like `~31m`. Use the same `format_duration()` logic as `issue-telemetry.sh`: `mins = ms / 1000 / 60`, `secs = ms / 1000 % 60`. Costs may use `~` prefix (they are estimates), but durations are measured values and must be exact.
-
-**Gantt label convention:** Labels follow the format `<ENN-SNN> <short label> (<duration>)`. The short label is generated by the orchestrator from the full issue title — a concise, readable summary (aim for ~30 characters max) that preserves meaning. Do not mechanically truncate; use judgement to produce a label that makes sense at a glance. For non-story phases, use the agent role (e.g., "Designer (3m20s)", "Planner (5m05s)", "Retro Agent (2m30s)").
-
-**Orchestrator overhead computation:** After all subagent dispatches complete, compute overhead using the wall-clock heuristic and update the state file:
-
+**Record lifecycle duration (final state file write):**
 ```bash
-# Read start timestamp from state file
-START_WALL=$(jq -r '.session.start_wall_clock' .agentic-workflow/runs/<backlog>/orchestrator.json)
-END_WALL=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-# Compute total wall-clock ms (end - start)
-TOTAL_WALL_MS=$(python3 -c "
-from datetime import datetime
-start = datetime.fromisoformat('$START_WALL'.replace('Z', '+00:00'))
-end = datetime.fromisoformat('$END_WALL'.replace('Z', '+00:00'))
-print(int((end - start).total_seconds() * 1000))
-")
-
-# Compute critical-path subagent duration from dispatches (same logic as issue-telemetry.sh)
-# overhead_duration = total_wall_clock - sum(critical_path_subagent_ms)
-# Note: token overhead is NOT directly measurable — the parent session tokens are not
-# returned by the Agent tool. estimated_cost remains null unless /cost was captured manually.
-python3 -c "
-import json
-with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
-    state = json.load(f)
-dispatches = state.get('dispatches', [])
-# Group by started_at to find parallel waves; sum max(duration) per wave
-from collections import defaultdict
-waves = defaultdict(list)
-for d in dispatches:
-    waves[d.get('started_at', '')].append(d.get('duration_ms', 0))
-critical_path_ms = sum(max(group) for group in waves.values())
-overhead_ms = $TOTAL_WALL_MS - critical_path_ms
-state['overhead']['duration_ms'] = max(overhead_ms, 0)
-state['overhead']['estimated_cost'] = None  # token overhead not measurable
-with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
-    json.dump(state, f, indent=2)
-print(f'Overhead: {max(overhead_ms, 0) // 60000}m {(max(overhead_ms, 0) // 1000) % 60}s')
-"
+./scripts/state.sh lifecycle-duration
 ```
-
-**Include an "Orchestrator" row in the backlog telemetry summary:** When posting Phase 10 telemetry, add a row for orchestrator overhead after all other phases. Use the computed `overhead.duration_ms` from the state file. Token count is not measurable — use `—` for tokens and `—` for cost:
-
-```
-| Orchestrator | overhead (branch ops, merges, board mgmt) | 12m 30s | — | — |
-```
-
-Add this row to both `--summary` and `--breakdown` when using the legacy manual method, and append it via `--footer` when using `--dispatches-from-state` (since the script doesn't include an Orchestrator row automatically). Include a note in `--footer` that orchestrator tokens are not captured.
-
-**Token overhead note:** Orchestrator token consumption is not returned by the Agent tool (it runs in the parent session). The duration-based heuristic via `start_wall_clock` gives a reliable time estimate. Cost remains an approximation — note in the footer: `*Orchestrator token overhead not included in cost estimate.*`
-
-**Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically via the template.
-
-**Record lifecycle_duration_ms (REQUIRED — last step before cleanup):** After all telemetry is posted, record the total wall-clock lifecycle duration in the state file. This field captures the full run duration as a comparable baseline for trend analysis across runs:
-
-```bash
-# Compute lifecycle duration: from session.started_at to now (after telemetry posted)
-python3 -c "
-import json
-from datetime import datetime, timezone
-with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
-    state = json.load(f)
-started_at = state['session']['started_at']
-start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-end = datetime.now(timezone.utc)
-lifecycle_ms = int((end - start).total_seconds() * 1000)
-state['session']['lifecycle_duration_ms'] = lifecycle_ms
-with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
-    json.dump(state, f, indent=2)
-mins = lifecycle_ms // 60000
-secs = (lifecycle_ms // 1000) % 60
-print(f'Lifecycle duration: {mins}m {secs}s')
-"
-```
-
-This must be the final state file write before Phase 11 cleanup begins.
 
 ### Phase 11: Post-Merge Cleanup
 
-This phase happens AFTER the human merges the backlog PR. If the orchestrator is still in session, it should run cleanup immediately. Otherwise, run it at the start of the next session.
+After the human merges the backlog PR (`gh pr merge --squash`):
 
-After the backlog PR is merged (by human via `gh pr merge --squash`):
-
-1. **Set board status to Done** for all issues (the `Closes` clause auto-closes them, but board status needs explicit update):
-   ```bash
-   for ISSUE in <backlog> <design> <plan> <retro> <epic1> <epic2> <story1> <story2> ...; do
-     ./scripts/issue-close.sh $ISSUE
-   done
-   ```
-
-2. **Run the comprehensive cleanup script:**
-   ```bash
-   git checkout main && git pull
-   ./scripts/cleanup-post-merge.sh <backlog-number>
-   ```
-
-   This single command handles everything: stale worktrees, merged and orphaned local branches, stale remote workflow branches, remote tracking ref pruning, and state directory cleanup. It also sweeps up artifacts from previous runs that weren't cleaned properly.
-
-3. **Verify clean state** (the script prints this, but confirm):
-   - Only `main` branch locally
-   - No workflow branches on remote (`backlog/`, `epic/`, `e0N-*`, `docs/`)
-   - No stale worktrees
-   - `.agentic-workflow/runs/` empty
-
+1. **Set board to Done** for all issues (`issue-close.sh` for each).
+2. **Run cleanup:** `git checkout main && git pull && ./scripts/cleanup-post-merge.sh <backlog-number>`
+3. **Verify:** only `main` locally, no workflow branches on remote, no stale worktrees, `.agentic-workflow/runs/` empty.
 
 ## Model Routing
 
-Read the difficulty label from the GitHub Issue and map to the correct builder variant:
+| Difficulty Label | Builder Variant | Reviewer Variant |
+|-----------------|----------------|-----------------|
+| `difficulty/easy` | `builder-sonnet` | `reviewer-sonnet` |
+| `difficulty/medium` | `builder-sonnet` | `reviewer-opus` |
+| `difficulty/hard` | `builder-opus` | `reviewer-opus` |
 
-| Difficulty Label | Builder Variant | Model | Use Case |
-|-----------------|----------------|-------|----------|
-| `difficulty/easy` | `builder-sonnet` | Sonnet | Single-file, config, docs, simple tests |
-| `difficulty/medium` | `builder-sonnet` | Sonnet | Multi-file, standard patterns, EF migrations |
-| `difficulty/hard` | `builder-opus` | Opus | Cross-project, new abstractions, security |
+Extract label: `gh issue view <N> --json labels -q '[.labels[].name | select(startswith("difficulty/"))] | first'`
 
-**Extract the label:**
-```bash
-DIFFICULTY=$(gh issue view <number> --json labels -q \
-  '[.labels[].name | select(startswith("difficulty/"))] | first' \
-  | sed 's/difficulty\///')
-```
-
-**Map to subagent_type:**
-- `easy` -> `"builder-sonnet"`
-- `medium` -> `"builder-sonnet"`
-- `hard` -> `"builder-opus"`
-
-If no difficulty label is found, default to `"builder-sonnet"` and post a warning comment on the issue.
+If no difficulty label, default to `builder-sonnet` and post a warning.
 
 ## GitHub State Management
 
 ### Project Board Updates
 
-All project board constants (Project ID, Status Field ID, option IDs) are defined in CLAUDE.md — that is the single source of truth. Do not duplicate them here. The orchestrator only needs three statuses: **In Progress**, **In Review**, and **Done** — look up their option IDs in CLAUDE.md's status option table.
-
-**Always use `issue-set-status.sh`** for board updates — it handles item ID lookup (via lightweight per-issue GraphQL), status mapping, validation, retry, and logging:
-
-```bash
-./scripts/issue-set-status.sh <issue-number> in-progress
-```
-
-Do not use `gh project item-list` or manual `item-edit` commands — they are expensive (~200 points/call) and error-prone. See CLAUDE.md § "GitHub GraphQL API rate limit awareness" for details.
+All board constants (Project ID, option IDs) are in CLAUDE.md — single source of truth. **Always use `issue-set-status.sh`** for updates. Do not use `gh project item-list` (expensive, ~200 points/call).
 
 ### Epic Status Sync
 
-An epic's board status must reflect the aggregate of its stories. Update the epic's status whenever a story transitions:
-
-- At least one story is **In Progress** -> epic is **In Progress**
-- All stories are **In Review** (none In Progress or Ready) -> epic is **In Review**
-- All stories are **Done** -> epic is **Done**
-
-Check story states after each transition and update the epic accordingly.
+Update epic board status whenever a story transitions:
+- At least one story In Progress -> epic In Progress
+- All stories In Review -> epic In Review
+- All stories Done -> epic Done
 
 ## Telemetry
 
 ### Per-Story Telemetry
 
-Post telemetry immediately after each builder completes. The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses`.
+Post immediately after each builder. Every story must have three comments: "Work Started" (`issue-start.sh`), "Ready for Review" (`issue-review.sh`), "Telemetry" (`issue-telemetry.sh`).
 
-```bash
-./scripts/issue-telemetry.sh <issue-number> \
-  --model <haiku|sonnet|opus> \
-  --duration <duration_ms> \
-  --commit $(git rev-parse e<NN>-s<NN>/<branch>) \
-  --tokens <total_tokens> \
-  --tool-uses <tool_uses>
-```
+### Cost Computation
 
-Every completed story must have three comments on its issue:
-1. "Work Started" (posted by builder via `issue-start.sh`, which also sets board to In Progress)
-2. "Ready for Review" (posted by builder via `issue-review.sh`, which also sets board to In Review)
-3. "Telemetry" (posted by orchestrator via `issue-telemetry.sh`)
-
-### Cost Computation (CRITICAL)
-
-**Never hardcode or memorize token rates.** Always read rates from `.claude/agentic-sdlc-config.json` before computing cost estimates for `--breakdown`, `--summary`, or `--cost` strings. The config rates may differ significantly from `fetch-pricing.sh` defaults (e.g., Opus: $30/M blended in config vs $10/M in fetch-pricing).
-
-**How to compute a cost estimate:**
-
-```bash
-# Read blended rate from cached pricing (written by fetch-pricing.sh)
-PRICING_FILE=".agentic-workflow/pricing.json"
-OPUS_RATE=$(jq -r '(.rates.opus.inputPerM * 0.75 + .rates.opus.outputPerM * 0.25)' "$PRICING_FILE")
-SONNET_RATE=$(jq -r '(.rates.sonnet.inputPerM * 0.75 + .rates.sonnet.outputPerM * 0.25)' "$PRICING_FILE")
-
-# Compute cost for a dispatch: tokens / 1M * rate
-# Example: opus dispatch with 45000 tokens = 45000 / 1000000 * 10 = $0.45
-```
-
-Apply this to every cost cell in `--breakdown` and `--summary` strings. The preferred method is `--dispatches-from-state` which computes everything automatically from the state file and cached pricing.
-
-**Evidence:** Run 12 underreported costs by 2.6x because the orchestrator used memorized rates instead of the cached pricing file.
+**Never hardcode or memorize token rates.** Use `--dispatches-from-state` to compute costs automatically from the state file and cached pricing. If manual computation is needed, read rates from `.agentic-workflow/pricing.json`.
 
 ### Epic-Level Telemetry
 
-When all stories in an epic are complete, post aggregate telemetry on the epic issue:
-
-- **Duration (`--duration`):** Sum all story `duration_ms` values (sequential total)
-- **Wall-clock (`--wall-clock`):** Actual elapsed time from first dispatch to last completion. Track with `$SECONDS` before/after wave dispatch.
-- **Tokens:** Sum all story `total_tokens` values
-- **Tool uses:** Sum all story `tool_uses` values
-- **Model:** Use the highest-tier model across all stories (opus > sonnet > haiku)
-- **Commit:** Use the epic branch head (`git rev-parse epic/<slug>`)
-- **Breakdown:** Per-story rows using `Agent | Task | Duration | Tokens | Est. Cost` columns, with a Total row including dispatch count. **All cost cells must use config rates** (see Cost Computation above).
+Post on each epic issue using `--dispatches-from-state`. Only include that epic's stories. Cross-epic aggregate belongs only on the backlog issue and PR.
 
 ## Error Handling
 
-**Always capture telemetry from failed dispatches.** The Agent tool returns `duration_ms`, `total_tokens`, and `tool_uses` even when the agent fails, hits usage limits, or produces no useful output. Record these values and include them in aggregate telemetry. Failed dispatches still consume tokens and time — zeroing them out underreports actual costs.
+**Always capture telemetry from failed dispatches.** The Agent tool returns metrics even on failure. Record them and include in aggregates — zeroing out underreports costs.
 
-**Resumed agents — accumulate metrics defensively.** When an agent is interrupted (usage limit, timeout) and later resumed via the Agent tool's `resume` parameter, it is unknown whether the resumed result includes cumulative metrics or only the delta from the resumed portion. To be safe:
+**Resumed agents — accumulate metrics defensively.** When an agent is interrupted and later resumed via the Agent tool's `resume` parameter, it is unknown whether the resumed result includes cumulative metrics or only the delta. To be safe:
 
-1. **Capture metrics from each invocation** — record `duration_ms`, `total_tokens`, and `tool_uses` from both the interrupted return and the resumed return.
-2. **Sum them** for the final telemetry entry. If the platform turns out to report cumulative values, the worst case is double-counting (which is correctable). If it reports only deltas, summing is required for accuracy.
-3. **Note resumptions in telemetry** — when a dispatch was interrupted and resumed, mark the telemetry as `(resumed)` so future analysis can identify and correct any double-counting.
-
-This defensive approach ensures we never silently lose token consumption from interrupted runs.
+1. Capture metrics from each invocation (interrupted + resumed).
+2. Sum them for the final telemetry entry.
+3. Mark as `(resumed)` so future analysis can identify potential double-counting.
 
 ### Orchestrator State File
 
-The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json`. This file is gitignored (ephemeral workflow state, not project content) and is cleaned up after the backlog PR merges.
+Persists workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json` (gitignored, cleaned after merge). Enables instant recovery on resume without re-querying GitHub.
 
-**Why:** The orchestrator holds phase progress, story status, pricing, telemetry, and review results in memory. If the session is interrupted (usage limit, crash, window closed) and resumed later, all of this is lost. The state file ensures instant recovery without re-querying GitHub.
-
-**Directory structure:**
-
-```
-.agentic-workflow/runs/
-  <backlog>/                        ← per-backlog directory
-    orchestrator.json               ← workflow state (orchestrator-owned)
-```
-
-Future agents may add sibling files (e.g., `builder-112.json`, `reviewer-112.json`) for their own working state. The orchestrator only reads/writes `orchestrator.json`.
-
-#### State Schema (version 1)
-
-```json
-{
-  "version": 1,
-  "session": {
-    "backlog": 106,
-    "mode": "autonomous",
-    "orchestrator_model": "opus",
-    "started_at": "2026-03-10T14:00:00Z",
-    "lifecycle_duration_ms": null,
-    "start_wall_clock": "2026-03-10T14:00:00Z",
-    "repo": "carlosboeing/agentic-sdlc-workflow",
-    "git_main_sha": "d1c7532"
-  },
-  "overhead": {
-    "duration_ms": null,
-    "estimated_cost": null
-  },
-  "pricing": {
-    "source": "anthropic-pricing-page",
-    "source_detail": "opus:4.6, sonnet:4.6, haiku:4.5",
-    "fetched_at": "2026-03-10T14:00:05Z",
-    "rates": {
-      "opus":   { "inputPerM": 5.00, "outputPerM": 25.00 },
-      "sonnet": { "inputPerM": 3.00, "outputPerM": 15.00 },
-      "haiku":  { "inputPerM": 1.00, "outputPerM": 5.00 }
-    }
-  },
-  "phases": {
-    "design":  { "status": "complete", "pr": 117, "telemetry": { "duration_ms": 207799, "tokens": 64000, "tool_uses": 42, "model": "opus" } },
-    "plan":    { "status": "complete", "pr": 108, "telemetry": { "duration_ms": 486000, "tokens": 75000, "tool_uses": 55, "model": "opus" } },
-    "build":   { "status": "in_progress" },
-    "review":  { "status": "pending" },
-    "retro":   { "status": "pending" }
-  },
-  "epics": {
-    "e01": {
-      "issue": 110, "branch": "epic/e01-destination-profiles", "pr": null,
-      "stories": {
-        "112": {
-          "status": "reviewed", "branch": "e01-s01/kepler-442b", "difficulty": "easy", "model": "sonnet",
-          "build": { "duration_ms": 109000, "tokens": 103000, "tool_uses": 18 },
-          "review": { "duration_ms": 117000, "tokens": 38000, "tool_uses": 12, "verdict": "APPROVE" }
-        }
-      }
-    }
-  },
-  "dispatches": [
-    { "id": 1, "agent": "designer",      "model": "opus",  "issue": null, "started_at": "2026-03-10T14:00:05Z", "finished_at": "2026-03-10T14:03:32Z", "duration_ms": 207799, "tokens": 64000,  "tool_uses": 42, "result": "success" },
-    { "id": 2, "agent": "planner",      "model": "opus",  "issue": null, "started_at": "2026-03-10T14:03:40Z", "finished_at": "2026-03-10T14:11:46Z", "duration_ms": 486000, "tokens": 75000,  "tool_uses": 55, "result": "success" },
-    { "id": 3, "agent": "builder-haiku",  "model": "haiku", "issue": 112,  "started_at": "2026-03-10T14:12:00Z", "finished_at": "2026-03-10T14:13:49Z", "duration_ms": 109000, "tokens": 103000, "tool_uses": 18, "result": "success" },
-    { "id": 4, "agent": "reviewer",       "model": "opus",  "issue": 112,  "started_at": "2026-03-10T14:13:55Z", "finished_at": "2026-03-10T14:15:52Z", "duration_ms": 117000, "tokens": 38000,  "tool_uses": 12, "result": "APPROVE" }
-  ]
-}
-```
-
-**Schema fields:**
-
-| Section | Field | Purpose |
-|---------|-------|---------|
-| `version` | `1` | Schema version for forward compatibility. Readers must tolerate unknown keys. |
-| `session.orchestrator_model` | `"opus"` | The model the orchestrator session is running. All `model: inherit` agents inherit this. Critical for accurate cost estimates. |
-| `session.lifecycle_duration_ms` | `null` (nullable) | Set at the end of Phase 10 after all telemetry is posted and before cleanup begins. Represents wall-clock time from `session.started_at` to the final telemetry post. Provides a comparable baseline across runs for trend analysis. |
-| `session.start_wall_clock` | `"2026-03-10T14:00:00Z"` | ISO timestamp recorded at the moment the state file is written (Phase 0). Used in Phase 10 to compute orchestrator overhead duration: `overhead_duration = total_wall_clock - sum(all_subagent_durations_critical_path)`. |
-| `session.git_main_sha` | `"d1c7532"` | Main branch HEAD at workflow start. Detects if main moved during the run. |
-| `overhead.duration_ms` | `null` (nullable) | Computed in Phase 10 after all subagent dispatches complete. Formula: `wall_clock_ms - sum(critical_path_subagent_ms)`. Null until computed. |
-| `overhead.estimated_cost` | `null` (nullable) | Not directly measurable — token overhead is not returned by the Agent tool for the parent session. Set to null unless the orchestrator captures `/cost` output manually at session start and end. |
-| `pricing.rates` | `{...}` | Token rates fetched at session start. Used by `issue-telemetry.sh` via `--rate`. |
-| `pricing.source` | `"anthropic-pricing-page"` | Where rates came from (`anthropic-pricing-page`, `litellm-community`, or previous cache). |
-| `phases` | `{...}` | Status of each workflow phase (pending, in_progress, complete, skipped). |
-| `epics.*.base_sha` | `"e6f79d6"` | The epic branch HEAD commit SHA recorded in Phase 4 when the epic branch is created. All story branches for this epic are created from this commit. Used to detect cross-contamination (a story branch diverged from the expected base). |
-| `epics.*.stories.*.status` | `"reviewed"` | Story status (pending, building, built, reviewing, reviewed, merged, done). |
-| `dispatches[].started_at` | `"2026-03-10T14:12:00Z"` | ISO timestamp captured immediately before Agent tool dispatch using `$(date -u +%Y-%m-%dT%H:%M:%SZ)`. For parallel waves, all dispatches in the wave share the same `started_at`. |
-| `dispatches[].finished_at` | `"2026-03-10T14:13:49Z"` | ISO timestamp computed as `started_at + duration_ms` after the Agent tool returns. |
-| `dispatches[]` | `[...]` | Append-only log of every agent dispatch. Raw data for telemetry and debugging. |
+**Schema:** See `scripts/schemas/orchestrator-state.v1.json` for full definition. Key fields:
+- `session.start_wall_clock` — Phase 0 timestamp, used for overhead computation
+- `epics.*.base_sha` — recorded in Phase 4, detects cross-contamination
+- `dispatches[]` — append-only log of every dispatch
 
 #### State Lifecycle
 
-**1. Initialize (Phase 0)**
+**Initialize:** `./scripts/state.sh init <N> --mode autonomous --model opus`
 
-At the very start of the workflow, before any other work:
+The script calls `fetch-pricing.sh` internally (tier 1: Anthropic pricing page, tier 2: litellm community JSON, tier 3: local cache). If config has a `pricing` section, that overrides fetching.
 
+**Update** after phase changes, dispatches, story transitions, review verdicts:
 ```bash
-mkdir -p .agentic-workflow/runs/<backlog>
-
-# Fetch live pricing
-PRICING=$(./scripts/fetch-pricing.sh)
-
-# Detect orchestrator model from the current session
-# (The orchestrator knows its own model from the session context)
-
-# Capture wall-clock start timestamp (used later to compute orchestrator overhead)
-START_WALL_CLOCK=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-# Write initial state
-cat > .agentic-workflow/runs/<backlog>/orchestrator.json << EOF
-{
-  "version": 1,
-  "session": {
-    "backlog": <number>,
-    "mode": "autonomous",
-    "orchestrator_model": "<model>",
-    "started_at": "$START_WALL_CLOCK",
-    "start_wall_clock": "$START_WALL_CLOCK",
-    "repo": "carlosboeing/agentic-sdlc-workflow",
-    "git_main_sha": "$(git rev-parse --short HEAD)"
-  },
-  "overhead": {
-    "duration_ms": null,
-    "estimated_cost": null
-  },
-  "pricing": $PRICING,
-  "phases": {
-    "design": { "status": "pending" },
-    "plan": { "status": "pending" },
-    "build": { "status": "pending" },
-    "review": { "status": "pending" },
-    "retro": { "status": "pending" }
-  },
-  "epics": {},
-  "dispatches": []
-}
-EOF
+./scripts/state.sh update --dispatch '<json>'
+./scripts/state.sh update --story <N> --status <status>
+./scripts/state.sh update --phase <name> --status <status>
+./scripts/state.sh update --epic <slug> --base-sha <sha>
 ```
-
-**Detecting the orchestrator model:** The orchestrator knows which model it's running from the session context. If uncertain, state this in the session field and note it as unknown — do not guess.
-
-**Pricing fetch:** Always run `./scripts/fetch-pricing.sh` at session start. The script fetches live rates from Anthropic's pricing page (tier 1), falls back to the litellm community JSON (tier 2), then to the local cache from a previous successful fetch (tier 3). On success, it writes `.agentic-workflow/pricing.json`. If the config has a `pricing` section, skip fetching — the config is a user override.
-
-**2. Update (after every checkpoint event)**
-
-Update the state file after each of these events:
-- Phase status change (design started, plan complete, etc.)
-- Agent dispatch completed (record in `dispatches[]` and update `phases`/`epics`)
-- Story status change (building → built → reviewing → reviewed → merged)
-- Review verdict received
-- Backlog PR opened
 
 **Timestamp recording convention:**
+- `started_at`: Capture `$(date -u +%Y-%m-%dT%H:%M:%SZ)` immediately **before** Agent tool dispatch
+- Parallel waves: all dispatches share the same `started_at` (enables parallelism detection)
+- `finished_at`: Computed by `state.sh update --dispatch` from `started_at + duration_ms`
 
-- **`started_at`:** Capture using `$(date -u +%Y-%m-%dT%H:%M:%SZ)` immediately before invoking the Agent tool — not after. This ensures the timestamp reflects when the dispatch actually began.
-- **Parallel waves:** Record a single `started_at` before the first dispatch in the wave. All dispatches in the same wave share that timestamp. This is what allows `issue-telemetry.sh` to detect parallelism (same `started_at` → parallel group → take `max(duration_ms)`).
-- **`finished_at`:** Computed after the Agent tool returns: `started_at + duration_ms`. The orchestrator adds this field when recording the dispatch.
-
-Use `python3` or `jq` to update the JSON in place. Example:
-
-```bash
-# Capture timestamp immediately before dispatch
-DISPATCH_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-# ... invoke Agent tool ...
-# After Agent tool returns (duration_ms = 109000):
-DISPATCH_FINISHED=$(python3 -c "
-from datetime import datetime, timedelta, timezone
-start = datetime.fromisoformat('${DISPATCH_START}'.replace('Z', '+00:00'))
-end = start + timedelta(milliseconds=109000)
-print(end.strftime('%Y-%m-%dT%H:%M:%SZ'))
-")
-
-# Update a story's build telemetry after builder completes
-python3 -c "
-import json
-with open('.agentic-workflow/runs/<backlog>/orchestrator.json') as f:
-    state = json.load(f)
-state['epics']['e01']['stories']['112']['build'] = {
-    'duration_ms': 109000, 'tokens': 103000, 'tool_uses': 18
-}
-state['epics']['e01']['stories']['112']['status'] = 'built'
-state['dispatches'].append({
-    'id': len(state['dispatches']) + 1,
-    'agent': 'builder-haiku', 'model': 'haiku', 'issue': 112,
-    'started_at': '${DISPATCH_START}',
-    'finished_at': '${DISPATCH_FINISHED}',
-    'duration_ms': 109000, 'tokens': 103000, 'tool_uses': 18,
-    'result': 'success'
-})
-with open('.agentic-workflow/runs/<backlog>/orchestrator.json', 'w') as f:
-    json.dump(state, f, indent=2)
-"
-```
-
-**3. Read (on resume or for telemetry)**
-
-On session start, check for an existing state file:
-
-```bash
-STATE_FILE=".agentic-workflow/runs/<backlog>/orchestrator.json"
-if [ -f "$STATE_FILE" ]; then
-  # Resume: load state and skip to current phase
-  CURRENT_PHASE=$(jq -r '.phases | to_entries[] | select(.value.status == "in_progress") | .key' "$STATE_FILE")
-fi
-```
-
-**Reading pricing for telemetry:** When calling `issue-telemetry.sh`, read the rate from state:
-
-```bash
-RATE=$(jq -r '.rates.<model>.inputPerM' and '.rates.<model>.outputPerM' .agentic-workflow/runs/<backlog>/orchestrator.json)
-./scripts/issue-telemetry.sh <issue> --model <model> --rate "$RATE" --duration <ms> --commit <hash> ...
-```
-
-**4. Clean up (Phase 9 — post-merge)**
-
-After the backlog PR merges and all telemetry is posted:
-
-```bash
-rm -rf .agentic-workflow/runs/<backlog>/
-```
-
-Only clean up after ALL work is complete (telemetry posted, issues closed, retro dispatched). The state directory is the last thing removed.
+**Read:** `./scripts/state.sh get '<jq-path>'`
 
 #### Fallback (no state file)
 
-If the state file is missing (machine failure, different machine, manual deletion), the orchestrator falls back to the existing idempotent restart logic:
-- Check GitHub for "Ready for Review" comments and issue states
-- Check which story branches are merged into epic branches
-- Re-fetch pricing via `./scripts/fetch-pricing.sh`
-
-The state file is an optimisation for instant recovery, not a hard dependency. GitHub remains the durable source of truth for issue state.
+Run `./scripts/state.sh reconstruct <backlog-number>` to rebuild from GitHub comments, branch state, and board status. **Note:** `reconstruct` is currently a stub (not yet implemented). Until then, use idempotent restart logic: check "Ready for Review" comments, merged branches, re-fetch pricing.
 
 #### State Readers
 
 | Reader | What it reads | When |
 |--------|--------------|------|
 | Orchestrator | Everything | On resume, before each phase |
-| `issue-telemetry.sh` | `pricing.rates` (reads `.agentic-workflow/pricing.json` directly) | When posting telemetry |
-| Retro agent | `dispatches[]`, `epics.*` | When writing the retrospective |
-| Future agents | `session`, `pricing` (shared context) | When they need session-level info |
+| `issue-telemetry.sh` | `pricing.rates` (via `.agentic-workflow/pricing.json`) | When posting telemetry |
+| Retro agent | `dispatches[]`, `epics.*` | When writing retrospective |
+| Future agents | `session`, `pricing` | When they need session-level info |
 
 ### Designer/Planner Dispatch Failure
 
-If the designer or planner dispatch fails (Agent tool reports failure, usage limit hit, or produces no usable output):
+1. Capture telemetry from the failed dispatch.
+2. Post failure comment, re-dispatch same agent.
+3. If second attempt fails, **abort workflow** (post comment on backlog issue).
 
-1. **Capture telemetry** from the Agent tool result (`duration_ms`, `total_tokens`, `tool_uses`) — failed dispatches still consume tokens.
-2. Post a failure comment on the design/plan issue:
-   ```bash
-   gh issue comment <number> --body "Designer dispatch failed. Re-dispatching..."
-   ```
-3. Re-dispatch the same agent (same prompt, same integration branch).
-4. If the second attempt fails, **abort the workflow** and post a comment on the backlog issue:
-   ```bash
-   gh issue comment <backlog-number> --body "Designer/planner dispatch failed twice. Manual intervention required. Workflow halted at Phase <N>."
-   ```
-5. Include failed dispatch telemetry in the aggregate totals.
-
-**Why abort (not continue):** Designer and planner are sequential gates — everything downstream depends on their output. Unlike a builder failure (which blocks one story), a designer/planner failure blocks the entire backlog item.
+**Why abort:** Designer/planner are sequential gates — everything downstream depends on their output.
 
 ### Builder Dispatch Failure
 
-If a builder returns a non-zero exit code or the Agent tool reports failure:
-
-1. **Capture telemetry** from the Agent tool result (`duration_ms`, `total_tokens`, `tool_uses`) before re-dispatching.
-2. Post a failure comment on the story issue:
-   ```bash
-   gh issue comment <number> --body "Builder dispatch failed. Exit code: <code>. Re-dispatching..."
-   ```
-3. Re-dispatch the builder (same model, same branch).
-4. If the second attempt fails, post a comment and stop:
-   ```bash
-   gh issue comment <number> --body "Builder dispatch failed twice. Manual intervention required."
-   ```
-5. Include failed dispatch telemetry in the aggregate totals (tokens, duration, cost).
+1. Capture telemetry, post failure comment, re-dispatch (same model, same branch).
+2. If second attempt fails, post comment and halt.
+3. Include failed dispatch telemetry in aggregates.
 
 ### Review Rejection
 
-Reviewer dispatch is mandatory — both per-story (Phase 6) and on the backlog PR (Phase 8 step 4). If the reviewer finds critical issues:
-
-1. Re-dispatch the builder to fix (on the story branch or integration branch, depending on phase). Include the review findings in the prompt.
-2. After fixes, re-dispatch the reviewer.
-3. Maximum 2 fix cycles per review. If still failing after 2 rounds, post a comment and request human intervention.
-
-### System Prompt Hardening for Sub-Agent Communication
-
-When Norris uses `SdlcWorkflowTool` (or `ClaudeDispatchTool` directly) to dispatch a sub-agent and later sends a human response back to a running session, the content must be wrapped in the `[USER RESPONSE]:` envelope:
-
-```
-[USER RESPONSE]: <the human's actual message here>
-```
-
-This envelope is applied automatically by `ClaudeDispatchTool.DispatchAsync` when a `sessionId` is provided (resume path). The purpose is to help the sub-agent distinguish between:
-- Original orchestrator instructions (top-level prompt, no envelope)
-- Subsequent user/human input relayed through the orchestrator (envelope present)
-
-**Why this matters for security:** Without the envelope, a sub-agent receiving a resume prompt cannot tell whether the content came from the orchestrator's controlled context or from untrusted user input being relayed. The envelope creates a clear boundary. Do not strip or modify the envelope when forwarding user messages.
+1. Re-dispatch builder with review findings (on story or integration branch).
+2. Re-dispatch reviewer after fixes.
+3. Max 2 fix cycles. After that, request human intervention.
 
 ### Idempotent Restart
 
-The orchestrator can be re-run safely on a partially completed backlog item. On startup:
+The orchestrator can re-run safely on a partially completed backlog item:
 
-1. Check each story for a "Ready for Review" comment -- skip completed stories.
-2. Check which story branches are already merged into the epic branch:
-   ```bash
-   git branch --merged epic/<slug> | grep "e<NN>-s"
-   ```
-3. Check which epic branches are already merged into the integration branch:
-   ```bash
-   git branch --merged backlog/<N>-<slug> | grep "epic/"
-   ```
-4. Resume from the first incomplete story in dependency order.
+1. Check stories for "Ready for Review" comments — skip completed.
+2. Check merged branches (`git branch --merged epic/<slug>`, `git branch --merged backlog/<N>-<slug>`).
+3. Resume from first incomplete story in dependency order.
 
 ## Capturing Lessons
 
-When you encounter a bug, unexpected behavior, missing convention, or anything worth remembering for future work, create a lesson file immediately -- don't defer it.
+When you encounter a bug, unexpected behavior, or missing convention, create a lesson file immediately.
 
-**When to write a lesson:**
+**When:** dispatch failures, unexpected API behavior, merge workarounds, incorrect dependency graphs.
 
-- A dispatch command failed due to an undocumented flag or API change
-- Board update commands needed unexpected parameters
-- Telemetry extraction from Agent tool results was unreliable
-- A merge conflict or branch operation required a workaround
-- The dependency graph in the plan was incorrect or incomplete
+**How:** Create in `docs/4-reviews/lessons/<backlog>-<slug>/eNN-<epic>/YYYY-MM-DD-sNN-<slug>.md` with frontmatter (date, author: `orchestrator`, story, tags, severity) and sections (What happened, Root cause, Prevention).
 
-**How to write a lesson:**
-
-1. Create a file in `docs/4-reviews/lessons/<backlog-issue>-<feature-slug>/eNN-<epic-slug>/`
-2. Use the naming convention: `YYYY-MM-DD-sNN-<slug>.md`
-3. Add YAML frontmatter with: date, author (`orchestrator`), story, tags, severity
-4. Write sections: What happened, Root cause, Prevention
-5. Commit the lesson as part of the current workflow
-
-**Discovery:** Find relevant lessons from prior orchestration work:
-
-```bash
-grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/
-```
-
-Lessons are your notes for future agents. Write them at the moment of discovery -- context is lost if you defer.
+**Discovery:** `grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/`
 
 ## Orchestrator Override Pattern
 
-There are situations where the orchestrator has already fixed an issue before the reviewer is dispatched — for example, cherry-picking commits to remove cross-contamination from a story branch. In these cases, if the reviewer flags the pre-fix state, the orchestrator may override the reviewer verdict without triggering a fix cycle.
+When the orchestrator has already fixed an issue before the reviewer is dispatched (e.g., cherry-picking to remove cross-contamination), the reviewer verdict may be overridden without a fix cycle.
 
 ### When an override is valid
 
-All three of the following must be true:
+All three must be true:
 
-1. **Fix committed and verifiable.** The fix must already be committed on the story branch or integration branch. The commit hash must be known and the fix must be inspectable via `git show <hash>` or `git log`.
-2. **Documented as issue comment.** The orchestrator must post a comment on the story issue that includes:
-   - The commit hash of the fix
-   - The specific reviewer finding number(s) being overridden (e.g., "Finding W3")
-   - A brief explanation of why the finding was pre-addressed
-3. **Telemetry records the override.** The story's review entry in the orchestrator state file and in the issue telemetry must note the override. When posting story telemetry, add a `(override)` marker to the review dispatch row and note "Finding Wn pre-addressed by commit `<hash>`" in the footer.
+1. **Fix committed and verifiable.** Commit hash known, inspectable via `git show`.
+2. **Documented as issue comment.** Includes: commit hash, finding number(s) overridden, explanation.
+3. **Telemetry records the override.** `(override)` marker in review dispatch row.
 
-**Example override comment format:**
+**Example:**
 ```
-Override: Finding W2 (cross-contamination file) was pre-addressed by orchestrator commit `d537441`
-before reviewer dispatch. The file `violation-quantum-bistro.md` was removed in that commit.
-Story content approved in prior review. Override applied — no fix cycle needed.
+Override: Finding W2 (cross-contamination) pre-addressed by commit `d537441`.
+File removed before reviewer dispatch. Override applied — no fix cycle needed.
 ```
 
 ### When NOT to override
 
-Do not use the override pattern in these situations:
-
-- **Unfixed issues.** The finding describes a real problem that is still present in the committed code. Use the fix cycle (Phase 6 re-dispatch) instead.
-- **Incomplete fixes.** The fix addressed part of the finding but left related issues unresolved. The reviewer may flag the remaining issues in the next cycle.
-- **Uncertain fixes.** You are not confident the committed change fully resolves the finding. When in doubt, let the builder address it in a fix cycle rather than overriding.
-- **New findings.** The reviewer raised concerns not present in any prior review. These are not pre-addressed and require a fix cycle.
+- **Unfixed issues** — real problem still present
+- **Incomplete fixes** — only partially addressed
+- **Uncertain fixes** — not confident the change resolves it
+- **New findings** — not present in any prior review
 
 ### Evidence
 
-- **Run 9 (backlog #14):** Cherry-pick to fix story branch cross-contamination preceded reviewer dispatch. Reviewer flagged the contamination based on earlier state. Orchestrator applied override after verifying the cherry-pick removed the offending file.
-- **Run 14 (backlog #83, E01-S04):** Two fix cycles were run for planted bugs. After fix cycle 2, the orchestrator removed a cross-contamination file (`violation-quantum-bistro.md`) via commit `d537441` before the final review. That review had 0 tokens/0 duration (content already approved in review 2); the override was noted as "Content approved in review 2. Cross-contamination fixed by orchestrator."
+- **Run 9 (backlog #14):** Cherry-pick fixed cross-contamination before review. Override applied.
+- **Run 14 (backlog #83, E01-S04):** After fix cycle 2, orchestrator removed cross-contamination file via `d537441`. Override noted "Content approved in review 2."
 
 ## Self-Documentation
 
-When you encounter any of the following, you MUST update the relevant documentation before completing your task:
+When you encounter any of the following, update the relevant documentation before completing:
 
-1. **A convention you had to guess or figure out** -- Add it to CLAUDE.md or this agent file so the next orchestrator run doesn't have to guess.
-2. **A command that needed a flag you didn't expect** (e.g., `--limit 100` on `gh project item-list`) -- Update the command example in CLAUDE.md or this file.
-3. **An instruction in this agent file that was wrong or misleading** -- Fix it directly.
+1. **A convention you had to guess** — add to CLAUDE.md or this file.
+2. **A command that needed an unexpected flag** — update the example.
+3. **An instruction that was wrong or misleading** — fix it directly.
 
-Changes to CLAUDE.md and agent files should be committed as part of the current workflow, not deferred. If the change is significant enough to warrant team review, note it in the backlog PR description.
+Commit changes alongside current workflow work.

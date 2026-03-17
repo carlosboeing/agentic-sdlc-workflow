@@ -7,7 +7,7 @@ set -euo pipefail
 # .agentic-workflow/runs/<backlog>/orchestrator.json.
 #
 # Usage:
-#   scripts/state.sh init <backlog-number> --mode <auto|interactive> --model <model>
+#   scripts/state.sh init <backlog-number> --mode <autonomous|interactive> --model <model>
 #   scripts/state.sh update --dispatch '<json>'
 #   scripts/state.sh update --story <number> --status <status>
 #   scripts/state.sh update --phase <name> --status <status> [--pr <n>] [--telemetry '<json>']
@@ -28,7 +28,7 @@ STATE_BASE_DIR="$REPO_ROOT/.agentic-workflow/runs"
 _usage() {
   cat >&2 << 'EOF'
 Usage:
-  state.sh init <backlog-number> --mode <auto|interactive> --model <model>
+  state.sh init <backlog-number> --mode <autonomous|interactive> --model <model>
   state.sh update --dispatch '<json>'
   state.sh update --story <number> --status <status> [--backlog <N>]
   state.sh update --phase <name> --status <status> [--pr <n>] [--telemetry '<json>'] [--backlog <N>]
@@ -145,23 +145,33 @@ _cmd_init() {
   repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "$CFG_REPO")
   git_main_sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-  # Write initial state JSON via Python for correctness
-  python3 << PYEOF
-import json, sys
+  # Write initial state JSON via Python for correctness.
+  # Pass variable data via environment variables and use a quoted heredoc marker
+  # ('PYEOF') to prevent bash from expanding variables inside the Python code.
+  export _STATE_PRICING="$pricing"
+  export _STATE_BACKLOG="$backlog"
+  export _STATE_MODE="$mode"
+  export _STATE_MODEL="$model"
+  export _STATE_START_WALL_CLOCK="$start_wall_clock"
+  export _STATE_REPO="$repo"
+  export _STATE_GIT_MAIN_SHA="$git_main_sha"
+  export _STATE_FILE="$state_file"
+  python3 << 'PYEOF'
+import json, os, sys
 
-pricing = json.loads("""$pricing""")
+pricing = json.loads(os.environ["_STATE_PRICING"])
 
 state = {
     "version": 1,
     "session": {
-        "backlog": $backlog,
-        "mode": "$mode",
-        "orchestrator_model": "$model",
-        "started_at": "$start_wall_clock",
+        "backlog": int(os.environ["_STATE_BACKLOG"]),
+        "mode": os.environ["_STATE_MODE"],
+        "orchestrator_model": os.environ["_STATE_MODEL"],
+        "started_at": os.environ["_STATE_START_WALL_CLOCK"],
         "lifecycle_duration_ms": None,
-        "start_wall_clock": "$start_wall_clock",
-        "repo": "$repo",
-        "git_main_sha": "$git_main_sha"
+        "start_wall_clock": os.environ["_STATE_START_WALL_CLOCK"],
+        "repo": os.environ["_STATE_REPO"],
+        "git_main_sha": os.environ["_STATE_GIT_MAIN_SHA"]
     },
     "overhead": {
         "duration_ms": None,
@@ -179,12 +189,14 @@ state = {
     "dispatches": []
 }
 
-with open("$state_file", "w") as f:
+with open(os.environ["_STATE_FILE"], "w") as f:
     json.dump(state, f, indent=2)
     f.write("\n")
 
-print("$state_file")
+print(os.environ["_STATE_FILE"])
 PYEOF
+  unset _STATE_PRICING _STATE_BACKLOG _STATE_MODE _STATE_MODEL \
+        _STATE_START_WALL_CLOCK _STATE_REPO _STATE_GIT_MAIN_SHA _STATE_FILE
 }
 
 # ─── Subcommand: update ───────────────────────────────────────────────────────
@@ -235,20 +247,24 @@ _cmd_update_dispatch() {
   local state_file
   state_file=$(_find_state_file "$backlog_override")
 
-  python3 << PYEOF
-import json, sys
+  # Pass dispatch JSON via environment variable and use a quoted heredoc marker
+  # ('PYEOF') to prevent bash from expanding variables inside the Python code.
+  export _STATE_DISPATCH_JSON="$dispatch_json"
+  export _STATE_FILE="$state_file"
+  python3 << 'PYEOF'
+import json, os, sys
 from datetime import datetime, timezone, timedelta
 
-dispatch_input = json.loads("""$dispatch_json""")
+dispatch_input = json.loads(os.environ["_STATE_DISPATCH_JSON"])
 
-# Validate required fields
-required = ["agent", "model", "started_at", "duration_ms", "tokens", "tool_uses", "result"]
+# Validate required fields (issue is required per spec — use null explicitly for non-story dispatches)
+required = ["agent", "model", "issue", "started_at", "duration_ms", "tokens", "tool_uses", "result"]
 for field in required:
     if field not in dispatch_input:
         print(f"Error: dispatch JSON missing required field: {field}", file=sys.stderr)
         sys.exit(1)
 
-with open("$state_file") as f:
+with open(os.environ["_STATE_FILE"]) as f:
     state = json.load(f)
 
 # Compute finished_at from started_at + duration_ms
@@ -269,7 +285,7 @@ record = {
     "id": dispatch_id,
     "agent": dispatch_input["agent"],
     "model": dispatch_input["model"],
-    "issue": dispatch_input.get("issue", None),
+    "issue": dispatch_input["issue"],
     "started_at": started_at,
     "finished_at": finished_at,
     "duration_ms": duration_ms,
@@ -283,7 +299,7 @@ if "dispatches" not in state:
 state["dispatches"].append(record)
 
 # If issue matches a story in epics, update build/review telemetry
-issue = dispatch_input.get("issue")
+issue = dispatch_input["issue"]
 agent = dispatch_input.get("agent", "")
 if issue is not None:
     issue_str = str(issue)
@@ -306,12 +322,13 @@ if issue is not None:
                 story["status"] = "reviewed"
             break
 
-with open("$state_file", "w") as f:
+with open(os.environ["_STATE_FILE"], "w") as f:
     json.dump(state, f, indent=2)
     f.write("\n")
 
 print(dispatch_id)
 PYEOF
+  unset _STATE_DISPATCH_JSON _STATE_FILE
 }
 
 _cmd_update_story() {
@@ -442,45 +459,43 @@ _cmd_update_phase() {
   local state_file
   state_file=$(_find_state_file "$backlog_override")
 
-  # Build optional fields for Python
-  local pr_arg="None"
-  if [ -n "$phase_pr" ]; then
-    pr_arg="$phase_pr"
-  fi
+  # Pass all variable data via environment variables and use a quoted heredoc
+  # marker ('PYEOF') to prevent bash from expanding variables inside Python.
+  export _STATE_FILE="$state_file"
+  export _STATE_PHASE_NAME="$phase_name"
+  export _STATE_PHASE_STATUS="$phase_status"
+  export _STATE_PHASE_PR="$phase_pr"
+  export _STATE_PHASE_TELEMETRY="$phase_telemetry"
+  python3 << 'PYEOF'
+import json, os, sys
 
-  local telemetry_arg="None"
-  if [ -n "$phase_telemetry" ]; then
-    telemetry_arg="json.loads(\"\"\"$phase_telemetry\"\"\")"
-  fi
-
-  python3 << PYEOF
-import json, sys
-
-with open("$state_file") as f:
+with open(os.environ["_STATE_FILE"]) as f:
     state = json.load(f)
 
 if "phases" not in state:
     state["phases"] = {}
 
-phase = state["phases"].get("$phase_name", {})
-phase["status"] = "$phase_status"
+phase_name = os.environ["_STATE_PHASE_NAME"]
+phase = state["phases"].get(phase_name, {})
+phase["status"] = os.environ["_STATE_PHASE_STATUS"]
 
-pr_val = $pr_arg
-if pr_val is not None:
-    phase["pr"] = int(pr_val)
+phase_pr = os.environ.get("_STATE_PHASE_PR", "")
+if phase_pr:
+    phase["pr"] = int(phase_pr)
 
-telemetry_val = $telemetry_arg
-if telemetry_val is not None:
-    phase["telemetry"] = telemetry_val
+phase_telemetry = os.environ.get("_STATE_PHASE_TELEMETRY", "")
+if phase_telemetry:
+    phase["telemetry"] = json.loads(phase_telemetry)
 
-state["phases"]["$phase_name"] = phase
+state["phases"][phase_name] = phase
 
-with open("$state_file", "w") as f:
+with open(os.environ["_STATE_FILE"], "w") as f:
     json.dump(state, f, indent=2)
     f.write("\n")
 
-print(f"Phase $phase_name status updated to $phase_status")
+print(f"Phase {phase_name} status updated to {os.environ['_STATE_PHASE_STATUS']}")
 PYEOF
+  unset _STATE_FILE _STATE_PHASE_NAME _STATE_PHASE_STATUS _STATE_PHASE_PR _STATE_PHASE_TELEMETRY
 }
 
 _cmd_update_epic() {

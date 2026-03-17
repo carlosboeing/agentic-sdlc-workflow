@@ -370,6 +370,227 @@ test_overhead_estimated_cost_null() {
   assert_equals "overhead.estimated_cost is null" "null" "$written_cost"
 }
 
+# ─── Tests: update --add-story ────────────────────────────────────────────────
+#
+# These tests use a shared state file with an epic pre-registered. Each test
+# that writes to the state file uses its own backlog number to avoid conflicts.
+
+# Build a state file that has epic e01 already registered, for add-story tests.
+_create_state_with_epic() {
+  local state_dir="$1"
+  local state_file="$state_dir/orchestrator.json"
+
+  mkdir -p "$state_dir"
+
+  python3 - "$state_file" << 'PYEOF'
+import json, sys
+
+state_file = sys.argv[1]
+
+state = {
+    "version": 1,
+    "session": {
+        "backlog": 999,
+        "mode": "autonomous",
+        "orchestrator_model": "sonnet",
+        "started_at": "2026-01-01T00:00:00Z",
+        "lifecycle_duration_ms": None,
+        "start_wall_clock": "2026-01-01T00:00:00Z",
+        "repo": "test/repo",
+        "git_main_sha": "abc1234"
+    },
+    "overhead": {"duration_ms": None, "estimated_cost": None},
+    "pricing": {
+        "source": "anthropic-pricing-page",
+        "source_detail": "opus:4.6, sonnet:4.6, haiku:4.5",
+        "fetched_at": "2026-01-01T00:00:00Z",
+        "rates": {
+            "opus":   {"inputPerM": 5.0, "outputPerM": 25.0},
+            "sonnet": {"inputPerM": 3.0, "outputPerM": 15.0},
+            "haiku":  {"inputPerM": 1.0, "outputPerM":  5.0}
+        }
+    },
+    "phases": {
+        "design":  {"status": "pending"},
+        "plan":    {"status": "pending"},
+        "build":   {"status": "pending"},
+        "review":  {"status": "pending"},
+        "retro":   {"status": "pending"}
+    },
+    "epics": {
+        "e01-test-epic": {
+            "base_sha": "deadbeef",
+            "stories": {}
+        }
+    },
+    "dispatches": []
+}
+
+with open(state_file, "w") as f:
+    json.dump(state, f, indent=2)
+    f.write("\n")
+PYEOF
+  echo "$state_file"
+}
+
+test_add_story_registers_story() {
+  echo "Test group: update --add-story"
+
+  local tmp_dir="/tmp/add_story_basic_$$"
+  local state_file
+  state_file=$(_create_state_with_epic "$tmp_dir")
+
+  _setup_state_dir 99920 "$state_file" > /dev/null
+
+  local output rc=0
+  output=$("$STATE_SH" update --add-story 157 \
+    --epic e01-test-epic \
+    --branch e01-s01/my-story \
+    --difficulty medium \
+    --model sonnet \
+    --backlog 99920 2>&1) || rc=$?
+
+  local written_status
+  written_status=$(jq -r '.epics["e01-test-epic"].stories["157"].status' \
+    "$STATE_BASE_DIR/99920/orchestrator.json")
+  local written_branch
+  written_branch=$(jq -r '.epics["e01-test-epic"].stories["157"].branch' \
+    "$STATE_BASE_DIR/99920/orchestrator.json")
+  local written_difficulty
+  written_difficulty=$(jq -r '.epics["e01-test-epic"].stories["157"].difficulty' \
+    "$STATE_BASE_DIR/99920/orchestrator.json")
+  local written_model
+  written_model=$(jq -r '.epics["e01-test-epic"].stories["157"].model' \
+    "$STATE_BASE_DIR/99920/orchestrator.json")
+
+  _teardown_state_dir 99920
+  rm -rf "$tmp_dir"
+
+  assert_equals "add-story sets initial status to pending" "pending" "$written_status"
+  assert_equals "add-story records branch" "e01-s01/my-story" "$written_branch"
+  assert_equals "add-story records difficulty" "medium" "$written_difficulty"
+  assert_equals "add-story records model" "sonnet" "$written_model"
+  assert_equals "add-story exits 0" "0" "$rc"
+  assert_contains "add-story prints confirmation message" "registered in epic" "$output"
+}
+
+test_add_story_duplicate_fails() {
+  local tmp_dir="/tmp/add_story_dup_$$"
+  local state_file
+  state_file=$(_create_state_with_epic "$tmp_dir")
+
+  _setup_state_dir 99921 "$state_file" > /dev/null
+
+  # Register story once
+  "$STATE_SH" update --add-story 158 \
+    --epic e01-test-epic --branch e01-s01/slug \
+    --difficulty easy --model haiku \
+    --backlog 99921 > /dev/null
+
+  # Second registration should fail
+  local rc=0
+  local stderr_out
+  stderr_out=$("$STATE_SH" update --add-story 158 \
+    --epic e01-test-epic --branch e01-s01/slug \
+    --difficulty easy --model haiku \
+    --backlog 99921 2>&1) || rc=$?
+
+  _teardown_state_dir 99921
+  rm -rf "$tmp_dir"
+
+  if [ "$rc" -ne 0 ]; then
+    pass "add-story duplicate exits non-zero"
+  else
+    fail "add-story duplicate should exit non-zero but exited 0"
+  fi
+  assert_contains "add-story duplicate prints error" "already registered" "$stderr_out"
+}
+
+test_add_story_missing_epic_fails() {
+  local tmp_dir="/tmp/add_story_noepic_$$"
+  local state_file
+  state_file=$(_create_state_with_epic "$tmp_dir")
+
+  _setup_state_dir 99922 "$state_file" > /dev/null
+
+  local rc=0
+  local stderr_out
+  stderr_out=$("$STATE_SH" update --add-story 159 \
+    --epic e99-nonexistent \
+    --branch e99-s01/slug \
+    --difficulty easy --model haiku \
+    --backlog 99922 2>&1) || rc=$?
+
+  _teardown_state_dir 99922
+  rm -rf "$tmp_dir"
+
+  if [ "$rc" -ne 0 ]; then
+    pass "add-story with unknown epic exits non-zero"
+  else
+    fail "add-story with unknown epic should exit non-zero but exited 0"
+  fi
+  assert_contains "add-story unknown epic prints error" "not found" "$stderr_out"
+}
+
+test_add_story_invalid_difficulty_fails() {
+  local tmp_dir="/tmp/add_story_diff_$$"
+  local state_file
+  state_file=$(_create_state_with_epic "$tmp_dir")
+
+  _setup_state_dir 99923 "$state_file" > /dev/null
+
+  local rc=0
+  local stderr_out
+  stderr_out=$("$STATE_SH" update --add-story 160 \
+    --epic e01-test-epic \
+    --branch e01-s01/slug \
+    --difficulty very-hard --model opus \
+    --backlog 99923 2>&1) || rc=$?
+
+  _teardown_state_dir 99923
+  rm -rf "$tmp_dir"
+
+  if [ "$rc" -ne 0 ]; then
+    pass "add-story with invalid difficulty exits non-zero"
+  else
+    fail "add-story with invalid difficulty should exit non-zero but exited 0"
+  fi
+  assert_contains "add-story invalid difficulty prints error" "invalid" "$stderr_out"
+}
+
+test_add_story_missing_required_flags() {
+  local tmp_dir="/tmp/add_story_flags_$$"
+  local state_file
+  state_file=$(_create_state_with_epic "$tmp_dir")
+
+  _setup_state_dir 99924 "$state_file" > /dev/null
+
+  # Missing --epic
+  local rc=0
+  "$STATE_SH" update --add-story 161 \
+    --branch e01-s01/slug --difficulty easy --model haiku \
+    --backlog 99924 > /dev/null 2>&1 || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    pass "add-story missing --epic exits non-zero"
+  else
+    fail "add-story missing --epic should exit non-zero but exited 0"
+  fi
+
+  # Missing story number (no positional arg)
+  rc=0
+  "$STATE_SH" update --add-story \
+    --epic e01-test-epic --branch e01-s01/slug --difficulty easy --model haiku \
+    --backlog 99924 > /dev/null 2>&1 || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    pass "add-story missing story number exits non-zero"
+  else
+    fail "add-story missing story number should exit non-zero but exited 0"
+  fi
+
+  _teardown_state_dir 99924
+  rm -rf "$tmp_dir"
+}
+
 # ─── Tests: schema file ───────────────────────────────────────────────────────
 
 test_schema_file_valid_json() {
@@ -429,6 +650,114 @@ test_schema_has_descriptions() {
   fi
 }
 
+test_schema_pricing_structure() {
+  echo "Test group: schema pricing structure"
+
+  local schema_file="$REPO_ROOT/scripts/schemas/orchestrator-state.v1.json"
+
+  if [ ! -f "$schema_file" ]; then
+    fail "schema file missing — skipping pricing structure checks"
+    return
+  fi
+
+  local content
+  content=$(cat "$schema_file")
+
+  # Must have nested 'rates' key, not flat model keys
+  if echo "$content" | python3 -c "
+import json, sys
+schema = json.load(sys.stdin)
+pricing = schema.get('properties', {}).get('pricing', {})
+props = pricing.get('properties', {})
+sys.exit(0 if 'rates' in props else 1)
+" 2>/dev/null; then
+    pass "schema pricing has nested 'rates' property"
+  else
+    fail "schema pricing missing 'rates' property (should not be flat map)"
+  fi
+
+  # Must use 'inputPerM'/'outputPerM' not 'input_per_mtok'/'output_per_mtok'
+  if echo "$content" | grep -q '"inputPerM"'; then
+    pass "schema pricing rates use 'inputPerM' (matches fetch-pricing.sh output)"
+  else
+    fail "schema pricing rates missing 'inputPerM' key"
+  fi
+
+  if echo "$content" | grep -q '"outputPerM"'; then
+    pass "schema pricing rates use 'outputPerM' (matches fetch-pricing.sh output)"
+  else
+    fail "schema pricing rates missing 'outputPerM' key"
+  fi
+
+  # Must have metadata fields source, fetched_at
+  for meta_field in "source" "fetched_at"; do
+    if echo "$content" | python3 -c "
+import json, sys
+schema = json.load(sys.stdin)
+pricing = schema.get('properties', {}).get('pricing', {})
+props = pricing.get('properties', {})
+sys.exit(0 if '$meta_field' in props else 1)
+" 2>/dev/null; then
+      pass "schema pricing has metadata field: $meta_field"
+    else
+      fail "schema pricing missing metadata field: $meta_field"
+    fi
+  done
+
+  # Must NOT use old snake_case keys input_per_mtok / output_per_mtok
+  if echo "$content" | grep -q '"input_per_mtok"'; then
+    fail "schema pricing still uses deprecated 'input_per_mtok' key"
+  else
+    pass "schema pricing does not use deprecated 'input_per_mtok' key"
+  fi
+
+  if echo "$content" | grep -q '"output_per_mtok"'; then
+    fail "schema pricing still uses deprecated 'output_per_mtok' key"
+  else
+    pass "schema pricing does not use deprecated 'output_per_mtok' key"
+  fi
+}
+
+test_schema_verdict_enum_values() {
+  echo "Test group: schema verdict enum values"
+
+  local schema_file="$REPO_ROOT/scripts/schemas/orchestrator-state.v1.json"
+
+  if [ ! -f "$schema_file" ]; then
+    fail "schema file missing — skipping verdict checks"
+    return
+  fi
+
+  local content
+  content=$(cat "$schema_file")
+
+  # Must use APPROVE and REQUEST_CHANGES (matching reviewer.md/orchestrator.md)
+  if echo "$content" | grep -q "'APPROVE'"; then
+    pass "schema verdict description references 'APPROVE'"
+  else
+    fail "schema verdict description should reference 'APPROVE' (not 'APPROVED')"
+  fi
+
+  if echo "$content" | grep -q "'REQUEST_CHANGES'"; then
+    pass "schema verdict description references 'REQUEST_CHANGES'"
+  else
+    fail "schema verdict description should reference 'REQUEST_CHANGES' (not 'CHANGES_REQUESTED')"
+  fi
+
+  # Must NOT use deprecated APPROVED or CHANGES_REQUESTED
+  if echo "$content" | grep -q "'APPROVED'"; then
+    fail "schema verdict still uses deprecated 'APPROVED' value"
+  else
+    pass "schema verdict does not use deprecated 'APPROVED' value"
+  fi
+
+  if echo "$content" | grep -q "'CHANGES_REQUESTED'"; then
+    fail "schema verdict still uses deprecated 'CHANGES_REQUESTED' value"
+  else
+    pass "schema verdict does not use deprecated 'CHANGES_REQUESTED' value"
+  fi
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 main() {
@@ -449,9 +778,22 @@ main() {
   test_overhead_estimated_cost_null
 
   echo ""
+  test_add_story_registers_story
+  test_add_story_duplicate_fails
+  test_add_story_missing_epic_fails
+  test_add_story_invalid_difficulty_fails
+  test_add_story_missing_required_flags
+
+  echo ""
   test_schema_file_valid_json
   test_schema_has_required_fields
   test_schema_has_descriptions
+
+  echo ""
+  test_schema_pricing_structure
+
+  echo ""
+  test_schema_verdict_enum_values
 
   echo ""
   echo "=== Results: $PASS passed, $FAIL failed ==="

@@ -1,4 +1,20 @@
 # Changelog
+## 2026-03-17
+
+### Split orchestrator.md — Run 15 (backlog #150, 77m wall-clock)
+
+- **Primary result:** Reduced `orchestrator.md` from 1,323 to 503 lines (62% reduction) by extracting inline scripts into real scripts and deleting dead/redundant content
+- Created `scripts/state.sh` (836 lines) with subcommands: `init`, `update` (dispatch/story/phase/epic), `get`, `overhead`, `lifecycle-duration`, `reconstruct` (stub)
+- Extended `compute-dispatches.py` with `--overhead` flag for orchestrator overhead telemetry row
+- Created `scripts/schemas/orchestrator-state.v1.json` (236 lines) — state file schema as actual JSON Schema
+- Added "Fault Tolerance" design principle to CLAUDE.md alongside "Determinism First"
+- Updated CLAUDE.md state file section to use `state.sh` calls instead of inline code
+- Fixed heredoc injection vulnerability (unquoted `PYEOF` markers allowing bash variable expansion in Python code)
+- 2 epics, 5 stories: E01 Script Extraction (3 stories), E02 Documentation Rewrite (2 stories)
+- Dispatch: 4 waves — Wave 1 parallel (2-way), Waves 2-4 sequential
+- 1 fix cycle: E01-S01 heredoc injection (2 rounds — reviewer found additional unquoted heredocs in re-review)
+- 142 Python tests + 48 bash tests covering extracted scripts
+
 ## 2026-03-16
 
 ### Telemetry Accuracy & Automation (backlog #106)

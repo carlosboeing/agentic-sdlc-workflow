@@ -70,18 +70,39 @@
     },
     "pricing": {
       "type": "object",
-      "description": "Live pricing data fetched from Anthropic's pricing page at session start via 'scripts/fetch-pricing.sh'. Used by 'issue-telemetry.sh' for cost estimation. Keys are model names; values contain per-million-token rates.",
-      "additionalProperties": {
-        "type": "object",
-        "description": "Pricing for a single model variant.",
-        "properties": {
-          "input_per_mtok": {
-            "type": "number",
-            "description": "Cost in USD per million input tokens."
-          },
-          "output_per_mtok": {
-            "type": "number",
-            "description": "Cost in USD per million output tokens."
+      "description": "Live pricing data fetched from Anthropic's pricing page at session start via 'scripts/fetch-pricing.sh'. Stored verbatim from fetch-pricing.sh output. Used by 'compute-dispatches.py' for cost estimation.",
+      "required": ["source", "fetched_at", "rates"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Data origin identifier. One of: 'anthropic-pricing-page', 'litellm-community', or 'local-cache'. Set by fetch-pricing.sh."
+        },
+        "source_detail": {
+          "type": "string",
+          "description": "Human-readable description of the exact models and versions found (e.g. 'opus:4.6, sonnet:4.6, haiku:4.5')."
+        },
+        "fetched_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp when pricing data was fetched."
+        },
+        "rates": {
+          "type": "object",
+          "description": "Per-model pricing rates. Keys are model family names ('opus', 'sonnet', 'haiku'). Values use camelCase property names matching fetch-pricing.sh output.",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Pricing for a single model family.",
+            "required": ["inputPerM", "outputPerM"],
+            "properties": {
+              "inputPerM": {
+                "type": "number",
+                "description": "Cost in USD per million input tokens."
+              },
+              "outputPerM": {
+                "type": "number",
+                "description": "Cost in USD per million output tokens."
+              }
+            }
           }
         }
       }
@@ -178,7 +199,7 @@
             "duration_ms": { "type": "integer", "description": "Reviewer agent wall-clock duration in milliseconds." },
             "tokens":      { "type": "integer", "description": "Total tokens consumed by the reviewer agent." },
             "tool_uses":   { "type": "integer", "description": "Number of tool calls made by the reviewer agent." },
-            "verdict":     { "type": "string",  "description": "Reviewer result string (e.g. 'APPROVED', 'CHANGES_REQUESTED')." }
+            "verdict":     { "type": "string",  "description": "Reviewer result string (e.g. 'APPROVE', 'REQUEST_CHANGES', 'COMMENT'). Matches values used in reviewer.md and orchestrator.md Phase 6." }
           }
         }
       }

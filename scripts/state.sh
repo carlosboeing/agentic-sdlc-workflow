@@ -12,6 +12,7 @@ set -euo pipefail
 #   scripts/state.sh update --story <number> --status <status>
 #   scripts/state.sh update --phase <name> --status <status> [--pr <n>] [--telemetry '<json>']
 #   scripts/state.sh update --epic <slug> --base-sha <sha>
+#   scripts/state.sh update --add-story <number> --epic <slug> --branch <branch> --difficulty <easy|medium|hard> --model <model>
 #   scripts/state.sh get <jq-path>
 #   scripts/state.sh overhead [--backlog <N>]
 #   scripts/state.sh lifecycle-duration [--backlog <N>]
@@ -36,6 +37,7 @@ Usage:
   state.sh update --story <number> --status <status> [--backlog <N>]
   state.sh update --phase <name> --status <status> [--pr <n>] [--telemetry '<json>'] [--backlog <N>]
   state.sh update --epic <slug> --base-sha <sha> [--backlog <N>]
+  state.sh update --add-story <number> --epic <slug> --branch <branch> --difficulty <easy|medium|hard> --model <model> [--backlog <N>]
   state.sh get <jq-path> [--backlog <N>]
   state.sh overhead [--backlog <N>]
   state.sh lifecycle-duration [--backlog <N>]
@@ -227,10 +229,11 @@ _cmd_update() {
 
   # Peek at first arg to route subcommand
   case "$1" in
-    --dispatch)  _cmd_update_dispatch "$@" ;;
-    --story)     _cmd_update_story    "$@" ;;
-    --phase)     _cmd_update_phase    "$@" ;;
-    --epic)      _cmd_update_epic     "$@" ;;
+    --dispatch)   _cmd_update_dispatch   "$@" ;;
+    --story)      _cmd_update_story      "$@" ;;
+    --phase)      _cmd_update_phase      "$@" ;;
+    --epic)       _cmd_update_epic       "$@" ;;
+    --add-story)  _cmd_update_add_story  "$@" ;;
     *)
       echo "Error: unknown update subcommand: $1" >&2
       _usage
@@ -595,6 +598,136 @@ with open(os.environ["_STATE_FILE"], "w") as f:
 print(f"Epic {epic_slug} updated with base_sha {base_sha}")
 PYEOF
   unset _STATE_FILE _STATE_EPIC_SLUG _STATE_BASE_SHA
+}
+
+# ─── Subcommand: update --add-story ──────────────────────────────────────────
+#
+# Registers a new story in an epic's stories map. Creates the story entry with
+# initial status 'pending'. Errors if the epic does not exist or the story
+# number is already registered (idempotency guard).
+
+_cmd_update_add_story() {
+  shift  # consume --add-story
+  local story_number=""
+  local epic_slug=""
+  local branch=""
+  local difficulty=""
+  local model=""
+  local backlog_override=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --epic)       epic_slug="$2";         shift 2 ;;
+      --branch)     branch="$2";            shift 2 ;;
+      --difficulty) difficulty="$2";        shift 2 ;;
+      --model)      model="$2";             shift 2 ;;
+      --backlog)    backlog_override="$2";  shift 2 ;;
+      -*)           echo "Error: unknown option for update --add-story: $1" >&2; exit 1 ;;
+      *)
+        if [ -z "$story_number" ]; then
+          story_number="$1"
+        else
+          echo "Error: unexpected argument for update --add-story: $1" >&2
+          exit 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [ -z "$story_number" ]; then
+    echo "Error: --add-story requires a story number" >&2
+    _usage
+    exit 1
+  fi
+
+  # Validate story number is numeric
+  if ! [[ "$story_number" =~ ^[0-9]+$ ]]; then
+    echo "Error: story number must be a positive integer, got: $story_number" >&2
+    exit 1
+  fi
+
+  if [ -z "$epic_slug" ]; then
+    echo "Error: --add-story requires --epic" >&2
+    _usage
+    exit 1
+  fi
+
+  if [ -z "$branch" ]; then
+    echo "Error: --add-story requires --branch" >&2
+    _usage
+    exit 1
+  fi
+
+  if [ -z "$difficulty" ]; then
+    echo "Error: --add-story requires --difficulty" >&2
+    _usage
+    exit 1
+  fi
+
+  # Validate difficulty enum
+  case "$difficulty" in
+    easy|medium|hard) ;;
+    *)
+      echo "Error: invalid --difficulty '$difficulty'. Valid values: easy, medium, hard" >&2
+      exit 1
+      ;;
+  esac
+
+  if [ -z "$model" ]; then
+    echo "Error: --add-story requires --model" >&2
+    _usage
+    exit 1
+  fi
+
+  local state_file
+  state_file=$(_find_state_file "$backlog_override")
+
+  # Pass variable data via environment variables and use a quoted heredoc marker
+  # ('PYEOF') to prevent bash from expanding variables inside the Python code.
+  export _STATE_FILE="$state_file"
+  export _STATE_STORY_NUMBER="$story_number"
+  export _STATE_EPIC_SLUG="$epic_slug"
+  export _STATE_BRANCH="$branch"
+  export _STATE_DIFFICULTY="$difficulty"
+  export _STATE_MODEL="$model"
+  python3 << 'PYEOF'
+import json, os, sys
+
+story_number = os.environ["_STATE_STORY_NUMBER"]
+epic_slug = os.environ["_STATE_EPIC_SLUG"]
+branch = os.environ["_STATE_BRANCH"]
+difficulty = os.environ["_STATE_DIFFICULTY"]
+model = os.environ["_STATE_MODEL"]
+
+with open(os.environ["_STATE_FILE"]) as f:
+    state = json.load(f)
+
+epics = state.get("epics", {})
+if epic_slug not in epics:
+    print(f"Error: epic '{epic_slug}' not found in state file. Run 'state.sh update --epic {epic_slug} --base-sha <sha>' first.", file=sys.stderr)
+    sys.exit(1)
+
+stories = epics[epic_slug].setdefault("stories", {})
+
+if story_number in stories:
+    print(f"Error: story {story_number} already registered in epic '{epic_slug}'", file=sys.stderr)
+    sys.exit(1)
+
+stories[story_number] = {
+    "status": "pending",
+    "branch": branch,
+    "difficulty": difficulty,
+    "model": model
+}
+
+with open(os.environ["_STATE_FILE"], "w") as f:
+    json.dump(state, f, indent=2)
+    f.write("\n")
+
+print(f"Story {story_number} registered in epic '{epic_slug}' (branch={branch}, difficulty={difficulty}, model={model})")
+PYEOF
+  unset _STATE_FILE _STATE_STORY_NUMBER _STATE_EPIC_SLUG _STATE_BRANCH _STATE_DIFFICULTY _STATE_MODEL
 }
 
 # ─── Subcommand: get ──────────────────────────────────────────────────────────

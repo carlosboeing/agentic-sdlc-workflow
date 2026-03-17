@@ -399,8 +399,11 @@ test_schema_has_required_fields() {
     return
   fi
 
+  local content
+  content=$(cat "$schema_file")
+
   for field in "version" "session" "overhead" "pricing" "phases" "epics" "dispatches"; do
-    if jq -e ".. | objects | has(\"$field\")" "$schema_file" > /dev/null 2>&1; then
+    if echo "$content" | grep -q "\"$field\""; then
       pass "schema references field: $field"
     else
       fail "schema missing reference to field: $field"

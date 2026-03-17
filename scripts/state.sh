@@ -13,6 +13,9 @@ set -euo pipefail
 #   scripts/state.sh update --phase <name> --status <status> [--pr <n>] [--telemetry '<json>']
 #   scripts/state.sh update --epic <slug> --base-sha <sha>
 #   scripts/state.sh get <jq-path>
+#   scripts/state.sh overhead [--backlog <N>]
+#   scripts/state.sh lifecycle-duration [--backlog <N>]
+#   scripts/state.sh reconstruct <backlog-number>   (stub — not yet implemented)
 #
 # Auto-detects the state file from .agentic-workflow/runs/*/orchestrator.json
 # or accepts --backlog <N> as an override for update/get subcommands.
@@ -34,6 +37,9 @@ Usage:
   state.sh update --phase <name> --status <status> [--pr <n>] [--telemetry '<json>'] [--backlog <N>]
   state.sh update --epic <slug> --base-sha <sha> [--backlog <N>]
   state.sh get <jq-path> [--backlog <N>]
+  state.sh overhead [--backlog <N>]
+  state.sh lifecycle-duration [--backlog <N>]
+  state.sh reconstruct <backlog-number>   (stub -- not yet implemented)
 EOF
 }
 
@@ -625,6 +631,186 @@ _cmd_get() {
   jq -r "$jq_path" "$state_file"
 }
 
+# ─── Subcommand: overhead ─────────────────────────────────────────────────────
+#
+# Computes orchestrator overhead = total_wall_clock - critical_path.
+# Groups dispatches by started_at to identify parallel waves; uses max(duration_ms)
+# per wave for critical-path computation. Writes overhead.duration_ms and sets
+# overhead.estimated_cost to null. Prints "Overhead: Xm Ys" to stdout.
+# Clamped to >= 0 to handle clock skew.
+
+_cmd_overhead() {
+  local backlog_override=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --backlog) backlog_override="$2"; shift 2 ;;
+      *) echo "Error: unknown option for overhead: $1" >&2; _usage; exit 1 ;;
+    esac
+  done
+
+  local state_file
+  state_file=$(_find_state_file "$backlog_override")
+
+  # Pass data via environment variables and use quoted heredoc marker ('PYEOF')
+  # to prevent bash from expanding variables inside the Python code.
+  export _STATE_FILE="$state_file"
+  export _STATE_NOW
+  _STATE_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  python3 << 'PYEOF'
+import json, os, sys
+from datetime import datetime, timezone
+
+state_file = os.environ["_STATE_FILE"]
+now_str = os.environ["_STATE_NOW"]
+
+with open(state_file) as f:
+    state = json.load(f)
+
+# Capture current time
+try:
+    now_dt = datetime.fromisoformat(now_str.replace("Z", "+00:00"))
+except Exception as e:
+    print(f"Error: cannot parse current time '{now_str}': {e}", file=sys.stderr)
+    sys.exit(1)
+
+# Read session.start_wall_clock
+start_wall_clock = state.get("session", {}).get("start_wall_clock")
+if not start_wall_clock:
+    print("Error: state file missing session.start_wall_clock", file=sys.stderr)
+    sys.exit(1)
+
+try:
+    start_dt = datetime.fromisoformat(start_wall_clock.replace("Z", "+00:00"))
+except Exception as e:
+    print(f"Error: cannot parse start_wall_clock '{start_wall_clock}': {e}", file=sys.stderr)
+    sys.exit(1)
+
+# Total wall-clock in ms
+total_wall_clock_ms = int((now_dt - start_dt).total_seconds() * 1000)
+
+# Compute critical path: group dispatches by started_at, take max(duration_ms) per wave
+dispatches = state.get("dispatches", [])
+waves = {}  # started_at -> max(duration_ms)
+for d in dispatches:
+    wave_key = d.get("started_at", "")
+    duration = int(d.get("duration_ms", 0))
+    if wave_key not in waves:
+        waves[wave_key] = duration
+    else:
+        waves[wave_key] = max(waves[wave_key], duration)
+
+critical_path_ms = sum(waves.values())
+
+# Compute overhead (clamped to >= 0)
+overhead_ms = max(0, total_wall_clock_ms - critical_path_ms)
+
+# Write to state file
+if "overhead" not in state:
+    state["overhead"] = {}
+state["overhead"]["duration_ms"] = overhead_ms
+state["overhead"]["estimated_cost"] = None
+
+with open(state_file, "w") as f:
+    json.dump(state, f, indent=2)
+    f.write("\n")
+
+# Print human-readable output
+total_s = overhead_ms // 1000
+minutes = total_s // 60
+seconds = total_s % 60
+print(f"Overhead: {minutes}m {seconds}s")
+PYEOF
+  unset _STATE_FILE _STATE_NOW
+}
+
+# ─── Subcommand: lifecycle-duration ───────────────────────────────────────────
+#
+# Computes lifecycle_duration_ms = now - session.started_at.
+# Writes to session.lifecycle_duration_ms in the state file.
+# Prints "Lifecycle duration: Xm Ys" to stdout.
+
+_cmd_lifecycle_duration() {
+  local backlog_override=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --backlog) backlog_override="$2"; shift 2 ;;
+      *) echo "Error: unknown option for lifecycle-duration: $1" >&2; _usage; exit 1 ;;
+    esac
+  done
+
+  local state_file
+  state_file=$(_find_state_file "$backlog_override")
+
+  # Pass data via environment variables and use quoted heredoc marker ('PYEOF')
+  # to prevent bash from expanding variables inside the Python code.
+  export _STATE_FILE="$state_file"
+  export _STATE_NOW
+  _STATE_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  python3 << 'PYEOF'
+import json, os, sys
+from datetime import datetime
+
+state_file = os.environ["_STATE_FILE"]
+now_str = os.environ["_STATE_NOW"]
+
+with open(state_file) as f:
+    state = json.load(f)
+
+# Capture current time
+try:
+    now_dt = datetime.fromisoformat(now_str.replace("Z", "+00:00"))
+except Exception as e:
+    print(f"Error: cannot parse current time '{now_str}': {e}", file=sys.stderr)
+    sys.exit(1)
+
+# Read session.started_at
+started_at = state.get("session", {}).get("started_at")
+if not started_at:
+    print("Error: state file missing session.started_at", file=sys.stderr)
+    sys.exit(1)
+
+try:
+    start_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+except Exception as e:
+    print(f"Error: cannot parse started_at '{started_at}': {e}", file=sys.stderr)
+    sys.exit(1)
+
+# Compute lifecycle duration in ms
+lifecycle_ms = int((now_dt - start_dt).total_seconds() * 1000)
+
+# Write to state file
+if "session" not in state:
+    state["session"] = {}
+state["session"]["lifecycle_duration_ms"] = lifecycle_ms
+
+with open(state_file, "w") as f:
+    json.dump(state, f, indent=2)
+    f.write("\n")
+
+# Print human-readable output
+total_s = lifecycle_ms // 1000
+minutes = total_s // 60
+seconds = total_s % 60
+print(f"Lifecycle duration: {minutes}m {seconds}s")
+PYEOF
+  unset _STATE_FILE _STATE_NOW
+}
+
+# ─── Subcommand: reconstruct ──────────────────────────────────────────────────
+#
+# Stub only. Full implementation deferred to a future backlog item.
+# Prints a clear "not yet implemented" message to stderr and exits 1.
+
+_cmd_reconstruct() {
+  echo "state.sh reconstruct: not yet implemented" >&2
+  echo "Fault tolerance reconstruction from GitHub/branch state is a planned future feature." >&2
+  exit 1
+}
+
 # ─── Main router ─────────────────────────────────────────────────────────────
 
 if [ $# -lt 1 ]; then
@@ -636,9 +822,12 @@ SUBCOMMAND="$1"
 shift
 
 case "$SUBCOMMAND" in
-  init)    _cmd_init    "$@" ;;
-  update)  _cmd_update  "$@" ;;
-  get)     _cmd_get     "$@" ;;
+  init)               _cmd_init               "$@" ;;
+  update)             _cmd_update             "$@" ;;
+  get)                _cmd_get                "$@" ;;
+  overhead)           _cmd_overhead           "$@" ;;
+  lifecycle-duration) _cmd_lifecycle_duration "$@" ;;
+  reconstruct)        _cmd_reconstruct        "$@" ;;
   *)
     echo "Error: unknown subcommand '$SUBCOMMAND'" >&2
     _usage

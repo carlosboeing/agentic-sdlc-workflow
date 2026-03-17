@@ -2,7 +2,7 @@
 
 Consolidated tracker for all recommendations from workflow retrospectives. Updated manually after each retro — the retro agent should append new recommendations here, and the orchestrator should check this document before each run.
 
-Last updated: 2026-03-17 (compiled from Runs 2-14 + backlogs 105, 106, 150)
+Last updated: 2026-03-17 (compiled from Runs 2-16 + backlogs 105, 106, 150)
 
 ---
 
@@ -19,9 +19,9 @@ Last updated: 2026-03-17 (compiled from Runs 2-14 + backlogs 105, 106, 150)
 ### N. Validate Sonnet reviewer quality on easy stories
 
 - **Source:** Backlog 105 retro (rec 3)
-- **Recurrence:** 2 runs (first validation in BL150)
-- **Priority:** Medium -- trending toward observation
-- **Description:** Backlog 105 implemented reviewer routing (Sonnet for easy, Opus for medium/hard) but could not use it in the same session (Claude Code loads agents at session start only). BL150 E01-S03 (difficulty/easy) was the first story reviewed by `reviewer-sonnet`. The review was thorough: verified all 7 acceptance criteria, confirmed 142 tests passed, provided 3 constructive suggestions, and the verdict (APPROVE) was correct. First data point positive. Continue monitoring; 3+ positive data points would move this to an observation.
+- **Recurrence:** 3 runs (BL150, Run 16) -- trending toward observation
+- **Priority:** Low -- third positive data point, ready to move to observation
+- **Description:** Backlog 105 implemented reviewer routing (Sonnet for easy, Opus for medium/hard) but could not use it in the same session (Claude Code loads agents at session start only). BL150 E01-S03 (difficulty/easy) was the first story reviewed by `reviewer-sonnet`. The review was thorough: verified all 7 acceptance criteria, confirmed 142 tests passed, provided 3 constructive suggestions, and the verdict (APPROVE) was correct. Run 16 added 5 sonnet reviews across 4 easy stories: E01-S01 (APPROVE with 1W/1S), E01-S04 (APPROVE with 2W), E02-S02 initial (REQUEST_CHANGES with 3W -- caught genuine format issues), E02-S02 re-review (APPROVE), E03-S01 (APPROVE). Notably, the E02-S02 REQUEST_CHANGES demonstrated that sonnet reviewers can catch real defects, not just approve everything. Three positive data points across 6 reviews -- ready to move to observation on next run.
 - **Effort:** None (monitoring only)
 
 ### O. Add `Files to modify` boundary enforcement to builder instructions
@@ -80,6 +80,30 @@ Last updated: 2026-03-17 (compiled from Runs 2-14 + backlogs 105, 106, 150)
 - **Description:** The E01-S01 reviewer stated it wrote a lesson file at a specific path, but the file was never committed to the branch. Worktree-isolated agents' file writes are lost when the worktree is cleaned up. Add to reviewer.md: "If you write a lesson file, commit and push it to the story branch before posting your verdict."
 - **Effort:** Low (reviewer.md instruction update)
 
+### V. Add per-story word count calibration to planner instructions
+
+- **Source:** Run 16 (rec 1)
+- **Recurrence:** 2 runs (Run 14 E01-S04 word count fix cycle, Run 16 all 3 fix cycles related to word count vs. format templates)
+- **Priority:** Medium
+- **Description:** When the planner assigns word count ranges in acceptance criteria, they should account for the format template's structural overhead. Stories with heavy repeated templates (7 character bios, 9 orchestra entries) have a structural floor that may exceed 60% of the word ceiling, making the standard 300-500 range infeasible without sacrificing content quality. The planner should compute per-story ranges based on template complexity. Evidence: Run 16 had 3/3 fix cycles caused by word count pressure (issues 177, 178, 183).
+- **Effort:** Low (planner.md instruction update)
+
+### W. Add interruption tracking to orchestrator dispatch records
+
+- **Source:** Run 16 (rec 3)
+- **Recurrence:** 1 run (first observed interruption -- E02-S01 CC mobile remote control issue)
+- **Priority:** Low
+- **Description:** When an agent is interrupted and re-dispatched, the orchestrator should record the interruption event in the state file. Currently, the only trace is a timestamp gap between dispatches. Adding an `interrupted` flag or a separate dispatch entry for the interrupted session would improve traceability and make it possible to compute accurate costs (interrupted sessions consume tokens that are not captured). Evidence: 22-minute gap between dispatch 4 completion (10:06:10) and dispatch 5 start (10:27:51) on issue 177.
+- **Effort:** Low (state.sh schema update + orchestrator convention)
+
+### X. Add epic-level telemetry posting to orchestrator checklist
+
+- **Source:** Run 16 (rec 4)
+- **Recurrence:** 1 run (convention exists in CLAUDE.md but was not followed)
+- **Priority:** Medium
+- **Description:** The orchestrator must post telemetry on each epic issue when all its stories complete (per CLAUDE.md "Per-epic telemetry" convention). Run 16 did not post epic telemetry on issues 172, 173, or 174. Add a checklist item to the orchestrator's post-wave merge step to ensure this is not skipped. This provides intermediate checkpoints during long runs and makes per-epic cost analysis available without recomputing from the state file.
+- **Effort:** Low (orchestrator.md checklist addition)
+
 ---
 
 ## Implemented
@@ -134,13 +158,13 @@ Last updated: 2026-03-17 (compiled from Runs 2-14 + backlogs 105, 106, 150)
 | #    | Observation                                                                        | Source                           | Notes                                                                                                                                                                                                                                                                                                |
 | ---- | ---------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | i    | Haiku uses 3-4x more tokens than Sonnet for comparable tasks                       | Runs 3, 6, 7, 8, 9, 10, 11       | Consistent across 7 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted.                                                                                                                                                                                      |
-| ii   | Stories with detailed acceptance criteria achieve zero organic fix cycles          | Runs 5, 6, 9-14, BL105, BL106    | 53+ consecutive first-pass approvals across content-creation AND infrastructure work. Run 14 had 2 fix cycles from deliberate bug planting. BL150 had 2 fix cycle rounds on E01-S01 for a genuine security vulnerability (heredoc injection) -- first organic fix cycle in the workflow. Organic fix cycle rate: 1/53 stories (1.9%). The fix was for a security pattern invisible to tests (heredoc expansion happens at bash level before Python runs), not a functional failure. |
+| ii   | Stories with detailed acceptance criteria achieve low organic fix cycles           | Runs 5, 6, 9-14, BL105, BL106, Run 16 | 62+ stories tracked. BL150: 1 organic fix cycle (heredoc injection, security pattern invisible to tests). Run 16: 2 organic fix cycles (E02-S01 format contract, E02-S02 word count + missing sections) plus 1 planted bug cycle (E02-S03). Both organic cycles trace to word count ceiling vs. format template overhead, not builder error. Organic fix cycle rate: 3/62 stories (4.8%). All organic fix cycles are pattern-based (security or format), not logic errors. |
 | iii  | CHANGELOG conflicts with per-epic PRs                                              | Run 5                            | Moot -- switched to single-PR model in Run 6.                                                                                                                                                                                                                                                         |
 | iv   | Board status persistence bug (mutations succeed, statuses revert later)            | Runs 3, 10, 12, 14               | Run 11 created `check-board-drift.sh`; Run 12 confirmed drift (all stories + closed issues reverted to In Progress). Run 14: all 18 issues reverted to In Progress despite successful `issue-set-status.sh` calls. Orchestrator now has mandatory post-run verification step -- confirmed essential. |
 | v    | `orchestrator.md` reduced from 1,323 to 503 lines (62%)                            | Runs 11, BL105, BL150            | Was ~1000 lines at Run 11, grew to 1,323 by BL105. BL150 extracted inline scripts to `state.sh`, deleted dead code (System Prompt Hardening), and condensed verbose sections. Now 503 lines. The monitoring threshold ("consider extraction at 1500 lines") is no longer relevant. |
 | vi   | Reviewer doesn't reference the recommendations tracker for known patterns          | Run 11                           | Reviewer greps raw lesson files; the compiled tracker would be more efficient. Low priority -- current approach works.                                                                                                                                                                                |
 | vii  | Average tokens per build story: convention work uses more tokens than content       | Runs 13, 14, BL105               | Content stories: Run 13 averaged 43K tokens/build, Run 14 averaged 43K (excl. fix cycles). Convention/docs stories (BL105): averaged 68K tokens/build. S02 (easy docs change) used 90K due to Edit tool worktree issues. Higher token usage likely reflects reading existing large files (orchestrator.md, CLAUDE.md) for context. |
-| viii | Fix cycles more than double the cost of affected stories                           | Run 14                           | E01-S04: +181% overhead (2 fix cycles). E02-S01: +66% overhead (1 fix cycle). Total fix overhead: $1.53 / $11.34 = 13.5% of run cost. First data point -- track across future runs with organic (non-planted) fix cycles.                                                                            |
+| viii | Fix cycles add 70-100% overhead per affected story                                | Runs 14, 16                      | Run 14: E01-S04 +181% (2 rounds), E02-S01 +66% (1 round). Total: $1.53 / $11.34 = 13.5%. Run 16: E02-S01 +100%, E02-S02 +79%, E02-S03 +71% (all single-round). Total: $2.85 / $13.78 = 20.7%. Single-round fix cycles average ~80% overhead. Multi-round (Run 14 E01-S04) can exceed 180%. Run 16's higher percentage reflects 3/9 stories having fix cycles vs. Run 14's 2/12. |
 | ix   | Builders prioritize acceptance criteria over story descriptions when they conflict | Run 14                           | 2/4 planted bugs neutralized because builders followed AC. Correct behavior -- AC is the binding contract. Rec K (document as convention) declined: this only surfaced during deliberate bug planting, not organic usage. Already captured in builder.md as existing behavior ("Acceptance criteria take precedence over story descriptions"). |
 | x    | Self-referential convention changes succeed without fix cycles                      | BL105                            | First run where agents modified their own instructions (orchestrator.md, CLAUDE.md, planner.md, config). 6/6 stories passed review on first attempt. Separation of concerns (designer/planner/builder/reviewer) works even when the target is the pipeline's own conventions.                          |
 | xi   | Reviewer variants created mid-session are unusable until next session               | BL105                            | S01 created reviewer-sonnet.md and reviewer-opus.md, but Claude Code only loads agent files at session start. All 7 reviews used the base reviewer agent with Opus. Feature takes effect on the next run. Known platform limitation (CLAUDE.md "Dynamic agent files at runtime").                      |

@@ -1,143 +1,161 @@
 ## Jordan Chase
 
-**Role:** CEO / Founder
+**Role:** CEO/Founder
 **Vocal Range:** Tenor
-**Vocal Type:** Light lyric tenor; high Bb in finale.
+**Vocal Type:** Light lyric; Bb finale.
 
 ### Backstory
-Founded CtrlZ on a pitch deck; pivoted three times.
+Founded CtrlZ; pivoted thrice. Runway shrinking.
 
 ### Motivation
-Disrupt the undo market.
+Disrupt undo.
 
 ### Costume Notes
-Blazer over hoodie; quick-change to tuxedo for Act II.
+Blazer/hoodie; tuxedo.
 
 ### Song Assignments
-| Song | Role in Number |
-|------|----------------|
-| "The Pitch" | Lead |
-| "Ctrl+Z (The Reprise)" | Lead |
+| Song | Role in Number | Notes |
+|------|----------------|-------|
+| "The Pitch" | Lead | Solo |
+| "The Standup Ballad" | Ensemble | Full cast |
+| "Ctrl+Z (The Reprise)" | Lead | High Bb |
+
+---
 
 ## Priya Mehta
 
 **Role:** Product Manager
 **Vocal Range:** Mezzo-soprano
-**Vocal Type:** Full chest voice; blues phrasing required.
+**Vocal Type:** Blues.
 
 ### Backstory
-Written 47 PRDs; none read.
+47 PRDs; none read. Board: expired stickies.
 
 ### Motivation
-Ship before the next board meeting.
+Ship it.
 
 ### Costume Notes
-Business casual; lanyard with expired cards.
+Business casual; expired lanyard.
 
 ### Song Assignments
-| Song | Role in Number |
-|------|----------------|
-| "The Standup Ballad" | Verse lead |
-| "It Worked on My Machine" | Lead |
+| Song | Role in Number | Notes |
+|------|----------------|-------|
+| "The Standup Ballad" | Verse lead | Full cast |
+| "It Worked on My Machine" | Lead | Blues spotlight |
+
+---
 
 ## Marcus Chen
 
 **Role:** Senior Engineer
 **Vocal Range:** Baritone
-**Vocal Type:** Rich baritone; tango precision required.
+**Vocal Type:** Tango.
 
 ### Backstory
-Wrote codebase in 72-hour hackathon.
+Wrote codebase in 72-hour hackathon. Never left.
 
 ### Motivation
-Protect the codebase at all costs. Has not gone home.
+Protect codebase.
 
 ### Costume Notes
-Same grey hoodie every scene — Marcus never goes home.
+Grey hoodie.
 
 ### Song Assignments
-| Song | Role in Number |
-|------|----------------|
-| "The Merge Conflict" | Lead |
-| "Rebase or Rewrite?" | Ensemble |
+| Song | Role in Number | Notes |
+|------|----------------|-------|
+| "The Merge Conflict" | Lead | Tango duet |
+| "Rebase or Rewrite?" | Ensemble lead | Full cast |
+
+---
 
 ## Zoe Kim
 
 **Role:** Junior Engineer
 **Vocal Range:** Soprano
-**Vocal Type:** Bright lyric soprano; high C required.
+**Vocal Type:** High C.
 
 ### Backstory
-Assigned to fix CI on day one; still fixing it.
+Assigned CI day one; still broken. Dishevelled.
 
 ### Motivation
-Prove she belongs.
+Belongs here.
 
 ### Costume Notes
-First-day blazer; dishevelled by Act II.
+Blazer; dishevelled.
 
 ### Song Assignments
-| Song | Role in Number |
-|------|----------------|
-| "The Merge Conflict" | Lead |
+| Song | Role in Number | Notes |
+|------|----------------|-------|
+| "The Merge Conflict" | Lead | High C |
+| "The Rollback Waltz" | Ensemble | Full cast |
+
+---
 
 ## Aisha Okafor
 
 **Role:** QA Lead
 **Vocal Range:** Alto
-**Vocal Type:** Deep alto; dry comic timing essential.
+**Vocal Type:** Comic timing.
 
 ### Backstory
-Finds every bug; no one listens.
+Finds every bug; unheard. Always right.
 
 ### Motivation
-To be wrong just once.
+Wrong once.
 
 ### Costume Notes
-QA badge (distinct colour); reading glasses on forehead.
+Badge; forehead glasses.
 
 ### Song Assignments
-| Song | Role in Number |
-|------|----------------|
-| "The Rollback Waltz" | Ensemble |
+| Song | Role in Number | Notes |
+|------|----------------|-------|
+| "The Rollback Waltz" | Ensemble lead | Comic waltz |
+| "Rebase or Rewrite?" | Ensemble | Full cast |
+
+---
 
 ## Riley Park
 
 **Role:** The Intern
 **Vocal Range:** Tenor (high)
-**Vocal Type:** High lyric tenor; exhaustion must read by measure 32.
+**Vocal Type:** Bar 32 exhaustion.
 
 ### Backstory
-Hired six months ago to fix CI; renewed twice.
+Six months; renewed twice. CI unfixed.
 
 ### Motivation
-Finish before the internship ends.
+Finish internship.
 
 ### Costume Notes
-Lanyard too long; sticker holds bag shut.
+Lanyard; sticker bag.
 
 ### Song Assignments
-| Song | Role in Number |
-|------|----------------|
-| "The Intern's Lament" | Lead |
+| Song | Role in Number | Notes |
+|------|----------------|-------|
+| "The Intern's Lament" | Lead | Acoustic |
+| "The Standup Ballad" | Ensemble | Full cast |
+
+---
 
 ## The Legacy Codebase
 
 **Role:** Personified Ensemble
-**Vocal Range:** Full range (ensemble)
-**Vocal Type:** 6+ dancers; cast as one interdependent system.
+**Vocal Range:** Full range
+**Vocal Type:** 6+ dancers; system.
 
 ### Backstory
-Not designed — accumulated. Six modules personified as dancers: Auth Service, Payment Gateway, Notification Queue, Session Manager, Legacy API, Database Migration Runner. When one falls, all fall.
+Not designed — accumulated. Six modules as dancers; when one falls, all fall.
 
 ### Motivation
-Survive the sprint. Resist refactoring.
+Survive; resist.
 
 ### Costume Notes
-Auth Service wears broken padlock; Payment Gateway wears calculator watch.
+Auth: padlock. Gateway: watch.
 
 ### Song Assignments
-| Song | Role in Number |
-|------|----------------|
-| "Technical Debt (The Musical Number)" | Lead |
-| "Ctrl+Z (The Reprise)" | Ensemble |
+| Song | Role in Number | Notes |
+|------|----------------|-------|
+| "Technical Debt (The Musical Number)" | Lead | Hip-hop |
+| "Rebase or Rewrite?" | Ensemble | Full cast |
+| "The Rollback Waltz" | Ensemble | Full cast |
+| "Ctrl+Z (The Reprise)" | Ensemble | Reboot |

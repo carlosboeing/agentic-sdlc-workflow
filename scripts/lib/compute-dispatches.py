@@ -830,7 +830,12 @@ def generate_gantt(state):
     # Gantt header
     lines.append("    title Full Lifecycle Timeline")
     lines.append("    dateFormat HH:mm:ss")
-    lines.append("    axisFormat %M:%S")
+    # Adapt axis format to timeline duration
+    if total_duration_s > 3600:
+        axis_fmt = "%H:%M"
+    else:
+        axis_fmt = "%M:%S"
+    lines.append(f"    axisFormat {axis_fmt}")
     lines.append(f"    tickInterval {tick_interval}")
 
     task_id = 1

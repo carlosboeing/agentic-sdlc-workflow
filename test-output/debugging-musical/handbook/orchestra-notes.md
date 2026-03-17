@@ -20,9 +20,11 @@
 - **Transition Duration:** 8s
 - **Transition Type:** Blackout
 
+---
+
 ## The Standup Ballad
 
-**Scene:** Act I, Scene 4
+**Scene:** Act I, Scene 2
 **Key:** D minor
 **Tempo:** 72 BPM (Andante)
 **Time Signature:** 4/4
@@ -40,9 +42,11 @@
 | Priya Mehta | Mezzo-soprano | Bridge |
 
 ### Transition
-- **From:** Rebase
+- **From:** The Pitch
 - **Transition Duration:** 6s
 - **Transition Type:** Segue
+
+---
 
 ## The Merge Conflict
 
@@ -66,6 +70,8 @@
 - **From:** Scene 2
 - **Transition Duration:** 5s
 - **Transition Type:** Segue
+
+---
 
 ## Rebase or Rewrite?
 
@@ -91,6 +97,8 @@
 - **Transition Duration:** 3s
 - **Transition Type:** Segue
 
+---
+
 ## The Intern's Lament
 
 **Scene:** Act I, Scene 4
@@ -106,12 +114,14 @@
 ### Vocal Requirements
 | Character | Range Required | Notes |
 |-----------|---------------|-------|
-| Riley Park | Tenor | Solo |
+| Riley Park | Tenor (high) | Solo |
 
 ### Transition
-- **From:** Standup Ballad
+- **From:** Rebase or Rewrite?
 - **Transition Duration:** 4s
 - **Transition Type:** Segue
+
+---
 
 ## It Worked on My Machine
 
@@ -134,6 +144,8 @@
 - **From:** Intermission
 - **Transition Duration:** 10s
 - **Transition Type:** Blackout
+
+---
 
 ## The Rollback Waltz
 
@@ -159,6 +171,8 @@
 - **Transition Duration:** 8s
 - **Transition Type:** Blackout
 
+---
+
 ## Technical Debt (The Musical Number)
 
 **Scene:** Act II, Scene 3
@@ -180,6 +194,8 @@
 - **From:** Green cursor
 - **Transition Duration:** 6s
 - **Transition Type:** Segue
+
+---
 
 ## Ctrl+Z (The Reprise)
 

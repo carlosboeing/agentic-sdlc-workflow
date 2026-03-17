@@ -1,6 +1,20 @@
 # Changelog
 ## 2026-03-17
 
+### The Debugging: A Silicon Valley Musical — Run 16 (backlog #167, 136m wall-clock)
+
+- **Primary result:** First test run with the slimmed orchestrator.md (503 lines) and `state.sh` for all state management
+- Validated `state.sh` integration: `init`, `update --dispatch`, `update --add-story`, `update --epic --base-sha`, `overhead`, `lifecycle-duration`
+- Validated `maxParallelBuilders: 3` config enforcement: Wave 1 (5 stories) correctly split into 3+2 sub-waves
+- Creative content: tech-satire musical with 9 songs, 7 characters, across script/handbook/marketing materials
+- 3 epics, 9 stories: E01 Script (4 stories), E02 Production Handbook (3 stories), E03 Marketing (2 stories)
+- Dispatch: 5 waves — Wave 1a parallel (3-way), Wave 1b parallel (2-way), Wave 2 sequential, Wave 3 parallel (2-way), Wave 4 sequential
+- 3 fix cycles: E02-S02 (word count + missing template sections), E02-S01 (missing table column + short backstories), E02-S03 (planted bug — wrong scene number caught by reviewer)
+- Planted bug validation: reviewer correctly identified "The Standup Ballad" as Scene 4 instead of Scene 2, triggering fix cycle
+- Difficulty: 4 easy, 4 medium, 1 hard; Models: 8 sonnet builds + 1 opus build, 4 sonnet reviews + 5 opus reviews
+
+## 2026-03-17
+
 ### Split orchestrator.md — Run 15 (backlog #150, 77m wall-clock)
 
 - **Primary result:** Reduced `orchestrator.md` from 1,323 to 503 lines (62% reduction) by extracting inline scripts into real scripts and deleting dead/redundant content

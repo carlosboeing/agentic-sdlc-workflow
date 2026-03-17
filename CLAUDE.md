@@ -262,6 +262,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/issue-close.sh <n>` | Close issue + set board to Done |
 | `scripts/cleanup-post-merge.sh [<backlog-number>]` | Post-merge cleanup: stale branches, worktrees, state dirs, remote refs |
 | `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
+| `scripts/reconcile-board.sh --from-state <state-file> [--epic-issues <json>] [--dry-run]` | Reconcile board statuses with state file (1 API query to read, 1 per fix) |
 | `scripts/validate-logs.sh` | Report on board-status, orchestrator, and drift logs |
 | `scripts/setup-labels.sh` | Create all labels (idempotent) |
 | `scripts/fetch-pricing.sh` | Fetch live API pricing and cache locally (JSON to stdout) |
@@ -406,7 +407,17 @@ claude --agent orchestrator
 gh pr merge <N> --squash --delete-branch
 ```
 
-**Link all issues to the PR:** The backlog PR body MUST include `Closes #NN` for the backlog issue, every epic issue, AND every story issue so merging the PR auto-closes them all (e.g., `Closes #57, closes #58, closes #59, closes #60, closes #61, ...`). Design doc and plan issues should also be included. Omitting issues from the `Closes` list causes them to remain open after merge.
+**Link all issues to the PR:** The backlog PR body MUST include `Closes #NN` for every **open** issue that should auto-close on merge: the backlog issue, every epic issue, and every story issue (e.g., `Closes #57, closes #58, closes #59, ...`). **Already-closed issues** (design doc, plan, retro) must NOT use the `Closes` keyword — list them separately as `Related (already closed): #24, #25, #42`. The `Closes` keyword links the PR to the issue, which triggers GitHub's default "Pull request linked to issue" automation and reverts Done → In Progress. This was the root cause of board status drift observed across Runs 3-16 (observation iv). Using `Closes` on already-closed issues provides no functional benefit (auto-close is a no-op on closed issues) while triggering status reversions.
+
+**Board reconciliation (defense-in-depth):** After opening the backlog PR (which links issues and may trigger external automations), wait 5 seconds, then run a full board reconciliation:
+
+```bash
+sleep 5  # allow automations to fire
+./scripts/reconcile-board.sh --from-state .agentic-workflow/runs/<N>/orchestrator.json \
+  --epic-issues '{"e01":<N>,"e02":<N>,...}'
+```
+
+The script reads the state file, computes expected statuses deterministically, batch-queries actual statuses (1 API point), and fixes discrepancies. Call at every phase boundary and as a final step before workflow completion.
 
 **Update changelog:** The integration branch MUST include a `docs/CHANGELOG.md` entry before the PR is opened. Add the entry under the current date, following the existing format (feature summary + bullet points). For test run entries, include the wall-clock duration in the heading: `**Run N -- <Topic>** (backlog #NNN, 25m wall-clock)`. Read `session.lifecycle_duration_ms` from the orchestrator state file to get the exact duration — do not estimate.
 
@@ -703,3 +714,4 @@ When creating a new test run backlog item, include the following in the **issue 
 5. **What to validate:** State what workflow capability this run is testing (e.g., "validate configurable model routing from `.claude/agentic-sdlc-config.json`").
 
 The workflow agents are generic — they don't know they're running a test. They follow whatever the backlog item specifies.
+

@@ -28,7 +28,11 @@ _local_ensure_dirs() {
 # --- Path helpers ---
 
 # _local_item_path <id> — return the full path to an item file.
+# Validates that <id> is a positive integer to prevent path traversal.
 _local_item_path() {
+  case "$1" in
+    ''|*[!0-9]*) echo "ERROR: _local_item_path: id must be a positive integer, got '$1'" >&2; return 1 ;;
+  esac
   echo "$_LOCAL_WORKFLOW_DIR/items/$1.md"
 }
 

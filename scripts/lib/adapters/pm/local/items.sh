@@ -28,7 +28,7 @@ _local_build_json() {
       number) part="\"number\":$item_id" ;;
       title)  part="$(printf '"title":"%s"' "$(_local_escape_json_string "$title")")" ;;
       state)  part="\"state\":\"$state_upper\"" ;;
-      body)   part="$(printf '"body":"%s"' "$(echo "$body" | sed 's/\\/\\\\/g;s/"/\\"/g' | tr '\n' ' ' | sed 's/ $//')")" ;;
+      body)   part="$(printf '"body":"%s"' "$(printf '%s' "$body" | sed 's/\\/\\\\/g;s/"/\\"/g' | awk '{printf "%s%s",(NR>1?"\\n":""),$0}')")" ;;
       labels) part="\"labels\":$labels_json" ;;
       *)      part="\"$field\":null" ;;
     esac

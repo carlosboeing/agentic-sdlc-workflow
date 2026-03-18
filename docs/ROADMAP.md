@@ -29,7 +29,7 @@ graph TD
 
     105 --> 108
     106 --> 108
-    107 --> 108
+    109 --> 108
     109 --> 111
     109 --> 110
     109 --> 112
@@ -47,7 +47,7 @@ graph TD
     style 106 fill:#9ca3af,color:#fff
     style 107 fill:#059669,color:#fff
     style 108 fill:#059669,color:#fff
-    style 109 fill:#8b5cf6,color:#fff
+    style 109 fill:#059669,color:#fff
     style 110 fill:#8b5cf6,color:#fff
     style 111 fill:#8b5cf6,color:#fff
     style 112 fill:#8b5cf6,color:#fff
@@ -71,22 +71,22 @@ graph TD
 |----------|-------|-------|------|-------------|-------|
 | ✅ | [#105](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/105) | ~~Orchestrator Improvements~~ | M | — | Done |
 | ✅ | [#106](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/106) | ~~Telemetry Accuracy & Automation~~ | M | — | Done |
-| 1 | [#107](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/107) | Retro Agent Rework | M | — | Active |
 | ✅ | [#150](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/150) | ~~Split orchestrator.md~~ | S | — | Done |
-| 2 | [#149](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/149) | Universal Worktree Isolation | M | — | Active |
-| 3 | [#148](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/148) | Adversarial Deliberation Agent | M | — | Active |
-| 4 | [#108](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/108) | Run on Real Software | L | ~~105~~, ~~106~~, 107 | Active |
-| 5 | [#109](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109) | PM Abstraction Layer | L | — | Plugin |
-| 6 | [#110](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/110) | Configurable Taxonomy | L | 109 | Plugin |
-| 7 | [#111](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111) | Local-First PM System | XL | 109 | Plugin |
-| 8 | [#112](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/112) | Plugin Packaging | XL | 109, 110, 111 | Plugin |
-| 9 | [#113](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/113) | Multi-PM Adapters | XL | 109, 112 | Future |
-| 10 | [#114](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/114) | Domain Profiles | L | — | Future |
-| 11 | [#115](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/115) | New Specialist Agents | L | — | Future |
-| 12 | [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | Dashboard | XL | 111 | Future |
-| 13 | [#117](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/117) | Multi-Repo Orchestration | XL | 109, 112 | Future |
-| 14 | [#118](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/118) | Learning Across Projects | L | 107, 112 | Future |
-| 15 | [#166](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/166) | Telemetry Diagrams | S | — | Future |
+| 1 | [#109](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109) | PM Abstraction Layer | L | — | Plugin |
+| 2 | [#111](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111) | Local-First PM System | XL | 109 | Plugin |
+| 3 | [#110](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/110) | Configurable Taxonomy | L | 109 | Plugin |
+| 4 | [#108](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/108) | Run on Real Software | L | 109 | Active |
+| — | [#166](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/166) | Telemetry Diagrams | S | — | Quick win |
+| — | [#149](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/149) | Universal Worktree Isolation | M | — | Quick win |
+| 5 | [#112](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/112) | Plugin Packaging | XL | 109, 110, 111 | Plugin |
+| 6 | [#107](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/107) | Retro Agent Rework | M | — | Active |
+| 7 | [#148](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/148) | Adversarial Deliberation Agent | M | — | Active |
+| 8 | [#113](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/113) | Multi-PM Adapters | XL | 109, 112 | Future |
+| 9 | [#114](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/114) | Domain Profiles | L | — | Future |
+| 10 | [#115](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/115) | New Specialist Agents | L | — | Future |
+| 11 | [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | Dashboard | XL | 111 | Future |
+| 12 | [#117](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/117) | Multi-Repo Orchestration | XL | 109, 112 | Future |
+| 13 | [#118](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/118) | Learning Across Projects | L | 107, 112 | Future |
 
 ## Backlog Summaries
 
@@ -114,7 +114,7 @@ Ensure every agent — including the orchestrator itself — operates in an isol
 Add a configurable deliberation capability where a second agent challenges the first agent's output at key decision points. Triages reviewer findings (filtering false positives before fix cycles), challenges design/plan assumptions, and improves merge/no-merge decisions.
 
 **[#108 Run on Real Software](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/108)** — `size/L`
-First real-software test — use the workflow to build one of its own improvements. 14 runs validated creative content; zero runs on actual code. Validates genericized agents work for real development. Blocked by #107 (last remaining dependency — #105 and #106 are complete).
+First real-software test — use the workflow to build one of its own improvements. 16 runs validated creative content; zero runs on actual code. Validates genericized agents work for real development. Blocked by #109 (PM abstraction must be in place so real-software code is written against the final architecture).
 
 ### Plugin Track
 

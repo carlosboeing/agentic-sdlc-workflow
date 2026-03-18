@@ -89,7 +89,7 @@ Execute these phases in order. Each phase has a verification step before proceed
    ```bash
    ./scripts/state.sh init <backlog-number> --mode autonomous --model <model>
    ```
-   Creates state directory, fetches pricing, captures `start_wall_clock`. Must happen before any agent dispatch — this timestamp is the reference for Phase 10 overhead.
+   Creates state directory, fetches pricing, captures `start_wall_clock`. Must happen before any agent dispatch — this timestamp is the reference for Phase 9 overhead.
 
 ### Phase 1: Design (conditional)
 
@@ -259,15 +259,39 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
    ```
    The `Closes` list MUST include backlog, ALL epics, ALL stories, and design/plan issues.
 
-4. **Dispatch reviewer** on the PR (`reviewer-opus` always for cross-epic integration review):
+4. **Create a retro issue** (before dispatching, so retro can start immediately):
+   Link as sub-issue of backlog (`addSubIssue` GraphQL mutation), add to project board, set to In Progress.
+
+5. **Dispatch PR reviewer and retro agent in parallel:**
+   The PR reviewer reviews a frozen branch snapshot (worktree isolation). The retro commits in its own worktree but does NOT push until the review completes. This saves ~6 minutes per run.
+
    ```
-   Agent tool → subagent_type: "reviewer-opus"
+   # Dispatch both simultaneously via parallel Agent tool calls:
+   Agent tool → subagent_type: "reviewer-opus", isolation: "worktree"
    Prompt: "Review PR #<pr-number>. Check for cross-epic integration issues,
             convention violations, and security concerns."
-   ```
-   Handle fix cycles same as Phase 6 (max 2).
 
-5. **Set backlog to In Review.** Re-verify ALL board statuses (defense against drift — observed in Runs 3, 10, 11, 12):
+   Agent tool → subagent_type: "retro", isolation: "worktree"
+   Prompt: "Write retrospective for backlog item #<backlog-number>, epic <slug>, epic issue #<number>.
+            Retro issue: #<retro-issue-number>.
+            Commit in your worktree on branch: backlog/<N>-<slug>.
+            Do NOT push to remote — the orchestrator will push after PR review completes.
+            Do NOT create a separate docs/ branch or PR to main."
+   ```
+
+   Handle PR review fix cycles same as Phase 6 (max 2). If fix cycle needed, retro results are still valid (retro reads dispatch data, not code).
+
+6. **After both complete — push retro commits:**
+   The retro agent committed in its worktree. Push those commits to the integration branch:
+   ```bash
+   # Merge retro worktree commits into integration branch
+   git checkout backlog/<N>-<slug> && git pull
+   git merge <retro-worktree-branch> --no-ff -m "docs(retro): merge retrospective"
+   git push origin backlog/<N>-<slug>
+   ```
+   Close retro issue (`issue-close.sh`). Include in backlog PR `Closes` list (as `Related (already closed)`).
+
+7. **Set backlog to In Review.** Re-verify ALL board statuses (defense against drift):
    ```bash
    for ISSUE in <design> <plan> <retro>; do ./scripts/issue-close.sh $ISSUE; done
    for ISSUE in <stories> <epics>; do ./scripts/issue-set-status.sh $ISSUE in-review; done
@@ -275,24 +299,9 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
    ```
    This step is mandatory — do not skip even if prior status calls reported success.
 
-6. **DO NOT merge the backlog PR.** Leave open for human review.
+8. **DO NOT merge the backlog PR.** Leave open for human review.
 
-### Phase 9: Dispatch Retro Agent
-
-1. **Create a retro issue**, link as sub-issue of backlog (`addSubIssue` GraphQL mutation), add to project board, set to In Progress.
-
-2. **Dispatch retro agent** — commits directly on integration branch (no separate PR):
-   ```
-   Agent tool → subagent_type: "retro"
-   Prompt: "Write retrospective for backlog item #<backlog-number>, epic <slug>, epic issue #<number>.
-            Retro issue: #<retro-issue-number>.
-            Commit on integration branch: backlog/<N>-<slug>.
-            Do NOT create a separate docs/ branch or PR to main."
-   ```
-
-3. Push integration branch, close retro issue (`issue-close.sh`). Include in backlog PR `Closes` list.
-
-### Phase 10: Backlog-Level Telemetry
+### Phase 9: Backlog-Level Telemetry
 
 Post a **full lifecycle telemetry summary** on the backlog issue and PR description.
 
@@ -324,7 +333,7 @@ Computes `overhead_ms = wall_clock - critical_path` from dispatch timestamps. In
 ./scripts/state.sh lifecycle-duration
 ```
 
-### Phase 11: Post-Merge Cleanup
+### Phase 10: Post-Merge Cleanup
 
 After the human merges the backlog PR (`gh pr merge --squash`):
 

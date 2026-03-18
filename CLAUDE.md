@@ -301,10 +301,13 @@ Use the Agent tool with `subagent_type: "builder-<model>"`:
 7. If reviewer finds issues: re-dispatch builder to fix, then re-review (max 2 cycles)
 8. Merge story branch into epic branch (only after review passes)
 9. After all stories complete: merge epic branches into integration branch, open backlog PR, post telemetry
-10. **Dispatch reviewer** on the backlog PR (mandatory): `subagent_type: "reviewer-opus"` (always Opus for cross-epic integration review)
-11. If reviewer finds issues: dispatch builder to fix on integration branch, then re-review (max 2 cycles)
-12. Backlog PR is left open for human review (orchestrator NEVER auto-merges it)
-13. Dispatch retro on the integration branch: `subagent_type: "retro"`
+10. **Dispatch PR reviewer and retro in parallel** (both with `isolation: "worktree"`):
+    - PR reviewer (`reviewer-opus`): reviews frozen branch snapshot
+    - Retro (`retro`): writes retro doc in worktree, does NOT push until PR review completes
+    - This saves ~6 min/run. The retro does not modify files under review — it only adds docs.
+11. If reviewer finds issues: dispatch builder to fix on integration branch, then re-review (max 2 cycles). Retro results remain valid.
+12. After both complete: merge retro worktree commits into integration branch, push
+13. Backlog PR is left open for human review (orchestrator NEVER auto-merges it)`
 
 #### CLI dispatch (standalone terminal only)
 

@@ -10,6 +10,34 @@ _LOCAL_ITEMS_LOADED=1
 _ITEMS_SH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -z "${_LOCAL_COMMON_LOADED:-}" ] && source "$_ITEMS_SH_DIR/_common.sh"
 
+# --- Private helpers ---
+
+# _local_escape_json_string — escape backslashes and double-quotes for JSON.
+# Usage: _local_escape_json_string <value>
+_local_escape_json_string() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g'
+}
+
+# _local_build_json — assemble JSON object for the requested fields.
+_local_build_json() {
+  local item_id="$1" title="$2" state_upper="$3" body="$4" labels_json="$5" fields="$6"
+  local json="{" first=1 part IFS=','
+  for field in $fields; do
+    field="${field#"${field%%[![:space:]]*}"}"; field="${field%"${field##*[![:space:]]}"}"
+    case "$field" in
+      number) part="\"number\":$item_id" ;;
+      title)  part="$(printf '"title":"%s"' "$(_local_escape_json_string "$title")")" ;;
+      state)  part="\"state\":\"$state_upper\"" ;;
+      body)   part="$(printf '"body":"%s"' "$(echo "$body" | sed 's/\\/\\\\/g;s/"/\\"/g' | tr '\n' ' ' | sed 's/ $//')")" ;;
+      labels) part="\"labels\":$labels_json" ;;
+      *)      part="\"$field\":null" ;;
+    esac
+    [ "$first" -eq 1 ] && json="${json}${part}" || json="${json},${part}"
+    first=0
+  done
+  echo "${json}}"
+}
+
 # --- pm_create_item ---
 # Usage: pm_create_item <level> <title> [--body <t>] [--body-file <p>] [--labels <csv>]
 # Prints the new integer ID on stdout.
@@ -91,34 +119,14 @@ pm_get_item() {
       | awk '{printf "%s{\"name\":\"%s\"}",(NR>1?",":""),$0}' \
       | awk '{print "["$0"]"}')
     state_upper=$(echo "$state" | tr '[:lower:]' '[:upper:]')
-    _pm_build_json "$item_id" "$title" "$state_upper" "$body" "$labels_json" "$json_fields"
+    _local_build_json "$item_id" "$title" "$state_upper" "$body" "$labels_json" "$json_fields"
   else
     local title state labels_csv
     title=$(_local_fm_read "$item_path" title)
     state=$(_local_fm_read "$item_path" state)
-    labels_csv=$(_local_fm_read_labels "$item_path" | paste -sd ',' -)
+    labels_csv=$(_local_fm_read_labels "$item_path" | paste -sd ',' - | sed 's/,/, /g')
     printf "title:  %s\nstate:  %s\nlabels: %s\n" "$title" "$state" "$labels_csv"
   fi
-}
-
-# _pm_build_json — assemble JSON object for the requested fields.
-_pm_build_json() {
-  local item_id="$1" title="$2" state_upper="$3" body="$4" labels_json="$5" fields="$6"
-  local json="{" first=1 part IFS=','
-  for field in $fields; do
-    field="${field#"${field%%[![:space:]]*}"}"; field="${field%"${field##*[![:space:]]}"}"
-    case "$field" in
-      number) part="\"number\":$item_id" ;;
-      title)  part="$(printf '"title":"%s"' "$title")" ;;
-      state)  part="\"state\":\"$state_upper\"" ;;
-      body)   part="$(printf '"body":"%s"' "$(echo "$body" | sed 's/\\/\\\\/g;s/"/\\"/g' | tr '\n' ' ' | sed 's/ $//')")" ;;
-      labels) part="\"labels\":$labels_json" ;;
-      *)      part="\"$field\":null" ;;
-    esac
-    [ "$first" -eq 1 ] && json="${json}${part}" || json="${json},${part}"
-    first=0
-  done
-  echo "${json}}"
 }
 
 # --- pm_list_items ---
@@ -137,7 +145,7 @@ pm_list_items() {
   local items_dir="$_LOCAL_WORKFLOW_DIR/items"
   [ ! -d "$items_dir" ] && return 0
   local count=0
-  for item_path in $(ls "$items_dir"/*.md 2>/dev/null | sort -V); do
+  for item_path in "$items_dir"/*.md; do
     [ -f "$item_path" ] || continue
     local item_id item_state item_title item_created
     item_id=$(_local_fm_read "$item_path" id)

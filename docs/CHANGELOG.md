@@ -1,6 +1,21 @@
 # Changelog
 ## 2026-03-18
 
+### Local-First PM System (backlog #111)
+
+- **Primary result:** Built the complete local/file-based PM adapter so the workflow works without any external PM tool
+- Created `scripts/lib/adapters/pm/local/` with 8 modules: _common.sh, items.sh, board.sh, comments.sh, hierarchy.sh, labels.sh, lifecycle.sh, reconcile.sh
+- All 15 `pm_*` functions implemented: switching `pm.adapter` from `"github"` to `"local"` in config is the only change needed
+- `.workflow/items/*.md` with YAML frontmatter — human-readable, git-diffable, greppable work items
+- `.workflow/comments/<id>/NNN-slug.md` — timestamped comment history per item
+- Auto-increment ID generation via `_next_id` file, no external dependencies
+- Individual files ARE the index — no centralized board.yaml, no concurrent write conflicts by design
+- Refactored `issue-telemetry.sh` to use `pm_add_comment` (adapter-agnostic telemetry posting)
+- Added `CFG_LOCAL_WORKFLOW_DIR` config field (default: `.workflow`)
+- 3 epics, 9 stories: E01 Foundation (2 stories), E02 Domain Modules (3 stories), E03 Composition + Integration (4 stories)
+- 300+ unit tests across 16 test suites plus integration test, all passing
+- 3 fix cycles: E01-S01 (sed metachar injection + labels-last drop), E01-S02 (JSON title escaping), E03-S01 (emoji mismatch)
+
 ### PM Abstraction Layer (backlog #109)
 
 - **Primary result:** Introduced a clean PM adapter boundary between workflow process logic and external project management platforms

@@ -24,10 +24,14 @@
     "medium": "opus",
     "hard": "opus"
   },
+  "pm": {
+    "adapter": "github"
+  },
   "workflow": {
     "autoMergePlanPR": true,
     "autoMergeDesignPR": true,
     "skipRetro": false,
-    "maxParallelBuilders": 3
+    "maxParallelBuilders": 3,
+    "maxCostPerRun": null
   }
 }

@@ -416,14 +416,23 @@ def state_to_dispatches(state):
     dispatches = []
     raw_dispatches = state.get("dispatches", [])
 
+    # Track fix cycles: (issue, agent_prefix) → count of dispatches seen so far.
+    # A builder/reviewer dispatch for an issue that already had one is a fix cycle.
+    fix_counts: dict = {}
+
     for d in raw_dispatches:
         agent = d.get("agent", "unknown")
         model = d.get("model", "unknown")
         issue = d.get("issue")
         phase = AGENT_TO_PHASE.get(agent, "Other")
+        agent_prefix = agent.split("-")[0]
+
+        # Detect fix cycles using the same (issue, agent_prefix) pattern as the Gantt
+        pair_key = (issue, agent_prefix) if issue else None
+        is_fix_cycle = fix_counts.get(pair_key, 0) > 0 if pair_key else False
 
         # Build human-readable agent label
-        agent_base = agent.split("-")[0].capitalize()
+        agent_base = agent_prefix.capitalize()
         if agent_base == "Builder":
             agent_label = f"Builder ({model})"
         elif agent_base == "Reviewer":
@@ -439,17 +448,33 @@ def state_to_dispatches(state):
         elif phase == "Retro":
             task = f"Retrospective (#{issue})" if issue else "Retrospective"
         elif phase == "Review" and issue:
-            if issue in issue_titles:
+            if is_fix_cycle:
+                # Re-review after a fix cycle
+                if issue in issue_titles:
+                    task = f"Re-review {issue_titles[issue]} (#{issue})"
+                else:
+                    task = f"Re-review (#{issue})"
+            elif issue in issue_titles:
                 title = issue_titles[issue]
                 task = f"Review {title} (#{issue})"
             else:
                 task = f"PR Review (#{issue})"
+        elif phase == "Build" and is_fix_cycle and issue:
+            # Builder re-dispatch to fix reviewer findings
+            if issue in issue_titles:
+                task = f"Fix {issue_titles[issue]} (#{issue})"
+            else:
+                task = f"Fix (#{issue})"
         elif issue and issue in issue_titles:
             task = f"{issue_titles[issue]} (#{issue})"
         elif issue:
             task = f"Issue #{issue}"
         else:
             task = agent
+
+        # Increment fix count *after* generating label for this dispatch
+        if pair_key:
+            fix_counts[pair_key] = fix_counts.get(pair_key, 0) + 1
 
         dispatches.append({
             "agent": agent_label,

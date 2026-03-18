@@ -6,33 +6,44 @@
 #     Establishes a sub-issue relationship via the addSubIssue GraphQL mutation.
 #     Both arguments are GitHub issue numbers; node IDs are fetched internally.
 #     Requires CFG_REPO (e.g., "owner/repo") to be set.
+#
+# Prefix injection: when _PM_LOADING_EXTERNAL=1 is set before sourcing,
+# public pm_* functions are defined as _external_pm_* instead.
 
-pm_link_child() {
-  local parent_num="$1"
-  local child_num="$2"
+# Set function name prefix: empty in normal mode, "_external_" when loading as external adapter
+_PM_FN_PREFIX="${_PM_LOADING_EXTERNAL:+_external_}"
+
+# Idempotency guard: check using the prefix-aware function name
+if declare -f "${_PM_FN_PREFIX}pm_link_child" > /dev/null 2>&1; then
+  return 0 2>/dev/null || exit 0
+fi
+
+eval "${_PM_FN_PREFIX}pm_link_child() {
+  local parent_num=\"\$1\"
+  local child_num=\"\$2\"
 
   local parent_id
-  parent_id=$(gh issue view "$parent_num" --repo "$CFG_REPO" --json id -q '.id // empty' 2>/dev/null)
-  if [ -z "$parent_id" ]; then
-    echo "ERROR: Could not fetch node ID for issue #$parent_num" >&2
+  parent_id=\$(gh issue view \"\$parent_num\" --repo \"\$CFG_REPO\" --json id -q '.id // empty' 2>/dev/null)
+  if [ -z \"\$parent_id\" ]; then
+    echo \"ERROR: Could not fetch node ID for issue #\$parent_num\" >&2
     return 1
   fi
 
   local child_id
-  child_id=$(gh issue view "$child_num" --repo "$CFG_REPO" --json id -q '.id // empty' 2>/dev/null)
-  if [ -z "$child_id" ]; then
-    echo "ERROR: Could not fetch node ID for issue #$child_num" >&2
+  child_id=\$(gh issue view \"\$child_num\" --repo \"\$CFG_REPO\" --json id -q '.id // empty' 2>/dev/null)
+  if [ -z \"\$child_id\" ]; then
+    echo \"ERROR: Could not fetch node ID for issue #\$child_num\" >&2
     return 1
   fi
 
-  if ! gh api graphql -f query="mutation {
-    addSubIssue(input: { issueId: \"$parent_id\", subIssueId: \"$child_id\" }) {
+  if ! gh api graphql -f query=\"mutation {
+    addSubIssue(input: { issueId: \\\"\$parent_id\\\", subIssueId: \\\"\$child_id\\\" }) {
       subIssue { id }
     }
-  }" > /dev/null; then
-    echo "ERROR: GraphQL addSubIssue mutation failed for #$child_num → #$parent_num" >&2
+  }\" > /dev/null; then
+    echo \"ERROR: GraphQL addSubIssue mutation failed for #\$child_num → #\$parent_num\" >&2
     return 1
   fi
 
-  echo "Linked #$child_num as sub-issue of #$parent_num"
-}
+  echo \"Linked #\$child_num as sub-issue of #\$parent_num\"
+}"

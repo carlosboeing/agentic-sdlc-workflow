@@ -630,6 +630,114 @@ assert_contains "Local_pm_creates_file" "item_file:created" "$LOCAL_CALL_OUTPUT"
 
 echo ""
 
+# --- Test Group 17: Config with no pm section at all loads local-only ---
+echo "Test Group 17: Config with no pm section at all loads local-only"
+
+MOCK_CONFIG_NO_PM="$MOCK_CONFIG_DIR/config_no_pm.json"
+cat > "$MOCK_CONFIG_NO_PM" <<'CONFIG_NO_PM'
+{
+  "workflowDir": ".workflow"
+}
+CONFIG_NO_PM
+
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export _CFG_FILE_OVERRIDE=\"$MOCK_CONFIG_NO_PM\"
+  source \"$PM_SH\"
+  declare -f pm_create_item > /dev/null && echo 'pm_create_item:exists'
+  declare -f _local_pm_create_item > /dev/null && echo '_local_pm_create_item:exists'
+  echo \"PM_EXTERNAL=\${PM_EXTERNAL:-}\"
+  echo \"PM_ADAPTER=\${PM_ADAPTER:-}\"
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+NO_PM_OUTPUT=$(cat "$TMPOUT")
+NO_PM_STDERR=$(cat "$TMPERR")
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_zero "No_pm_section_loads_without_error" "$EXIT_CODE"
+assert_contains "pm_create_item_exists_no_pm_section" "pm_create_item:exists" "$NO_PM_OUTPUT"
+assert_contains "_local_pm_create_item_exists_no_pm_section" "_local_pm_create_item:exists" "$NO_PM_OUTPUT"
+assert_contains "PM_EXTERNAL_empty_no_pm_section" "PM_EXTERNAL=" "$NO_PM_OUTPUT"
+assert_contains "PM_ADAPTER_local_no_pm_section" "PM_ADAPTER=local" "$NO_PM_OUTPUT"
+# No deprecation note (no pm.adapter = "local" set)
+assert_not_contains "No_deprecation_for_missing_pm_section" "deprecat" "$NO_PM_STDERR"
+
+echo ""
+
+# --- Test Group 18: workflowDir top-level config respected by local adapter ---
+echo "Test Group 18: workflowDir top-level config respected by local adapter"
+
+MOCK_CUSTOM_WFDIR=$(mktemp -d)
+MOCK_CONFIG_CUSTOM_WF="$MOCK_CONFIG_DIR/config_custom_wf.json"
+cat > "$MOCK_CONFIG_CUSTOM_WF" <<EOF
+{
+  "workflowDir": "$MOCK_CUSTOM_WFDIR",
+  "pm": {}
+}
+EOF
+
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  export _CFG_FILE_OVERRIDE=\"$MOCK_CONFIG_CUSTOM_WF\"
+  source \"$PM_SH\"
+  item_id=\$(pm_create_item story 'WorkflowDir Test')
+  echo \"item_id=\$item_id\"
+  # Verify item was written in the custom workflowDir
+  if [ -f \"$MOCK_CUSTOM_WFDIR/items/\${item_id}.md\" ]; then
+    echo 'item_in_custom_dir:yes'
+  else
+    echo 'item_in_custom_dir:no'
+  fi
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+CUSTOM_WF_OUTPUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+rm -rf "$MOCK_CUSTOM_WFDIR"
+
+assert_exit_zero "Custom_workflowDir_loads_without_error" "$EXIT_CODE"
+assert_contains "Custom_workflowDir_item_stored_in_custom_dir" "item_in_custom_dir:yes" "$CUSTOM_WF_OUTPUT"
+
+echo ""
+
+# --- Test Group 19: pm.local.workflowDir backward compat via pm.sh ---
+echo "Test Group 19: pm.local.workflowDir backward compat (old config location via pm.sh)"
+
+MOCK_LEGACY_WFDIR=$(mktemp -d)
+MOCK_CONFIG_LEGACY_WF="$MOCK_CONFIG_DIR/config_legacy_wf.json"
+cat > "$MOCK_CONFIG_LEGACY_WF" <<EOF
+{
+  "pm": {
+    "local": {
+      "workflowDir": "$MOCK_LEGACY_WFDIR"
+    }
+  }
+}
+EOF
+
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  export _CFG_FILE_OVERRIDE=\"$MOCK_CONFIG_LEGACY_WF\"
+  source \"$PM_SH\"
+  item_id=\$(pm_create_item story 'Legacy WorkflowDir Test')
+  echo \"item_id=\$item_id\"
+  # Verify item was written in the legacy workflowDir
+  if [ -f \"$MOCK_LEGACY_WFDIR/items/\${item_id}.md\" ]; then
+    echo 'item_in_legacy_dir:yes'
+  else
+    echo 'item_in_legacy_dir:no'
+  fi
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+LEGACY_WF_OUTPUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+rm -rf "$MOCK_LEGACY_WFDIR"
+
+assert_exit_zero "Legacy_workflowDir_loads_without_error" "$EXIT_CODE"
+assert_contains "Legacy_workflowDir_item_stored_in_legacy_dir" "item_in_legacy_dir:yes" "$LEGACY_WF_OUTPUT"
+
+echo ""
+
 # --- Cleanup ---
 rm -rf "$MOCK_DIR" "$MOCK_DIR2" "$MOCK_DIR3" "$MOCK_CONFIG_DIR" "$MOCK_EXT_DIR" 2>/dev/null || true
 

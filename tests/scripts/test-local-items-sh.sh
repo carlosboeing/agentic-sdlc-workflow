@@ -728,6 +728,185 @@ assert_exit_nonzero "pm_get_item_path_traversal_fails" "$EXIT_CODE2"
 rm -rf "$TMPDIR"
 echo ""
 
+# --- Test Group 28: _local_pm_create_item_with_id creates file at explicit ID ---
+echo "Test Group: _local_pm_create_item_with_id creates item at explicit ID"
+
+TMPDIR=$(mktemp -d)
+OUT=$(run_snippet "$TMPDIR" "_local_pm_create_item_with_id 42 story 'Explicit Story' --body 'Explicit body'")
+EXIT_CODE=$?
+
+assert_exit_zero "create_with_id_exits_zero" "$EXIT_CODE"
+assert_eq "create_with_id_returns_id" "42" "$OUT"
+
+ITEM_FILE="$TMPDIR/.workflow/items/42.md"
+if [ -f "$ITEM_FILE" ]; then
+  echo "  PASS: create_with_id_creates_file_at_correct_path"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create_with_id_creates_file_at_correct_path (not found: $ITEM_FILE)"
+  FAIL=$((FAIL + 1))
+fi
+
+assert_eq "create_with_id_id_field" "42" "$(grep '^id:' "$ITEM_FILE" | sed 's/id: //')"
+assert_eq "create_with_id_title_field" "Explicit Story" "$(grep '^title:' "$ITEM_FILE" | sed 's/title: //;s/^\"//;s/\"$//')"
+assert_eq "create_with_id_type_field" "story" "$(grep '^type:' "$ITEM_FILE" | sed 's/type: //')"
+assert_eq "create_with_id_status_field" "backlog" "$(grep '^status:' "$ITEM_FILE" | sed 's/status: //')"
+assert_eq "create_with_id_state_field" "open" "$(grep '^state:' "$ITEM_FILE" | sed 's/state: //')"
+
+# Hierarchy label must be present
+if grep -q "hierarchy/story" "$ITEM_FILE"; then
+  echo "  PASS: create_with_id_hierarchy_label_present"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create_with_id_hierarchy_label_present"
+  FAIL=$((FAIL + 1))
+fi
+
+# Body content must be below frontmatter
+BODY_CONTENT=$(read_body "$ITEM_FILE")
+assert_eq "create_with_id_body_content" "Explicit body" "$BODY_CONTENT"
+
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 29: _local_pm_create_item_with_id bumps _next_id counter ---
+echo "Test Group: _local_pm_create_item_with_id bumps _next_id counter to max(current, explicit+1)"
+
+# Case 1: explicit ID (42) > current counter (1) — counter bumped to 43
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" "_local_pm_create_item_with_id 42 story 'Story'" > /dev/null
+NEXT_ID=$(cat "$TMPDIR/.workflow/_next_id")
+assert_eq "create_with_id_bumps_counter_above_explicit" "43" "$NEXT_ID"
+rm -rf "$TMPDIR"
+
+# Case 2: explicit ID (2) < current counter (10) — counter NOT regressed
+TMPDIR=$(mktemp -d)
+# Manually seed counter to 10
+mkdir -p "$TMPDIR/.workflow"
+echo "10" > "$TMPDIR/.workflow/_next_id"
+# Need to also create the items/ dir
+mkdir -p "$TMPDIR/.workflow/items"
+run_snippet "$TMPDIR" "_local_pm_create_item_with_id 2 story 'Low ID Story'" > /dev/null
+NEXT_ID=$(cat "$TMPDIR/.workflow/_next_id")
+assert_eq "create_with_id_does_not_regress_counter" "10" "$NEXT_ID"
+rm -rf "$TMPDIR"
+
+echo ""
+
+# --- Test Group 30: pm_create_item auto-increments from counter after explicit ID usage ---
+echo "Test Group: pm_create_item auto-increments correctly after _local_pm_create_item_with_id"
+
+TMPDIR=$(mktemp -d)
+# Create with explicit ID 42 — counter should become 43
+run_snippet "$TMPDIR" "_local_pm_create_item_with_id 42 story 'Explicit'" > /dev/null
+# Now auto-increment should start from 43
+NEXT=$(run_snippet "$TMPDIR" "pm_create_item story 'Auto One'")
+assert_eq "create_with_id_auto_increment_starts_from_43" "43" "$NEXT"
+# And subsequent auto-increment gives 44
+NEXT2=$(run_snippet "$TMPDIR" "pm_create_item story 'Auto Two'")
+assert_eq "create_with_id_auto_increment_second_is_44" "44" "$NEXT2"
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 31: _local_pm_create_item_with_id --labels flag ---
+echo "Test Group: _local_pm_create_item_with_id with --labels flag"
+
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" "_local_pm_create_item_with_id 10 epic 'Labeled Epic' --labels 'type/feature,difficulty/medium'" > /dev/null
+ITEM_FILE="$TMPDIR/.workflow/items/10.md"
+
+if grep -q "hierarchy/epic" "$ITEM_FILE"; then
+  echo "  PASS: create_with_id_labels_includes_hierarchy"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create_with_id_labels_includes_hierarchy"
+  FAIL=$((FAIL + 1))
+fi
+if grep -q "type/feature" "$ITEM_FILE"; then
+  echo "  PASS: create_with_id_labels_extra_label_1"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create_with_id_labels_extra_label_1 (file: $(cat "$ITEM_FILE"))"
+  FAIL=$((FAIL + 1))
+fi
+if grep -q "difficulty/medium" "$ITEM_FILE"; then
+  echo "  PASS: create_with_id_labels_extra_label_2"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create_with_id_labels_extra_label_2 (file: $(cat "$ITEM_FILE"))"
+  FAIL=$((FAIL + 1))
+fi
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 32: _local_pm_create_item_with_id --body-file flag ---
+echo "Test Group: _local_pm_create_item_with_id with --body-file flag"
+
+TMPDIR=$(mktemp -d)
+BODY_FILE=$(mktemp)
+echo "Body from file for explicit ID" > "$BODY_FILE"
+run_snippet "$TMPDIR" "_local_pm_create_item_with_id 7 backlog 'File Backlog' --body-file '$BODY_FILE'" > /dev/null
+EXIT_CODE=$?
+BODY_CONTENT=$(read_body "$TMPDIR/.workflow/items/7.md")
+assert_exit_zero "create_with_id_body_file_exits_zero" "$EXIT_CODE"
+assert_eq "create_with_id_body_file_content" "Body from file for explicit ID" "$BODY_CONTENT"
+rm -rf "$TMPDIR"
+rm -f "$BODY_FILE"
+echo ""
+
+# --- Test Group 33: _local_pm_create_item_with_id is not a pm_* exported function ---
+echo "Test Group: _local_pm_create_item_with_id is a private helper (not pm_*)"
+
+# Verify the function is defined with underscore prefix in items.sh
+if grep -q "^_local_pm_create_item_with_id()" "$ITEMS_SH"; then
+  echo "  PASS: create_with_id_has_underscore_prefix_definition"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create_with_id_has_underscore_prefix_definition (not found in $ITEMS_SH)"
+  FAIL=$((FAIL + 1))
+fi
+
+# Verify there is no pm_create_item_with_id (no public version)
+if grep -q "^pm_create_item_with_id()" "$ITEMS_SH"; then
+  echo "  FAIL: create_with_id_no_public_pm_version (public function found)"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: create_with_id_no_public_pm_version"
+  PASS=$((PASS + 1))
+fi
+echo ""
+
+# --- Test Group 34: _local_write_item shared helper exists ---
+echo "Test Group: _local_write_item shared helper exists and is used by both create functions"
+
+# Verify _local_write_item is defined in items.sh
+if grep -q "^_local_write_item()" "$ITEMS_SH"; then
+  echo "  PASS: local_write_item_helper_defined"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: local_write_item_helper_defined (not found in $ITEMS_SH)"
+  FAIL=$((FAIL + 1))
+fi
+
+# Verify pm_create_item calls _local_write_item
+if grep -A 30 "^pm_create_item()" "$ITEMS_SH" | grep -q "_local_write_item"; then
+  echo "  PASS: pm_create_item_calls_write_item"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_create_item_calls_write_item"
+  FAIL=$((FAIL + 1))
+fi
+
+# Verify _local_pm_create_item_with_id calls _local_write_item
+if grep -A 20 "^_local_pm_create_item_with_id()" "$ITEMS_SH" | grep -q "_local_write_item"; then
+  echo "  PASS: create_with_id_calls_write_item"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: create_with_id_calls_write_item"
+  FAIL=$((FAIL + 1))
+fi
+echo ""
+
 # --- Summary ---
 echo "========================================"
 TOTAL=$((PASS + FAIL))

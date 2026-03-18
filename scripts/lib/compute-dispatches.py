@@ -416,9 +416,12 @@ def state_to_dispatches(state):
     dispatches = []
     raw_dispatches = state.get("dispatches", [])
 
-    # Track fix cycles: (issue, agent_prefix) → count of dispatches seen so far.
-    # A builder/reviewer dispatch for an issue that already had one is a fix cycle.
-    fix_counts: dict = {}
+    # Builder-centric fix cycle tracking (matches compute_fix_cycles semantics):
+    # - A builder re-dispatch for an issue that already had a builder = fix cycle
+    # - The reviewer dispatch that follows a fix cycle builder = re-review
+    # This avoids mislabeling retried reviews (e.g., after API errors) as fix cycles.
+    first_builder_seen: set = set()    # issues with at least one builder dispatch
+    pending_re_review: set = set()     # issues awaiting re-review after a fix builder
 
     for d in raw_dispatches:
         agent = d.get("agent", "unknown")
@@ -427,9 +430,20 @@ def state_to_dispatches(state):
         phase = AGENT_TO_PHASE.get(agent, "Other")
         agent_prefix = agent.split("-")[0]
 
-        # Detect fix cycles using the same (issue, agent_prefix) pattern as the Gantt
-        pair_key = (issue, agent_prefix) if issue else None
-        is_fix_cycle = fix_counts.get(pair_key, 0) > 0 if pair_key else False
+        # Detect fix cycles using builder-centric logic
+        is_fix_build = False
+        is_re_review = False
+        if issue is not None:
+            if agent_prefix == "builder":
+                if issue in first_builder_seen:
+                    is_fix_build = True
+                    pending_re_review.add(issue)
+                else:
+                    first_builder_seen.add(issue)
+            elif agent_prefix == "reviewer":
+                if issue in pending_re_review:
+                    is_re_review = True
+                    pending_re_review.discard(issue)
 
         # Build human-readable agent label
         agent_base = agent_prefix.capitalize()
@@ -448,8 +462,8 @@ def state_to_dispatches(state):
         elif phase == "Retro":
             task = f"Retrospective (#{issue})" if issue else "Retrospective"
         elif phase == "Review" and issue:
-            if is_fix_cycle:
-                # Re-review after a fix cycle
+            if is_re_review:
+                # Re-review after a fix cycle builder
                 if issue in issue_titles:
                     task = f"Re-review {issue_titles[issue]} (#{issue})"
                 else:
@@ -459,7 +473,7 @@ def state_to_dispatches(state):
                 task = f"Review {title} (#{issue})"
             else:
                 task = f"PR Review (#{issue})"
-        elif phase == "Build" and is_fix_cycle and issue:
+        elif phase == "Build" and is_fix_build and issue:
             # Builder re-dispatch to fix reviewer findings
             if issue in issue_titles:
                 task = f"Fix {issue_titles[issue]} (#{issue})"
@@ -471,10 +485,6 @@ def state_to_dispatches(state):
             task = f"Issue #{issue}"
         else:
             task = agent
-
-        # Increment fix count *after* generating label for this dispatch
-        if pair_key:
-            fix_counts[pair_key] = fix_counts.get(pair_key, 0) + 1
 
         dispatches.append({
             "agent": agent_label,

@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated:** 2026-03-18
+> **Last updated:** 2026-03-18 (post BL#109)
 > **Work tracking:** [Project Board](https://github.com/users/carlosboeing/projects/7)
 > **Analysis & research:** [docs/1-discovery/2026-03-15-roadmap.md](1-discovery/2026-03-15-roadmap.md)
 
@@ -12,11 +12,13 @@ graph TD
     106["#106 Telemetry<br/>Accuracy ✅"]
     107["#107 Retro Agent<br/>Rework (M)"]
     108["#108 Run on Real<br/>Software (L)"]
-    109["#109 PM Abstraction<br/>Layer (L)"]
+    109["#109 PM Abstraction<br/>Layer ✅"]
     110["#110 Configurable<br/>Taxonomy (L)"]
     111["#111 Local-First<br/>PM (XL)"]
     112["#112 Plugin<br/>Packaging (XL)"]
     113["#113 Multi-PM<br/>Adapters (XL)"]
+    207["#207 VCS Abstraction<br/>Layer (L)"]
+    208["#208 DOC Abstraction<br/>Layer (M)"]
     114["#114 Domain<br/>Profiles (L)"]
     115["#115 Specialist<br/>Agents (L)"]
     116["#116 Dashboard (XL)"]
@@ -39,6 +41,9 @@ graph TD
     111 --> 112
     111 --> 116
     107 --> 118
+    109 --> 207
+    109 --> 208
+    207 --> 112
     112 --> 113
     112 --> 117
     112 --> 118
@@ -47,8 +52,10 @@ graph TD
     style 106 fill:#9ca3af,color:#fff
     style 107 fill:#059669,color:#fff
     style 108 fill:#059669,color:#fff
-    style 109 fill:#059669,color:#fff
+    style 109 fill:#9ca3af,color:#fff
     style 110 fill:#8b5cf6,color:#fff
+    style 207 fill:#8b5cf6,color:#fff
+    style 208 fill:#8b5cf6,color:#fff
     style 111 fill:#8b5cf6,color:#fff
     style 112 fill:#8b5cf6,color:#fff
     style 113 fill:#374151,color:#fff
@@ -72,21 +79,23 @@ graph TD
 | ✅ | [#105](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/105) | ~~Orchestrator Improvements~~ | M | — | Done |
 | ✅ | [#106](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/106) | ~~Telemetry Accuracy & Automation~~ | M | — | Done |
 | ✅ | [#150](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/150) | ~~Split orchestrator.md~~ | S | — | Done |
-| 1 | [#109](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109) | PM Abstraction Layer | L | — | Plugin |
-| 2 | [#111](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111) | Local-First PM System | XL | 109 | Plugin |
-| 3 | [#110](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/110) | Configurable Taxonomy | L | 109 | Plugin |
-| 4 | [#108](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/108) | Run on Real Software | L | 109 | Active |
+| ✅ | [#109](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109) | ~~PM Abstraction Layer~~ | L | — | Done |
+| 1 | [#111](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111) | Local-First PM System | XL | 109 | Plugin |
+| 2 | [#207](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/207) | VCS Abstraction Layer + GitHub Adapter | L | 109 | Plugin |
+| 3 | [#208](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/208) | DOC Abstraction Layer + Filesystem Adapter | M | 109 | Plugin |
+| 4 | [#110](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/110) | Configurable Taxonomy | L | 109 | Plugin |
+| 5 | [#108](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/108) | Run on Real Software | L | 105, 106, 107 | Active |
 | — | [#166](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/166) | Telemetry Diagrams | S | — | Quick win |
 | — | [#149](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/149) | Universal Worktree Isolation | M | — | Quick win |
-| 5 | [#112](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/112) | Plugin Packaging | XL | 109, 110, 111 | Plugin |
-| 6 | [#107](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/107) | Retro Agent Rework | M | — | Active |
-| 7 | [#148](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/148) | Adversarial Deliberation Agent | M | — | Active |
-| 8 | [#113](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/113) | Multi-PM Adapters | XL | 109, 112 | Future |
-| 9 | [#114](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/114) | Domain Profiles | L | — | Future |
-| 10 | [#115](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/115) | New Specialist Agents | L | — | Future |
-| 11 | [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | Dashboard | XL | 111 | Future |
-| 12 | [#117](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/117) | Multi-Repo Orchestration | XL | 109, 112 | Future |
-| 13 | [#118](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/118) | Learning Across Projects | L | 107, 112 | Future |
+| 6 | [#112](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/112) | Plugin Packaging | XL | 109, 110, 111, 207 | Plugin |
+| 7 | [#107](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/107) | Retro Agent Rework | M | — | Active |
+| 8 | [#148](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/148) | Adversarial Deliberation Agent | M | — | Active |
+| 9 | [#113](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/113) | Multi-PM Adapters | XL | 109, 112 | Future |
+| 10 | [#114](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/114) | Domain Profiles | L | — | Future |
+| 11 | [#115](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/115) | New Specialist Agents | L | — | Future |
+| 12 | [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | Dashboard | XL | 111 | Future |
+| 13 | [#117](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/117) | Multi-Repo Orchestration | XL | 109, 112 | Future |
+| 14 | [#118](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/118) | Learning Across Projects | L | 107, 112 | Future |
 
 ## Backlog Summaries
 
@@ -101,6 +110,9 @@ Fix hand-crafted Gantt charts by generating them from state data with precise ti
 **[#150 Split orchestrator.md](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/150)** — `size/S` ✅
 Reduced `orchestrator.md` from 1,323 to 503 lines (62% reduction) by extracting inline scripts into `scripts/state.sh` (836 lines) and deleting dead content. Added `scripts/schemas/orchestrator-state.v1.json`. First run with extracted scripts validated in Run 16.
 
+**[#109 PM Abstraction Layer](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109)** — `size/L` ✅
+Introduced `scripts/lib/pm.sh` adapter loader with config-driven adapter selection. Built GitHub adapter in `scripts/lib/adapters/pm/github/` (7 modules: items, board, reconcile, comments, hierarchy, labels, lifecycle). Converted 8 existing scripts to thin wrappers. Added cost budget library (`cost-budget.sh`). Created ADR-0004 (Shadow Stack Migration). 289 tests, 3 epics, 10 stories, 1 fix cycle.
+
 ### Active Track
 
 **[#107 Retro Agent Rework](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/107)** — `size/M`
@@ -114,12 +126,9 @@ Ensure every agent — including the orchestrator itself — operates in an isol
 Add a configurable deliberation capability where a second agent challenges the first agent's output at key decision points. Triages reviewer findings (filtering false positives before fix cycles), challenges design/plan assumptions, and improves merge/no-merge decisions.
 
 **[#108 Run on Real Software](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/108)** — `size/L`
-First real-software test — use the workflow to build one of its own improvements. 16 runs validated creative content; zero runs on actual code. Validates genericized agents work for real development. Blocked by #109 (PM abstraction must be in place so real-software code is written against the final architecture).
+First real-software test — use the workflow to build one of its own improvements. 16 runs validated creative content; zero runs on actual code. Validates genericized agents work for real development. Blocked by #107 (retro agent rework). #105, #106, #109 dependencies are now complete.
 
 ### Plugin Track
-
-**[#109 PM Abstraction Layer](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109)** — `size/L`
-Extract GitHub-specific operations into `scripts/lib/pm.sh` adapter interface. Config-driven adapter selection. Includes agent architecture audit (standardize roles/responsibilities across all agents), `pm.sh` dual-write pattern (local sync + external fire-and-forget), board reconciliation as defense-in-depth, and cost budgets. Run 16 added `reconcile-board.sh` as a prototype adapter and identified the root cause of board drift (GitHub automation conflict).
 
 **[#110 Configurable Taxonomy](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/110)** — `size/L`
 Implement the configurable 3-level hierarchy with PM tool presets (Jira, Azure DevOps, GitHub, Linear, Asana, Shortcut, SAFe, Universal). Default: Epic → Story → Task. Labels migrate dynamically based on config.
@@ -127,13 +136,19 @@ Implement the configurable 3-level hierarchy with PM tool presets (Jira, Azure D
 **[#111 Local-First PM System](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111)** — `size/XL`
 File-based PM adapter — zero dependencies, offline capable, git-native. Work items as markdown with YAML frontmatter in `.workflow/`. No centralized index — individual files are both source of truth and read path (status in frontmatter, scanned on demand). The killer differentiator: no competitor offers zero-config PM.
 
+**[#207 VCS Abstraction Layer and GitHub Adapter](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/207)** — `size/L`
+Extract VCS hosting operations (PRs, code review) into `scripts/lib/vcs.sh` adapter interface with GitHub adapter. 6 functions: `vcs_create_pr`, `vcs_merge_pr`, `vcs_get_pr`, `vcs_list_prs`, `vcs_comment_pr`, `vcs_review_pr`. Follows the same shadow stack migration pattern as #109.
+
+**[#208 DOC Abstraction Layer and Filesystem Adapter](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/208)** — `size/M`
+Extract documentation operations into `scripts/lib/doc.sh` adapter interface with filesystem adapter as default. 5 functions: `doc_write`, `doc_read`, `doc_list`, `doc_exists`, `doc_append`. Enables future sync to Notion/Confluence.
+
 **[#112 Plugin Packaging](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/112)** — `size/XL`
 Package as a Claude Code plugin: `plugin.json`, SKILL.md, `/sdlc-setup` onboarding, `sdlc` CLI wrapper. Consumer projects only need `agentic-sdlc-config.json`.
 
 ### Future Ideas
 
-**[#113 Multi-PM Adapters](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/113)** — `size/XL`
-Jira, Linear, Azure DevOps, ClickUp adapters. One at a time, each implementing the PM interface. Possibly MCP servers for maximum interoperability.
+**[#113 Multi-Platform Adapters](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/113)** — `size/XL`
+PM adapters (Jira, Linear, Azure DevOps, ClickUp), VCS adapters (GitLab, Bitbucket), and DOC adapters (Notion, Confluence). One at a time, each implementing the respective interface. Possibly MCP servers for maximum interoperability.
 
 **[#114 Domain Profiles](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/114)** — `size/L`
 Config-driven builder/reviewer profiles for content, research, data, marketing, legal/compliance domains. Only builder and reviewer need profiles.

@@ -105,7 +105,11 @@ _local_fm_append_label() {
   fi
   local now
   now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-  awk -v lbl="$label" -v ts="$now" '
+  # Uses ENVIRON to pass label/timestamp so that backslashes and other
+  # metacharacters are never interpreted (consistent with _local_fm_write).
+  _FM_LABEL="$label" _FM_TS="$now" \
+  awk '
+    BEGIN { lbl=ENVIRON["_FM_LABEL"]; ts=ENVIRON["_FM_TS"] }
     /^---$/ {
       block++
       if (block == 2 && in_labels) {

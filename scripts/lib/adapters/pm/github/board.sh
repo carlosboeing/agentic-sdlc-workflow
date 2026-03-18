@@ -5,10 +5,21 @@
 # helpers for GitHub Projects v2. Ported from issue-set-status.sh and
 # batch-set-status.sh. Reconciliation (pm_reconcile) is in reconcile.sh.
 # All logging goes to .agentic-workflow/logs/board-status.log.
+#
+# Prefix injection: when _PM_LOADING_EXTERNAL=1 is set before sourcing,
+# public pm_* functions are defined as _external_pm_* instead.
 
 _BOARD_LOG_DIR="${REPO_ROOT:-.}/.agentic-workflow/logs"
 _BOARD_LOG_FILE="$_BOARD_LOG_DIR/board-status.log"
 mkdir -p "$_BOARD_LOG_DIR" 2>/dev/null || true
+
+# Set function name prefix: empty in normal mode, "_external_" when loading as external adapter
+_PM_FN_PREFIX="${_PM_LOADING_EXTERNAL:+_external_}"
+
+# Idempotency guard: check using the prefix-aware function name
+if declare -f "${_PM_FN_PREFIX}pm_set_status" > /dev/null 2>&1; then
+  return 0 2>/dev/null || exit 0
+fi
 
 _board_log() {
   echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" >> "$_BOARD_LOG_FILE" 2>/dev/null || true
@@ -103,130 +114,130 @@ _gh_fetch_with_retry() {
 
 # pm_set_status <issue-number> <status> — Sets board status with retry,
 # verification, and logging. Full port of issue-set-status.sh.
-pm_set_status() {
-  if [ $# -lt 2 ]; then
-    echo "Usage: pm_set_status <issue-number> <status>" >&2
+eval "${_PM_FN_PREFIX}pm_set_status() {
+  if [ \$# -lt 2 ]; then
+    echo \"Usage: ${_PM_FN_PREFIX}pm_set_status <issue-number> <status>\" >&2
     return 1
   fi
-  local issue_number="$1" status="$2" option_id status_display
-  option_id=$(_gh_status_to_option_id "$status") || return 1
-  status_display=$(_gh_status_to_display "$status") || return 1
-  _board_log "issue=$issue_number status=$status START caller_pid=$$"
+  local issue_number=\"\$1\" status=\"\$2\" option_id status_display
+  option_id=\$(_gh_status_to_option_id \"\$status\") || return 1
+  status_display=\$(_gh_status_to_display \"\$status\") || return 1
+  _board_log \"issue=\$issue_number status=\$status START caller_pid=\$\$\"
 
-  _gh_fetch_with_retry "$issue_number"
-  if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" = "null" ]; then
-    _board_log "issue=$issue_number status=$status item_id=NOT_FOUND FAILED"
-    echo "ERROR: Could not find board item for issue #$issue_number" >&2
+  _gh_fetch_with_retry \"\$issue_number\"
+  if [ -z \"\$ITEM_ID\" ] || [ \"\$ITEM_ID\" = \"null\" ]; then
+    _board_log \"issue=\$issue_number status=\$status item_id=NOT_FOUND FAILED\"
+    echo \"ERROR: Could not find board item for issue #\$issue_number\" >&2
     return 1
   fi
-  _board_log "issue=$issue_number status=$status item_id=$ITEM_ID current=$CURRENT_STATUS"
+  _board_log \"issue=\$issue_number status=\$status item_id=\$ITEM_ID current=\$CURRENT_STATUS\"
 
-  if [ "$CURRENT_STATUS" = "$status_display" ]; then
-    _board_log "issue=$issue_number status=$status SKIP already_at=$status_display"
-    echo "✓ #$issue_number already at $status"; return 0
+  if [ \"\$CURRENT_STATUS\" = \"\$status_display\" ]; then
+    _board_log \"issue=\$issue_number status=\$status SKIP already_at=\$status_display\"
+    echo \"✓ #\$issue_number already at \$status\"; return 0
   fi
 
   local mutation_output mutation_exit=0
-  mutation_output=$(_gh_mutate_status "$ITEM_ID" "$option_id") || mutation_exit=$?
-  _board_log "issue=$issue_number status=$status MUTATION exit=$mutation_exit"
-  if [ "$mutation_exit" -ne 0 ]; then
-    echo "ERROR: Failed to set #$issue_number to $status" >&2; return 1
+  mutation_output=\$(_gh_mutate_status \"\$ITEM_ID\" \"\$option_id\") || mutation_exit=\$?
+  _board_log \"issue=\$issue_number status=\$status MUTATION exit=\$mutation_exit\"
+  if [ \"\$mutation_exit\" -ne 0 ]; then
+    echo \"ERROR: Failed to set #\$issue_number to \$status\" >&2; return 1
   fi
   sleep 1
-  _gh_verify_status "$issue_number" "$status_display"
-}
+  _gh_verify_status \"\$issue_number\" \"\$status_display\"
+}"
 
 # pm_add_to_board <issue-number> — Adds issue to project board.
-pm_add_to_board() {
-  if [ $# -lt 1 ]; then
-    echo "Usage: pm_add_to_board <issue-number>" >&2; return 1
+eval "${_PM_FN_PREFIX}pm_add_to_board() {
+  if [ \$# -lt 1 ]; then
+    echo \"Usage: ${_PM_FN_PREFIX}pm_add_to_board <issue-number>\" >&2; return 1
   fi
-  local issue_number="$1"
-  local url="https://github.com/$CFG_REPO_OWNER/$CFG_REPO_NAME/issues/$issue_number"
-  _board_log "issue=$issue_number ADD_TO_BOARD START"
+  local issue_number=\"\$1\"
+  local url=\"https://github.com/\$CFG_REPO_OWNER/\$CFG_REPO_NAME/issues/\$issue_number\"
+  _board_log \"issue=\$issue_number ADD_TO_BOARD START\"
   local out
-  if out=$(gh project item-add "$CFG_PROJECT_NUMBER" --owner "$CFG_PROJECT_OWNER" \
-    --url "$url" --format json 2>&1); then
-    _board_log "issue=$issue_number ADD_TO_BOARD OK"
-    echo "✓ #$issue_number added to board"
+  if out=\$(gh project item-add \"\$CFG_PROJECT_NUMBER\" --owner \"\$CFG_PROJECT_OWNER\" \
+    --url \"\$url\" --format json 2>&1); then
+    _board_log \"issue=\$issue_number ADD_TO_BOARD OK\"
+    echo \"✓ #\$issue_number added to board\"
   else
-    _board_log "issue=$issue_number ADD_TO_BOARD FAILED response=$(echo "$out" | head -c 200)"
-    echo "ERROR: Failed to add #$issue_number to board" >&2; return 1
+    _board_log \"issue=\$issue_number ADD_TO_BOARD FAILED response=\$(echo \"\$out\" | head -c 200)\"
+    echo \"ERROR: Failed to add #\$issue_number to board\" >&2; return 1
   fi
-}
+}"
 
 # pm_batch_set_status <issue>:<status> [...] — Full port of batch-set-status.sh.
 # Fetch-all, mutate-sequentially, verify-once.
-pm_batch_set_status() {
-  if [ $# -lt 1 ]; then
-    echo "Usage: pm_batch_set_status <issue>:<status> [...]" >&2; return 1
+eval "${_PM_FN_PREFIX}pm_batch_set_status() {
+  if [ \$# -lt 1 ]; then
+    echo \"Usage: ${_PM_FN_PREFIX}pm_batch_set_status <issue>:<status> [...]\" >&2; return 1
   fi
   local -a issues=() statuses=() option_ids=() displays=()
   local pair issue status oid disp
-  for pair in "$@"; do
-    issue="${pair%%:*}"; status="${pair##*:}"
-    if [ -z "$issue" ] || [ -z "$status" ] || [ "$issue" = "$pair" ]; then
-      echo "ERROR: Invalid pair '$pair'. Expected: <issue>:<status>" >&2; return 1
+  for pair in \"\$@\"; do
+    issue=\"\${pair%%:*}\"; status=\"\${pair##*:}\"
+    if [ -z \"\$issue\" ] || [ -z \"\$status\" ] || [ \"\$issue\" = \"\$pair\" ]; then
+      echo \"ERROR: Invalid pair '\$pair'. Expected: <issue>:<status>\" >&2; return 1
     fi
-    oid=$(_gh_status_to_option_id "$status") || return 1
-    disp=$(_gh_status_to_display "$status") || return 1
-    issues+=("$issue"); statuses+=("$status"); option_ids+=("$oid"); displays+=("$disp")
+    oid=\$(_gh_status_to_option_id \"\$status\") || return 1
+    disp=\$(_gh_status_to_display \"\$status\") || return 1
+    issues+=(\"\$issue\"); statuses+=(\"\$status\"); option_ids+=(\"\$oid\"); displays+=(\"\$disp\")
   done
-  local total=${#issues[@]}
-  _board_log "batch START pairs=$total caller_pid=$$"
+  local total=\${#issues[@]}
+  _board_log \"batch START pairs=\$total caller_pid=\$\$\"
 
   # Phase 1: Fetch current status for all issues
   local -a item_ids=() currents=()
   local i result
-  for i in "${!issues[@]}"; do
-    _board_log "batch FETCH issue=${issues[$i]}"
-    _gh_fetch_with_retry "${issues[$i]}"
-    item_ids+=("$ITEM_ID"); currents+=("$CURRENT_STATUS")
-    _board_log "batch FETCH issue=${issues[$i]} item_id=$ITEM_ID current=$CURRENT_STATUS"
+  for i in \"\${!issues[@]}\"; do
+    _board_log \"batch FETCH issue=\${issues[\$i]}\"
+    _gh_fetch_with_retry \"\${issues[\$i]}\"
+    item_ids+=(\"\$ITEM_ID\"); currents+=(\"\$CURRENT_STATUS\")
+    _board_log \"batch FETCH issue=\${issues[\$i]} item_id=\$ITEM_ID current=\$CURRENT_STATUS\"
   done
 
   # Phase 2: Mutate sequentially (skip already-correct)
   local failed=0 mout
-  for i in "${!issues[@]}"; do
-    if [ -z "${item_ids[$i]}" ] || [ "${item_ids[$i]}" = "null" ]; then
-      _board_log "batch MUTATION issue=${issues[$i]} NOT_ON_BOARD FAILED"
-      echo "ERROR: Issue #${issues[$i]} not found on project board" >&2
-      failed=$((failed + 1)); continue
+  for i in \"\${!issues[@]}\"; do
+    if [ -z \"\${item_ids[\$i]}\" ] || [ \"\${item_ids[\$i]}\" = \"null\" ]; then
+      _board_log \"batch MUTATION issue=\${issues[\$i]} NOT_ON_BOARD FAILED\"
+      echo \"ERROR: Issue #\${issues[\$i]} not found on project board\" >&2
+      failed=\$((failed + 1)); continue
     fi
-    if [ "${currents[$i]}" = "${displays[$i]}" ]; then
-      _board_log "batch SKIP issue=${issues[$i]} already_at=${displays[$i]}"
-      echo "✓ #${issues[$i]} already at ${statuses[$i]}"; continue
+    if [ \"\${currents[\$i]}\" = \"\${displays[\$i]}\" ]; then
+      _board_log \"batch SKIP issue=\${issues[\$i]} already_at=\${displays[\$i]}\"
+      echo \"✓ #\${issues[\$i]} already at \${statuses[\$i]}\"; continue
     fi
-    _board_log "batch MUTATION issue=${issues[$i]} target=${displays[$i]}"
-    if mout=$(_gh_mutate_status "${item_ids[$i]}" "${option_ids[$i]}"); then
-      _board_log "batch MUTATION issue=${issues[$i]} exit=0"
+    _board_log \"batch MUTATION issue=\${issues[\$i]} target=\${displays[\$i]}\"
+    if mout=\$(_gh_mutate_status \"\${item_ids[\$i]}\" \"\${option_ids[\$i]}\"); then
+      _board_log \"batch MUTATION issue=\${issues[\$i]} exit=0\"
     else
-      _board_log "batch MUTATION issue=${issues[$i]} exit=$?"
-      echo "ERROR: Failed to set #${issues[$i]} to ${statuses[$i]}" >&2
-      failed=$((failed + 1))
+      _board_log \"batch MUTATION issue=\${issues[\$i]} exit=\$?\"
+      echo \"ERROR: Failed to set #\${issues[\$i]} to \${statuses[\$i]}\" >&2
+      failed=\$((failed + 1))
     fi
   done
 
   # Phase 3: Single verification pass
   sleep 1
   local vfail=0 vresult actual
-  for i in "${!issues[@]}"; do
-    [ -z "${item_ids[$i]}" ] || [ "${item_ids[$i]}" = "null" ] && continue
-    vresult=$(_gh_fetch_item_info "${issues[$i]}" 2>/dev/null) || vresult=""
-    actual=$(echo "$vresult" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // empty' 2>/dev/null) || actual=""
-    if [ -z "$actual" ]; then
-      _board_log "batch VERIFY issue=${issues[$i]} UNAVAILABLE"
-      echo "✓ #${issues[$i]} → ${statuses[$i]}"
-    elif [ "$actual" = "${displays[$i]}" ]; then
-      _board_log "batch VERIFY issue=${issues[$i]} OK actual=$actual"
-      echo "✓ #${issues[$i]} → ${statuses[$i]}"
+  for i in \"\${!issues[@]}\"; do
+    [ -z \"\${item_ids[\$i]}\" ] || [ \"\${item_ids[\$i]}\" = \"null\" ] && continue
+    vresult=\$(_gh_fetch_item_info \"\${issues[\$i]}\" 2>/dev/null) || vresult=\"\"
+    actual=\$(echo \"\$vresult\" | jq -r '.data.repository.issue.projectItems.nodes[0].fieldValueByName.name // empty' 2>/dev/null) || actual=\"\"
+    if [ -z \"\$actual\" ]; then
+      _board_log \"batch VERIFY issue=\${issues[\$i]} UNAVAILABLE\"
+      echo \"✓ #\${issues[\$i]} → \${statuses[\$i]}\"
+    elif [ \"\$actual\" = \"\${displays[\$i]}\" ]; then
+      _board_log \"batch VERIFY issue=\${issues[\$i]} OK actual=\$actual\"
+      echo \"✓ #\${issues[\$i]} → \${statuses[\$i]}\"
     else
-      _board_log "batch VERIFY issue=${issues[$i]} MISMATCH expected=${displays[$i]} actual=$actual"
-      echo "⚠ #${issues[$i]} → ${statuses[$i]} (verify mismatch: actual=$actual)" >&2
-      vfail=$((vfail + 1))
+      _board_log \"batch VERIFY issue=\${issues[\$i]} MISMATCH expected=\${displays[\$i]} actual=\$actual\"
+      echo \"⚠ #\${issues[\$i]} → \${statuses[\$i]} (verify mismatch: actual=\$actual)\" >&2
+      vfail=\$((vfail + 1))
     fi
   done
-  _board_log "batch DONE pairs=$total failed=$failed verify_failed=$vfail"
-  [ "$failed" -gt 0 ] && return 1
+  _board_log \"batch DONE pairs=\$total failed=\$failed verify_failed=\$vfail\"
+  [ \"\$failed\" -gt 0 ] && return 1
   return 0
-}
+}"

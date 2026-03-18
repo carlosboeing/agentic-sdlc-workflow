@@ -60,6 +60,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/config.sh"
+source "$SCRIPT_DIR/lib/pm.sh"
 REPO="$CFG_REPO"
 _PRICING_CACHE="$_CFG_REPO_ROOT/.agentic-workflow/pricing.json"
 TEMPLATE_FILE="$SCRIPT_DIR/templates/telemetry.md"
@@ -449,7 +450,7 @@ render_template() {
 # --- Post telemetry ---
 
 RENDERED=$(render_template "$TEMPLATE_FILE" "Telemetry")
-gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body "$RENDERED"
+pm_add_comment "$ISSUE_NUMBER" "$RENDERED"
 echo "Telemetry posted to issue #$ISSUE_NUMBER (model=$MODEL, duration=$DURATION_HUMAN)"
 
 if [ -n "$PR_NUMBER" ]; then

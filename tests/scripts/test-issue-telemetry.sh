@@ -436,6 +436,136 @@ assert_exit_code "compute-dispatches.py --from-state --gantt works" "0" "$EXIT_C
 
 echo ""
 
+# --- Test 15: pm.sh is sourced at startup ---
+echo "Test Group: pm.sh sourcing"
+
+if grep -qE 'source[[:space:]].*pm\.sh|source[[:space:]].*"\$SCRIPT_DIR/lib/pm\.sh"|\.[[:space:]].*pm\.sh' "$SCRIPT_UNDER_TEST"; then
+  echo "  PASS: issue-telemetry.sh sources pm.sh"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: issue-telemetry.sh does not source pm.sh"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# --- Test 16: pm_add_comment called, not bare gh issue comment ---
+echo "Test Group: pm_add_comment delegation"
+
+# The posting line must call pm_add_comment, not gh issue comment directly
+if grep -q 'pm_add_comment' "$SCRIPT_UNDER_TEST"; then
+  echo "  PASS: pm_add_comment call present in script"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_add_comment call not found in script"
+  FAIL=$((FAIL + 1))
+fi
+
+# The direct gh issue comment call for posting should be gone
+# We check that the telemetry-post section uses pm_add_comment, not gh issue comment
+POSTING_LINE=$(grep -n 'pm_add_comment\|gh issue comment' "$SCRIPT_UNDER_TEST" \
+  | grep -v '^[[:space:]]*#' || true)
+if echo "$POSTING_LINE" | grep -q 'pm_add_comment' && ! echo "$POSTING_LINE" | grep -q 'gh issue comment'; then
+  echo "  PASS: Posting uses pm_add_comment, not direct gh issue comment"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: Direct gh issue comment call still present in posting section"
+  echo "    Relevant lines: $POSTING_LINE"
+  FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# --- Test 17: Local adapter writes comment file ---
+echo "Test Group: Local adapter comment file creation"
+
+LOCAL_ADAPTER_DIR="$REPO_ROOT/scripts/lib/adapters/pm/local"
+
+# Skip if local adapter directory doesn't exist
+if [ ! -d "$LOCAL_ADAPTER_DIR" ]; then
+  echo "  SKIP: Local adapter directory not found at $LOCAL_ADAPTER_DIR"
+else
+  LOCAL_WORKFLOW_DIR=$(mktemp -d)
+  trap 'rm -rf "$LOCAL_WORKFLOW_DIR"' EXIT
+
+  # Run telemetry with local adapter injected via _PM_TEST_ADAPTER_DIR
+  # _LOCAL_WORKFLOW_DIR controls where comment files are written
+  STDERR_FILE=$(mktemp)
+  LOCAL_EXIT=0
+  LOCAL_OUTPUT=$(
+    _PM_TEST_ADAPTER_DIR="$LOCAL_ADAPTER_DIR" \
+    _LOCAL_WORKFLOW_DIR="$LOCAL_WORKFLOW_DIR" \
+    bash "$SCRIPT_UNDER_TEST" 42 \
+      --model sonnet \
+      --duration 60000 \
+      --commit abc1234 \
+      2>"$STDERR_FILE"
+  ) || LOCAL_EXIT=$?
+  LOCAL_STDERR=$(cat "$STDERR_FILE")
+  rm -f "$STDERR_FILE"
+
+  if [ "$LOCAL_EXIT" -eq 0 ]; then
+    echo "  PASS: Script exits 0 with local adapter"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: Script exited $LOCAL_EXIT with local adapter"
+    echo "    stderr: $LOCAL_STDERR"
+    FAIL=$((FAIL + 1))
+  fi
+
+  # Verify comment directory for issue 42 was created
+  COMMENT_DIR="$LOCAL_WORKFLOW_DIR/comments/42"
+  if [ -d "$COMMENT_DIR" ]; then
+    echo "  PASS: Comment directory created for issue 42"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: Comment directory not found at $COMMENT_DIR"
+    FAIL=$((FAIL + 1))
+  fi
+
+  # Verify at least one comment file was created
+  COMMENT_COUNT=$(find "$COMMENT_DIR" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$COMMENT_COUNT" -gt 0 ]; then
+    echo "  PASS: Comment file created ($COMMENT_COUNT file(s))"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: No comment files found in $COMMENT_DIR"
+    FAIL=$((FAIL + 1))
+  fi
+
+  # Verify comment file contains telemetry content (rendered markdown)
+  COMMENT_FILE=$(find "$COMMENT_DIR" -maxdepth 1 -name "*.md" | head -1)
+  if [ -n "$COMMENT_FILE" ] && grep -q 'Telemetry\|sonnet\|abc1234' "$COMMENT_FILE" 2>/dev/null; then
+    echo "  PASS: Comment file contains rendered telemetry content"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: Comment file missing or lacks telemetry content"
+    [ -n "$COMMENT_FILE" ] && echo "    File: $COMMENT_FILE" && head -5 "$COMMENT_FILE"
+    FAIL=$((FAIL + 1))
+  fi
+
+  # Verify comment file has the expected <!-- posted: ... --> header
+  if [ -n "$COMMENT_FILE" ] && grep -q '^<!-- posted:' "$COMMENT_FILE" 2>/dev/null; then
+    echo "  PASS: Comment file has <!-- posted: ... --> timestamp header"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: Comment file missing <!-- posted: ... --> timestamp header"
+    FAIL=$((FAIL + 1))
+  fi
+
+  # Verify slug: telemetry heading -> slug should be "telemetry"
+  COMMENT_FILENAME=$(basename "$COMMENT_FILE" 2>/dev/null || echo "")
+  if echo "$COMMENT_FILENAME" | grep -q 'telemetry'; then
+    echo "  PASS: Comment filename includes 'telemetry' slug ($COMMENT_FILENAME)"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: Comment filename does not include 'telemetry' slug ($COMMENT_FILENAME)"
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
+echo ""
+
 # --- Summary ---
 echo "========================================"
 TOTAL=$((PASS + FAIL))

@@ -4,24 +4,17 @@ set -euo pipefail
 # issue-create-backlog.sh — Create a backlog item with all required setup.
 #
 # Handles the full Phase 0 initialization for a new backlog item:
-#   1. Creates the GitHub issue with hierarchy/backlog label
-#   2. Adds the issue to the project board
-#   3. Sets board status to Backlog
-#   4. Creates the backlog/<N>-<slug> label
-#   5. Adds the backlog label to the issue
+#   1. Creates the GitHub issue with hierarchy/backlog label (pm_create_item)
+#   2. Replaces #<this-issue> placeholders in the issue body (orchestrator concern)
+#   3. Prefixes the title with [#N] (orchestrator concern)
+#   4. Adds the issue to the project board (pm_add_to_board)
+#   5. Sets board status to Backlog (pm_set_status)
+#   6. Creates and applies the backlog/<N>-<slug> label (pm_add_label)
 #
-# Usage: ./scripts/issue-create-backlog.sh --title <title> --slug <slug> --body-file <path>
-#        ./scripts/issue-create-backlog.sh --title <title> --slug <slug> --body <text>
-#
-# Examples:
-#   ./scripts/issue-create-backlog.sh --title "My Feature" --slug "my-feature" --body-file /tmp/body.md
-#   ./scripts/issue-create-backlog.sh --title "Quick Fix" --slug "quick-fix" --body "One-liner description"
+# Usage: ./scripts/issue-create-backlog.sh --title <title> --slug <slug> [--body <text> | --body-file <path>]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/config.sh"
-REPO="$CFG_REPO"
-PROJECT_NUMBER="$CFG_PROJECT_NUMBER"
-PROJECT_OWNER="$CFG_PROJECT_OWNER"
+source "$SCRIPT_DIR/lib/pm.sh"
 
 # --- Argument parsing ---
 TITLE=""
@@ -49,60 +42,48 @@ if [ -z "$TITLE" ] || [ -z "$SLUG" ]; then
   exit 1
 fi
 
-# --- Step 1: Create the issue ---
+# --- Step 1: Create the issue via pm_create_item ---
 echo "Creating issue..."
-CREATE_ARGS=(gh issue create --repo "$REPO" --title "$TITLE" --label "hierarchy/backlog")
+CREATE_ARGS=(backlog "$TITLE")
 if [ -n "$BODY_FILE" ]; then
   CREATE_ARGS+=(--body-file "$BODY_FILE")
 elif [ -n "$BODY" ]; then
   CREATE_ARGS+=(--body "$BODY")
 fi
+ISSUE_NUMBER=$(pm_create_item "${CREATE_ARGS[@]}")
+echo "Created issue #$ISSUE_NUMBER"
 
-ISSUE_URL=$("${CREATE_ARGS[@]}")
-ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
-echo "✓ Created issue #$ISSUE_NUMBER"
-
-# --- Step 1b: Replace self-referential placeholders in issue body ---
-# The issue body may contain placeholders like #<this-issue> that reference
-# the issue's own number (which wasn't known at authoring time).
-CURRENT_BODY=$(gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.body' 2>/dev/null || true)
+# --- Step 1b: Replace self-referential placeholders (orchestrator concern) ---
+# The issue body may contain #<this-issue> that references the issue's own number.
+CURRENT_BODY=$(pm_get_item "$ISSUE_NUMBER" --json body | jq -r '.body // empty' 2>/dev/null || true)
 if echo "$CURRENT_BODY" | grep -q '<this-issue>'; then
   echo "Replacing #<this-issue> placeholders with #$ISSUE_NUMBER..."
   PATCHED_BODY=$(echo "$CURRENT_BODY" | sed "s/#<this-issue>/#$ISSUE_NUMBER/g")
-  gh api "repos/$REPO/issues/$ISSUE_NUMBER" --method PATCH -f body="$PATCHED_BODY" > /dev/null
-  echo "✓ Placeholders replaced"
+  pm_update_item "$ISSUE_NUMBER" --body "$PATCHED_BODY"
+  echo "Placeholders replaced"
 fi
 
-# --- Step 1c: Prefix title with issue number ---
+# --- Step 1c: Prefix title with issue number (orchestrator concern) ---
 echo "Prefixing title with [#$ISSUE_NUMBER]..."
-gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --title "[#$ISSUE_NUMBER] $TITLE" > /dev/null
-echo "✓ Title prefixed"
+pm_update_item "$ISSUE_NUMBER" --title "[#$ISSUE_NUMBER] $TITLE"
+echo "Title prefixed"
 
 # --- Step 2: Add to project board ---
 echo "Adding to project board..."
-gh project item-add "$PROJECT_NUMBER" --owner "$PROJECT_OWNER" \
-  --url "$ISSUE_URL" --format json > /dev/null 2>&1
-echo "✓ Added to project board"
+pm_add_to_board "$ISSUE_NUMBER"
 
 # --- Step 3: Set board status to Backlog ---
 echo "Setting board status..."
-"$SCRIPT_DIR/issue-set-status.sh" "$ISSUE_NUMBER" backlog
-# issue-set-status.sh prints its own ✓ message
+pm_set_status "$ISSUE_NUMBER" backlog
 
-# --- Step 4: Create backlog label ---
+# --- Step 4: Create backlog label and apply it ---
 LABEL="backlog/${ISSUE_NUMBER}-${SLUG}"
 echo "Creating label '$LABEL'..."
-gh label create "$LABEL" --repo "$REPO" \
-  --color "5319E7" --description "Backlog: $TITLE" 2>/dev/null \
-  || echo "  (label already exists)"
-echo "✓ Label ready"
-
-# --- Step 5: Add backlog label to issue ---
-echo "Adding label to issue..."
-gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-label "$LABEL" > /dev/null
-echo "✓ Label applied"
+pm_add_label "$ISSUE_NUMBER" "$LABEL" --create-if-missing --description "Backlog: $TITLE"
+echo "Label ready and applied"
 
 # --- Done ---
+ISSUE_URL="https://github.com/$CFG_REPO/issues/$ISSUE_NUMBER"
 echo ""
 echo "=== Backlog item #$ISSUE_NUMBER ready ==="
 echo "  Issue:  $ISSUE_URL"

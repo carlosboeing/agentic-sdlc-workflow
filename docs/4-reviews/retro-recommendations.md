@@ -2,7 +2,7 @@
 
 Consolidated tracker for all recommendations from workflow retrospectives. Updated manually after each retro — the retro agent should append new recommendations here, and the orchestrator should check this document before each run.
 
-Last updated: 2026-03-17 (compiled from Runs 2-16 + backlogs 105, 106, 150)
+Last updated: 2026-03-18 (compiled from Runs 2-16 + backlogs 105, 106, 109, 150)
 
 ---
 
@@ -12,16 +12,17 @@ Last updated: 2026-03-17 (compiled from Runs 2-16 + backlogs 105, 106, 150)
 
 - **Source:** Backlog 105 (PR 143 review W3)
 - **Recurrence:** 1 run (new script)
-- **Priority:** Medium
+- **Priority:** Low -- partially resolved by BL109 rewrite
 - **Description:** In `scripts/batch-set-status.sh` line ~113-115, the verification phase's skip guard `[ -z "$item_id" ] || [ "$item_id" = "null" ] && continue` has incorrect operator precedence. The `&&` binds tighter than `||`, so empty item IDs are not skipped correctly. Fix: `{ [ -z "$item_id" ] || [ "$item_id" = "null" ]; } && continue`. The bug is non-critical (the script still exits 0 and the Phase 2 mutation handles the case), but it may produce spurious error messages during verification.
-- **Effort:** Low (one-line fix)
+- **Update (BL109):** `batch-set-status.sh` was rewritten as a thin wrapper delegating to `pm_batch_set_status` in `board.sh` (commit `511a489`). The original buggy code is no longer in the wrapper. The operator precedence pattern should be verified in the adapter's `pm_batch_set_status` implementation to ensure the bug was not ported.
+- **Effort:** Low (verification only)
 
 ### N. Validate Sonnet reviewer quality on easy stories
 
 - **Source:** Backlog 105 retro (rec 3)
-- **Recurrence:** 3 runs (BL150, Run 16) -- trending toward observation
-- **Priority:** Low -- third positive data point, ready to move to observation
-- **Description:** Backlog 105 implemented reviewer routing (Sonnet for easy, Opus for medium/hard) but could not use it in the same session (Claude Code loads agents at session start only). BL150 E01-S03 (difficulty/easy) was the first story reviewed by `reviewer-sonnet`. The review was thorough: verified all 7 acceptance criteria, confirmed 142 tests passed, provided 3 constructive suggestions, and the verdict (APPROVE) was correct. Run 16 added 5 sonnet reviews across 4 easy stories: E01-S01 (APPROVE with 1W/1S), E01-S04 (APPROVE with 2W), E02-S02 initial (REQUEST_CHANGES with 3W -- caught genuine format issues), E02-S02 re-review (APPROVE), E03-S01 (APPROVE). Notably, the E02-S02 REQUEST_CHANGES demonstrated that sonnet reviewers can catch real defects, not just approve everything. Three positive data points across 6 reviews -- ready to move to observation on next run.
+- **Recurrence:** 4 runs (BL150, Run 16, BL109) -- moved to observation
+- **Priority:** Low -- fourth positive data point, promoted to observation xviii
+- **Description:** Backlog 105 implemented reviewer routing (Sonnet for easy, Opus for medium/hard) but could not use it in the same session (Claude Code loads agents at session start only). BL150 E01-S03 (difficulty/easy) was the first story reviewed by `reviewer-sonnet`. The review was thorough: verified all 7 acceptance criteria, confirmed 142 tests passed, provided 3 constructive suggestions, and the verdict (APPROVE) was correct. Run 16 added 5 sonnet reviews across 4 easy stories. BL109 added 6 Sonnet reviews on infrastructure code (not just content). E01-S06 Sonnet reviewer issued REQUEST_CHANGES with 2 critical issues (unchecked GraphQL exit code, silenced label creation errors) -- both genuine correctness bugs in production adapter code. This demonstrates Sonnet reviewers can catch real infrastructure defects. Four positive data points across 12+ reviews -- promoted to observation.
 - **Effort:** None (monitoring only)
 
 ### O. Add `Files to modify` boundary enforcement to builder instructions
@@ -99,10 +100,34 @@ Last updated: 2026-03-17 (compiled from Runs 2-16 + backlogs 105, 106, 150)
 ### X. Add epic-level telemetry posting to orchestrator checklist
 
 - **Source:** Run 16 (rec 4)
-- **Recurrence:** 1 run (convention exists in CLAUDE.md but was not followed)
-- **Priority:** Medium
-- **Description:** The orchestrator must post telemetry on each epic issue when all its stories complete (per CLAUDE.md "Per-epic telemetry" convention). Run 16 did not post epic telemetry on issues 172, 173, or 174. Add a checklist item to the orchestrator's post-wave merge step to ensure this is not skipped. This provides intermediate checkpoints during long runs and makes per-epic cost analysis available without recomputing from the state file.
+- **Recurrence:** 2 runs (Run 16, BL109 -- pattern confirmed)
+- **Priority:** Medium -- elevated due to second occurrence
+- **Description:** The orchestrator must post telemetry on each epic issue when all its stories complete (per CLAUDE.md "Per-epic telemetry" convention). Run 16 did not post epic telemetry on issues 172, 173, or 174. BL109 did not post epic telemetry on issues 190, 191, or 192. Add a checklist item to the orchestrator's post-wave merge step to ensure this is not skipped. This provides intermediate checkpoints during long runs and makes per-epic cost analysis available without recomputing from the state file.
 - **Effort:** Low (orchestrator.md checklist addition)
+
+### Y. Cap design phase dispatches for autonomous infrastructure items
+
+- **Source:** Backlog 109 retro (rec 2)
+- **Recurrence:** 1 run (first infrastructure design in autonomous mode)
+- **Priority:** Low
+- **Description:** BL109's design phase consumed 10 dispatches and $7.05 (37% of total cost). Most of the cost was driven by usage limit interruptions forcing context re-reading (~40-75K tokens per restart). For infrastructure items with complex scope, consider a convention: if the design phase exceeds N dispatches or $X cost, pause and alert the human. This preserves autonomous workflow for normal items while adding a circuit breaker for edge cases. See also observation xv (interactive design may be superior for infrastructure refactoring).
+- **Effort:** Low (orchestrator convention)
+
+### Z. Add shared test helpers for adapter test files
+
+- **Source:** Backlog 109 retro (rec 4)
+- **Recurrence:** 1 run (4+ adapter test files with duplicated helpers)
+- **Priority:** Low
+- **Description:** Four adapter test files independently implement `build_mock_env`, `assert_equals`, and `assert_contains` helpers (40-60 lines each). Extracting these into a shared `tests/scripts/test-helpers.sh` would reduce duplication (~200 lines) and standardize the test pattern. Test files range from 188 to 593 lines. Low priority -- the duplication is not causing bugs, just maintenance burden.
+- **Effort:** Low (extract shared helpers)
+
+### AA. Track `hierarchy/docs` label in setup-labels.sh
+
+- **Source:** Backlog 109 E01-S03 review (S1)
+- **Recurrence:** 1 run (design gap, not builder error)
+- **Priority:** Low
+- **Description:** `pm_create_item docs "X"` maps to a `hierarchy/docs` label that does not exist in `setup-labels.sh`. If the `docs` level is used in production, the label must be created first. Currently the designer and planner create doc issues with `type/docs` label, not `hierarchy/docs`, so this is not a live issue. Track for when the `docs` level is first used via `pm_create_item`.
+- **Effort:** Low (add label to setup-labels.sh)
 
 ---
 
@@ -158,7 +183,7 @@ Last updated: 2026-03-17 (compiled from Runs 2-16 + backlogs 105, 106, 150)
 | #    | Observation                                                                        | Source                           | Notes                                                                                                                                                                                                                                                                                                |
 | ---- | ---------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | i    | Haiku uses 3-4x more tokens than Sonnet for comparable tasks                       | Runs 3, 6, 7, 8, 9, 10, 11       | Consistent across 7 runs. Cost is comparable due to 3x lower per-token rate. No model routing change warranted.                                                                                                                                                                                      |
-| ii   | Stories with detailed acceptance criteria achieve low organic fix cycles           | Runs 5, 6, 9-14, BL105, BL106, Run 16 | 62+ stories tracked. BL150: 1 organic fix cycle (heredoc injection, security pattern invisible to tests). Run 16: 2 organic fix cycles (E02-S01 format contract, E02-S02 word count + missing sections) plus 1 planted bug cycle (E02-S03). Both organic cycles trace to word count ceiling vs. format template overhead, not builder error. Organic fix cycle rate: 3/62 stories (4.8%). All organic fix cycles are pattern-based (security or format), not logic errors. |
+| ii   | Stories with detailed acceptance criteria achieve low organic fix cycles           | Runs 5, 6, 9-14, BL105, BL106, Run 16, BL109 | 72+ stories tracked. BL109: 1 organic fix cycle (E01-S06, unchecked GraphQL exit code + silenced label errors -- correctness bugs invisible to unit tests). Organic fix cycle rate: 4/72 stories (5.6%). Pattern: organic fix cycles are caused by (1) security patterns invisible to tests (BL150), (2) format/word count constraints (Run 16), or (3) error suppression patterns blindly ported from existing code (BL109). None are logic errors. |
 | iii  | CHANGELOG conflicts with per-epic PRs                                              | Run 5                            | Moot -- switched to single-PR model in Run 6.                                                                                                                                                                                                                                                         |
 | iv   | Board status "drift" caused by GitHub default project automation                   | Runs 3-16                         | **Root cause found (Run 16):** GitHub's built-in "Pull request linked to issue" automation reverts Done→In Progress when the backlog PR references already-closed doc issues via `Closes` keywords. Not an API bug — an automation conflict. Fix: (1) don't use `Closes` on already-closed issues, (2) `reconcile-board.sh` for defense-in-depth. See CLAUDE.md "Link all issues to the PR" convention. |
 | v    | `orchestrator.md` reduced from 1,323 to 503 lines (62%)                            | Runs 11, BL105, BL150            | Was ~1000 lines at Run 11, grew to 1,323 by BL105. BL150 extracted inline scripts to `state.sh`, deleted dead code (System Prompt Hardening), and condensed verbose sections. Now 503 lines. The monitoring threshold ("consider extraction at 1500 lines") is no longer relevant. |
@@ -168,9 +193,12 @@ Last updated: 2026-03-17 (compiled from Runs 2-16 + backlogs 105, 106, 150)
 | ix   | Builders prioritize acceptance criteria over story descriptions when they conflict | Run 14                           | 2/4 planted bugs neutralized because builders followed AC. Correct behavior -- AC is the binding contract. Rec K (document as convention) declined: this only surfaced during deliberate bug planting, not organic usage. Already captured in builder.md as existing behavior ("Acceptance criteria take precedence over story descriptions"). |
 | x    | Self-referential convention changes succeed without fix cycles                      | BL105                            | First run where agents modified their own instructions (orchestrator.md, CLAUDE.md, planner.md, config). 6/6 stories passed review on first attempt. Separation of concerns (designer/planner/builder/reviewer) works even when the target is the pipeline's own conventions.                          |
 | xi   | Reviewer variants created mid-session are unusable until next session               | BL105                            | S01 created reviewer-sonnet.md and reviewer-opus.md, but Claude Code only loads agent files at session start. All 7 reviews used the base reviewer agent with Opus. Feature takes effect on the next run. Known platform limitation (CLAUDE.md "Dynamic agent files at runtime").                      |
-| xii  | Infrastructure refactoring stories take 3-4x longer than content-creation stories | BL106                            | Average build duration: 11m 6s (infrastructure) vs ~3m 40s (content, Run 14). Average tool uses: 134/story vs ~56/story. Infrastructure builders must read existing code, understand dependencies, and write tests. First infrastructure backlog item in the workflow. |
+| xii  | Infrastructure refactoring stories take 2-3x longer than content-creation stories | BL106, BL109                     | BL106 average build: 11m 6s (infrastructure). BL109 average build: 5m 0s (adapter modules, mixed easy/medium/hard). Content runs: ~3m 40s (Run 14). BL109's lower average reflects that adapter modules are greenfield code (not refactoring existing), while BL106 modified existing scripts. Infrastructure with existing code reads takes 3-4x longer; infrastructure greenfield takes 1.5-2x longer. |
 | xiii | Reviewer cost dominates total cost in infrastructure runs (47.8% of total)        | BL106                            | All reviewers inherit orchestrator's Opus model. Reviewers consumed $6.65 of $13.92 total (47.8%) despite only 28.7% of duration. For infrastructure where correctness is critical, Opus review is appropriate. For docs-only stories, may be overkill (see rec P). |
 | xiv  | PR-level review catches structural bugs invisible to story-level reviews          | BL106                            | Premature `if __name__` block at line 1076 of test file caused 35/123 tests to be skipped. Each story reviewer only saw their own additions and missed the structural issue. The PR reviewer saw the full file and caught it. Validates two-tier review model. |
 | xv   | Interactive design produces better architectural decisions than autonomous for refactoring | BL150                   | Design evolved from "split into reference docs" (original backlog proposal) to "extract inline scripts" through interactive Q&A. The designer's critical analysis revealed 61% of extractable content was "scripts written in markdown." Autonomous mode would have accepted the initial approach without this re-evaluation. For greenfield or content work, autonomous is efficient; for refactoring existing infrastructure, interactive design yields superior results. |
 | xvi  | First organic fix cycle in the workflow was for a security pattern invisible to tests | BL150                        | E01-S01 had 2 fix cycle rounds for heredoc injection (5 critical issues). This is the first non-planted fix cycle in 53+ stories. The vulnerability (unquoted bash heredoc markers) is invisible to functional tests because bash variable expansion happens before Python execution. The reviewer demonstrated working exploits. This validates the review process: reviewers catch classes of bugs that tests cannot. |
 | xvii | Incomplete fix cycle pattern: builders fix only cited locations, not file-wide pattern | BL150                       | E01-S01 fix cycle 1 addressed 3 of 5 vulnerable heredocs (the 3 explicitly cited by the reviewer). The builder did not grep for the pattern across the file. Fix cycle 2 was needed to catch the remaining 2. This "fix the cited lines, not the pattern" behavior cost ~6 minutes of additional wall clock. See rec S for proposed convention. |
+| xviii | Sonnet reviewer quality is consistently high, including on infrastructure code | BL105, BL150, Run 16, BL109 | Promoted from rec N after 4th positive data point. 12+ Sonnet reviews across content and infrastructure code. BL109 E01-S06: Sonnet reviewer issued REQUEST_CHANGES with 2 critical issues on adapter code (unchecked GraphQL exit code, silenced label errors). All Sonnet verdicts were correct. No model routing change warranted -- Sonnet is appropriate for easy story reviews. |
+| xix  | Infrastructure design costs dominate when usage limits force re-dispatches | BL109                          | BL109 design phase: 10 dispatches, $7.05 (37% of total). Each re-dispatch after usage limit consumed 40-75K tokens re-reading context. Sequential agent time was only 19m 20s, but wall clock was ~2 hours due to pauses. Compare: content runs (Runs 12-14) use 1-3 design dispatches at $0.50-$1.50. The cost profile is specific to autonomous infrastructure design with complex scope (13 functions, 3-layer architecture, agent audit). |
+| xx   | PM abstraction adapter cost profile: Design 37%, Build 33%, Review 25%, Plan 5% | BL109                          | First adapter/abstraction infrastructure item. Design dominates due to adversarial triangulation pattern and usage limits. Build cost ($6.23) is comparable to content runs. Review cost ($4.72, 25%) is lower than BL106 (47.8%) because Sonnet reviews handled easy/medium stories. Plan phase efficient at $1.03 (11m 37s, single dispatch for 3 epics + 10 stories). |

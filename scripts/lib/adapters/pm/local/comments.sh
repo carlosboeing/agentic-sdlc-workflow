@@ -27,9 +27,9 @@ _local_comment_slug() {
   local heading
   heading=$(printf '%s' "$body" \
     | grep -m1 '^##\{0,1\}# ' \
-    | sed 's/^#* //; s/[^a-zA-Z0-9 ]//g' \
+    | sed 's/^#* //; s/[^a-zA-Z0-9 ]//g; s/^ *//; s/ *$//' \
     | tr '[:upper:]' '[:lower:]' \
-    | tr ' ' '-')
+    | tr -s ' ' '-')
   if [ -z "$heading" ]; then
     heading="comment"
   fi

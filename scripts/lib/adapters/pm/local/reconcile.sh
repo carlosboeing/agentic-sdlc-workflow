@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# reconcile.sh — Local adapter: pm_reconcile.
+#
+# Validates .workflow/ state against the orchestrator state file.
+# Reuses the Python computation from the GitHub adapter but replaces
+# API calls with local filesystem reads.
+#
+# Usage: source this file; do not execute directly.
+
+# Idempotency guard
+[ -n "${_LOCAL_RECONCILE_LOADED:-}" ] && { return 0 2>/dev/null || exit 0; }
+_LOCAL_RECONCILE_LOADED=1
+
+# Auto-source dependencies if not already loaded
+_RECONCILE_SH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -z "${_LOCAL_COMMON_LOADED:-}" ] && source "$_RECONCILE_SH_DIR/_common.sh"
+[ -z "${_LOCAL_BOARD_LOADED:-}" ]  && source "$_RECONCILE_SH_DIR/board.sh"
+
+# pm_reconcile --from-state <file> [--epic-issues <json>] [--dry-run]
+# Computes expected statuses from the orchestrator state file, reads
+# actual statuses from .workflow/items/*.md frontmatter, reports
+# discrepancies, and fixes them unless --dry-run is set.
+pm_reconcile() {
+  local state_file="" epic_issues="{}" dry_run=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --from-state)  state_file="$2";  shift 2 ;;
+      --epic-issues) epic_issues="$2"; shift 2 ;;
+      --dry-run)     dry_run=true;     shift ;;
+      *) echo "Unknown option: $1" >&2; return 1 ;;
+    esac
+  done
+
+  if [ -z "$state_file" ] || [ ! -f "$state_file" ]; then
+    echo "Error: --from-state <file> required and must exist" >&2
+    return 1
+  fi
+
+  _board_log "reconcile START state_file=$state_file dry_run=$dry_run"
+
+  # Step 1: Compute expected statuses from state file (Python — identical to
+  # the GitHub adapter; only the output format differs in Step 3).
+  local expected
+  expected=$(STATE_FILE="$state_file" EPIC_ISSUES="$epic_issues" python3 << 'PYEOF'
+import json, os
+
+with open(os.environ["STATE_FILE"]) as f:
+    state = json.load(f)
+
+epic_issues = json.loads(os.environ.get("EPIC_ISSUES", "{}"))
+expected = {}
+dispatches = state.get("dispatches", [])
+
+# Backlog issue
+backlog = state["session"]["backlog"]
+has_pr_review = any(
+    d.get("issue") == backlog and "reviewer" in d.get("agent", "")
+    for d in dispatches
+)
+expected[str(backlog)] = "in-review" if has_pr_review else "in-progress"
+
+# Doc issues (designer, planner, retro) -> done if completed
+for d in dispatches:
+    if d.get("agent", "") in {"designer", "planner", "retro"}:
+        issue = d.get("issue")
+        if issue:
+            expected[str(issue)] = "done" if d.get("result") == "success" else "in-progress"
+
+# Story issues -> derive from story status
+epic_story_statuses = {}
+for epic_slug, epic_data in state.get("epics", {}).items():
+    epic_story_statuses[epic_slug] = []
+    for story_num, story_data in epic_data.get("stories", {}).items():
+        status = story_data.get("status", "registered")
+        if status in ("reviewed", "merged"):
+            board = "in-review"
+        elif status in ("building", "built", "reviewing"):
+            board = "in-progress"
+        else:
+            board = "ready"
+        expected[str(story_num)] = board
+        epic_story_statuses[epic_slug].append(board)
+
+# Epic issues -> aggregate from story statuses
+for epic_slug, issue_num in epic_issues.items():
+    statuses = epic_story_statuses.get(epic_slug, [])
+    if not statuses:
+        continue
+    if all(s == "in-review" for s in statuses):
+        expected[str(issue_num)] = "in-review"
+    elif any(s == "in-progress" for s in statuses):
+        expected[str(issue_num)] = "in-progress"
+    else:
+        expected[str(issue_num)] = "in-review"
+
+print(json.dumps(expected))
+PYEOF
+  ) || { echo "Error: failed to compute expected statuses" >&2; return 1; }
+
+  # Step 2: Read actual statuses from .workflow/items/*.md frontmatter.
+  # Build a lookup: issue_num -> actual_status_display (Title Case).
+  local issues issue_count
+  issues=$(echo "$expected" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin).keys()))")
+  issue_count=$(echo "$issues" | wc -w | tr -d ' ')
+
+  local display_map='{"backlog":"Backlog","ready":"Ready","in-progress":"In Progress","in-review":"In Review","done":"Done"}'
+
+  # Step 3: Compare and reconcile.
+  local fixes_needed=0 fixes_applied=0
+  local issue_num expected_status display_expected actual_status actual_display item_path
+
+  for issue_num in $issues; do
+    expected_status=$(echo "$expected" | python3 -c \
+      "import json,sys; print(json.load(sys.stdin)['$issue_num'])")
+    display_expected=$(echo "$display_map" | python3 -c \
+      "import json,sys; print(json.load(sys.stdin).get('$expected_status','$expected_status'))")
+
+    item_path=$(_local_item_path "$issue_num")
+    if [ -f "$item_path" ]; then
+      actual_status=$(_local_fm_read "$item_path" status)
+      actual_display=$(echo "$display_map" | python3 -c \
+        "import json,sys; print(json.load(sys.stdin).get('$actual_status','$actual_status'))")
+    else
+      actual_status="UNKNOWN"
+      actual_display="UNKNOWN"
+    fi
+
+    if [ "$actual_display" = "$display_expected" ]; then
+      echo "✓ #$issue_num: $display_expected"
+    else
+      fixes_needed=$((fixes_needed + 1))
+      echo "✗ #$issue_num: expected=$display_expected actual=${actual_display:-null}"
+      if [ "$dry_run" = "false" ]; then
+        pm_set_status "$issue_num" "$expected_status" 2>/dev/null
+        fixes_applied=$((fixes_applied + 1))
+        echo "  → Fixed: #$issue_num → $expected_status"
+      fi
+    fi
+  done
+
+  echo ""
+  if [ "$fixes_needed" -eq 0 ]; then
+    echo "Board reconciled: $issue_count issues consistent."
+  else
+    if [ "$dry_run" = "true" ]; then
+      echo "Dry run: $fixes_needed/$issue_count issues need fixing."
+    else
+      echo "Board reconciled: $fixes_applied fixes applied, $issue_count issues checked."
+    fi
+  fi
+
+  _board_log "reconcile DONE issues=$issue_count fixes_needed=$fixes_needed fixes_applied=$fixes_applied"
+  return 0
+}

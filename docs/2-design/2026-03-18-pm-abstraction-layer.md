@@ -20,7 +20,7 @@ The PM Abstraction Layer introduces a clean boundary between the workflow's proc
 This design document defines:
 
 1. A **`scripts/lib/pm.sh`** library with ~13 generic PM functions (the adapter contract)
-2. A **GitHub adapter** (`scripts/lib/adapters/github/`) as the first (and currently only) implementation
+2. A **GitHub adapter** (`scripts/lib/adapters/pm/github/`) as the first (and currently only) implementation
 3. A **standardized agent contract** for how all 6 agents interact with work items
 4. A **shadow stack migration strategy** to swap in the new adapter without breaking the running workflow
 5. A **cost budget** mechanism (`maxCostPerRun` in config)
@@ -52,8 +52,8 @@ graph TB
     end
 
     subgraph "Adapter Layer"
-        GH_PM["GitHub Adapter<br/>scripts/lib/adapters/github/"]
-        LOCAL_PM["Local Adapter — FUTURE<br/>scripts/lib/adapters/local/"]
+        GH_PM["GitHub Adapter<br/>scripts/lib/adapters/pm/github/"]
+        LOCAL_PM["Local Adapter — FUTURE<br/>scripts/lib/adapters/pm/local/"]
         GH_VCS["GitHub (raw gh/git)"]
         FS_DOC["Filesystem (docs/)"]
     end
@@ -292,7 +292,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 
 PM_ADAPTER=$(_cfg '.pm.adapter' "github")
-ADAPTER_DIR="$SCRIPT_DIR/adapters/$PM_ADAPTER"
+ADAPTER_DIR="$SCRIPT_DIR/adapters/pm/$PM_ADAPTER"
 
 if [ ! -d "$ADAPTER_DIR" ]; then
   echo "ERROR: PM adapter '$PM_ADAPTER' not found at $ADAPTER_DIR" >&2
@@ -329,7 +329,7 @@ scripts/lib/
 graph TD
     PM["pm.sh<br/>(adapter loader + public API)"]
 
-    subgraph "scripts/lib/adapters/github/"
+    subgraph "scripts/lib/adapters/pm/github/"
         ITEMS["items.sh<br/>create, get, list, done"]
         BOARD["board.sh<br/>set-status, batch, reconcile, add-to-board"]
         COMMENTS["comments.sh<br/>add-comment, post-telemetry"]
@@ -388,7 +388,7 @@ pm_set_status "$@"
 
 This means:
 - **No breaking changes** for agents or orchestrator that call `./scripts/issue-set-status.sh`
-- The actual logic lives in `scripts/lib/adapters/github/board.sh`
+- The actual logic lives in `scripts/lib/adapters/pm/github/board.sh`
 - When the adapter changes (e.g., to `local`), the wrapper calls the same `pm_set_status` which routes to a different adapter
 
 Scripts that become wrappers:
@@ -465,7 +465,7 @@ The migration follows a three-phase "build alongside, verify, swap" pattern. Thi
 graph LR
     subgraph "Phase 1: Build Alongside"
         OLD1["Existing scripts<br/>(issue-set-status.sh, etc.)"]
-        NEW1["New adapter stack<br/>(pm.sh + adapters/github/)"]
+        NEW1["New adapter stack<br/>(pm.sh + adapters/pm/github/)"]
     end
 
     subgraph "Phase 2: Shadow Verify"
@@ -496,12 +496,12 @@ Create the entire new adapter stack in new files and folders. Do not touch exist
 
 **What gets built:**
 - `scripts/lib/pm.sh` (adapter loader)
-- `scripts/lib/adapters/github/items.sh`
-- `scripts/lib/adapters/github/board.sh`
-- `scripts/lib/adapters/github/comments.sh`
-- `scripts/lib/adapters/github/hierarchy.sh`
-- `scripts/lib/adapters/github/labels.sh`
-- `scripts/lib/adapters/github/lifecycle.sh`
+- `scripts/lib/adapters/pm/github/items.sh`
+- `scripts/lib/adapters/pm/github/board.sh`
+- `scripts/lib/adapters/pm/github/comments.sh`
+- `scripts/lib/adapters/pm/github/hierarchy.sh`
+- `scripts/lib/adapters/pm/github/labels.sh`
+- `scripts/lib/adapters/pm/github/lifecycle.sh`
 
 **What does NOT change:**
 - `scripts/issue-set-status.sh` (unchanged, still works)
@@ -540,7 +540,7 @@ Existing scripts become thin wrappers delegating to pm.sh (as shown in Section 5
 **Rollback plan:** If the new adapter causes failures in production:
 
 1. Revert the wrapper scripts to their pre-swap state (a single `git revert` of the swap commit)
-2. The adapter stack remains in `scripts/lib/adapters/github/` but is not called
+2. The adapter stack remains in `scripts/lib/adapters/pm/github/` but is not called
 3. Debug and fix the adapter, then re-swap
 
 The rollback is safe because the adapter files are additive -- reverting the wrappers restores the original behavior without deleting the new code.
@@ -606,8 +606,8 @@ The interface does NOT require changes for the local adapter. If it does, the ab
 The pm.sh function signatures map 1:1 to MCP tool signatures (Section 4.2). The plugin packages:
 
 - `pm.sh` as the adapter loader
-- `adapters/github/` as the reference adapter
-- `adapters/local/` as the zero-config default
+- `adapters/pm/github/` as the reference adapter
+- `adapters/pm/local/` as the zero-config default
 - MCP tool definitions that call the same adapter functions
 
 ### 9.3 Multi-PM Adapters (#113)
@@ -616,11 +616,20 @@ Each new adapter implements the same set of functions in its own folder:
 
 ```
 scripts/lib/adapters/
-  github/     # Built in this item
-  local/      # Built in #111
-  jira/       # Built in #113
-  linear/     # Built in #113
-  azure/      # Built in #113
+  pm.sh                  # PM router
+  pm/
+    github/              # Built in this item
+    local/               # Built in #111
+    jira/                # Built in #113
+    linear/              # Built in #113
+    azure/               # Built in #113
+  vcs.sh                 # VCS router (future)
+  vcs/
+    github/              # Future
+    gitlab/              # Future
+  doc.sh                 # DOC router (future, needs more thinking)
+  doc/
+    local/               # Future
 ```
 
 Adapter-specific concerns (rate limits, batch support, API pagination, authentication) are handled within each adapter. The pm.sh interface does not expose these -- they are implementation details.
@@ -744,7 +753,7 @@ All ~13 functions in a single `scripts/lib/pm.sh` file with `if/else` adapter se
 
 Adapter functions split across domain-specific files within an adapter folder. `pm.sh` is a thin loader that sources the active adapter's modules.
 
-- **Pro:** Clean separation -- adding a Jira adapter means adding `adapters/jira/` with the same file structure.
+- **Pro:** Clean separation -- adding a Jira adapter means adding `adapters/pm/jira/` with the same file structure.
 - **Pro:** Domain grouping (board, items, comments) makes the adapter easier to navigate and test.
 - **Con:** More files to create initially.
 - **Selected** because it scales to multiple adapters and composes well with the plugin architecture.

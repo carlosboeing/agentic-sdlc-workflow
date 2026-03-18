@@ -555,6 +555,130 @@ assert_contains "pm_get_item_json_all_body" "Some body" "$(echo "$OUT" | jq -r '
 rm -rf "$TMPDIR"
 echo ""
 
+# --- Test Group 21: C1 JSON title escaping (double quotes) ---
+echo "Test Group: C1 JSON title escaping — double quotes in title"
+
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" 'pm_create_item story "Title with \"quotes\" inside"' > /dev/null
+OUT=$(run_snippet "$TMPDIR" "pm_get_item 1 --json title")
+EXIT_CODE=$?
+
+assert_exit_zero "pm_get_item_json_quoted_title_exits_zero" "$EXIT_CODE"
+if echo "$OUT" | jq . > /dev/null 2>&1; then
+  echo "  PASS: pm_get_item_json_quoted_title_valid_json"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_get_item_json_quoted_title_valid_json (got: $OUT)"
+  FAIL=$((FAIL + 1))
+fi
+assert_contains "pm_get_item_json_quoted_title_value" 'quotes' "$(echo "$OUT" | jq -r '.title')"
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 22: C1 JSON title escaping (backslashes) ---
+echo "Test Group: C1 JSON title escaping — backslash in title"
+
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" 'pm_create_item story "Path\\to\\thing"' > /dev/null
+OUT=$(run_snippet "$TMPDIR" "pm_get_item 1 --json title")
+EXIT_CODE=$?
+
+assert_exit_zero "pm_get_item_json_backslash_title_exits_zero" "$EXIT_CODE"
+if echo "$OUT" | jq . > /dev/null 2>&1; then
+  echo "  PASS: pm_get_item_json_backslash_title_valid_json"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_get_item_json_backslash_title_valid_json (got: $OUT)"
+  FAIL=$((FAIL + 1))
+fi
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 23: W1 labels separator has space after comma ---
+echo "Test Group: W1 labels separator — comma-space in human-readable output"
+
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" "pm_create_item story 'Sep Story' --labels 'type/feature'" > /dev/null
+OUT=$(run_snippet "$TMPDIR" "pm_get_item 1")
+
+# labels line must contain a comma-space (not just comma)
+if echo "$OUT" | grep -q "^labels:.*,  *[^ ]"; then
+  echo "  PASS: pm_get_item_human_labels_comma_space"
+  PASS=$((PASS + 1))
+else
+  # Accept either "comma-space" or a single label (no comma at all) as passing
+  LABEL_LINE=$(echo "$OUT" | grep "^labels:")
+  if echo "$LABEL_LINE" | grep -q ","; then
+    # There is a comma — it must be followed by a space
+    if echo "$LABEL_LINE" | grep -q ", "; then
+      echo "  PASS: pm_get_item_human_labels_comma_space"
+      PASS=$((PASS + 1))
+    else
+      echo "  FAIL: pm_get_item_human_labels_comma_space (got: $LABEL_LINE)"
+      FAIL=$((FAIL + 1))
+    fi
+  else
+    # Single label, no comma — pass (separator only applies when >1 label)
+    echo "  PASS: pm_get_item_human_labels_comma_space (single label, no comma)"
+    PASS=$((PASS + 1))
+  fi
+fi
+
+# Specifically: two labels must be separated with comma-space
+TMPDIR2=$(mktemp -d)
+run_snippet "$TMPDIR2" "pm_create_item story 'Multi Label' --labels 'type/feature,difficulty/easy'" > /dev/null
+OUT2=$(run_snippet "$TMPDIR2" "pm_get_item 1")
+LABEL_LINE2=$(echo "$OUT2" | grep "^labels:")
+if echo "$LABEL_LINE2" | grep -qF ", "; then
+  echo "  PASS: pm_get_item_human_labels_comma_space_multi"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_get_item_human_labels_comma_space_multi (got: $LABEL_LINE2)"
+  FAIL=$((FAIL + 1))
+fi
+rm -rf "$TMPDIR" "$TMPDIR2"
+echo ""
+
+# --- Test Group 24: W2 pm_list_items safe glob (no ls pipe) ---
+echo "Test Group: W2 pm_list_items works when items dir has no md files"
+
+TMPDIR=$(mktemp -d)
+mkdir -p "$TMPDIR/.workflow/items"
+# No .md files — should return zero results without error
+OUT=$(run_snippet "$TMPDIR" "pm_list_items" 2>&1)
+EXIT_CODE=$?
+
+assert_exit_zero "pm_list_items_empty_dir_exits_zero" "$EXIT_CODE"
+if [ -z "$OUT" ]; then
+  echo "  PASS: pm_list_items_empty_dir_no_output"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_list_items_empty_dir_no_output (got: $OUT)"
+  FAIL=$((FAIL + 1))
+fi
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 25: S4 _local_build_json naming ---
+echo "Test Group: S4 _local_build_json naming consistency"
+
+# Verify the old _pm_build_json name is gone and _local_build_json is present
+if grep -q "_local_build_json" "$ITEMS_SH"; then
+  echo "  PASS: items_sh_uses_local_build_json"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: items_sh_uses_local_build_json (function not found)"
+  FAIL=$((FAIL + 1))
+fi
+if grep -q "_pm_build_json" "$ITEMS_SH"; then
+  echo "  FAIL: items_sh_no_pm_build_json (old name still present)"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: items_sh_no_pm_build_json"
+  PASS=$((PASS + 1))
+fi
+echo ""
+
 # --- Summary ---
 echo "========================================"
 TOTAL=$((PASS + FAIL))

@@ -53,6 +53,8 @@ AGENT_TO_PHASE = {
     "builder-sonnet": "Build",
     "builder-opus": "Build",
     "reviewer": "Review",
+    "reviewer-sonnet": "Review",
+    "reviewer-opus": "Review",
     "retro": "Retro",
 }
 
@@ -292,7 +294,7 @@ def compute_fix_cycles(raw_dispatches, pricing_rates):
         agent = d.get("agent", "")
         issue = d.get("issue")
         is_builder = agent.startswith("builder")
-        is_reviewer = agent == "reviewer"
+        is_reviewer = agent.startswith("reviewer")
 
         if is_builder and issue is not None:
             if issue in first_builder_seen:

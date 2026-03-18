@@ -155,12 +155,15 @@ cat > "$MOCK_CONFIG_FILE" << 'CONFIG'
 }
 CONFIG
 
-# Config for no-external mode
+# Config for no-external mode (use "local" which triggers deprecation and
+# sets PM_EXTERNAL="" — this is the canonical way to disable external sync)
 MOCK_CONFIG_LOCAL="$MOCK_BASE_DIR/config_local.json"
 cat > "$MOCK_CONFIG_LOCAL" << 'CONFIG_LOCAL'
 {
   "workflowDir": ".workflow",
-  "pm": {}
+  "pm": {
+    "adapter": "local"
+  }
 }
 CONFIG_LOCAL
 
@@ -688,18 +691,12 @@ cat > "$MOCK_CONFIG_LOG" << 'CONFIG_LOG'
 CONFIG_LOG
 
 MOCK_WORKFLOW=$(mktemp -d)
-SYNC_LOG_DIR="$MOCK_WORKFLOW/../sync-logs"
-mkdir -p "$SYNC_LOG_DIR"
 
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _CFG_FILE_OVERRIDE=\"$MOCK_CONFIG_LOG\"
   export _LOCAL_WORKFLOW_DIR=\"$MOCK_WORKFLOW\"
-  export REPO_ROOT=\"$SYNC_LOG_DIR\"
   source \"$PM_SH\"
-
-  # Ensure log directory exists
-  mkdir -p \"$SYNC_LOG_DIR/.agentic-workflow/logs\"
 
   _local_pm_create_item story 'Log Test' > /dev/null
 
@@ -707,10 +704,12 @@ bash --norc --noprofile -c "
 
   sleep 0.5
 
-  # Check external-sync.log
-  if [ -f \"$SYNC_LOG_DIR/.agentic-workflow/logs/external-sync.log\" ]; then
+  # pm.sh sets REPO_ROOT to the actual repo root; the sync log is at
+  # \$REPO_ROOT/.agentic-workflow/logs/external-sync.log
+  SYNC_LOG=\"\$REPO_ROOT/.agentic-workflow/logs/external-sync.log\"
+  if [ -f \"\$SYNC_LOG\" ]; then
     echo 'sync_log:exists'
-    cat \"$SYNC_LOG_DIR/.agentic-workflow/logs/external-sync.log\"
+    cat \"\$SYNC_LOG\"
   else
     echo 'sync_log:missing'
   fi
@@ -722,8 +721,10 @@ assert_exit_zero "Fire_and_forget_log_exits_zero" "$EXIT_CODE"
 assert_contains "Sync_log_exists" "sync_log:exists" "$OUTPUT"
 assert_contains "Sync_log_has_content" "external log entry" "$OUTPUT"
 
+# Clean up the sync log created in the real repo
+rm -f "$REPO_ROOT/.agentic-workflow/logs/external-sync.log" 2>/dev/null || true
 rm -f "$TMPOUT" "$MOCK_LOG_LINK"
-rm -rf "$MOCK_WORKFLOW" "$SYNC_LOG_DIR"
+rm -rf "$MOCK_WORKFLOW"
 
 echo ""
 

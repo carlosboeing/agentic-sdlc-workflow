@@ -1,2 +1,5 @@
 # Agentic workflow plugin runtime data
 .agentic-workflow/
+
+# macOS
+.DS_Store

@@ -44,6 +44,29 @@ The workflow runs long autonomous sessions where interruptions are expected: usa
 
 **Where AI judgment belongs in recovery:** The orchestrator uses judgment to decide what to do after recovery (which phase to resume, whether to re-dispatch a failed builder, how to handle partial work). But determining *where we are* — reading the state file, checking GitHub, verifying branch state — must be deterministic and scripted.
 
+## Design Philosophy: Think Long Term, Execute Short Term
+
+Every design decision should consider the end-state architecture, but every implementation should deliver only what is needed now. Apply pragmatism — build for today's requirements while ensuring today's choices don't block tomorrow's goals.
+
+**The rule:** When making an architectural choice, evaluate it against the long-term vision. If the pragmatic short-term option creates a painful migration later, invest a small amount now to avoid it. If the long-term option adds significant complexity for no immediate value, defer it — but document the future direction so it isn't lost.
+
+| Prefer | Over | Why |
+|--------|------|-----|
+| Namespace folders for future layers | Flat structure that needs renaming later | One extra directory level now saves a migration later |
+| Design the interface, build one adapter | Build all adapters speculatively | Interface is the hard part; adapters are mechanical |
+| Document deferred decisions in the design doc | Trust future agents to rediscover the plan | Design docs are durable; agent recall is not |
+| YAGNI on dead code | Building stubs "just in case" | Dead code rots; documented intent survives |
+| Small structural investments (naming, folder layout) | Punting all future concerns | Structural changes are cheap now, expensive at scale |
+
+**How this plays out in practice:**
+- **Design phase:** Explore the full long-term architecture (all layers, all adapters, all edge cases). Use adversarial triangulation — multiple perspectives evaluating trade-offs independently.
+- **Plan phase:** Scope the implementation to what delivers value now. Document what was deferred and why.
+- **Build phase:** Execute only the scoped plan. Don't sneak in future work.
+- **Review phase:** Check that short-term choices align with the documented long-term direction.
+
+**Evidence:** Backlog #109 designed a three-layer abstraction landscape (PM, VCS, DOC) but scoped implementation to PM-only with ~13 functions. The folder structure was namespaced as `adapters/pm/github/` (not `adapters/github/`) — a trivial investment that ensures VCS and DOC layers slot in without migration. The VCS and DOC boundaries were documented with deferred function signatures, preserving the vision without building dead code.
+
+
 ## Project Documentation
 
 - `docs/5-guides/PROJECT.md` — full architecture and technical overview

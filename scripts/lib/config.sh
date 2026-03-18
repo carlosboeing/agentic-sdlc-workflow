@@ -14,7 +14,8 @@
 #   CFG_STATUS_BACKLOG, CFG_STATUS_PLANNED, CFG_STATUS_TODO,
 #   CFG_STATUS_IN_PROGRESS, CFG_STATUS_IN_REVIEW, CFG_STATUS_DONE,
 #   CFG_ROUTE_EASY, CFG_ROUTE_MEDIUM, CFG_ROUTE_HARD,
-#   CFG_REVIEW_EASY, CFG_REVIEW_MEDIUM, CFG_REVIEW_HARD
+#   CFG_REVIEW_EASY, CFG_REVIEW_MEDIUM, CFG_REVIEW_HARD,
+#   CFG_PM_ADAPTER, CFG_MAX_COST_PER_RUN
 
 # Locate config file relative to the repo root
 _CFG_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -68,3 +69,9 @@ CFG_ROUTE_HARD=$(_cfg '.modelRouting.hard' "opus")
 CFG_REVIEW_EASY=$(_cfg '.reviewerRouting.easy' "sonnet")
 CFG_REVIEW_MEDIUM=$(_cfg '.reviewerRouting.medium' "opus")
 CFG_REVIEW_HARD=$(_cfg '.reviewerRouting.hard' "opus")
+
+# --- PM adapter ---
+CFG_PM_ADAPTER=$(_cfg '.pm.adapter' "github")
+
+# --- Cost budget ---
+CFG_MAX_COST_PER_RUN=$(_cfg '.workflow.maxCostPerRun' "null")

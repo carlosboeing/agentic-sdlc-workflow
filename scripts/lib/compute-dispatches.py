@@ -705,13 +705,13 @@ def _select_tick_interval(total_seconds):
         return "10minute"
 
 
-def _gantt_label_for_dispatch(d, story_labels, fix_counts):
+def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=False):
     """
     Generate a Gantt task label, color tag, and duration_s for a dispatch.
 
     story_labels: dict mapping issue int → "ENN-SNN" string
-    fix_counts: dict mapping (issue, agent_prefix) → count seen so far *before*
-                this dispatch (0 = first occurrence, not a fix cycle)
+    is_fix_build: True if this is a builder re-dispatch (fix cycle)
+    is_re_review: True if this is a reviewer dispatch following a fix cycle builder
 
     Returns (label, color_tag_str, dur_s).
     color_tag_str is one of ":active", ":done", ":crit", or "" (no tag).
@@ -723,9 +723,7 @@ def _gantt_label_for_dispatch(d, story_labels, fix_counts):
     dur_s = dur_ms // 1000
     dur_label = fmt_duration(dur_ms)
 
-    # Fix cycle: same (issue, agent_prefix) pair seen before
-    pair_key = (issue, agent_prefix)
-    is_fix_cycle = fix_counts.get(pair_key, 0) > 0
+    is_fix_cycle = is_fix_build or is_re_review
 
     # Story code for build/review dispatches
     story_code = story_labels.get(issue) if issue else None
@@ -859,8 +857,11 @@ def generate_gantt(state):
     # Group into parallel waves using tolerance window
     waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
 
-    # Track fix cycle counts: (issue, agent_prefix) → number of dispatches seen
-    fix_counts: dict = {}
+    # Builder-centric fix cycle tracking (matches compute_fix_cycles semantics):
+    # - A builder re-dispatch for an issue that already had a builder = fix cycle
+    # - The reviewer dispatch that follows a fix cycle builder = re-review
+    first_builder_seen: set = set()
+    pending_re_review: set = set()
 
     lines = []
 
@@ -885,12 +886,25 @@ def generate_gantt(state):
             agent = d.get("agent", "unknown")
             agent_prefix = agent.split("-")[0]
             issue = d.get("issue")
-            pair_key = (issue, agent_prefix)
 
-            label, color_tag, dur_s = _gantt_label_for_dispatch(d, story_labels, fix_counts)
+            # Detect fix cycles using builder-centric logic
+            is_fix_build = False
+            is_re_review = False
+            if issue is not None:
+                if agent_prefix == "builder":
+                    if issue in first_builder_seen:
+                        is_fix_build = True
+                        pending_re_review.add(issue)
+                    else:
+                        first_builder_seen.add(issue)
+                elif agent_prefix == "reviewer":
+                    if issue in pending_re_review:
+                        is_re_review = True
+                        pending_re_review.discard(issue)
 
-            # Increment fix count *after* generating label for this dispatch
-            fix_counts[pair_key] = fix_counts.get(pair_key, 0) + 1
+            label, color_tag, dur_s = _gantt_label_for_dispatch(
+                d, story_labels, is_fix_build=is_fix_build, is_re_review=is_re_review
+            )
 
             if color_tag:
                 task_line = f"    {label}   {color_tag},:t{task_id}, {offset_str}, {dur_s}s"

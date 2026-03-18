@@ -1,4 +1,23 @@
 # Changelog
+## 2026-03-19
+
+### Dual-Write PM Layer (backlog #227)
+
+- **Primary result:** Refactored `pm.sh` from single-adapter ("pick local OR github") to dual-write ("local always-on, external optional fire-and-forget")
+- `pm.sh` loader now always sources local adapter first, renames functions to `_local_pm_*`, then optionally sources external adapter as `_external_pm_*`
+- Dual-write wrapper generation: classifies all 16 `pm_*` functions into three categories:
+  - **Dual-write** (9 functions): calls local sync, then external fire-and-forget in background
+  - **Local-only** (3 functions): reads always from local (source of truth)
+  - **Composed** (4 functions): delegates to local, which calls dual-write primitives internally
+- Special `pm_create_item` wrapper: calls external synchronously to get ID, creates local with same ID, falls back gracefully
+- Prefix injection (`_PM_FN_PREFIX`) added to all 7 GitHub adapter modules — functions define as `pm_*` or `_external_pm_*` based on `_PM_LOADING_EXTERNAL` flag
+- `_local_pm_create_item_with_id` helper for explicit-ID item creation with `_next_id` counter bump
+- `workflowDir` promoted to top-level config (not PM-specific), backward compat with `pm.local.workflowDir`
+- `pm.adapter` semantic shift: from "which adapter to use" to "which external adapter to sync to"
+- Fire-and-forget external calls with logging to `.agentic-workflow/logs/external-sync.log`
+- 2 epics, 6 stories: E01 Foundation (3 stories), E02 Dual-Write Loader (3 stories)
+- 460+ tests across 11 test suites, all passing
+- 2 fix cycles: E01-S02 (test line-count threshold), E02-S01 (test regression + stale comment + guard tracking)
 ## 2026-03-18
 
 ### Local-First PM System (backlog #111)

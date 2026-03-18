@@ -18,8 +18,8 @@
 #   PM_EXTERNAL     — external adapter name (e.g., "github"), or "" if none
 #   REPO_ROOT       — absolute path to the repository root
 #
-# Idempotency: sourcing pm.sh multiple times is safe. The guard variables
-# _PM_LOCAL_LOADED and _PM_EXTERNAL_LOADED prevent double-sourcing.
+# Idempotency: sourcing pm.sh multiple times is safe. The guard tracks
+# the loaded adapter directory and external adapter name to prevent re-sourcing.
 #
 # Test override: set _PM_TEST_ADAPTER_DIR to bypass the dual-source loader
 # and point directly at a mock adapter directory (preserves existing test
@@ -28,10 +28,15 @@
 
 # --- Idempotency guard ---
 # When _PM_TEST_ADAPTER_DIR is set, use its value for idempotency tracking.
-# Otherwise, track local + external loaded state separately.
+# Otherwise, track local adapter dir + external adapter name. If the external
+# adapter config changes between sourcing calls, the guard detects it and
+# re-sources.
 _PM_SH_COMPUTED_DIR="${_PM_TEST_ADAPTER_DIR:-}"
+_PM_SH_COMPUTED_EXT="${CFG_PM_ADAPTER:-}"
 
-if [ -n "${_PM_SH_LOADED:-}" ] && [ "${_PM_SH_LOADED_DIR:-}" = "$_PM_SH_COMPUTED_DIR" ]; then
+if [ -n "${_PM_SH_LOADED:-}" ] \
+   && [ "${_PM_SH_LOADED_DIR:-}" = "$_PM_SH_COMPUTED_DIR" ] \
+   && [ "${_PM_SH_LOADED_EXTERNAL:-}" = "$_PM_SH_COMPUTED_EXT" ]; then
   return 0 2>/dev/null || exit 0
 fi
 
@@ -74,7 +79,8 @@ if [ -n "${_PM_TEST_ADAPTER_DIR:-}" ]; then
 
   _PM_SH_LOADED=1
   _PM_SH_LOADED_DIR="$_PM_SH_COMPUTED_DIR"
-  unset _PM_SCRIPT_DIR _PM_MODULES _PM_MODULE _PM_SH_COMPUTED_DIR
+  _PM_SH_LOADED_EXTERNAL="$_PM_SH_COMPUTED_EXT"
+  unset _PM_SCRIPT_DIR _PM_MODULES _PM_MODULE _PM_SH_COMPUTED_DIR _PM_SH_COMPUTED_EXT
   return 0 2>/dev/null || exit 0
 fi
 
@@ -182,11 +188,12 @@ fi
 
 export PM_ADAPTER PM_ADAPTER_DIR PM_EXTERNAL
 
-# Mark as loaded
+# Mark as loaded (tracks both adapter dir and external adapter name)
 _PM_SH_LOADED=1
 _PM_SH_LOADED_DIR="$_PM_SH_COMPUTED_DIR"
+_PM_SH_LOADED_EXTERNAL="$_PM_SH_COMPUTED_EXT"
 
 # Cleanup internal variables
 unset _PM_SCRIPT_DIR _PM_LOCAL_DIR _PM_LOCAL_MODULES _PM_MODULE
-unset _PM_LOCAL_FUNCTIONS _fn _PM_SH_COMPUTED_DIR
+unset _PM_LOCAL_FUNCTIONS _fn _PM_SH_COMPUTED_DIR _PM_SH_COMPUTED_EXT
 unset _PM_EXTERNAL_DIR _PM_EXT_MODULES 2>/dev/null || true

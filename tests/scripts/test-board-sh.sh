@@ -265,7 +265,7 @@ ERROR_OUTPUT=$(cat "$TMPOUT")
 rm -f "$TMPOUT"
 
 assert_exit_nonzero "SetStatus_invalid_status_exits_nonzero" "$EXIT_CODE"
-assert_contains "SetStatus_invalid_status_error_message" "Unknown status" "$ERROR_OUTPUT"
+assert_contains "SetStatus_invalid_status_error_message" "invalid status" "$ERROR_OUTPUT"
 
 echo ""
 

@@ -61,6 +61,7 @@ When your prompt includes the word "autonomous":
 - Make reasonable decisions about epic/story breakdown, difficulty labels, and dependency ordering
 - Document any structural decisions (e.g., why you chose 2 epics instead of 3) in the plan
 - **Never create child backlog items** — always decompose into epics and stories only (see Work Item Hierarchy in CLAUDE.md)
+- **Never create retro issues** — the orchestrator creates the retro issue at the appropriate lifecycle point (Phase 8). Creating one in the plan results in duplicates.
 
 When your prompt does NOT include "autonomous", use the brainstorming skill and ask questions as normal.
 

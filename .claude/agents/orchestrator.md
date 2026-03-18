@@ -232,6 +232,8 @@ git branch --merged HEAD | grep -q "e<NN>-s<NN>/<branch>" && \
 
 After all stories for an epic, merge epic into integration branch (`--no-ff`), push, clean up epic branch. Update epic board status.
 
+**Post per-epic telemetry (MANDATORY — do not skip).** After merging each epic into the integration branch, post telemetry on the epic issue before proceeding to the next wave. This has been skipped in multiple runs (see rec X). Use `issue-telemetry.sh` with `--dispatches-from-state`, filtering to that epic's stories only.
+
 ### Phase 8: Open Backlog PR
 
 1. **Verify all stories complete** (no open story issues remaining).
@@ -268,7 +270,8 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
    ```
    # Dispatch both simultaneously via parallel Agent tool calls:
    Agent tool → subagent_type: "reviewer-opus", isolation: "worktree"
-   Prompt: "Review PR #<pr-number>. Check for cross-epic integration issues,
+   Prompt: "Review PR #<pr-number>. Post your review findings on the PR (gh pr comment <pr-number>),
+            NOT on the backlog issue. Check for cross-epic integration issues,
             convention violations, and security concerns."
 
    Agent tool → subagent_type: "retro", isolation: "worktree"

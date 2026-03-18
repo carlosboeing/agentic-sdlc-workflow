@@ -1,4 +1,20 @@
 # Changelog
+## 2026-03-18
+
+### PM Abstraction Layer (backlog #109)
+
+- **Primary result:** Introduced a clean PM adapter boundary between workflow process logic and external project management platforms
+- Created `scripts/lib/pm.sh` adapter loader with config-driven adapter selection (`pm.adapter` in config)
+- Built GitHub adapter in `scripts/lib/adapters/pm/github/` with 7 modules: items.sh, board.sh, reconcile.sh, comments.sh, hierarchy.sh, labels.sh, lifecycle.sh
+- Defined ~13 generic PM functions (pm_create_item, pm_get_item, pm_list_items, pm_done, pm_set_status, pm_add_to_board, pm_batch_set_status, pm_reconcile, pm_add_comment, pm_post_telemetry, pm_link_child, pm_add_label, pm_start_work, pm_complete_work, pm_update_item)
+- Converted 8 existing scripts (issue-set-status.sh, batch-set-status.sh, issue-start.sh, issue-review.sh, issue-close.sh, issue-create-backlog.sh, reconcile-board.sh, setup-labels.sh) to thin wrappers delegating to pm.sh
+- Added cost budget enforcement library (`scripts/lib/cost-budget.sh`) with `maxCostPerRun` config support
+- Created ADR-0004: Shadow Stack Migration Strategy (build-alongside-verify-swap pattern)
+- Design doc includes three-layer abstraction landscape (PM/VCS/DOC), agent architecture audit, and forward compatibility for local-first PM (#111) and multi-PM adapters (#113)
+- 3 epics, 10 stories: E01 Foundation (6 stories), E02 Lifecycle + Cost Budget (2 stories), E03 Swap + ADR (2 stories)
+- 289 unit tests across 9 test suites, all passing with zero regressions
+- 1 fix cycle: E01-S06 hierarchy.sh/labels.sh (reviewer found unchecked GraphQL exit code + silenced label creation errors)
+
 ## 2026-03-17
 
 ### The Debugging: A Silicon Valley Musical — Run 16 (backlog #167, 136m wall-clock)

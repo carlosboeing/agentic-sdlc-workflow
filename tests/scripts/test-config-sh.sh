@@ -208,6 +208,10 @@ if [ -f "$CONFIG_JSON" ]; then
 
   MAX_PARALLEL=$(jq -r '.workflow.maxParallelBuilders' "$CONFIG_JSON" 2>/dev/null || true)
   assert_eq "ConfigJSON_workflow_maxParallelBuilders_Unchanged" "3" "$MAX_PARALLEL"
+
+  # New: workflowDir at top level
+  WORKFLOW_DIR=$(jq -r '.workflowDir // empty' "$CONFIG_JSON" 2>/dev/null || true)
+  assert_eq "ConfigJSON_Has_toplevel_workflowDir_dotworkflow" ".workflow" "$WORKFLOW_DIR"
 else
   echo "  SKIP: Config JSON not found at $CONFIG_JSON"
 fi
@@ -221,6 +225,152 @@ assert_file_contains "config.sh_defines_CFG_PM_ADAPTER" "CFG_PM_ADAPTER" "$CONFI
 assert_file_contains "config.sh_defines_CFG_MAX_COST_PER_RUN" "CFG_MAX_COST_PER_RUN" "$CONFIG_SH"
 assert_file_contains "config.sh_reads_pm_adapter_from_JSON" "\.pm\.adapter" "$CONFIG_SH"
 assert_file_contains "config.sh_reads_workflow_maxCostPerRun_from_JSON" "\.workflow\.maxCostPerRun" "$CONFIG_SH"
+
+echo ""
+
+# --- Test Group 8: CFG_WORKFLOW_DIR top-level read ---
+echo "Test Group: CFG_WORKFLOW_DIR reads top-level workflowDir"
+
+# Config with top-level workflowDir
+TEMP_CFG_WD=$(mktemp)
+cat > "$TEMP_CFG_WD" <<'CFGEOF'
+{
+  "workflowDir": ".my-workflow",
+  "github": {
+    "repo": "test/repo",
+    "projectNumber": 99,
+    "owner": "test",
+    "projectId": "PVT_test",
+    "statusFieldId": "PVTSSF_test"
+  }
+}
+CFGEOF
+
+TMPOUT=$(mktemp)
+_CFG_FILE_OVERRIDE="$TEMP_CFG_WD" bash --norc --noprofile -c "
+  source \"$CONFIG_SH\"
+  echo \"CFG_WORKFLOW_DIR=\$CFG_WORKFLOW_DIR\"
+  echo \"CFG_LOCAL_WORKFLOW_DIR=\$CFG_LOCAL_WORKFLOW_DIR\"
+" > "$TMPOUT" 2>&1
+
+WD_VAL=$(grep '^CFG_WORKFLOW_DIR=' "$TMPOUT" | cut -d= -f2)
+LWD_VAL=$(grep '^CFG_LOCAL_WORKFLOW_DIR=' "$TMPOUT" | cut -d= -f2)
+rm -f "$TMPOUT" "$TEMP_CFG_WD"
+
+assert_eq "CFG_WORKFLOW_DIR_ReadsTopLevel_workflowDir" ".my-workflow" "$WD_VAL"
+assert_eq "CFG_LOCAL_WORKFLOW_DIR_AliasMatchesCFG_WORKFLOW_DIR" ".my-workflow" "$LWD_VAL"
+
+echo ""
+
+# --- Test Group 9: CFG_WORKFLOW_DIR default ---
+echo "Test Group: CFG_WORKFLOW_DIR default when workflowDir absent"
+
+TEMP_CFG_WD2=$(mktemp)
+cat > "$TEMP_CFG_WD2" <<'CFGEOF'
+{
+  "github": {
+    "repo": "test/repo",
+    "projectNumber": 99,
+    "owner": "test",
+    "projectId": "PVT_test",
+    "statusFieldId": "PVTSSF_test"
+  }
+}
+CFGEOF
+
+TMPOUT=$(mktemp)
+_CFG_FILE_OVERRIDE="$TEMP_CFG_WD2" bash --norc --noprofile -c "
+  source \"$CONFIG_SH\"
+  echo \"CFG_WORKFLOW_DIR=\$CFG_WORKFLOW_DIR\"
+" > "$TMPOUT" 2>&1
+
+WD_VAL=$(grep '^CFG_WORKFLOW_DIR=' "$TMPOUT" | cut -d= -f2)
+rm -f "$TMPOUT" "$TEMP_CFG_WD2"
+
+assert_eq "CFG_WORKFLOW_DIR_DefaultsTo_dotworkflow_WhenAbsent" ".workflow" "$WD_VAL"
+
+echo ""
+
+# --- Test Group 10: CFG_WORKFLOW_DIR backward compat from pm.local.workflowDir ---
+echo "Test Group: CFG_WORKFLOW_DIR backward compat (pm.local.workflowDir fallback)"
+
+TEMP_CFG_WD3=$(mktemp)
+cat > "$TEMP_CFG_WD3" <<'CFGEOF'
+{
+  "github": {
+    "repo": "test/repo",
+    "projectNumber": 99,
+    "owner": "test",
+    "projectId": "PVT_test",
+    "statusFieldId": "PVTSSF_test"
+  },
+  "pm": {
+    "adapter": "github",
+    "local": {
+      "workflowDir": ".old-workflow"
+    }
+  }
+}
+CFGEOF
+
+TMPOUT=$(mktemp)
+_CFG_FILE_OVERRIDE="$TEMP_CFG_WD3" bash --norc --noprofile -c "
+  source \"$CONFIG_SH\"
+  echo \"CFG_WORKFLOW_DIR=\$CFG_WORKFLOW_DIR\"
+  echo \"CFG_LOCAL_WORKFLOW_DIR=\$CFG_LOCAL_WORKFLOW_DIR\"
+" > "$TMPOUT" 2>&1
+
+WD_VAL=$(grep '^CFG_WORKFLOW_DIR=' "$TMPOUT" | cut -d= -f2)
+LWD_VAL=$(grep '^CFG_LOCAL_WORKFLOW_DIR=' "$TMPOUT" | cut -d= -f2)
+rm -f "$TMPOUT" "$TEMP_CFG_WD3"
+
+assert_eq "CFG_WORKFLOW_DIR_BackwardCompat_UsesOldPmLocalWorkflowDir" ".old-workflow" "$WD_VAL"
+assert_eq "CFG_LOCAL_WORKFLOW_DIR_BackwardCompat_AliasMatchesCFG_WORKFLOW_DIR" ".old-workflow" "$LWD_VAL"
+
+echo ""
+
+# --- Test Group 11: CFG_WORKFLOW_DIR top-level wins over pm.local.workflowDir ---
+echo "Test Group: CFG_WORKFLOW_DIR top-level takes precedence over pm.local.workflowDir"
+
+TEMP_CFG_WD4=$(mktemp)
+cat > "$TEMP_CFG_WD4" <<'CFGEOF'
+{
+  "workflowDir": ".top-level-wins",
+  "github": {
+    "repo": "test/repo",
+    "projectNumber": 99,
+    "owner": "test",
+    "projectId": "PVT_test",
+    "statusFieldId": "PVTSSF_test"
+  },
+  "pm": {
+    "adapter": "github",
+    "local": {
+      "workflowDir": ".old-should-be-ignored"
+    }
+  }
+}
+CFGEOF
+
+TMPOUT=$(mktemp)
+_CFG_FILE_OVERRIDE="$TEMP_CFG_WD4" bash --norc --noprofile -c "
+  source \"$CONFIG_SH\"
+  echo \"CFG_WORKFLOW_DIR=\$CFG_WORKFLOW_DIR\"
+" > "$TMPOUT" 2>&1
+
+WD_VAL=$(grep '^CFG_WORKFLOW_DIR=' "$TMPOUT" | cut -d= -f2)
+rm -f "$TMPOUT" "$TEMP_CFG_WD4"
+
+assert_eq "CFG_WORKFLOW_DIR_TopLevel_WinsOverPmLocal" ".top-level-wins" "$WD_VAL"
+
+echo ""
+
+# --- Test Group 12: config.sh defines CFG_WORKFLOW_DIR ---
+echo "Test Group: config.sh defines CFG_WORKFLOW_DIR and alias"
+
+assert_file_contains "config.sh_defines_CFG_WORKFLOW_DIR" "CFG_WORKFLOW_DIR" "$CONFIG_SH"
+assert_file_contains "config.sh_defines_CFG_LOCAL_WORKFLOW_DIR" "CFG_LOCAL_WORKFLOW_DIR" "$CONFIG_SH"
+assert_file_contains "config.sh_reads_toplevel_workflowDir_from_JSON" "\.workflowDir" "$CONFIG_SH"
 
 echo ""
 

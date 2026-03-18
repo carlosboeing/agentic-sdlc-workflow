@@ -7,68 +7,73 @@
 #   pm_complete_work <item-id> <commit-hash>
 #     Posts a "Ready for Review" comment and sets board to In Review.
 #
-# Both functions compose on pm_add_comment (comments.sh) and pm_set_status
-# (board.sh) — no direct gh calls. Exported via pm.sh loader.
+# Both functions compose pm_add_comment and pm_set_status — no direct gh calls.
+# Prefix injection: when _PM_LOADING_EXTERNAL=1 is set before sourcing, public
+# pm_* functions are defined as _external_pm_*; cross-function calls also use the
+# prefix so _external_pm_start_work calls _external_pm_add_comment (not wrapper).
 
-# Idempotency guard
-if declare -f pm_start_work > /dev/null 2>&1; then
+# Set function name prefix: empty in normal mode, "_external_" as external adapter
+_PM_FN_PREFIX="${_PM_LOADING_EXTERNAL:+_external_}"
+
+# Idempotency guard: check using the prefix-aware function name
+if declare -f "${_PM_FN_PREFIX}pm_start_work" > /dev/null 2>&1; then
   return 0 2>/dev/null || exit 0
 fi
 
 # pm_start_work <item-id> [--model <m>] [--agent <a>]
 # Posts "Work Started" comment (byte-identical to issue-start.sh) and sets
 # board status to in-progress.
-pm_start_work() {
-  local item_id="$1"
+eval "${_PM_FN_PREFIX}pm_start_work() {
+  local item_id=\"\$1\"
   shift
-  local model="unknown" agent="unknown"
+  local model=\"unknown\" agent=\"unknown\"
 
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --model) model="$2"; shift 2 ;;
-      --agent) agent="$2"; shift 2 ;;
-      *) echo "Unknown option: $1" >&2; return 1 ;;
+  while [ \$# -gt 0 ]; do
+    case \"\$1\" in
+      --model) model=\"\$2\"; shift 2 ;;
+      --agent) agent=\"\$2\"; shift 2 ;;
+      *) echo \"Unknown option: \$1\" >&2; return 1 ;;
     esac
   done
 
   local timestamp
-  timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  timestamp=\$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")
 
-  pm_add_comment "$item_id" "$(cat <<EOF
+  ${_PM_FN_PREFIX}pm_add_comment \"\$item_id\" \"\$(cat <<EOF
 ### 🚀 Work Started
 
 | Field | Value |
 |-------|-------|
-| **Agent** | $agent |
-| **Model** | $model |
-| **Started** | $timestamp |
+| **Agent** | \$agent |
+| **Model** | \$model |
+| **Started** | \$timestamp |
 EOF
-)"
+)\"
 
-  pm_set_status "$item_id" in-progress \
-    || echo "Warning: Board status update failed for #$item_id" >&2
-}
+  ${_PM_FN_PREFIX}pm_set_status \"\$item_id\" in-progress \
+    || echo \"Warning: Board status update failed for #\$item_id\" >&2
+}"
 
 # pm_complete_work <item-id> <commit-hash>
 # Posts "Ready for Review" comment (byte-identical to issue-review.sh) and
 # sets board status to in-review.
-pm_complete_work() {
-  local item_id="$1"
-  local commit_hash="$2"
+eval "${_PM_FN_PREFIX}pm_complete_work() {
+  local item_id=\"\$1\"
+  local commit_hash=\"\$2\"
 
   local timestamp
-  timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  timestamp=\$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")
 
-  pm_add_comment "$item_id" "$(cat <<EOF
+  ${_PM_FN_PREFIX}pm_add_comment \"\$item_id\" \"\$(cat <<EOF
 ### 👀 Ready for Review
 
 | Field | Value |
 |-------|-------|
-| **Commit** | $commit_hash |
-| **Completed** | $timestamp |
+| **Commit** | \$commit_hash |
+| **Completed** | \$timestamp |
 EOF
-)"
+)\"
 
-  pm_set_status "$item_id" in-review \
-    || echo "Warning: Board status update failed for #$item_id" >&2
-}
+  ${_PM_FN_PREFIX}pm_set_status \"\$item_id\" in-review \
+    || echo \"Warning: Board status update failed for #\$item_id\" >&2
+}"

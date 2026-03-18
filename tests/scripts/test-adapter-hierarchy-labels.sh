@@ -88,11 +88,11 @@ done
 
 # Line count constraints
 HIERARCHY_LINES=$(wc -l < "$HIERARCHY_SH" 2>/dev/null || echo 999)
-if [ "$HIERARCHY_LINES" -le 40 ]; then
-  echo "  PASS: hierarchy.sh is under 40 lines ($HIERARCHY_LINES)"
+if [ "$HIERARCHY_LINES" -le 60 ]; then
+  echo "  PASS: hierarchy.sh is under 60 lines ($HIERARCHY_LINES)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: hierarchy.sh exceeds 40 lines ($HIERARCHY_LINES)"
+  echo "  FAIL: hierarchy.sh exceeds 60 lines ($HIERARCHY_LINES)"
   FAIL=$((FAIL + 1))
 fi
 

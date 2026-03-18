@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated:** 2026-03-18 (post BL#109)
+> **Last updated:** 2026-03-19 (post BL#227)
 > **Work tracking:** [Project Board](https://github.com/users/carlosboeing/projects/7)
 > **Analysis & research:** [docs/1-discovery/2026-03-15-roadmap.md](1-discovery/2026-03-15-roadmap.md)
 
@@ -14,7 +14,8 @@ graph TD
     108["#108 Run on Real<br/>Software (L)"]
     109["#109 PM Abstraction<br/>Layer ✅"]
     110["#110 Configurable<br/>Taxonomy (L)"]
-    111["#111 Local-First<br/>PM (XL)"]
+    111["#111 Local-First<br/>PM ✅"]
+    227["#227 Dual-Write<br/>PM Layer ✅"]
     112["#112 Plugin<br/>Packaging (XL)"]
     113["#113 Multi-PM<br/>Adapters (XL)"]
     207["#207 VCS Abstraction<br/>Layer (L)"]
@@ -33,6 +34,7 @@ graph TD
     106 --> 108
     109 --> 108
     109 --> 111
+    111 --> 227
     109 --> 110
     109 --> 112
     109 --> 113
@@ -56,7 +58,8 @@ graph TD
     style 110 fill:#8b5cf6,color:#fff
     style 207 fill:#8b5cf6,color:#fff
     style 208 fill:#8b5cf6,color:#fff
-    style 111 fill:#8b5cf6,color:#fff
+    style 111 fill:#9ca3af,color:#fff
+    style 227 fill:#9ca3af,color:#fff
     style 112 fill:#8b5cf6,color:#fff
     style 113 fill:#374151,color:#fff
     style 114 fill:#374151,color:#fff
@@ -80,7 +83,8 @@ graph TD
 | ✅ | [#106](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/106) | ~~Telemetry Accuracy & Automation~~ | M | — | Done |
 | ✅ | [#150](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/150) | ~~Split orchestrator.md~~ | S | — | Done |
 | ✅ | [#109](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109) | ~~PM Abstraction Layer~~ | L | — | Done |
-| 1 | [#111](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111) | Local-First PM System | XL | 109 | Plugin |
+| ✅ | [#111](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111) | ~~Local-First PM System~~ | XL | 109 | Done |
+| ✅ | [#227](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/227) | ~~Dual-Write PM Layer~~ | L | 111 | Done |
 | 2 | [#207](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/207) | VCS Abstraction Layer + GitHub Adapter | L | 109 | Plugin |
 | 3 | [#208](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/208) | DOC Abstraction Layer + Filesystem Adapter | M | 109 | Plugin |
 | 4 | [#110](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/110) | Configurable Taxonomy | L | 109 | Plugin |
@@ -113,6 +117,10 @@ Reduced `orchestrator.md` from 1,323 to 503 lines (62% reduction) by extracting 
 **[#109 PM Abstraction Layer](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109)** — `size/L` ✅
 Introduced `scripts/lib/pm.sh` adapter loader with config-driven adapter selection. Built GitHub adapter in `scripts/lib/adapters/pm/github/` (7 modules: items, board, reconcile, comments, hierarchy, labels, lifecycle). Converted 8 existing scripts to thin wrappers. Added cost budget library (`cost-budget.sh`). Created ADR-0004 (Shadow Stack Migration). 289 tests, 3 epics, 10 stories, 1 fix cycle.
 
+
+
+**[#227 Dual-Write PM Layer](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/227)** — `size/L` ✅
+Refactored pm.sh from single-adapter to dual-write: local always-on, external optional fire-and-forget. 16 functions classified (9 dual-write, 3 local-only, 4 composed). Prefix injection across 7 GitHub adapter modules. 460+ tests. 2 epics, 6 stories.
 ### Active Track
 
 **[#107 Retro Agent Rework](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/107)** — `size/M`
@@ -133,8 +141,6 @@ First real-software test — use the workflow to build one of its own improvemen
 **[#110 Configurable Taxonomy](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/110)** — `size/L`
 Implement the configurable 3-level hierarchy with PM tool presets (Jira, Azure DevOps, GitHub, Linear, Asana, Shortcut, SAFe, Universal). Default: Epic → Story → Task. Labels migrate dynamically based on config.
 
-**[#111 Local-First PM System](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111)** — `size/XL`
-File-based PM adapter — zero dependencies, offline capable, git-native. Work items as markdown with YAML frontmatter in `.workflow/`. No centralized index — individual files are both source of truth and read path (status in frontmatter, scanned on demand). The killer differentiator: no competitor offers zero-config PM.
 
 **[#207 VCS Abstraction Layer and GitHub Adapter](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/207)** — `size/L`
 Extract VCS hosting operations (PRs, code review) into `scripts/lib/vcs.sh` adapter interface with GitHub adapter. 6 functions: `vcs_create_pr`, `vcs_merge_pr`, `vcs_get_pr`, `vcs_list_prs`, `vcs_comment_pr`, `vcs_review_pr`. Follows the same shadow stack migration pattern as #109.

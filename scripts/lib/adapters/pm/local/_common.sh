@@ -77,49 +77,58 @@ _local_fm_read_labels() {
 
 # _local_fm_write <file> <field> <value> — update a scalar frontmatter field
 # and automatically refresh the `updated` timestamp.
+# Uses ENVIRON to pass field/value so that backslashes and other metacharacters
+# (|, &, \, /) are never interpreted (C1 fix). awk -v processes \-escapes in
+# its argument strings; ENVIRON["VAR"] does not.
 _local_fm_write() {
   local file="$1" field="$2" value="$3"
   local now
   now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-  if grep -q "^${field}:" "$file" 2>/dev/null; then
-    sed -i '' "s|^${field}:.*|${field}: ${value}|" "$file"
-  fi
-  sed -i '' "s|^updated:.*|updated: ${now}|" "$file"
+  _FM_FIELD="$field" _FM_VALUE="$value" _FM_TS="$now" \
+  awk '
+    BEGIN { fld=ENVIRON["_FM_FIELD"]; val=ENVIRON["_FM_VALUE"]; ts=ENVIRON["_FM_TS"] }
+    $0 ~ ("^" fld ":") { print fld ": " val; next }
+    /^updated:/         { print "updated: " ts; next }
+    { print }
+  ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
 }
 
 # _local_fm_append_label <file> <label> — append a label to the labels array.
 # Idempotent: no-op if label already present.
+# Handles the edge case where labels: is the last field before closing ---
+# by detecting in_labels when block transitions to 2 (C2 fix).
 _local_fm_append_label() {
   local file="$1" label="$2"
   # Check for duplicate
   if _local_fm_read_labels "$file" | grep -qxF "$label"; then
     return 0
   fi
-  # Find the closing line of the labels block (first line after "  - ..." entries
-  # that does NOT start with "  - ") and insert before it.
-  # Strategy: append the new "  - label" line after the last existing "  - " line
-  # in the frontmatter block.
   local now
   now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-  # Use awk to insert after the last "  - " line within the labels block
   awk -v lbl="$label" -v ts="$now" '
-    /^---$/ { block++; if (block == 2) { in_front=0 }; print; next }
-    block == 1 { in_front=1 }
+    /^---$/ {
+      block++
+      if (block == 2 && in_labels) {
+        # labels: block was last field — emit new label before closing ---
+        print "  - " lbl
+        in_labels=0
+      }
+      in_front=(block == 1)
+      print
+      next
+    }
     in_front && /^labels:/ { in_labels=1; print; next }
-    in_front && in_labels && /^  - / { last_label_line=NR; lines[NR]=$0; print; next }
-    in_front && in_labels && /^[^ -]/ {
+    in_front && in_labels && /^  - / { print; next }
+    in_front && in_labels {
+      # First non-label-entry line while still in labels block
       print "  - " lbl
       in_labels=0
       print
       next
     }
+    /^updated:/ { print "updated: " ts; next }
     { print }
-    END {
-      # labels block ran to end of frontmatter — handled by the block==2 case above
-    }
   ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
-  # Update updated timestamp
-  sed -i '' "s|^updated:.*|updated: ${now}|" "$file"
 }
 
 # --- Body helpers ---

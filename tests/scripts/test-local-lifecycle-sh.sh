@@ -129,6 +129,7 @@ if [ -f "$COMMENT_DIR/$COMMENT_FILE" ]; then
   CONTENT=$(cat "$COMMENT_DIR/$COMMENT_FILE")
   assert_contains "pm_start_work_comment_has_heading" "### " "$CONTENT"
   assert_contains "pm_start_work_comment_has_work_started_text" "Work Started" "$CONTENT"
+  assert_contains "pm_start_work_comment_has_rocket_emoji" "### 🚀 Work Started" "$CONTENT"
 fi
 
 rm -rf "$TMPDIR"
@@ -249,6 +250,7 @@ if [ -f "$COMMENT_DIR/$COMMENT_FILE" ]; then
   CONTENT=$(cat "$COMMENT_DIR/$COMMENT_FILE")
   assert_contains "pm_complete_work_comment_has_heading" "### " "$CONTENT"
   assert_contains "pm_complete_work_comment_has_ready_for_review_text" "Ready for Review" "$CONTENT"
+  assert_contains "pm_complete_work_comment_has_eyes_emoji" "### 👀 Ready for Review" "$CONTENT"
 fi
 
 rm -rf "$TMPDIR"
@@ -355,13 +357,12 @@ OUT=$(run_snippet "$TMPDIR" "pm_start_work 999 --model sonnet --agent builder" 2
 # pm_add_comment will also fail since item 999 doesn't exist but workflow dir exists.
 # The key: the function itself should not hard-exit (set -e may propagate).
 # We verify that the output contains a warning about board status.
-if echo "$OUT" | grep -qi "warning"; then
+if echo "$OUT" | grep -qi "warning\|error"; then
   echo "  PASS: pm_start_work_warning_on_board_failure"
   PASS=$((PASS + 1))
 else
-  # Also acceptable: the process exits nonzero but with a warning message
-  echo "  PASS: pm_start_work_warning_on_board_failure (non-zero exit with error is ok)"
-  PASS=$((PASS + 1))
+  echo "  FAIL: pm_start_work_warning_on_board_failure (expected warning/error output, got: $OUT)"
+  FAIL=$((FAIL + 1))
 fi
 
 rm -rf "$TMPDIR"

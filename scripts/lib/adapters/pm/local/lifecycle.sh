@@ -38,7 +38,7 @@ pm_start_work() {
   timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
   pm_add_comment "$item_id" "$(cat <<EOF
-### Work Started
+### 🚀 Work Started
 
 | Field | Value |
 |-------|-------|
@@ -63,7 +63,7 @@ pm_complete_work() {
   timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
   pm_add_comment "$item_id" "$(cat <<EOF
-### Ready for Review
+### 👀 Ready for Review
 
 | Field | Value |
 |-------|-------|

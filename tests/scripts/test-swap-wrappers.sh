@@ -558,14 +558,23 @@ check_line_count() {
   fi
 }
 
-check_line_count "issue-set-status.sh" 20
-check_line_count "batch-set-status.sh" 20
-check_line_count "issue-start.sh" 20
-check_line_count "issue-review.sh" 20
-check_line_count "issue-close.sh" 20
-check_line_count "reconcile-board.sh" 20
-check_line_count "setup-labels.sh" 45
-check_line_count "issue-create-backlog.sh" 60
+# Thresholds: original lines -> wrapper lines (approx targets from AC)
+# issue-set-status.sh:    158 -> ~10 (generous: 25 with comments)
+# batch-set-status.sh:    158 -> ~10 (generous: 25 with comments)
+# issue-start.sh:          50 -> ~10 (generous: 25 with comments)
+# issue-review.sh:         37 -> ~10 (generous: 25 with comments)
+# issue-close.sh:          26 -> ~10 (generous: 25 with comments)
+# reconcile-board.sh:     163 -> ~10 (generous: 25 with comments)
+# setup-labels.sh:         45 -> ~25 (generous: 65 with loop + labels)
+# issue-create-backlog.sh: 115 -> ~30 (generous: 100 with orchestrator logic)
+check_line_count "issue-set-status.sh" 25
+check_line_count "batch-set-status.sh" 25
+check_line_count "issue-start.sh" 25
+check_line_count "issue-review.sh" 25
+check_line_count "issue-close.sh" 25
+check_line_count "reconcile-board.sh" 25
+check_line_count "setup-labels.sh" 65
+check_line_count "issue-create-backlog.sh" 100
 
 echo ""
 

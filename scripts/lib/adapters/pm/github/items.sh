@@ -121,6 +121,36 @@ pm_list_items() {
   "${list_args[@]}"
 }
 
+# --- pm_update_item ---
+# Usage: pm_update_item <item-id> [--title <text>] [--body <text>]
+# Updates title and/or body of a GitHub issue.
+pm_update_item() {
+  local item_id="$1"
+  shift
+
+  local title="" body=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --title) title="$2"; shift 2 ;;
+      --body)  body="$2";  shift 2 ;;
+      *)
+        echo "ERROR: pm_update_item: unknown option '$1'" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  local edit_args=(gh issue edit "$item_id" --repo "$CFG_REPO")
+  if [ -n "$title" ]; then
+    edit_args+=(--title "$title")
+  fi
+  if [ -n "$body" ]; then
+    edit_args+=(--body "$body")
+  fi
+
+  "${edit_args[@]}" > /dev/null
+}
+
 # --- pm_done ---
 # Usage: pm_done <item-id>
 # Closes the GitHub issue (with --reason completed) and sets board status to Done.

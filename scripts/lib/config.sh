@@ -15,11 +15,16 @@
 #   CFG_STATUS_IN_PROGRESS, CFG_STATUS_IN_REVIEW, CFG_STATUS_DONE,
 #   CFG_ROUTE_EASY, CFG_ROUTE_MEDIUM, CFG_ROUTE_HARD,
 #   CFG_REVIEW_EASY, CFG_REVIEW_MEDIUM, CFG_REVIEW_HARD,
-#   CFG_PM_ADAPTER, CFG_LOCAL_WORKFLOW_DIR, CFG_MAX_COST_PER_RUN
+#   CFG_PM_ADAPTER, CFG_WORKFLOW_DIR, CFG_LOCAL_WORKFLOW_DIR, CFG_MAX_COST_PER_RUN
 
 # Locate config file relative to the repo root
 _CFG_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-_CFG_FILE="$_CFG_REPO_ROOT/.claude/agentic-sdlc-config.json"
+# Allow tests to override the config file path via _CFG_FILE_OVERRIDE
+if [ -n "${_CFG_FILE_OVERRIDE:-}" ]; then
+  _CFG_FILE="$_CFG_FILE_OVERRIDE"
+else
+  _CFG_FILE="$_CFG_REPO_ROOT/.claude/agentic-sdlc-config.json"
+fi
 
 # Helper: read a JSON field with a fallback default.
 # Usage: _cfg <jq-path> <default>
@@ -72,7 +77,19 @@ CFG_REVIEW_HARD=$(_cfg '.reviewerRouting.hard' "opus")
 
 # --- PM adapter ---
 CFG_PM_ADAPTER=$(_cfg '.pm.adapter' "github")
-CFG_LOCAL_WORKFLOW_DIR=$(_cfg '.pm.local.workflowDir' ".workflow")
+
+# --- Workflow directory (top-level, project-scoped) ---
+# Reads from top-level .workflowDir; falls back to legacy pm.local.workflowDir for
+# backward compatibility with pre-BL227 configs.
+CFG_WORKFLOW_DIR=$(_cfg '.workflowDir' ".workflow")
+if [ "$CFG_WORKFLOW_DIR" = ".workflow" ]; then
+  _old_dir=$(_cfg '.pm.local.workflowDir' "")
+  if [ -n "$_old_dir" ]; then
+    CFG_WORKFLOW_DIR="$_old_dir"
+  fi
+fi
+# Retain alias for backward compatibility with existing local adapter code
+CFG_LOCAL_WORKFLOW_DIR="$CFG_WORKFLOW_DIR"
 
 # --- Cost budget ---
 CFG_MAX_COST_PER_RUN=$(_cfg '.workflow.maxCostPerRun' "null")

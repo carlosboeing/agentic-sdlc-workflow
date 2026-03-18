@@ -1,5 +1,6 @@
 {
   "$comment": "See docs/2-design/2026-03-15-configurable-workflow-settings.md for field documentation. Pricing is fetched live \u2014 add a 'pricing' section here only to override with custom/contract rates.",
+  "workflowDir": ".workflow",
   "github": {
     "repo": "carlosboeing/agentic-sdlc-workflow",
     "projectNumber": 7,

@@ -679,6 +679,55 @@ else
 fi
 echo ""
 
+# --- Test Group 26: C3 Multiline body preserved in JSON ---
+echo "Test Group: C3 multiline body preserved in JSON output"
+
+TMPDIR=$(mktemp -d)
+# Write a real two-line body via a body file so newlines are literal
+BODY_TMP=$(mktemp)
+printf 'Line 1\nLine 2' > "$BODY_TMP"
+run_snippet "$TMPDIR" "pm_create_item story 'Multi Story' --body-file '$BODY_TMP'" > /dev/null
+OUT=$(run_snippet "$TMPDIR" "pm_get_item 1 --json body")
+EXIT_CODE=$?
+
+assert_exit_zero "pm_get_item_json_multiline_body_exits_zero" "$EXIT_CODE"
+if echo "$OUT" | jq . > /dev/null 2>&1; then
+  echo "  PASS: pm_get_item_json_multiline_body_valid_json"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_get_item_json_multiline_body_valid_json (got: $OUT)"
+  FAIL=$((FAIL + 1))
+fi
+# Body must preserve line structure: jq -r output must contain a real newline
+# (if tr flattened to spaces, jq -r gives "Line 1 Line 2" on one line)
+BODY_VAL=$(echo "$OUT" | jq -r '.body' 2>/dev/null || echo "PARSE_ERROR")
+LINE_COUNT=$(echo "$BODY_VAL" | grep -c .)
+if [ "$LINE_COUNT" -ge 2 ]; then
+  echo "  PASS: pm_get_item_json_multiline_body_newline_preserved ($LINE_COUNT lines)"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_get_item_json_multiline_body_newline_preserved (body flattened — C3 bug; got 1 line: $BODY_VAL)"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$BODY_TMP"
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 27: W3 _local_item_path rejects non-numeric ID ---
+echo "Test Group: W3 _local_item_path rejects non-numeric ID"
+
+TMPDIR=$(mktemp -d)
+OUT=$(run_snippet "$TMPDIR" "_local_ensure_dirs; pm_get_item 'abc'" 2>&1)
+EXIT_CODE=$?
+assert_exit_nonzero "pm_get_item_nonnumeric_id_fails" "$EXIT_CODE"
+assert_contains "pm_get_item_nonnumeric_id_message" "abc" "$OUT"
+
+OUT2=$(run_snippet "$TMPDIR" "_local_ensure_dirs; pm_get_item '../../etc/passwd'" 2>&1)
+EXIT_CODE2=$?
+assert_exit_nonzero "pm_get_item_path_traversal_fails" "$EXIT_CODE2"
+rm -rf "$TMPDIR"
+echo ""
+
 # --- Summary ---
 echo "========================================"
 TOTAL=$((PASS + FAIL))

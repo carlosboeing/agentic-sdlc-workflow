@@ -36,7 +36,7 @@ pm_add_label() {
       --repo "$CFG_REPO" \
       --color "$color" \
       --description "$description" \
-      --force 2>/dev/null || true
+      --force
   fi
 
   gh issue edit "$item_id" \

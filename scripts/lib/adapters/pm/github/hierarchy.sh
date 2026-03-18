@@ -25,11 +25,14 @@ pm_link_child() {
     return 1
   fi
 
-  gh api graphql -f query="mutation {
+  if ! gh api graphql -f query="mutation {
     addSubIssue(input: { issueId: \"$parent_id\", subIssueId: \"$child_id\" }) {
       subIssue { id }
     }
-  }" > /dev/null
+  }" > /dev/null; then
+    echo "ERROR: GraphQL addSubIssue mutation failed for #$child_num → #$parent_num" >&2
+    return 1
+  fi
 
   echo "Linked #$child_num as sub-issue of #$parent_num"
 }

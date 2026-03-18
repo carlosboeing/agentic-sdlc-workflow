@@ -168,6 +168,67 @@ assert_exit_nonzero "pm_link_child_fails_on_missing_parent_node_id" "$EXIT_CODE"
 
 echo ""
 
+# --- Test Group 3b: pm_link_child error on missing child node ID ---
+echo "Test Group: pm_link_child error on missing child node ID"
+
+cat > "$MOCK_BIN_DIR/gh" <<'MOCK_GH_MISSING_CHILD'
+#!/usr/bin/env bash
+# Returns valid id for parent, empty for child (simulates missing child)
+if [[ "$*" == *"issue view 10"*"--json id"* ]]; then
+  echo 'parent-node-id-10'
+elif [[ "$*" == *"issue view 99"*"--json id"* ]]; then
+  : # output nothing — simulates gh -q '.id // empty' on an issue with no id
+fi
+MOCK_GH_MISSING_CHILD
+chmod +x "$MOCK_BIN_DIR/gh"
+
+TMPOUT=$(mktemp)
+PATH="$MOCK_BIN_DIR:$PATH" bash --norc --noprofile -c "
+  export CFG_REPO='owner/repo'
+  source '$HIERARCHY_SH'
+  pm_link_child 10 99
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+OUTPUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+
+assert_exit_nonzero "pm_link_child_fails_on_missing_child_node_id" "$EXIT_CODE"
+assert_contains "pm_link_child_error_message_mentions_child" "99" "$OUTPUT"
+
+echo ""
+
+# --- Test Group 3c: pm_link_child error on GraphQL mutation failure ---
+echo "Test Group: pm_link_child error on GraphQL mutation failure"
+
+cat > "$MOCK_BIN_DIR/gh" <<'MOCK_GH_GRAPHQL_FAIL'
+#!/usr/bin/env bash
+# Returns valid node IDs but fails on the graphql mutation
+if [[ "$*" == *"issue view 10"*"--json id"* ]]; then
+  echo 'parent-node-id-10'
+elif [[ "$*" == *"issue view 20"*"--json id"* ]]; then
+  echo 'child-node-id-20'
+elif [[ "$*" == "api graphql"* ]]; then
+  echo '{"errors":[{"message":"Not Found"}]}' >&2
+  exit 1
+fi
+MOCK_GH_GRAPHQL_FAIL
+chmod +x "$MOCK_BIN_DIR/gh"
+
+TMPOUT=$(mktemp)
+PATH="$MOCK_BIN_DIR:$PATH" bash --norc --noprofile -c "
+  export CFG_REPO='owner/repo'
+  source '$HIERARCHY_SH'
+  pm_link_child 10 20
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+OUTPUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+
+assert_exit_nonzero "pm_link_child_fails_on_graphql_error" "$EXIT_CODE"
+assert_contains "pm_link_child_graphql_error_message" "ERROR" "$OUTPUT"
+
+echo ""
+
 # --- Test Group 4: pm_add_label without --create-if-missing (success) ---
 echo "Test Group: pm_add_label without --create-if-missing (label exists)"
 

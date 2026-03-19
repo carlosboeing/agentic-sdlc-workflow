@@ -531,7 +531,7 @@ fi
 | `github/board.sh` | `pm_set_status`, `pm_add_to_board`, `pm_batch_set_status` | Add prefix injection |
 | `github/comments.sh` | `pm_add_comment`, `pm_post_telemetry` | Add prefix injection |
 | `github/hierarchy.sh` | `pm_link_child` | Add prefix injection |
-| `github/items.sh` | `pm_create_item`, `pm_get_item`, `pm_list_items`, `pm_update_item`, `pm_done` | Add prefix injection |
+| `github/items.sh` | `pm_create_item`, `pm_get_item`, `pm_list_items`, `pm_update_item`, `pm_close_item` | Add prefix injection |
 | `github/labels.sh` | `pm_add_label` | Add prefix injection |
 | `github/lifecycle.sh` | `pm_start_work`, `pm_complete_work` | Add prefix injection |
 | `github/reconcile.sh` | `pm_reconcile` | Add prefix injection |
@@ -543,7 +543,7 @@ fi
 Several GitHub adapter functions call other `pm_*` functions internally:
 
 - `lifecycle.sh`: `pm_start_work` calls `pm_add_comment` and `pm_set_status`
-- `items.sh`: `pm_done` calls `pm_set_status`
+- `items.sh`: `pm_close_item` calls `pm_set_status`
 
 When loaded as an external adapter, these internal calls must call the external versions (not the local wrapper versions). The prefix injection handles this naturally: within `_external_pm_start_work`, the calls to `pm_add_comment` and `pm_set_status` resolve to the wrapper versions, which call both local and external. This is actually the correct behavior -- the lifecycle functions compose on primitives, and those primitives should dual-write.
 
@@ -617,7 +617,7 @@ Based on the analysis in Sections 3.5 and 5.4-5.6, every `pm_*` function falls i
 
 | Category | Functions | Wrapper behavior |
 |----------|-----------|-----------------|
-| **Dual-write (fire-and-forget)** | `pm_create_item`, `pm_set_status`, `pm_add_to_board`, `pm_batch_set_status`, `pm_add_comment`, `pm_link_child`, `pm_add_label`, `pm_done`, `pm_update_item` | Call local sync, then external async (background) |
+| **Dual-write (fire-and-forget)** | `pm_create_item`, `pm_set_status`, `pm_add_to_board`, `pm_batch_set_status`, `pm_add_comment`, `pm_link_child`, `pm_add_label`, `pm_close_item`, `pm_update_item` | Call local sync, then external async (background) |
 | **Local-only (no external call)** | `pm_get_item`, `pm_list_items`, `pm_get_status` | Always read from local. External reads available as `_external_pm_*` for explicit use. |
 | **Composed (local orchestrates primitives)** | `pm_start_work`, `pm_complete_work`, `pm_post_telemetry`, `pm_reconcile` | Call local version only. The local version calls primitive `pm_*` functions which are themselves dual-written. |
 
@@ -631,7 +631,7 @@ graph LR
         COMMENT[pm_add_comment]
         LINK[pm_link_child]
         LABEL[pm_add_label]
-        DONE[pm_done]
+        DONE[pm_close_item]
         UPDATE[pm_update_item]
     end
 

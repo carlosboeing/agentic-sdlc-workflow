@@ -277,7 +277,7 @@ graph TB
             f3["update_item"]
             f4["append_body"]
             f5["list_items"]
-            f6["done"]
+            f6["close_item"]
         end
         subgraph pboard["Board"]
             direction LR

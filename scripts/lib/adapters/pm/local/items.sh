@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # items.sh — Local adapter: pm_create_item, pm_get_item, pm_list_items,
-# pm_update_item, pm_done, _local_pm_create_item_with_id. Requires _common.sh.
+# pm_update_item, pm_close_item, _local_pm_create_item_with_id. Requires _common.sh.
 
 [ -n "${_LOCAL_ITEMS_LOADED:-}" ] && { return 0 2>/dev/null || exit 0; }
 _LOCAL_ITEMS_LOADED=1
@@ -197,11 +197,11 @@ pm_append_body() {
   fi
 }
 
-# pm_done <id> — sets state to closed, calls pm_set_status done.
-pm_done() {
+# pm_close_item <id> — sets state to closed, calls pm_set_status done.
+pm_close_item() {
   local item_id="$1"
   local item_path; item_path=$(_local_item_path "$item_id")
-  [ ! -f "$item_path" ] && { echo "ERROR: pm_done: item $item_id not found" >&2; return 1; }
+  [ ! -f "$item_path" ] && { echo "ERROR: pm_close_item: item $item_id not found" >&2; return 1; }
   _local_fm_write "$item_path" state closed
   if declare -f pm_set_status > /dev/null 2>&1; then pm_set_status "$item_id" done || true; fi
 }

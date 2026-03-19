@@ -241,7 +241,7 @@ The pm.sh library defines ~13 functions organized into two tiers.
 |----------|-----------|---------|-------------|
 | `pm_start_work` | `pm_start_work <item-id> [--model <m>] [--agent <a>]` | Mark work as started. Posts "Work Started" comment, transitions to In Progress. | Ready -> In Progress |
 | `pm_complete_work` | `pm_complete_work <item-id> <commit-hash>` | Mark work as ready for review. Posts "Ready for Review" comment, transitions to In Review. | In Progress -> In Review |
-| `pm_done` | `pm_done <item-id>` | Close/resolve a work item. Transitions to Done. | * -> Done |
+| `pm_close_item` | `pm_close_item <item-id>` | Close/resolve a work item. Transitions to Done. | * -> Done |
 | `pm_post_telemetry` | `pm_post_telemetry <item-id> [--model <m>] [--duration <ms>] [--commit <hash>] [--tokens <n>] [--tool-uses <n>] [--pr <n>] [--dispatches-from-state <file>] [--gantt-from-state <file>] [--summary <md>] [--breakdown <md>] [--footer <md>] [--cost <dollars>]` | Post structured telemetry comment. Renders from template. | None |
 | `pm_set_status` | `pm_set_status <item-id> <status>` | Explicit board transition (reconciliation, orchestrator override). Status values: `backlog`, `ready`, `in-progress`, `in-review`, `done`. | As specified |
 | `pm_reconcile` | `pm_reconcile --from-state <file> [--epic-issues <json>] [--dry-run]` | Batch-reconcile board state against the state file. Read expected, query actual, fix diffs. | Fixes drifted items |
@@ -273,7 +273,7 @@ Every pm.sh function maps 1:1 to a future MCP tool signature. When #112 (Plugin 
 | `pm_link_child` | `pm_link_child` | `{parent_id: string, child_id: string}` |
 | `pm_start_work` | `pm_start_work` | `{id: string, model?: string, agent?: string}` |
 | `pm_complete_work` | `pm_complete_work` | `{id: string, commit: string}` |
-| `pm_done` | `pm_done` | `{id: string}` |
+| `pm_close_item` | `pm_close_item` | `{id: string}` |
 
 ### 4.3 Adapter Selection
 
@@ -320,7 +320,7 @@ scripts/lib/
   config.sh                     # Existing config reader (unchanged)
   adapters/
     github/
-      items.sh                  # pm_create_item, pm_get_item, pm_list_items, pm_done
+      items.sh                  # pm_create_item, pm_get_item, pm_list_items, pm_close_item
       board.sh                  # pm_set_status, pm_batch_set_status, pm_reconcile, pm_add_to_board
       comments.sh               # pm_add_comment, pm_post_telemetry
       hierarchy.sh              # pm_link_child
@@ -402,7 +402,7 @@ Scripts that become wrappers:
 | `batch-set-status.sh` | `pm_batch_set_status` |
 | `item-start.sh` | `pm_start_work` |
 | `item-review.sh` | `pm_complete_work` |
-| `item-close.sh` | `pm_done` |
+| `item-close.sh` | `pm_close_item` |
 | `item-create.sh` | `pm_create_item` (with `--level backlog`) + `pm_add_to_board` + `pm_set_status` + `pm_add_label` |
 | `reconcile-board.sh` | `pm_reconcile` |
 | `setup-labels.sh` | `pm_add_label` (repeated calls) |
@@ -600,7 +600,7 @@ The `pm.sh` interface is designed so a local filesystem adapter can implement ev
 | `pm_reconcile` | No-op (no external system to reconcile with) |
 | `pm_start_work` | Update `status: in-progress` + write comment file |
 | `pm_complete_work` | Update `status: in-review` + write comment file |
-| `pm_done` | Update `status: done` |
+| `pm_close_item` | Update `status: done` |
 
 The interface does NOT require changes for the local adapter. If it does, the abstraction was wrong.
 

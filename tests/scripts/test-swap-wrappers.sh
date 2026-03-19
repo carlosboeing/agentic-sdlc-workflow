@@ -106,9 +106,9 @@ pm_complete_work() {
   echo "CALL:pm_complete_work|$*" >> "${_MOCK_CALL_LOG}"
   echo "mock:pm_complete_work $*"
 }
-pm_done() {
-  echo "CALL:pm_done|$*" >> "${_MOCK_CALL_LOG}"
-  echo "mock:pm_done $*"
+pm_close_item() {
+  echo "CALL:pm_close_item|$*" >> "${_MOCK_CALL_LOG}"
+  echo "mock:pm_close_item $*"
 }
 pm_create_item() {
   echo "CALL:pm_create_item|$*" >> "${_MOCK_CALL_LOG}"
@@ -305,7 +305,7 @@ echo ""
 # =====================================================
 # Test Group 5: item-close.sh is a wrapper
 # =====================================================
-echo "Test Group: item-close.sh delegates to pm_done"
+echo "Test Group: item-close.sh delegates to pm_close_item"
 
 > "$CALL_LOG"
 TMPOUT=$(mktemp)
@@ -320,7 +320,7 @@ CALLS=$(cat "$CALL_LOG")
 rm -f "$TMPOUT"
 
 assert_exit_zero "issue_close_exits_zero" "$EXIT_CODE"
-assert_contains "issue_close_calls_pm_done" "CALL:pm_done|77" "$CALLS"
+assert_contains "issue_close_calls_pm_close_item" "CALL:pm_close_item|77" "$CALLS"
 
 echo ""
 

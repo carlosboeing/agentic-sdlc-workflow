@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # items.sh — GitHub adapter: item CRUD functions for the PM abstraction layer.
 #
-# Provides: pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_done
+# Provides: pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_close_item
 #
 # All functions use $CFG_REPO from the sourced config. Sourced by pm.sh;
 # do not execute directly.
@@ -184,13 +184,13 @@ eval "${_PM_FN_PREFIX}pm_append_body() {
   gh issue edit \"\$item_id\" --repo \"\$CFG_REPO\" --body \"\$new_body\" > /dev/null
 }"
 
-# --- pm_done ---
-# Usage: pm_done <item-id>
+# --- pm_close_item ---
+# Usage: pm_close_item <item-id>
 # Closes the GitHub issue (with --reason completed) and sets board status to Done.
 # Handles already-closed issues gracefully (no error).
 # Calls pm_set_status for the board transition — uses ${_PM_FN_PREFIX} so that
-# when loaded as external, _external_pm_done calls _external_pm_set_status.
-eval "${_PM_FN_PREFIX}pm_done() {
+# when loaded as external, _external_pm_close_item calls _external_pm_set_status.
+eval "${_PM_FN_PREFIX}pm_close_item() {
   local item_id=\"\$1\"
 
   # Close the issue; suppress errors for already-closed issues

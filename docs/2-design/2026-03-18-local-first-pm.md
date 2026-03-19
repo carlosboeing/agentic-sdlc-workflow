@@ -186,7 +186,7 @@ The five status values map exactly to the GitHub project board statuses:
 | `ready` | Has acceptance criteria, ready for dispatch | Planner |
 | `in-progress` | Currently being worked on | `pm_start_work` / `pm_set_status` |
 | `in-review` | Implementation complete, awaiting review | `pm_complete_work` / `pm_set_status` |
-| `done` | Completed | `pm_done` / `pm_set_status` |
+| `done` | Completed | `pm_close_item` / `pm_set_status` |
 
 ### Body content
 
@@ -315,7 +315,7 @@ scripts/lib/adapters/pm/local/
   board.sh          # pm_set_status, pm_add_to_board, pm_batch_set_status
   comments.sh       # pm_add_comment, pm_post_telemetry
   hierarchy.sh      # pm_link_child
-  items.sh          # pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_done
+  items.sh          # pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_close_item
   labels.sh         # pm_add_label
   lifecycle.sh      # pm_start_work, pm_complete_work
   reconcile.sh      # pm_reconcile
@@ -369,7 +369,7 @@ scripts/lib/adapters/pm/local/
   board.sh          # pm_set_status, pm_add_to_board, pm_batch_set_status
   comments.sh       # pm_add_comment, pm_post_telemetry
   hierarchy.sh      # pm_link_child
-  items.sh          # pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_done
+  items.sh          # pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_close_item
   labels.sh         # pm_add_label
   lifecycle.sh      # pm_start_work, pm_complete_work
   reconcile.sh      # pm_reconcile
@@ -521,7 +521,7 @@ Implementation:
 3. If `--body` provided, replace everything below the closing `---` with the new body
 4. Update the `updated:` timestamp
 
-#### `pm_done <item-id>`
+#### `pm_close_item <item-id>`
 
 1. Set `state: closed` in frontmatter
 2. Set `status: done` in frontmatter via `pm_set_status` (calls the sibling function)
@@ -830,7 +830,7 @@ Tests follow the existing pattern established by the PM abstraction layer tests.
 ```
 tests/scripts/
   test-local-common-sh.sh       # _common.sh helpers (ID generation, frontmatter parsing)
-  test-local-items-sh.sh         # pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_done
+  test-local-items-sh.sh         # pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_close_item
   test-local-board-sh.sh         # pm_set_status, pm_add_to_board, pm_batch_set_status
   test-local-comments-sh.sh      # pm_add_comment
   test-local-hierarchy-sh.sh     # pm_link_child
@@ -871,7 +871,7 @@ assert_eq "title matches" "My Test Story" "$TITLE"
 3. **Frontmatter correctness:** Fields are written and read correctly, including the labels array
 4. **ID auto-increment:** Sequential calls produce sequential IDs
 5. **Idempotency:** Setting the same status twice is a no-op, adding a duplicate label is a no-op
-6. **State transitions:** `pm_start_work` sets `in-progress`, `pm_complete_work` sets `in-review`, `pm_done` sets `done` and `closed`
+6. **State transitions:** `pm_start_work` sets `in-progress`, `pm_complete_work` sets `in-review`, `pm_close_item` sets `done` and `closed`
 7. **Hierarchy:** `pm_link_child` sets the parent field, children can be queried by parent
 8. **Comments:** `pm_add_comment` creates numbered files, `pm_post_telemetry` writes telemetry content
 9. **Cross-module composition:** `pm_start_work` calls both `pm_add_comment` and `pm_set_status` (via lifecycle.sh -> comments.sh + board.sh)

@@ -59,7 +59,7 @@ Alternatively, append `return 0` or `: #no-op` as the last line to guarantee
 exit 0 after optional conditional blocks. The `if/fi` approach is clearer and
 self-documenting.
 
-The same pattern applies to `pm_done` when `pm_set_status` may not be defined:
+The same pattern applies to `pm_close_item` when `pm_set_status` may not be defined:
 `declare -f pm_set_status > /dev/null 2>&1 && pm_set_status ... || true` is safe
 because `|| true` ensures exit 0 either way. But pure `&&` chains without `||`
 at the end are dangerous as terminal statements.

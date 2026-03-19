@@ -33,7 +33,7 @@ scripts/lib/
   adapters/
     pm/
       github/
-        items.sh                        # NEW: pm_create_item, pm_get_item, pm_list_items, pm_done
+        items.sh                        # NEW: pm_create_item, pm_get_item, pm_list_items, pm_close_item
         board.sh                        # NEW: pm_set_status, pm_batch_set_status, pm_reconcile, pm_add_to_board
         comments.sh                     # NEW: pm_add_comment, pm_post_telemetry
         hierarchy.sh                    # NEW: pm_link_child
@@ -55,7 +55,7 @@ scripts/
   batch-set-status.sh                   # MODIFIED: delegates to pm_batch_set_status
   item-start.sh                        # MODIFIED: delegates to pm_start_work
   item-review.sh                       # MODIFIED: delegates to pm_complete_work
-  item-close.sh                        # MODIFIED: delegates to pm_done
+  item-close.sh                        # MODIFIED: delegates to pm_close_item
   item-create.sh               # MODIFIED: delegates to pm_create_item + pm_add_to_board + pm_set_status + pm_add_label
   reconcile-board.sh                    # MODIFIED: delegates to pm_reconcile
   setup-labels.sh                       # MODIFIED: delegates to pm_add_label (repeated)
@@ -202,7 +202,7 @@ Build the adapter loader, config changes, and four independent leaf adapter modu
 - [ ] `pm_list_items [--label <label>] [--state <open|closed|all>] [--limit <n>]` queries issues
   - Defaults: `--state open`, `--limit 30`
   - Passes filters through to `gh issue list`
-- [ ] `pm_done <item-id>` closes the issue and sets board status to Done
+- [ ] `pm_close_item <item-id>` closes the issue and sets board status to Done
   - Calls `gh issue close` with `--reason completed`
   - Calls the board adapter's status function (available because all modules are sourced together)
   - Handles already-closed issues gracefully (no error)
@@ -213,7 +213,7 @@ Build the adapter loader, config changes, and four independent leaf adapter modu
 - Source `pm.sh`, call `pm_create_item story "Test item" --body "test body"`, verify issue created on GitHub, capture returned number
 - Call `pm_get_item` on the created issue, verify title matches
 - Call `pm_list_items --label hierarchy/story --limit 1`, verify at least one result
-- Call `pm_done` on the test issue, verify it closes
+- Call `pm_close_item` on the test issue, verify it closes
 - Verify `pm_create_item backlog "Test" --labels "type/feature"` applies both `hierarchy/backlog` and `type/feature` labels
 
 **Branch:** `e01-s03/adapter-items`
@@ -431,7 +431,7 @@ Convert existing scripts to thin wrappers delegating to pm.sh, and write the ADR
 - [ ] `batch-set-status.sh` delegates to `pm_batch_set_status "$@"`
 - [ ] `item-start.sh` delegates to `pm_start_work "$@"`
 - [ ] `item-review.sh` delegates to `pm_complete_work "$@"`
-- [ ] `item-close.sh` delegates to `pm_done "$@"`
+- [ ] `item-close.sh` delegates to `pm_close_item "$@"`
 - [ ] `item-create.sh` composes: `pm_create_item backlog` + `pm_add_to_board` + `pm_set_status backlog` + `pm_add_label` (preserves the multi-step backlog creation flow including title prefixing and placeholder replacement)
 - [ ] `reconcile-board.sh` delegates to `pm_reconcile "$@"`
 - [ ] `setup-labels.sh` calls `pm_add_label` in a loop with `--create-if-missing` for each standard label

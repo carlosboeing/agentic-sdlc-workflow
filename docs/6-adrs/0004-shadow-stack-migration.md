@@ -35,7 +35,7 @@ Create the new code in new files and folders. Do not touch existing scripts. The
 ```
 # New files created — existing files untouched
 scripts/lib/pm.sh                           # Adapter loader + public API
-scripts/lib/adapters/pm/github/items.sh     # pm_create_item, pm_get_item, pm_list_items, pm_done
+scripts/lib/adapters/pm/github/items.sh     # pm_create_item, pm_get_item, pm_list_items, pm_close_item
 scripts/lib/adapters/pm/github/board.sh     # pm_set_status, pm_batch_set_status, pm_reconcile
 scripts/lib/adapters/pm/github/comments.sh  # pm_add_comment, pm_post_telemetry
 scripts/lib/adapters/pm/github/hierarchy.sh # pm_link_child
@@ -93,7 +93,7 @@ pm_set_status "$@"
 | `batch-set-status.sh` | `pm_batch_set_status` |
 | `item-start.sh` | `pm_start_work` |
 | `item-review.sh` | `pm_complete_work` |
-| `item-close.sh` | `pm_done` |
+| `item-close.sh` | `pm_close_item` |
 | `item-create.sh` | `pm_create_item` + `pm_add_to_board` + `pm_set_status` + `pm_add_label` |
 | `reconcile-board.sh` | `pm_reconcile` |
 | `setup-labels.sh` | `pm_add_label` (repeated calls) |

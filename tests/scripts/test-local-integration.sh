@@ -67,7 +67,7 @@ assert_eq "epic_parent_links_to_backlog" "1" "$EPIC_PARENT"
 assert_eq "story_parent_links_to_epic"   "2" "$STORY_PARENT"
 
 # Transition: ready -> start_work (in-progress) -> complete_work (in-review) -> done
-run_in_env "$T" "pm_set_status $SID ready; pm_start_work $SID --model sonnet --agent builder; pm_complete_work $SID abc123; pm_done $SID" >/dev/null
+run_in_env "$T" "pm_set_status $SID ready; pm_start_work $SID --model sonnet --agent builder; pm_complete_work $SID abc123; pm_close_item $SID" >/dev/null
 FINAL_STATUS=$(grep "^status:" "$T/.workflow/items/3.md"|sed 's/status: //')
 FINAL_STATE=$(grep  "^state:"  "$T/.workflow/items/3.md"|sed 's/state: //')
 assert_eq "story_final_status_done"   "done"   "$FINAL_STATUS"
@@ -123,7 +123,7 @@ run_in_env "$T" "
   pm_create_item epic   'E' --labels 'backlog/111-test' >/dev/null
   pm_create_item story  'S' --labels 'backlog/111-test' >/dev/null
   pm_create_item story  'Done' --labels 'backlog/111-test' >/dev/null
-  pm_done 4 >/dev/null
+  pm_close_item 4 >/dev/null
 " >/dev/null
 
 assert_eq "list_label_open"   "3" "$(run_in_env "$T" "pm_list_items --label 'backlog/111-test' --state open"  | grep -c . || true)"

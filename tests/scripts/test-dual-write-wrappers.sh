@@ -106,8 +106,8 @@ eval "${_PM_FN_PREFIX}pm_add_label() {
   echo \"CALL:${_PM_FN_PREFIX}pm_add_label:\$*\" >> \"\${_MOCK_CALL_LOG}\"
 }"
 
-eval "${_PM_FN_PREFIX}pm_done() {
-  echo \"CALL:${_PM_FN_PREFIX}pm_done:\$*\" >> \"\${_MOCK_CALL_LOG}\"
+eval "${_PM_FN_PREFIX}pm_close_item() {
+  echo \"CALL:${_PM_FN_PREFIX}pm_close_item:\$*\" >> \"\${_MOCK_CALL_LOG}\"
 }"
 
 eval "${_PM_FN_PREFIX}pm_update_item() {

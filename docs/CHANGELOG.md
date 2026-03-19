@@ -56,7 +56,7 @@
 - **Primary result:** Introduced a clean PM adapter boundary between workflow process logic and external project management platforms
 - Created `scripts/lib/pm.sh` adapter loader with config-driven adapter selection (`pm.adapter` in config)
 - Built GitHub adapter in `scripts/lib/adapters/pm/github/` with 7 modules: items.sh, board.sh, reconcile.sh, comments.sh, hierarchy.sh, labels.sh, lifecycle.sh
-- Defined ~13 generic PM functions (pm_create_item, pm_get_item, pm_list_items, pm_done, pm_set_status, pm_add_to_board, pm_batch_set_status, pm_reconcile, pm_add_comment, pm_post_telemetry, pm_link_child, pm_add_label, pm_start_work, pm_complete_work, pm_update_item)
+- Defined ~13 generic PM functions (pm_create_item, pm_get_item, pm_list_items, pm_close_item, pm_set_status, pm_add_to_board, pm_batch_set_status, pm_reconcile, pm_add_comment, pm_post_telemetry, pm_link_child, pm_add_label, pm_start_work, pm_complete_work, pm_update_item)
 - Converted 8 existing scripts (item-set-status.sh, batch-set-status.sh, item-start.sh, item-review.sh, item-close.sh, item-create.sh, reconcile-board.sh, setup-labels.sh) to thin wrappers delegating to pm.sh
 - Added cost budget enforcement library (`scripts/lib/cost-budget.sh`) with `maxCostPerRun` config support
 - Created ADR-0004: Shadow Stack Migration Strategy (build-alongside-verify-swap pattern)

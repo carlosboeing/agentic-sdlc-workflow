@@ -115,7 +115,7 @@ Establishes the shared utilities (`_common.sh`) and core item CRUD (`items.sh`) 
 
 **Difficulty:** medium
 
-**Summary:** Implement the core item CRUD functions: `pm_create_item`, `pm_get_item`, `pm_list_items`, `pm_update_item`, `pm_done`. This is the most function-dense module (5 functions) and the foundation for all higher-level operations.
+**Summary:** Implement the core item CRUD functions: `pm_create_item`, `pm_get_item`, `pm_list_items`, `pm_update_item`, `pm_close_item`. This is the most function-dense module (5 functions) and the foundation for all higher-level operations.
 
 **Files to create:**
 - `scripts/lib/adapters/pm/local/items.sh`
@@ -129,7 +129,7 @@ Establishes the shared utilities (`_common.sh`) and core item CRUD (`items.sh`) 
 - [ ] `pm_get_item <id> --json <fields>` returns JSON matching `gh issue view --json` schema (fields: number, title, state, body, labels)
 - [ ] `pm_list_items [--label] [--state] [--limit]` scans items, filters, returns tab-separated output
 - [ ] `pm_update_item <id> [--title] [--body]` updates frontmatter/body
-- [ ] `pm_done <id>` sets state to closed and calls `pm_set_status done`
+- [ ] `pm_close_item <id>` sets state to closed and calls `pm_set_status done`
 - [ ] Error handling: invalid level, missing item file, unknown options
 - [ ] Output format contracts: `pm_create_item` prints just the number, `pm_get_item --json` is valid JSON parseable by `jq`
 - [ ] All files under 200 lines
@@ -147,7 +147,7 @@ Establishes the shared utilities (`_common.sh`) and core item CRUD (`items.sh`) 
 - Test `pm_list_items` defaults (state=open, limit=30)
 - Test `pm_list_items` with `--label`, `--state`, `--limit` filters
 - Test `pm_update_item` updates title and body
-- Test `pm_done` sets state to closed (uses mock `pm_set_status`)
+- Test `pm_close_item` sets state to closed (uses mock `pm_set_status`)
 - Test error on nonexistent item
 
 **Git branch:** `e01-s02/local-items`
@@ -431,7 +431,7 @@ graph TD
 | File | Story | Purpose |
 |------|-------|---------|
 | `scripts/lib/adapters/pm/local/_common.sh` | E01-S01 | Shared helpers: path, frontmatter, ID gen |
-| `scripts/lib/adapters/pm/local/items.sh` | E01-S02 | pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_done |
+| `scripts/lib/adapters/pm/local/items.sh` | E01-S02 | pm_create_item, pm_get_item, pm_list_items, pm_update_item, pm_close_item |
 | `scripts/lib/adapters/pm/local/board.sh` | E02-S01 | pm_set_status, pm_add_to_board, pm_batch_set_status |
 | `scripts/lib/adapters/pm/local/comments.sh` | E02-S02 | pm_add_comment, pm_post_telemetry |
 | `scripts/lib/adapters/pm/local/hierarchy.sh` | E02-S03 | pm_link_child |

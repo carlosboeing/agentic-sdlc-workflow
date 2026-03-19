@@ -460,13 +460,13 @@ assert_eq "pm_update_item_body_updated" "Updated body" "$BODY_CONTENT"
 rm -rf "$TMPDIR"
 echo ""
 
-# --- Test Group 16: pm_done ---
-echo "Test Group: pm_done sets state to closed and calls pm_set_status"
+# --- Test Group 16: pm_close_item ---
+echo "Test Group: pm_close_item sets state to closed and calls pm_set_status"
 
 TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Done Story'" > /dev/null
 
-# Provide a stub pm_set_status and verify pm_done calls it
+# Provide a stub pm_set_status and verify pm_close_item calls it
 STATUS_LOG="$TMPDIR/status_calls.log"
 OUT=$(bash --norc --noprofile -c "
   _LOCAL_COMMON_LOADED=''
@@ -476,20 +476,20 @@ OUT=$(bash --norc --noprofile -c "
     echo \"pm_set_status \$1 \$2\" >> '$STATUS_LOG'
   }
   source '$ITEMS_SH'
-  pm_done 1
+  pm_close_item 1
 " 2>&1)
 EXIT_CODE=$?
 
-assert_exit_zero "pm_done_exits_zero" "$EXIT_CODE"
+assert_exit_zero "pm_close_item_exits_zero" "$EXIT_CODE"
 
 STATE_VAL=$(grep '^state:' "$TMPDIR/.workflow/items/1.md" | sed 's/state: //')
-assert_eq "pm_done_sets_state_closed" "closed" "$STATE_VAL"
+assert_eq "pm_close_item_sets_state_closed" "closed" "$STATE_VAL"
 
 if [ -f "$STATUS_LOG" ] && grep -q "pm_set_status 1 done" "$STATUS_LOG"; then
-  echo "  PASS: pm_done_calls_pm_set_status_done"
+  echo "  PASS: pm_close_item_calls_pm_set_status_done"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: pm_done_calls_pm_set_status_done (log: $(cat "$STATUS_LOG" 2>/dev/null || echo 'missing'))"
+  echo "  FAIL: pm_close_item_calls_pm_set_status_done (log: $(cat "$STATUS_LOG" 2>/dev/null || echo 'missing'))"
   FAIL=$((FAIL + 1))
 fi
 rm -rf "$TMPDIR"

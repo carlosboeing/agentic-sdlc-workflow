@@ -205,9 +205,9 @@ assert_function_defined "_external_pm_create_item_defined_in_external_mode" "_ex
 assert_function_defined "_external_pm_get_item_defined_in_external_mode" "_external_pm_get_item" "$ITEMS_EXT_FUNCS"
 assert_function_defined "_external_pm_list_items_defined_in_external_mode" "_external_pm_list_items" "$ITEMS_EXT_FUNCS"
 assert_function_defined "_external_pm_update_item_defined_in_external_mode" "_external_pm_update_item" "$ITEMS_EXT_FUNCS"
-assert_function_defined "_external_pm_done_defined_in_external_mode" "_external_pm_done" "$ITEMS_EXT_FUNCS"
+assert_function_defined "_external_pm_close_item_defined_in_external_mode" "_external_pm_close_item" "$ITEMS_EXT_FUNCS"
 assert_function_not_defined "bare_pm_create_item_NOT_defined_in_external_mode" "pm_create_item" "$ITEMS_EXT_FUNCS"
-assert_function_not_defined "bare_pm_done_NOT_defined_in_external_mode" "pm_done" "$ITEMS_EXT_FUNCS"
+assert_function_not_defined "bare_pm_close_item_NOT_defined_in_external_mode" "pm_close_item" "$ITEMS_EXT_FUNCS"
 
 echo ""
 echo "Test Group: items.sh — normal mode defines bare pm_* functions"
@@ -227,7 +227,7 @@ assert_function_defined "bare_pm_create_item_defined_in_normal_mode" "pm_create_
 assert_function_defined "bare_pm_get_item_defined_in_normal_mode" "pm_get_item" "$ITEMS_NORM_FUNCS"
 assert_function_defined "bare_pm_list_items_defined_in_normal_mode" "pm_list_items" "$ITEMS_NORM_FUNCS"
 assert_function_defined "bare_pm_update_item_defined_in_normal_mode" "pm_update_item" "$ITEMS_NORM_FUNCS"
-assert_function_defined "bare_pm_done_defined_in_normal_mode" "pm_done" "$ITEMS_NORM_FUNCS"
+assert_function_defined "bare_pm_close_item_defined_in_normal_mode" "pm_close_item" "$ITEMS_NORM_FUNCS"
 assert_function_not_defined "_external_pm_create_item_NOT_defined_in_normal_mode" "_external_pm_create_item" "$ITEMS_NORM_FUNCS"
 
 echo ""
@@ -412,7 +412,7 @@ EXPECTED_EXTERNAL_FUNCS=(
   _external_pm_batch_set_status
   _external_pm_complete_work
   _external_pm_create_item
-  _external_pm_done
+  _external_pm_close_item
   _external_pm_get_item
   _external_pm_link_child
   _external_pm_list_items
@@ -461,7 +461,7 @@ EXPECTED_BARE_FUNCS=(
   pm_batch_set_status
   pm_complete_work
   pm_create_item
-  pm_done
+  pm_close_item
   pm_get_item
   pm_link_child
   pm_list_items
@@ -548,8 +548,8 @@ fi
 
 echo ""
 
-# --- Test Group 12: items.sh pm_done cross-function call uses prefix ---
-echo "Test Group: items.sh pm_done cross-function call uses _PM_FN_PREFIX"
+# --- Test Group 12: items.sh pm_close_item cross-function call uses prefix ---
+echo "Test Group: items.sh pm_close_item cross-function call uses _PM_FN_PREFIX"
 
 STATUS_LOG=$(mktemp)
 GH_LOG=$(mktemp)
@@ -576,29 +576,29 @@ bash --norc --noprofile -c "
   export _PM_LOADING_EXTERNAL=1
   source \"$ADAPTERS_DIR/items.sh\"
 
-  _external_pm_done 99
+  _external_pm_close_item 99
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 STATUS_CALLS=$(cat "$STATUS_LOG")
 rm -f "$TMPOUT" "$STATUS_LOG" "$GH_LOG"
 rm -rf "$MOCK_DIR"
 
-assert_exit_zero "external_pm_done_exits_zero" "$EXIT_CODE"
+assert_exit_zero "external_pm_close_item_exits_zero" "$EXIT_CODE"
 
 if echo "$STATUS_CALLS" | grep -q "EXT_STATUS"; then
-  echo "  PASS: external_pm_done_calls_external_pm_set_status"
+  echo "  PASS: external_pm_close_item_calls_external_pm_set_status"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: external_pm_done_calls_external_pm_set_status"
+  echo "  FAIL: external_pm_close_item_calls_external_pm_set_status"
   echo "    Status log: $STATUS_CALLS"
   FAIL=$((FAIL + 1))
 fi
 
 if ! echo "$STATUS_CALLS" | grep -q "BARE_STATUS"; then
-  echo "  PASS: external_pm_done_does_NOT_call_bare_pm_set_status"
+  echo "  PASS: external_pm_close_item_does_NOT_call_bare_pm_set_status"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: external_pm_done_does_NOT_call_bare_pm_set_status"
+  echo "  FAIL: external_pm_close_item_does_NOT_call_bare_pm_set_status"
   echo "    Status log: $STATUS_CALLS"
   FAIL=$((FAIL + 1))
 fi

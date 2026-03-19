@@ -418,6 +418,21 @@ def state_to_dispatches(state):
     # Build story code map (issue → "E01-S01") for Story column
     story_labels = _build_story_labels(state)
 
+    # Build fallback reverse-lookup map: issue number → "ENN-SNN"
+    # Used when _build_story_labels() returns no mapping for an issue (e.g., missing branches).
+    # Derives story code from epic key and story iteration order.
+    fallback_story_labels = {}
+    if not story_labels:
+        for epic_key, epic in state.get("epics", {}).items():
+            epic_num = epic_key[1:]  # "e01" → "01"
+            for ordinal, (issue_str, _) in enumerate(epic.get("stories", {}).items(), start=1):
+                try:
+                    issue_int = int(issue_str)
+                    code = f"E{epic_num.upper()}-S{ordinal:02d}"
+                    fallback_story_labels[issue_int] = code
+                except ValueError:
+                    pass
+
     dispatches = []
     raw_dispatches = state.get("dispatches", [])
 
@@ -491,8 +506,12 @@ def state_to_dispatches(state):
         else:
             task = agent
 
-        # Attach story_code: ENN-SNN for build/review dispatches; empty for others
-        story_code = story_labels.get(issue, "") if issue is not None else ""
+        # Attach story_code: ENN-SNN for build/review dispatches; empty for others.
+        # Use fallback_story_labels when branch-based story_labels has no entry for this issue.
+        if issue is not None:
+            story_code = story_labels.get(issue) or fallback_story_labels.get(issue, "")
+        else:
+            story_code = ""
 
         dispatches.append({
             "agent": agent_label,
@@ -686,20 +705,44 @@ def _build_story_labels(state):
     Build a dict mapping issue number (int) → "ENN-SNN" story code.
 
     Derived from state.epics: epic key "e01" + story branch "e01-s02/..." → "E01-S02"
+
+    Stories with a missing or empty 'branch' field are skipped gracefully.
+    When state.epics is non-empty but no labels can be extracted (e.g., all stories
+    lack a branch), a diagnostic warning is printed to stderr.
     """
     story_labels = {}
-    for epic_key, epic in state.get("epics", {}).items():
+    epics = state.get("epics", {})
+    for epic_key, epic in epics.items():
         # epic_key: "e01", "e02", etc. → extract numeric part
         epic_num = epic_key[1:]  # "01", "02"
         for issue_num, story in epic.get("stories", {}).items():
             branch = story.get("branch", "")
+            if not branch:
+                # Missing or empty branch — skip this story gracefully
+                continue
             # branch like "e01-s02/destination-profiles" → extract "s02"
             # Remove epic prefix: "e01-s02/..." → "s02/..."
             rest = branch.replace(f"{epic_key}-", "", 1)  # "s02/destination-profiles"
             story_part = rest.split("/")[0]  # "s02"
-            story_num = story_part[1:] if story_part.startswith("s") else story_part
+            if not story_part.startswith("s"):
+                # Branch doesn't follow the expected sNN pattern — skip
+                continue
+            story_num = story_part[1:]  # "02"
+            if not story_num:
+                # Empty story number after stripping "s" — skip
+                continue
             code = f"E{epic_num.upper()}-S{story_num.upper()}"
             story_labels[int(issue_num)] = code
+
+    # Diagnostic: warn when epics exist but no labels could be extracted
+    if epics and not story_labels:
+        print(
+            "Warning: state.epics is non-empty but no story labels were extracted "
+            "(stories may be missing 'branch' fields). "
+            "Fallback story code extraction will be attempted in state_to_dispatches().",
+            file=sys.stderr,
+        )
+
     return story_labels
 
 

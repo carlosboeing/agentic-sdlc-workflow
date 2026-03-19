@@ -14,7 +14,8 @@
 #   CFG_STATUS_BACKLOG, CFG_STATUS_PLANNED, CFG_STATUS_TODO,
 #   CFG_STATUS_IN_PROGRESS, CFG_STATUS_IN_REVIEW, CFG_STATUS_DONE,
 #   CFG_ROUTE_EASY, CFG_ROUTE_MEDIUM, CFG_ROUTE_HARD,
-#   CFG_PM_ADAPTER, CFG_WORKFLOW_DIR, CFG_LOCAL_WORKFLOW_DIR, CFG_MAX_COST_PER_RUN
+#   CFG_PM_ADAPTER, CFG_WORKFLOW_DIR, CFG_LOCAL_WORKFLOW_DIR, CFG_MAX_COST_PER_RUN,
+#   CFG_SKIP_REVIEW_ENABLED, CFG_SKIP_REVIEW_MAX_DIFFICULTY, CFG_SKIP_REVIEW_REQUIRE_LABEL
 
 # Locate config file relative to the repo root
 _CFG_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -87,3 +88,8 @@ CFG_LOCAL_WORKFLOW_DIR="$CFG_WORKFLOW_DIR"
 
 # --- Cost budget ---
 CFG_MAX_COST_PER_RUN=$(_cfg '.workflow.maxCostPerRun' "null")
+
+# --- Review strategy ---
+CFG_SKIP_REVIEW_ENABLED=$(_cfg '.reviewStrategy.skipPerStoryReview.enabled' "false")
+CFG_SKIP_REVIEW_MAX_DIFFICULTY=$(_cfg '.reviewStrategy.skipPerStoryReview.conditions.maxDifficulty' "easy")
+CFG_SKIP_REVIEW_REQUIRE_LABEL=$(_cfg '.reviewStrategy.skipPerStoryReview.conditions.requireLabel' "")

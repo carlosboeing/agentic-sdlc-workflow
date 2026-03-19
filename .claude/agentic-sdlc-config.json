@@ -29,5 +29,14 @@
     "skipRetro": false,
     "maxParallelBuilders": 3,
     "maxCostPerRun": null
+  },
+  "reviewStrategy": {
+    "skipPerStoryReview": {
+      "enabled": true,
+      "conditions": {
+        "maxDifficulty": "easy",
+        "requireLabel": "test-agentic-sdlc"
+      }
+    }
   }
 }

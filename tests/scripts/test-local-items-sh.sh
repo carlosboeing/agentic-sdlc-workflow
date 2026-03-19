@@ -907,6 +907,88 @@ else
 fi
 echo ""
 
+# --- Test Group 35: pm_append_body appends to item with no Activity Log ---
+echo "Test Group: pm_append_body appends to item with no Activity Log"
+
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" "pm_create_item story 'Append Story' --body 'Original body'" > /dev/null
+run_snippet "$TMPDIR" "pm_append_body 1 'Appended content here'" > /dev/null
+EXIT_CODE=$?
+
+assert_exit_zero "pm_append_body_exits_zero" "$EXIT_CODE"
+
+ITEM_FILE="$TMPDIR/.workflow/items/1.md"
+CONTENT=$(cat "$ITEM_FILE")
+assert_contains "pm_append_body_original_preserved" "Original body" "$CONTENT"
+assert_contains "pm_append_body_new_content_present" "Appended content here" "$CONTENT"
+
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 36: pm_append_body inserts before Activity Log ---
+echo "Test Group: pm_append_body inserts before Activity Log when it exists"
+
+TMPDIR=$(mktemp -d)
+COMMENTS_SH_LOCAL="$REPO_ROOT/scripts/lib/adapters/pm/local/comments.sh"
+# Create item with body, add a comment (creates Activity Log), then append body
+bash --norc --noprofile -c "
+  _LOCAL_COMMON_LOADED=''
+  _LOCAL_ITEMS_LOADED=''
+  _LOCAL_COMMENTS_LOADED=''
+  _LOCAL_WORKFLOW_DIR='$TMPDIR/.workflow'
+  source '$COMMON_SH'
+  source '$ITEMS_SH'
+  source '$COMMENTS_SH_LOCAL'
+  pm_create_item story 'Activity Story' --body 'Original body' > /dev/null
+  pm_add_comment 1 '### Work Started'
+  pm_append_body 1 'Dependency graph appended'
+" > /dev/null 2>&1
+
+ITEM_FILE="$TMPDIR/.workflow/items/1.md"
+CONTENT=$(cat "$ITEM_FILE")
+assert_contains "pm_append_body_before_activity_log_content" "Dependency graph appended" "$CONTENT"
+assert_contains "pm_append_body_before_activity_log_separator" "─────────" "$CONTENT"
+
+# Appended content must appear BEFORE the separator
+APPEND_LINE=$(grep -n 'Dependency graph appended' "$ITEM_FILE" | head -1 | cut -d: -f1)
+SEP_LINE=$(grep -n '─────────' "$ITEM_FILE" | head -1 | cut -d: -f1)
+if [ -n "$APPEND_LINE" ] && [ -n "$SEP_LINE" ] && [ "$APPEND_LINE" -lt "$SEP_LINE" ]; then
+  echo "  PASS: pm_append_body_content_before_separator"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_append_body_content_before_separator (append=$APPEND_LINE, sep=$SEP_LINE)"
+  FAIL=$((FAIL + 1))
+fi
+
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 37: pm_append_body error on missing item ---
+echo "Test Group: pm_append_body error on nonexistent item"
+
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" "_local_ensure_dirs"
+OUT=$(run_snippet "$TMPDIR" "pm_append_body 999 'content'" 2>&1)
+EXIT_CODE=$?
+
+assert_exit_nonzero "pm_append_body_missing_item_fails" "$EXIT_CODE"
+assert_contains "pm_append_body_missing_item_message" "999" "$OUT"
+
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 38: pm_append_body function exists in items.sh ---
+echo "Test Group: pm_append_body function defined in items.sh"
+
+if grep -q "^pm_append_body()" "$ITEMS_SH"; then
+  echo "  PASS: pm_append_body_defined_in_items_sh"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_append_body_defined_in_items_sh"
+  FAIL=$((FAIL + 1))
+fi
+echo ""
+
 # --- Summary ---
 echo "========================================"
 TOTAL=$((PASS + FAIL))

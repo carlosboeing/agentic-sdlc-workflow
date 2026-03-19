@@ -26,7 +26,8 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
    ```bash
    DESIGN_ISSUE=$(./scripts/item-create.sh docs \
      --title "[#<backlog>] Write design doc for X" \
-     --label "type/docs" --label "backlog/<N>-<slug>")
+     --label "type/docs" --label "backlog/<N>-<slug>" \
+     --created-by "designer")
    ```
 
 3. Link the design doc issue as a **sub-issue** of the backlog issue:

@@ -372,7 +372,8 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```bash
    RETRO_ISSUE=$(./scripts/item-create.sh docs \
      --title "[#<N>] Write retrospective for <title>" \
-     --label "type/docs" --label "backlog/<N>-<slug>")
+     --label "type/docs" --label "backlog/<N>-<slug>" \
+     --created-by "orchestrator")
    ```
    Link as sub-issue of backlog (`item-link-child.sh`), set to In Progress.
 

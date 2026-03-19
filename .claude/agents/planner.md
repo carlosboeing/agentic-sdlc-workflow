@@ -190,13 +190,12 @@ Stories are children of their **epic**, not the backlog. Epics are children of t
 
 After creating all epic and story issues, **append** the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** and each **epic issue**. This keeps the dependency structure visible at the top of the issue page — not buried in comments.
 
-Use `pm_append_body` (via `pm.sh`) to append to both GitHub and local PM items. Do NOT include a `---` horizontal rule — the heading provides sufficient visual separation.
+Use `item-append-body.sh` to append to both GitHub and local PM items. Do NOT include a `---` horizontal rule — the heading provides sufficient visual separation.
 
 **On the backlog issue** — append the full cross-epic dependency graph + dispatch plan table:
 
 ```bash
-source scripts/lib/pm.sh
-pm_append_body <backlog-number> "## 📊 Dependency Graph
+./scripts/item-append-body.sh <backlog-number> "## 📊 Dependency Graph
 
 \`\`\`mermaid
 graph TD
@@ -217,7 +216,7 @@ graph TD
 **On each epic issue** — append only the subset relevant to that epic's stories:
 
 ```bash
-pm_append_body <epic-number> "## 📊 Epic Dependency Graph
+./scripts/item-append-body.sh <epic-number> "## 📊 Epic Dependency Graph
 
 \`\`\`mermaid
 graph TD

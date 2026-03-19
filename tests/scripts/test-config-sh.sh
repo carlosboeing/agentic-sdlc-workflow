@@ -367,6 +367,91 @@ assert_file_contains "config.sh_reads_toplevel_workflowDir_from_JSON" "\.workflo
 
 echo ""
 
+# --- Test Group 13: CFG_SKIP_REVIEW_* reads from real config ---
+echo "Test Group: CFG_SKIP_REVIEW_* variables from real config"
+
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  source \"$CONFIG_SH\"
+  echo \"CFG_SKIP_REVIEW_ENABLED=\$CFG_SKIP_REVIEW_ENABLED\"
+  echo \"CFG_SKIP_REVIEW_MAX_DIFFICULTY=\$CFG_SKIP_REVIEW_MAX_DIFFICULTY\"
+  echo \"CFG_SKIP_REVIEW_REQUIRE_LABEL=\$CFG_SKIP_REVIEW_REQUIRE_LABEL\"
+" > "$TMPOUT" 2>&1
+
+get_val2() { grep "^$1=" "$TMPOUT" | cut -d= -f2; }
+
+assert_eq "CFG_SKIP_REVIEW_ENABLED_From_Config_Is_true" "true" "$(get_val2 CFG_SKIP_REVIEW_ENABLED)"
+assert_eq "CFG_SKIP_REVIEW_MAX_DIFFICULTY_From_Config_Is_easy" "easy" "$(get_val2 CFG_SKIP_REVIEW_MAX_DIFFICULTY)"
+assert_eq "CFG_SKIP_REVIEW_REQUIRE_LABEL_From_Config_Is_test-agentic-sdlc" "test-agentic-sdlc" "$(get_val2 CFG_SKIP_REVIEW_REQUIRE_LABEL)"
+rm -f "$TMPOUT"
+
+echo ""
+
+# --- Test Group 14: CFG_SKIP_REVIEW_* defaults when reviewStrategy absent ---
+echo "Test Group: CFG_SKIP_REVIEW_* defaults when reviewStrategy section absent"
+
+TEMP_CFG_RS=$(mktemp)
+cat > "$TEMP_CFG_RS" <<'CFGEOF'
+{
+  "github": {
+    "repo": "test/repo",
+    "projectNumber": 99,
+    "owner": "test",
+    "projectId": "PVT_test",
+    "statusFieldId": "PVTSSF_test"
+  }
+}
+CFGEOF
+
+TMPOUT=$(mktemp)
+_CFG_FILE_OVERRIDE="$TEMP_CFG_RS" bash --norc --noprofile -c "
+  source \"$CONFIG_SH\"
+  echo \"CFG_SKIP_REVIEW_ENABLED=\$CFG_SKIP_REVIEW_ENABLED\"
+  echo \"CFG_SKIP_REVIEW_MAX_DIFFICULTY=\$CFG_SKIP_REVIEW_MAX_DIFFICULTY\"
+  echo \"CFG_SKIP_REVIEW_REQUIRE_LABEL=\$CFG_SKIP_REVIEW_REQUIRE_LABEL\"
+" > "$TMPOUT" 2>&1
+
+assert_eq "CFG_SKIP_REVIEW_ENABLED_DefaultsTo_false" "false" "$(grep '^CFG_SKIP_REVIEW_ENABLED=' "$TMPOUT" | cut -d= -f2)"
+assert_eq "CFG_SKIP_REVIEW_MAX_DIFFICULTY_DefaultsTo_easy" "easy" "$(grep '^CFG_SKIP_REVIEW_MAX_DIFFICULTY=' "$TMPOUT" | cut -d= -f2)"
+assert_eq "CFG_SKIP_REVIEW_REQUIRE_LABEL_DefaultsTo_empty" "" "$(grep '^CFG_SKIP_REVIEW_REQUIRE_LABEL=' "$TMPOUT" | cut -d= -f2)"
+rm -f "$TMPOUT" "$TEMP_CFG_RS"
+
+echo ""
+
+# --- Test Group 15: CFG_SKIP_REVIEW_* with empty config file ---
+echo "Test Group: CFG_SKIP_REVIEW_* defaults with empty JSON config"
+
+TEMP_CFG_EMPTY=$(mktemp)
+echo '{}' > "$TEMP_CFG_EMPTY"
+
+TMPOUT=$(mktemp)
+_CFG_FILE_OVERRIDE="$TEMP_CFG_EMPTY" bash --norc --noprofile -c "
+  source \"$CONFIG_SH\"
+  echo \"CFG_SKIP_REVIEW_ENABLED=\$CFG_SKIP_REVIEW_ENABLED\"
+  echo \"CFG_SKIP_REVIEW_MAX_DIFFICULTY=\$CFG_SKIP_REVIEW_MAX_DIFFICULTY\"
+  echo \"CFG_SKIP_REVIEW_REQUIRE_LABEL=\$CFG_SKIP_REVIEW_REQUIRE_LABEL\"
+" > "$TMPOUT" 2>&1
+
+assert_eq "CFG_SKIP_REVIEW_ENABLED_DefaultsTo_false_EmptyConfig" "false" "$(grep '^CFG_SKIP_REVIEW_ENABLED=' "$TMPOUT" | cut -d= -f2)"
+assert_eq "CFG_SKIP_REVIEW_MAX_DIFFICULTY_DefaultsTo_easy_EmptyConfig" "easy" "$(grep '^CFG_SKIP_REVIEW_MAX_DIFFICULTY=' "$TMPOUT" | cut -d= -f2)"
+assert_eq "CFG_SKIP_REVIEW_REQUIRE_LABEL_DefaultsTo_empty_EmptyConfig" "" "$(grep '^CFG_SKIP_REVIEW_REQUIRE_LABEL=' "$TMPOUT" | cut -d= -f2)"
+rm -f "$TMPOUT" "$TEMP_CFG_EMPTY"
+
+echo ""
+
+# --- Test Group 16: config.sh file content checks for review strategy ---
+echo "Test Group: config.sh defines CFG_SKIP_REVIEW_* variables"
+
+assert_file_contains "config.sh_defines_CFG_SKIP_REVIEW_ENABLED" "CFG_SKIP_REVIEW_ENABLED" "$CONFIG_SH"
+assert_file_contains "config.sh_defines_CFG_SKIP_REVIEW_MAX_DIFFICULTY" "CFG_SKIP_REVIEW_MAX_DIFFICULTY" "$CONFIG_SH"
+assert_file_contains "config.sh_defines_CFG_SKIP_REVIEW_REQUIRE_LABEL" "CFG_SKIP_REVIEW_REQUIRE_LABEL" "$CONFIG_SH"
+assert_file_contains "config.sh_reads_skipPerStoryReview_enabled" "skipPerStoryReview.enabled" "$CONFIG_SH"
+assert_file_contains "config.sh_reads_skipPerStoryReview_maxDifficulty" "maxDifficulty" "$CONFIG_SH"
+assert_file_contains "config.sh_reads_skipPerStoryReview_requireLabel" "requireLabel" "$CONFIG_SH"
+assert_file_contains "config.sh_header_mentions_CFG_SKIP_REVIEW_ENABLED" "CFG_SKIP_REVIEW_ENABLED" "$CONFIG_SH"
+
+echo ""
+
 # --- Summary ---
 echo "========================================"
 TOTAL=$((PASS + FAIL))

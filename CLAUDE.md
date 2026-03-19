@@ -81,6 +81,30 @@ Every design decision should consider the end-state architecture, but every impl
 
 Workflow configuration lives in `.claude/agentic-sdlc-config.json`. See `docs/2-design/2026-03-15-configurable-workflow-settings.md` for field documentation. All scripts read from this config file via the shared `scripts/lib/config.sh` library.
 
+**`reviewStrategy` section** — controls per-story review skipping:
+
+```json
+"reviewStrategy": {
+  "skipPerStoryReview": {
+    "enabled": true,               // bool, default: false — master switch
+    "conditions": {
+      "maxDifficulty": "easy",     // string: "easy"|"medium"|"hard" — max difficulty to skip
+      "requireLabel": "test-agentic-sdlc"  // string — backlog label required; "" means no label required
+    }
+  }
+}
+```
+
+When `enabled` is `false` (the default), all stories receive per-story reviewer dispatch regardless of difficulty. When `enabled` is `true`, stories satisfying all conditions are assigned `review_tier = SKIP` and bypass per-story review. The PR-level review (Phase 5) always runs.
+
+Config variables exposed by `scripts/lib/config.sh` (see **Review Tier Logic** in the Dispatch Protocol section):
+
+| Variable | Config path | Default |
+|----------|-------------|---------|
+| `CFG_SKIP_REVIEW_ENABLED` | `.reviewStrategy.skipPerStoryReview.enabled` | `"false"` |
+| `CFG_SKIP_REVIEW_MAX_DIFFICULTY` | `.reviewStrategy.skipPerStoryReview.conditions.maxDifficulty` | `"easy"` |
+| `CFG_SKIP_REVIEW_REQUIRE_LABEL` | `.reviewStrategy.skipPerStoryReview.conditions.requireLabel` | `""` |
+
 ## Development Workflow
 
 ### Agents
@@ -217,7 +241,7 @@ Status field values and their meanings:
 
 1. **After plan PR merge:** Set all story issues to **Ready** (sequentially, one at a time)
 2. **Before dispatching a builder:** Set the story to **In Progress** (sequentially, before dispatch -- not delegated to builder scripts)
-3. **After builder completes:** Set the story to **In Review** (sequentially, after completion -- not delegated to builder scripts)
+3. **After builder completes:** Set the story to **In Review** (sequentially, after completion -- not delegated to builder scripts). For SKIP-tier stories (no per-story reviewer), set to **In Review** immediately after the build; the status reflects that the story is complete and awaiting the backlog PR merge, not a per-story review.
 4. **After parallel wave completes:** Verify board status for all stories in the wave and fix any that didn't transition correctly
 5. **After parallel wave completes (comment verification):** Query each story in the wave for expected issue comments ("Work Started" from `item-start.sh`, "Ready for Review" from `item-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively. Evidence: Run 4 (issue #114 missing both comments), Run 11 (issues #47 and #48 missing comments in 3-way parallel wave).
 
@@ -312,21 +336,52 @@ Map difficulty label to builder variant:
 Use the Agent tool with `subagent_type: "builder-<model>"`:
 
 1. Read difficulty label from GitHub Issue
-2. Dispatch with `subagent_type: "builder-sonnet"` (or haiku/opus)
-3. Builder runs `item-start.sh` (posts comment + sets board to **In Progress**) → implements via TDD → runs `item-review.sh` (posts comment + sets board to **In Review**)
-4. Post telemetry (orchestrator — see below)
-5. Update epic board status (see **Epic status sync** above)
-6. **Dispatch reviewer** on the story branch (mandatory, before merging): `subagent_type: "reviewer"`
-7. If reviewer finds issues: re-dispatch builder to fix, then re-review (max 2 cycles)
-8. Merge story branch into epic branch (only after review passes)
-9. After all stories complete: merge epic branches into integration branch, open backlog PR, post telemetry
-10. **Dispatch PR reviewer and retro in parallel** (both with `isolation: "worktree"`):
+2. Determine `review_tier` for each story (see **Review Tier Logic** below)
+3. Dispatch with `subagent_type: "builder-sonnet"` (or haiku/opus) — all independent stories in parallel
+4. Builder runs `item-start.sh` (posts comment + sets board to **In Progress**) → implements via TDD → runs `item-review.sh` (posts comment + sets board to **In Review**)
+5. Post telemetry (orchestrator — see below)
+6. Update epic board status (see **Epic status sync** above)
+7. **Dispatch reviewers in parallel for REVIEW-tier stories; skip SKIP-tier stories**: `subagent_type: "reviewer"`, one per REVIEW-tier story, all in parallel
+8. For `REQUEST_CHANGES` verdict: **dispatch fix builders in parallel** for all stories with changes requested, then **re-dispatch reviewers in parallel** for the fixed stories (max 2 fix cycles per story)
+9. Merge story branches into epic branch (only after review passes for REVIEW-tier; immediately for SKIP-tier)
+10. After all stories complete: merge epic branches into integration branch, open backlog PR, post telemetry
+11. **Dispatch PR reviewer and retro in parallel** (both with `isolation: "worktree"`):
     - PR reviewer (`reviewer`): reviews frozen branch snapshot
     - Retro (`retro`): writes retro doc in worktree, does NOT push until PR review completes
     - This saves ~6 min/run. The retro does not modify files under review — it only adds docs.
-11. If reviewer finds issues: dispatch builder to fix on integration branch, then re-review (max 2 cycles). Retro results remain valid.
-12. After both complete: merge retro worktree commits into integration branch, push
-13. Backlog PR is left open for human review (orchestrator NEVER auto-merges it)`
+    - **Note:** PR review (Phase 5) always runs regardless of story-level review tiers — SKIP only applies to per-story reviews.
+12. If PR reviewer finds issues: dispatch builder to fix on integration branch, then re-review (max 2 cycles). Retro results remain valid.
+13. After both complete: merge retro worktree commits into integration branch, push
+14. Backlog PR is left open for human review (orchestrator NEVER auto-merges it)
+
+#### Review Tier Logic
+
+Before dispatching any wave, determine each story's `review_tier` using config variables from `scripts/lib/config.sh`:
+
+```
+CFG_SKIP_REVIEW_ENABLED          (default: "false")
+CFG_SKIP_REVIEW_MAX_DIFFICULTY   (default: "easy")
+CFG_SKIP_REVIEW_REQUIRE_LABEL    (default: "")
+```
+
+Assignment rules:
+
+```
+IF CFG_SKIP_REVIEW_ENABLED == "true"
+   AND story difficulty <= CFG_SKIP_REVIEW_MAX_DIFFICULTY
+   AND (CFG_SKIP_REVIEW_REQUIRE_LABEL == "" OR backlog item has label CFG_SKIP_REVIEW_REQUIRE_LABEL):
+   review_tier = SKIP
+ELSE:
+   review_tier = REVIEW
+```
+
+**Difficulty ordering:** easy < medium < hard. "Less than or equal to easy" means only easy qualifies; "less than or equal to medium" means easy and medium qualify.
+
+**SKIP tier applies only to per-story reviews.** The PR review in Phase 5 always runs regardless of review tier. SKIP stories skip only the per-story reviewer dispatch (step 7 above) — they still get built, merged, and covered by the cross-story PR review.
+
+**Default behavior (feature disabled):** When `CFG_SKIP_REVIEW_ENABLED` is `"false"` (the default), all stories are assigned `review_tier = REVIEW`. No stories skip per-story review.
+
+Record `review_tier` in the state file dispatch entry for each builder dispatch (alongside `agent`, `model`, `issue`, `duration_ms`, etc.).
 
 #### CLI dispatch (standalone terminal only)
 
@@ -361,9 +416,9 @@ The script computes speed (tokens/s) and estimated cost automatically from the m
 
 Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Every completed story must have all three comments on its issue: "Work Started" (`item-start.sh`, by builder), "Ready for Review" (`item-review.sh`, by builder), and "Telemetry" (`item-telemetry.sh`, by orchestrator).
 
-**Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. All dispatches already use `isolation: "worktree"` per the universal rule above. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
+**Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all builders complete, dispatch reviewers **in parallel** for all REVIEW-tier stories in the wave (not sequentially). If any stories require fixes, dispatch fix builders **in parallel**, then re-reviewers **in parallel**. All dispatches already use `isolation: "worktree"` per the universal rule above. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
 
-**Story branch creation for parallel waves (REQUIRED):** All epic branches and story branches are created upfront in **Phase 4** (before any dispatch) — not lazily at dispatch time. See `orchestrator.md` Phase 4 for the authoritative procedure with code examples. Key invariants: all story branches for an epic are created from the same epic branch commit (the base SHA is recorded in `epics.*.base_sha` in the state file); no story work is pushed to the epic branch until the entire wave completes; if a story branch is found to have diverged from the expected base, cherry-pick only that story's own commits onto a fresh branch from the recorded base before merging. This eliminates the cross-contamination class of error observed in Run 9 (E01-S03, issue #20) where a builder started from a sibling story's HEAD instead of the epic base.
+**Story branch creation for parallel waves (REQUIRED):** All epic branches and story branches are created upfront in **Phase 2** (before any dispatch) — not lazily at dispatch time. See `orchestrator.md` Phase 2 for the authoritative procedure with code examples. Key invariants: all story branches for an epic are created from the same epic branch commit (the base SHA is recorded in `epics.*.base_sha` in the state file); no story work is pushed to the epic branch until the entire wave completes; if a story branch is found to have diverged from the expected base, cherry-pick only that story's own commits onto a fresh branch from the recorded base before merging. This eliminates the cross-contamination class of error observed in Run 9 (E01-S03, issue #20) where a builder started from a sibling story's HEAD instead of the epic base.
 
 **Post-worktree cleanup (REQUIRED):** After all worktree-dispatched builders complete, the orchestrator MUST:
 1. Check for untracked files left in the main working tree: `git status --short`
@@ -464,7 +519,7 @@ The script renders from `scripts/templates/telemetry.md` (single source of truth
 - Posts the telemetry as a comment on the backlog issue
 - When `--pr` is also provided, appends the telemetry to the PR description (not as a comment)
 
-The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` from every Agent tool dispatch (designers, planners, builders, reviewers, retro) and aggregate them into the summary and breakdown rows. See `.claude/agents/orchestrator.md` § "Phase 10: Backlog-Level Telemetry" for the full command.
+The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` from every Agent tool dispatch (designers, planners, builders, reviewers, retro) and aggregate them into the summary and breakdown rows. See `.claude/agents/orchestrator.md` § "Phase 6: Telemetry + Cleanup" for the full command.
 
 **Value column convention:** Value cells in all telemetry tables contain only numbers and units (e.g., `30m 43s`, `770K`, `~$4.79`). Never add descriptive text or parenthetical notes to value cells. Annotations belong in the Metric/Label column (e.g., `**Actual Duration** _(with parallelism)_` in Metric, `25m 12s` in Value). This matches the rule in `scripts/templates/telemetry.md`.
 
@@ -479,8 +534,8 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 **Capturing orchestrator overhead:** The orchestrator's own tokens run in the parent session and aren't returned by the Agent tool. Use the wall-clock heuristic to estimate overhead duration:
 
 - **Formula:** `overhead_duration = total_wall_clock_ms - sum(critical_path_subagent_ms)`
-- **Where:** `total_wall_clock_ms` = time from `session.start_wall_clock` to Phase 10 completion; `critical_path_subagent_ms` = sum of `max(duration_ms)` per parallel wave from `dispatches[]`
-- **State file fields:** `session.start_wall_clock` (ISO timestamp set in Phase 0), `overhead.duration_ms` (computed in Phase 10), `overhead.estimated_cost` (nullable — not measurable)
+- **Where:** `total_wall_clock_ms` = time from `session.start_wall_clock` to Phase 6 completion; `critical_path_subagent_ms` = sum of `max(duration_ms)` per parallel wave from `dispatches[]`
+- **State file fields:** `session.start_wall_clock` (ISO timestamp set in Phase 0), `overhead.duration_ms` (computed in Phase 6), `overhead.estimated_cost` (nullable — not measurable)
 - **Token overhead is NOT directly measurable.** The parent session tokens are not returned by the Agent tool. Set `overhead.estimated_cost` to null unless `/cost` was captured manually at session start and end via the Claude Code UI.
 - **Include an "Orchestrator" row** in the backlog telemetry summary table with the computed duration. Use `—` for tokens and cost columns since they cannot be measured from the Agent tool result.
 
@@ -488,7 +543,10 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 
 - **`session.orchestrator_model`** — the model the orchestrator is running, so inherited agents' models are known for accurate cost estimates.
 - **`pricing`** — token rates fetched live from Anthropic's pricing page at session start via `scripts/fetch-pricing.sh`. Cached in `.agentic-workflow/pricing.json`. Config `pricing` section is an optional override for custom/contract rates. Used by `item-telemetry.sh` via the `--rate` flag.
-- **`dispatches[]`** — append-only log of every agent dispatch with model, duration, tokens, tool uses, and result.
+- **`dispatches[]`** — append-only log of every agent dispatch with model, duration, tokens, tool uses, result, and `review_tier`. The `review_tier` field (`"REVIEW"` or `"SKIP"`) is recorded for every builder dispatch entry and used by `compute-dispatches.py` to annotate the Gantt chart and telemetry breakdown. Example entry:
+  ```json
+  {"agent":"builder-sonnet","model":"sonnet","issue":112,"started_at":"...","duration_ms":109000,"tokens":103000,"tool_uses":18,"result":"success","review_tier":"REVIEW"}
+  ```
 
 **Initialize:** `./scripts/state.sh init <N> --mode autonomous --model <model>`
 

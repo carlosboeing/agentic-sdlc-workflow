@@ -76,7 +76,6 @@ Read the project's CLAUDE.md for the current tech stack, build commands, and arc
 - Follow the project's existing DI, config, and architectural patterns (read CLAUDE.md)
 - Design for the existing dependency graph — don't add unnecessary dependencies
 - Every system should be testable in isolation
-- Small focused files — under 200 lines, split if larger
 
 ## Project Context
 

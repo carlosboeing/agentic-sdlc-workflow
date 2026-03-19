@@ -259,7 +259,7 @@ OUTPUT=$(run_telemetry 1 \
   --commit abc1234 \
   --dispatches "$DISPATCHES_FIXTURE")
 
-assert_contains "--dispatches produces breakdown header" "| Agent | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
+assert_contains "--dispatches produces breakdown header" "| Agent | Story | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
 assert_contains "--dispatches includes E01-S01 task" "E01-S01" "$OUTPUT"
 assert_contains "--dispatches includes total row" "Total" "$OUTPUT"
 
@@ -275,7 +275,7 @@ OUTPUT=$(run_telemetry 1 \
   --commit abc1234 \
   --dispatches-from-state "$STATE_FIXTURE")
 
-assert_contains "--dispatches-from-state produces breakdown" "| Agent | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
+assert_contains "--dispatches-from-state produces breakdown" "| Agent | Story | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
 assert_contains "--dispatches-from-state includes designer phase" "Design" "$OUTPUT"
 assert_contains "--dispatches-from-state includes build phase" "Build" "$OUTPUT"
 
@@ -293,7 +293,7 @@ OUTPUT=$(run_telemetry 1 \
 assert_contains "--gantt-from-state produces timeline heading" "### Timeline" "$OUTPUT"
 assert_contains "--gantt-from-state produces mermaid fence" '```mermaid' "$OUTPUT"
 assert_contains "--gantt-from-state includes gantt keyword" "gantt" "$OUTPUT"
-assert_contains "--gantt-from-state produces breakdown" "| Agent | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
+assert_contains "--gantt-from-state produces breakdown" "| Agent | Story | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
 
 echo ""
 

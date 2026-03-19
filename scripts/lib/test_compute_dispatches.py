@@ -2123,5 +2123,275 @@ class TestOverheadCLI(unittest.TestCase):
             os.unlink(state_file)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# E01-S02: Fallback story code extraction, diagnostic logging, template header
+# ──────────────────────────────────────────────────────────────────────────────
+
+# State fixture with no branches on any story — triggers fallback and diagnostic warning.
+STATE_NO_BRANCHES = {
+    **STATE_FIXTURE,
+    "epics": {
+        "e01": {
+            "issue": 70,
+            "branch": "epic/e01-destination-profiles",
+            "stories": {
+                "72": {
+                    "status": "complete",
+                    # No "branch" field
+                },
+                "73": {
+                    "status": "complete",
+                    # No "branch" field
+                },
+            },
+        }
+    },
+}
+
+# State fixture with one story missing its branch field (partial missing)
+STATE_PARTIAL_BRANCH = {
+    **STATE_FIXTURE,
+    "epics": {
+        "e01": {
+            "issue": 70,
+            "branch": "epic/e01-destination-profiles",
+            "stories": {
+                "72": {
+                    "status": "complete",
+                    "branch": "e01-s01/destination-profiles",
+                },
+                "73": {
+                    "status": "complete",
+                    # No branch for story 73
+                },
+            },
+        }
+    },
+}
+
+
+class TestBuildStoryLabels(unittest.TestCase):
+    """Tests for _build_story_labels() — E01-S02 additions."""
+
+    def test_build_story_labels_empty_epics(self):
+        """When state.epics is empty, _build_story_labels returns empty dict."""
+        state = {**STATE_FIXTURE, "epics": {}}
+        result = cd._build_story_labels(state)
+        self.assertEqual(result, {})
+
+    def test_build_story_labels_missing_branch_no_crash(self):
+        """When a story has no 'branch' field, _build_story_labels does not crash."""
+        try:
+            cd._build_story_labels(STATE_NO_BRANCHES)
+        except Exception as e:
+            self.fail(f"_build_story_labels crashed on missing branch: {e}")
+
+    def test_build_story_labels_missing_branch_returns_empty(self):
+        """When no stories have a 'branch' field, _build_story_labels returns empty dict."""
+        result = cd._build_story_labels(STATE_NO_BRANCHES)
+        self.assertEqual(result, {})
+
+    def test_build_story_labels_partial_missing_branch_skips_gracefully(self):
+        """When only some stories are missing 'branch', those stories are skipped."""
+        result = cd._build_story_labels(STATE_PARTIAL_BRANCH)
+        # Story 72 has branch "e01-s01/..." -> should extract E01-S01
+        self.assertIn(72, result)
+        self.assertEqual(result[72], "E01-S01")
+        # Story 73 has no branch -> absent (not crash)
+        self.assertNotIn(73, result)
+
+    def test_build_story_labels_diagnostic_warning_when_epics_nonempty_but_no_labels(self):
+        """When state.epics is non-empty but no labels extracted, a warning is printed to stderr."""
+        import io
+        from unittest.mock import patch
+
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            result = cd._build_story_labels(STATE_NO_BRANCHES)
+
+        self.assertEqual(result, {})
+        warning_output = captured_stderr.getvalue()
+        self.assertGreater(
+            len(warning_output), 0,
+            "Expected a warning on stderr when epics non-empty but no labels extracted"
+        )
+        self.assertIn("Warning", warning_output)
+
+    def test_build_story_labels_no_warning_when_epics_empty(self):
+        """No stderr warning when state.epics is empty (expected empty result)."""
+        import io
+        from unittest.mock import patch
+
+        state = {**STATE_FIXTURE, "epics": {}}
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            cd._build_story_labels(state)
+
+        self.assertEqual(
+            captured_stderr.getvalue(), "",
+            f"Expected no warning when epics is empty, got: {captured_stderr.getvalue()!r}"
+        )
+
+    def test_build_story_labels_no_warning_when_labels_extracted(self):
+        """No story-label warning when labels are successfully extracted from branches."""
+        import io
+        from unittest.mock import patch
+
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            result = cd._build_story_labels(STATE_FIXTURE)
+
+        self.assertGreater(len(result), 0, "Expected some labels to be extracted")
+        # Only check for story-label-specific warnings, not general pricing warnings
+        story_label_warnings = [
+            line for line in captured_stderr.getvalue().splitlines()
+            if "no story labels" in line.lower() or "story label" in line.lower()
+        ]
+        self.assertEqual(story_label_warnings, [])
+
+
+class TestStoryCodeFallback(unittest.TestCase):
+    """Tests for the fallback story code extraction in state_to_dispatches()."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _make_state_no_branches(self, issues):
+        """Build a state with stories that have no branch field."""
+        stories = {str(issue_num): {"status": "complete"} for issue_num in issues}
+        return {
+            **STATE_FIXTURE,
+            "epics": {
+                "e01": {
+                    "issue": 70,
+                    "branch": "epic/e01-destination-profiles",
+                    "stories": stories,
+                }
+            },
+            "dispatches": [
+                {
+                    "id": i + 1,
+                    "agent": "builder-sonnet",
+                    "model": "sonnet",
+                    "issue": issue_num,
+                    "started_at": "2026-03-15T10:12:00Z",
+                    "duration_ms": 100000,
+                    "tokens": 10000,
+                }
+                for i, issue_num in enumerate(issues)
+            ],
+        }
+
+    def test_story_code_fallback_when_mapping_empty(self):
+        """When _build_story_labels() returns empty (no branches), fallback assigns story codes."""
+        state = self._make_state_no_branches([72, 73])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatches = [d for d in dispatches if d["phase"] == "Build"]
+        self.assertEqual(len(build_dispatches), 2)
+        # Both should have non-empty story_code from the fallback
+        for d in build_dispatches:
+            self.assertNotEqual(
+                d.get("story_code", ""), "",
+                f"Fallback should produce a non-empty story_code for issue in e01: {d}"
+            )
+
+    def test_story_code_fallback_produces_enn_snn_format(self):
+        """Fallback story code format matches ENN-SNN pattern."""
+        import re
+
+        state = self._make_state_no_branches([72])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatch = next(d for d in dispatches if d["phase"] == "Build")
+        story_code = build_dispatch.get("story_code", "")
+        if story_code:
+            self.assertRegex(
+                story_code, r"^E\d+-S\d+$",
+                f"Fallback story_code should match ENN-SNN format, got: {story_code!r}"
+            )
+
+    def test_story_code_fallback_multiple_stories_unique_codes(self):
+        """Fallback produces distinct story codes for distinct issues in the same epic."""
+        state = self._make_state_no_branches([72, 73])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatches = [d for d in dispatches if d["phase"] == "Build"]
+        codes = [d.get("story_code", "") for d in build_dispatches]
+        non_empty = [c for c in codes if c]
+        if len(non_empty) > 1:
+            self.assertEqual(len(set(non_empty)), len(non_empty), "Story codes should be unique")
+
+    def test_story_code_no_fallback_for_issue_not_in_epics(self):
+        """Issue not in any epic's stories gets empty story_code (no fallback)."""
+        state = {
+            **STATE_NO_BRANCHES,
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 999, "started_at": "2026-03-15T10:12:00Z",
+                    "duration_ms": 100000, "tokens": 10000,
+                },
+            ],
+        }
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatch = next(d for d in dispatches if d["phase"] == "Build")
+        # Issue 999 is not in any epic -> no fallback
+        self.assertEqual(build_dispatch.get("story_code", ""), "")
+
+
+class TestTemplateBreakdownHeader(unittest.TestCase):
+    """Tests for the breakdown header in telemetry.md template — E01-S02."""
+
+    def setUp(self):
+        self.template_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "templates",
+            "telemetry.md",
+        )
+
+    def test_template_breakdown_header_has_story_column(self):
+        """The telemetry template's breakdown header includes 'Story' column."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn(
+            "| Agent | Story | Task | Duration | Tokens | Est. Cost |",
+            content,
+            "Template breakdown header must include 'Story' column between Agent and Task"
+        )
+
+    def test_template_breakdown_separator_has_six_columns(self):
+        """The telemetry template's breakdown separator row has 6 column dashes."""
+        with open(self.template_path) as f:
+            content = f.read()
+        breakdown_idx = content.find("### Breakdown")
+        self.assertGreater(breakdown_idx, -1, "Could not find '### Breakdown' in template")
+        breakdown_section = content[breakdown_idx:]
+        lines = breakdown_section.splitlines()
+        separator_line = next(
+            (l for l in lines if l.startswith("|---") or l.startswith("| ---")),
+            None,
+        )
+        self.assertIsNotNone(separator_line, "Could not find separator row in Breakdown section")
+        # 6 columns = 7 pipe characters
+        pipe_count = separator_line.count("|")
+        self.assertEqual(
+            pipe_count, 7,
+            f"Expected 7 pipes (6 columns) in breakdown separator, got {pipe_count}: {separator_line!r}"
+        )
+
+    def test_template_old_breakdown_header_absent(self):
+        """The old 5-column breakdown header must NOT be present in the template."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertNotIn(
+            "| Agent | Task | Duration | Tokens | Est. Cost |",
+            content,
+            "Old 5-column breakdown header should be replaced by 6-column version"
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

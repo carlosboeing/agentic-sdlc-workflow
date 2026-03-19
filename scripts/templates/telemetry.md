@@ -74,8 +74,8 @@
 
 ### Breakdown
 
-| Agent | Task | Duration | Tokens | Est. Cost |
-|-------|------|----------|--------|-----------|
+| Agent | Story | Task | Duration | Tokens | Est. Cost |
+|-------|-------|------|----------|--------|-----------|
 {{BREAKDOWN}}
 
 <!-- END_BREAKDOWN -->

@@ -701,8 +701,12 @@ def _select_tick_interval(total_seconds):
         return "2minute"
     elif total_minutes < 90:
         return "5minute"
-    else:
+    elif total_minutes < 240:
         return "10minute"
+    elif total_minutes < 480:
+        return "30minute"
+    else:
+        return "1hour"
 
 
 def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=False):
@@ -840,22 +844,45 @@ def generate_gantt(state):
 
     sorted_dispatches = sorted(raw_dispatches, key=_sort_key)
 
-    # Compute total run duration for tick interval selection.
-    # = max(offset_s + duration_ms/1000) across all dispatches.
+    # Group into parallel waves using tolerance window
+    waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
+
+    # Gap compression: collapse idle gaps > 5 min between waves to 30s spacers.
+    # This eliminates dead space from session interruptions (e.g., API errors,
+    # usage limits, overnight pauses) that distort the visual timeline.
+    _GAP_THRESHOLD_S = 300   # 5 minutes — gaps larger than this are interruptions
+    _GAP_SPACER_S = 30       # compressed gap rendered as 30s visual spacer
+
+    compressed_offsets = []   # one per wave: the compressed offset in seconds
+    cumulative_offset = 0.0
+    prev_wave_end_s = session_start_s
+    detected_gaps = []       # list of (gap_seconds, after_wave_index) for notes
+
+    for wave_idx, (wave_anchor_s, wave_dispatches) in enumerate(waves):
+        gap = wave_anchor_s - prev_wave_end_s
+        if gap > _GAP_THRESHOLD_S:
+            detected_gaps.append((gap, wave_idx))
+            cumulative_offset += _GAP_SPACER_S
+        else:
+            cumulative_offset += max(gap, 0)
+
+        compressed_offsets.append(cumulative_offset)
+
+        # Compute when this wave ends (anchor + longest dispatch in wave)
+        max_dur = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
+        prev_wave_end_s = wave_anchor_s + max_dur
+
+    # Compute total compressed duration for tick interval and axis format.
+    # Must check ALL waves, not just the last — an early parallel dispatch
+    # (e.g., a 91-minute build starting at offset 3:30) can extend beyond
+    # the last wave's end.
     total_duration_s = 0.0
-    for d in raw_dispatches:
-        try:
-            ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
-        except Exception:
-            ts = session_start_s
-        offset_s = ts - session_start_s
-        end_s = offset_s + d.get("duration_ms", 0) / 1000
+    for wave_idx, (_, wave_dispatches) in enumerate(waves):
+        max_dur = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
+        end_s = compressed_offsets[wave_idx] + max_dur
         total_duration_s = max(total_duration_s, end_s)
 
     tick_interval = _select_tick_interval(total_duration_s)
-
-    # Group into parallel waves using tolerance window
-    waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
 
     # Builder-centric fix cycle tracking (matches compute_fix_cycles semantics):
     # - A builder re-dispatch for an issue that already had a builder = fix cycle
@@ -878,8 +905,8 @@ def generate_gantt(state):
 
     task_id = 1
 
-    for wave_anchor_s, wave_dispatches in waves:
-        offset_s = wave_anchor_s - session_start_s
+    for wave_idx, (wave_anchor_s, wave_dispatches) in enumerate(waves):
+        offset_s = compressed_offsets[wave_idx]
         offset_str = _fmt_offset(offset_s)
 
         for d in wave_dispatches:
@@ -914,7 +941,26 @@ def generate_gantt(state):
             lines.append(task_line)
             task_id += 1
 
-    return "\n".join(lines)
+    gantt_body = "\n".join(lines)
+
+    # Build a note about compressed gaps if any were detected
+    if detected_gaps:
+        total_gap_s = sum(g[0] for g in detected_gaps)
+        gap_count = len(detected_gaps)
+        gap_word = "gap" if gap_count == 1 else "gaps"
+        gap_descriptions = []
+        for gap_s, after_idx in detected_gaps:
+            gap_descriptions.append(fmt_duration(int(gap_s * 1000)))
+        gaps_str = ", ".join(gap_descriptions)
+        gantt_note = (
+            f"*Timeline compressed: {gap_count} {gap_word} removed "
+            f"({gaps_str} idle). "
+            f"X-axis shows agent running time, not wall-clock time.*"
+        )
+    else:
+        gantt_note = None
+
+    return gantt_body, gantt_note
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -988,7 +1034,10 @@ def main(argv=None):
             state = json.load(f)
         result = compute_from_state(state, pricing_rates)
         if args.gantt:
-            result["gantt"] = generate_gantt(state)
+            gantt_body, gantt_note = generate_gantt(state)
+            result["gantt"] = gantt_body
+            if gantt_note:
+                result["gantt_note"] = gantt_note
         if args.overhead:
             overhead = compute_overhead(state)
             result["overhead_ms"] = overhead["overhead_ms"]

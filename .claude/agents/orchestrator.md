@@ -261,6 +261,12 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
    The `Closes` list MUST include backlog, ALL epics, ALL stories, and design/plan issues.
 
 4. **Create a retro issue** (before dispatching, so retro can start immediately):
+   Use `issue-create.sh` to ensure both GitHub and local PM items are created:
+   ```bash
+   RETRO_ISSUE=$(./scripts/issue-create.sh docs \
+     --title "[#<N>] Write retrospective for <title>" \
+     --label "type/docs" --label "backlog/<N>-<slug>")
+   ```
    Link as sub-issue of backlog (`addSubIssue` GraphQL mutation), add to project board, set to In Progress.
 
 5. **Dispatch PR reviewer and retro agent in parallel:**

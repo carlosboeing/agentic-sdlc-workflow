@@ -21,14 +21,19 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
 **Git workflow:**
 
 1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
-2. Create a GitHub Issue for the design work (title: "[#<backlog>] Write design doc for X", labels: `type/docs` + `backlog/<N>-<slug>`)
+2. Create a GitHub Issue for the design work using `issue-create.sh` (ensures both GitHub and local PM items are created):
+
+   ```bash
+   DESIGN_ISSUE=$(./scripts/issue-create.sh docs \
+     --title "[#<backlog>] Write design doc for X" \
+     --label "type/docs" --label "backlog/<N>-<slug>")
+   ```
+
 3. Link the design doc issue as a **sub-issue** of the backlog issue:
 
    ```bash
-   # Get the node IDs
    PARENT_ID=$(gh issue view <backlog-number> --json id -q .id)
-   CHILD_ID=$(gh issue view <design-issue-number> --json id -q .id)
-   # Add as sub-issue
+   CHILD_ID=$(gh issue view $DESIGN_ISSUE --json id -q .id)
    gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
    ```
 

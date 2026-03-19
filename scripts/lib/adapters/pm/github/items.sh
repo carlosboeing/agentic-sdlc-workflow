@@ -190,8 +190,19 @@ eval "${_PM_FN_PREFIX}pm_append_body() {
     case \"\$1\" in --updated-by) updated_by=\"\$2\"; shift 2 ;; *) shift ;; esac
   done
   if [ -n \"\$updated_by\" ]; then
-    content=\"> 🤖 **Updated by:** \$updated_by · **Date:** \$(date -u +%Y-%m-%dT%H:%M:%SZ)
-\$content\"
+    local meta_line=\"> 🤖 **Updated by:** \$updated_by · **Date:** \$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+    # Insert attribution after the first heading (##), not before everything
+    if echo \"\$content\" | head -1 | grep -q '^##'; then
+      local first_line rest_lines
+      first_line=\$(echo \"\$content\" | head -1)
+      rest_lines=\$(echo \"\$content\" | tail -n +2)
+      content=\"\${first_line}
+\${meta_line}
+\${rest_lines}\"
+    else
+      content=\"\${meta_line}
+\${content}\"
+    fi
   fi
 
   local current_body

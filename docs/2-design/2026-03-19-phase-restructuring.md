@@ -3,10 +3,10 @@ title: "Phase Restructuring: Parallel Story Lifecycles and Tiered Reviews"
 date: 2026-03-19
 author: designer
 backlog: 243
-status: Draft
+status: Approved
 revision: 2
 revision_date: 2026-03-19
-revision_reason: "Approach E (prompt augmentation) is infeasible due to subagent nesting hard cap. All approaches requiring builder-dispatches-reviewer are invalid. Revised to recommend Approach F (background dispatch with orchestrator polling)."
+revision_reason: "Approach E (prompt augmentation) is infeasible due to subagent nesting hard cap. All approaches requiring builder-dispatches-reviewer are invalid. Revised to recommend Approach H (background dispatch with orchestrator polling)."
 ---
 
 > **Status:** Draft (Revision 2)
@@ -176,7 +176,7 @@ Requires builder (subagent) to dispatch reviewer (sub-subagent). See section 2.2
 
 **Re-assessment:** While background subagent dispatch exists in the Claude Code platform, the completion notification mechanism has multiple known bugs that cause sessions to hang or fail to detect completion. This makes it unreliable for autonomous production use. Rejected due to platform instability. Revisit when background agent support stabilizes.
 
-### Approach G: Orchestrator Sequential Per-Story Lifecycle (NEW, RECOMMENDED)
+### Approach G (evaluated): Orchestrator Sequential Per-Story Lifecycle (NEW, RECOMMENDED)
 
 **How it works:** The orchestrator processes each story's full lifecycle (build -> review -> fix cycles) sequentially within a wave, dispatching builders and reviewers directly. No parallel build dispatch within a wave.
 

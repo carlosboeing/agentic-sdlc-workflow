@@ -205,7 +205,7 @@ bash --norc --noprofile -c "
   fi
   local_status=\$(_local_pm_get_status 42)
   echo \"local_status=\$local_status\"
-  comment_count=\$(ls \"$MOCK_WORKFLOW/comments/42/\" 2>/dev/null | wc -l | tr -d ' ')
+  comment_count=\$(grep -c '<!-- comment:' \"$MOCK_WORKFLOW/items/42.md\" 2>/dev/null || echo 0)
   echo \"comment_count=\$comment_count\"
 " > "$TMPOUT" 2>"$TMPERR"
 EXIT_CODE=$?

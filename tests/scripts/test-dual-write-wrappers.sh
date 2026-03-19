@@ -239,8 +239,8 @@ bash --norc --noprofile -c "
 
   sleep 0.3
 
-  # Check local comment was created
-  if ls \"$MOCK_WORKFLOW/comments/1/\"*.md >/dev/null 2>&1; then
+  # Check local comment was inlined in item file
+  if grep -q '<!-- comment:' \"$MOCK_WORKFLOW/items/1.md\" 2>/dev/null; then
     echo 'local_comment:created'
   fi
 " > "$TMPOUT" 2>&1

@@ -672,6 +672,11 @@ _AGENT_COLOR_TAG = {
     "reviewer": ":done",
 }
 
+# Module-level cache for the stalled dispatch count from the most recent
+# generate_gantt() call. Keyed by "last" so get_stalled_count() can retrieve
+# the result without re-scanning dispatches.
+_gantt_stalled_count: dict = {"last": 0}
+
 
 def _parse_iso(ts):
     """Parse an ISO 8601 UTC timestamp string to a datetime object."""
@@ -725,12 +730,12 @@ def _is_stalled(d):
     Return True if a dispatch's throughput is below _STALLED_THRESHOLD_TOKS.
 
     Guards:
-    - Zero duration: no throughput data — not stalled (avoids division by zero).
-    - Zero tokens: no throughput data — not stalled (e.g., API errors).
+    - None or zero duration: no throughput data — not stalled (avoids TypeError/ZeroDivisionError).
+    - None or zero tokens: no throughput data — not stalled (e.g., API errors).
     """
-    dur_ms = d.get("duration_ms", 0)
-    tokens = d.get("tokens", 0)
-    if dur_ms == 0 or tokens == 0:
+    dur_ms = d.get("duration_ms") or 0
+    tokens = d.get("tokens") or 0
+    if dur_ms <= 0 or tokens <= 0:
         return False
     dur_s = dur_ms / 1000
     throughput = tokens / dur_s
@@ -739,23 +744,25 @@ def _is_stalled(d):
 
 def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=False):
     """
-    Generate a Gantt task label, color tag, and duration_s for a dispatch.
+    Generate a Gantt task label, color tag, duration_s, and stalled flag for a dispatch.
 
     story_labels: dict mapping issue int → "ENN-SNN" string
     is_fix_build: True if this is a builder re-dispatch (fix cycle)
     is_re_review: True if this is a reviewer dispatch following a fix cycle builder
 
-    Returns (label, color_tag_str, dur_s).
+    Returns (label, color_tag_str, dur_s, stalled).
     color_tag_str is one of ":active", ":done", ":crit", or "" (no tag).
+    stalled is True when throughput < _STALLED_THRESHOLD_TOKS tok/s.
 
     Dispatches with throughput < _STALLED_THRESHOLD_TOKS tok/s get a " [stalled]"
     suffix appended to the label. This is purely informational — color tag and
-    duration_s are unaffected.
+    duration_s are unaffected. The caller can use the returned stalled flag for
+    counting without calling _is_stalled() again.
     """
     agent = d.get("agent", "unknown")
     agent_prefix = agent.split("-")[0]  # "builder", "reviewer", "designer", etc.
     issue = d.get("issue")
-    dur_ms = d.get("duration_ms", 0)
+    dur_ms = d.get("duration_ms") or 0  # None guard: treat None as 0
     dur_s = dur_ms // 1000
     dur_label = fmt_duration(dur_ms)
 
@@ -790,8 +797,11 @@ def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=
     else:
         label = f"{agent.capitalize()} ({dur_label})"
 
-    # Stalled suffix — informational only, does not affect color tag or duration_s
-    if _is_stalled(d):
+    # Stalled suffix — informational only, does not affect color tag or duration_s.
+    # Compute once here so the caller can use the returned flag without calling
+    # _is_stalled() a second time (avoids redundant per-dispatch computation).
+    stalled = _is_stalled(d)
+    if stalled:
         label = f"{label} [stalled]"
 
     # Color tag: fix cycles always :crit; others from _AGENT_COLOR_TAG
@@ -800,7 +810,7 @@ def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=
     else:
         color_tag = _AGENT_COLOR_TAG.get(agent_prefix, "")  # "" = no tag (builder → emerald)
 
-    return label, color_tag, dur_s
+    return label, color_tag, dur_s, stalled
 
 
 def _group_dispatches_by_parallel_wave(sorted_dispatches):
@@ -947,6 +957,9 @@ def generate_gantt(state, mode="work"):
 
     # Stalled dispatch counter — tracks dispatches below _STALLED_THRESHOLD_TOKS tok/s.
     # Informational only: does not affect bar width, position, or cumulative offset.
+    # The count is stored in _gantt_stalled_count so get_stalled_count() can retrieve it
+    # without re-scanning dispatches. The note is rendered OUTSIDE the Mermaid fence via
+    # generate_gantt_note() / get_stalled_count() → {{GANTT_NOTE}} template channel.
     stalled_count = 0
 
     for wave_anchor_s, wave_dispatches in waves:
@@ -978,12 +991,12 @@ def generate_gantt(state, mode="work"):
                         is_re_review = True
                         pending_re_review.discard(issue)
 
-            label, color_tag, dur_s = _gantt_label_for_dispatch(
+            # _gantt_label_for_dispatch returns stalled flag — use it for counting
+            # to avoid calling _is_stalled() a second time per dispatch.
+            label, color_tag, dur_s, stalled = _gantt_label_for_dispatch(
                 d, story_labels, is_fix_build=is_fix_build, is_re_review=is_re_review
             )
-
-            # Count stalled dispatches for the gantt_note
-            if _is_stalled(d):
+            if stalled:
                 stalled_count += 1
 
             if color_tag:
@@ -999,18 +1012,45 @@ def generate_gantt(state, mode="work"):
             wave_max_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
             cumulative_offset_s += wave_max_s
 
-    # Append stalled dispatch note when any stalled dispatches were detected.
-    # This note is picked up by issue-telemetry.sh as the gantt_note annotation.
-    if stalled_count > 0:
-        dispatch_word = "dispatch" if stalled_count == 1 else "dispatches"
-        stalled_note = (
-            f"*{stalled_count} stalled {dispatch_word} detected "
-            f"(< 50 tok/s throughput). "
-            f"Duration may include usage limit waits or API throttling.*"
-        )
-        lines.append(stalled_note)
+    # Store stalled count for retrieval by get_stalled_count().
+    # The stalled note is NOT appended here — it lives outside the Mermaid code
+    # fence in the {{GANTT_NOTE}} template channel, not inside the gantt body.
+    _gantt_stalled_count["last"] = stalled_count
 
     return "\n".join(lines)
+
+
+def get_stalled_count(state):
+    """
+    Count stalled dispatches in a state file without rendering a Gantt chart.
+
+    A dispatch is stalled when its throughput (tokens / duration_s) is below
+    _STALLED_THRESHOLD_TOKS. This is a direct scan of raw_dispatches — it does
+    NOT depend on a prior generate_gantt() call.
+
+    Returns an int: the number of stalled dispatches (0 when none).
+    """
+    count = 0
+    for d in state.get("dispatches", []):
+        if _is_stalled(d):
+            count += 1
+    return count
+
+
+def _build_stalled_note(stalled_count):
+    """
+    Build the stalled-dispatch annotation string for the gantt_note channel.
+
+    Returns None when stalled_count is 0.
+    """
+    if stalled_count == 0:
+        return None
+    dispatch_word = "dispatch" if stalled_count == 1 else "dispatches"
+    return (
+        f"*{stalled_count} stalled {dispatch_word} detected "
+        f"(< 50 tok/s throughput). "
+        f"Duration may include usage limit waits or API throttling.*"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1091,6 +1131,12 @@ def main(argv=None):
         result = compute_from_state(state, pricing_rates)
         if args.gantt:
             result["gantt"] = generate_gantt(state, mode=args.gantt_mode)
+            # Stalled note goes through gantt_note channel (outside Mermaid fence).
+            # get_stalled_count() scans dispatches independently — does not rely on
+            # _gantt_stalled_count cache — so the result is always consistent.
+            stalled_note = _build_stalled_note(get_stalled_count(state))
+            if stalled_note is not None:
+                result["gantt_note"] = stalled_note
         if args.overhead:
             overhead = compute_overhead(state)
             result["overhead_ms"] = overhead["overhead_ms"]

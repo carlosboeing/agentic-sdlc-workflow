@@ -2813,22 +2813,25 @@ class TestStalledDetection(unittest.TestCase):
         """Dispatch with throughput < 50 tok/s is flagged as stalled."""
         # 49 tok/s: 49 tokens in 1 second
         d = self._make_dispatch(duration_ms=1000, tokens=49)
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
         self.assertIn("[stalled]", label)
+        self.assertTrue(stalled)
 
     def test_stalled_detection_above_threshold(self):
         """Dispatch with throughput >= 50 tok/s is NOT flagged as stalled."""
         # 50 tok/s: 50 tokens in 1 second — exactly at threshold, not stalled
         d = self._make_dispatch(duration_ms=1000, tokens=50)
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
         self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
 
     def test_stalled_detection_well_above_threshold(self):
         """Dispatch with throughput >> 50 tok/s is not flagged."""
         # 340 tok/s: typical fast dispatch
         d = self._make_dispatch(duration_ms=146000, tokens=49691)
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
         self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
 
     # ── Label format ──────────────────────────────────────────────────────────
 
@@ -2836,7 +2839,7 @@ class TestStalledDetection(unittest.TestCase):
         """[stalled] suffix appears after the duration in the Gantt label."""
         # 30 tok/s — stalled
         d = self._make_dispatch(duration_ms=10000, tokens=300)
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
         # Should contain the duration followed by [stalled]
         self.assertIn("[stalled]", label)
         # Space before bracket
@@ -2845,20 +2848,20 @@ class TestStalledDetection(unittest.TestCase):
     def test_stalled_label_suffix_at_end(self):
         """[stalled] appears at the end of the label string."""
         d = self._make_dispatch(duration_ms=10000, tokens=300)  # 30 tok/s
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
         self.assertTrue(label.endswith("[stalled]"), f"Label should end with [stalled]: {label!r}")
 
     def test_stalled_label_format_builder(self):
         """Stalled builder label: 'E01-S01 Build (10s) [stalled]'."""
         d = self._make_dispatch(duration_ms=10000, tokens=300)  # 30 tok/s
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
         self.assertIn("Build", label)
         self.assertIn("[stalled]", label)
 
     def test_stalled_label_format_reviewer(self):
         """Stalled reviewer label also gets [stalled] suffix."""
         d = self._make_dispatch(duration_ms=10000, tokens=300, agent="reviewer")
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
         self.assertIn("[stalled]", label)
 
     # ── Edge cases ────────────────────────────────────────────────────────────
@@ -2867,29 +2870,86 @@ class TestStalledDetection(unittest.TestCase):
         """Zero-duration dispatch does not raise ZeroDivisionError."""
         d = self._make_dispatch(duration_ms=0, tokens=1000)
         try:
-            label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
         except ZeroDivisionError:
             self.fail("_gantt_label_for_dispatch raised ZeroDivisionError for zero-duration dispatch")
 
     def test_stalled_zero_duration_not_flagged(self):
         """Zero-duration dispatch is not flagged as stalled (no throughput data)."""
         d = self._make_dispatch(duration_ms=0, tokens=1000)
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
         self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
 
     def test_stalled_zero_tokens_not_flagged(self):
         """Zero-token dispatch (e.g., API error) is not flagged as stalled."""
         d = self._make_dispatch(duration_ms=60000, tokens=0)
-        label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
         self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
 
     def test_stalled_zero_tokens_zero_duration_no_crash(self):
         """Zero tokens and zero duration does not crash."""
         d = self._make_dispatch(duration_ms=0, tokens=0)
         try:
-            label, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
         except ZeroDivisionError:
             self.fail("_gantt_label_for_dispatch raised ZeroDivisionError for zero tokens+duration")
+
+    # ── None value guards ────────────────────────────────────────────────────
+
+    def test_stalled_none_duration_no_crash(self):
+        """None duration_ms does not raise TypeError."""
+        d = self._make_dispatch(duration_ms=None, tokens=1000)
+        try:
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        except TypeError:
+            self.fail("_gantt_label_for_dispatch raised TypeError for None duration_ms")
+
+    def test_stalled_none_duration_not_flagged(self):
+        """None duration_ms is not flagged as stalled (treated as 0)."""
+        d = self._make_dispatch(duration_ms=None, tokens=1000)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
+
+    def test_stalled_none_tokens_no_crash(self):
+        """None tokens does not raise TypeError."""
+        d = self._make_dispatch(duration_ms=60000, tokens=None)
+        try:
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        except TypeError:
+            self.fail("_gantt_label_for_dispatch raised TypeError for None tokens")
+
+    def test_stalled_none_tokens_not_flagged(self):
+        """None tokens is not flagged as stalled (treated as 0)."""
+        d = self._make_dispatch(duration_ms=60000, tokens=None)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
+
+    def test_stalled_none_both_no_crash(self):
+        """None for both duration_ms and tokens does not crash."""
+        d = self._make_dispatch(duration_ms=None, tokens=None)
+        try:
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        except (TypeError, ZeroDivisionError):
+            self.fail("_gantt_label_for_dispatch raised an error for None duration_ms and tokens")
+
+    def test_is_stalled_none_duration(self):
+        """_is_stalled returns False for None duration_ms (not stalled, no TypeError)."""
+        d = {"duration_ms": None, "tokens": 1000}
+        self.assertFalse(cd._is_stalled(d))
+
+    def test_is_stalled_none_tokens(self):
+        """_is_stalled returns False for None tokens (not stalled, no TypeError)."""
+        d = {"duration_ms": 60000, "tokens": None}
+        self.assertFalse(cd._is_stalled(d))
+
+    def test_is_stalled_none_both(self):
+        """_is_stalled returns False when both duration_ms and tokens are None."""
+        d = {"duration_ms": None, "tokens": None}
+        self.assertFalse(cd._is_stalled(d))
 
     # ── Color tag not changed by stalled ────────────────────────────────────
 
@@ -2897,21 +2957,27 @@ class TestStalledDetection(unittest.TestCase):
         """Stalled detection does not change the color tag (informational only)."""
         d_stalled = self._make_dispatch(duration_ms=10000, tokens=300)  # 30 tok/s
         d_normal = self._make_dispatch(duration_ms=10000, tokens=10000)  # 1000 tok/s
-        _, tag_stalled, _ = cd._gantt_label_for_dispatch(d_stalled, self._story_labels())
-        _, tag_normal, _ = cd._gantt_label_for_dispatch(d_normal, self._story_labels())
+        _, tag_stalled, _, _ = cd._gantt_label_for_dispatch(d_stalled, self._story_labels())
+        _, tag_normal, _, _ = cd._gantt_label_for_dispatch(d_normal, self._story_labels())
         self.assertEqual(tag_stalled, tag_normal, "Stalled detection must not change color tag")
 
     def test_stalled_does_not_change_duration_s(self):
         """Stalled detection does not change the returned duration_s value."""
         d_stalled = self._make_dispatch(duration_ms=10000, tokens=300)  # 30 tok/s
         d_normal = self._make_dispatch(duration_ms=10000, tokens=10000)  # 1000 tok/s
-        _, _, dur_stalled = cd._gantt_label_for_dispatch(d_stalled, self._story_labels())
-        _, _, dur_normal = cd._gantt_label_for_dispatch(d_normal, self._story_labels())
+        _, _, dur_stalled, _ = cd._gantt_label_for_dispatch(d_stalled, self._story_labels())
+        _, _, dur_normal, _ = cd._gantt_label_for_dispatch(d_normal, self._story_labels())
         self.assertEqual(dur_stalled, dur_normal, "Stalled detection must not change duration_s")
 
 
 class TestStalledGanttNote(unittest.TestCase):
-    """Tests for stalled count in gantt_note output — E02-S03."""
+    """Tests for stalled count in gantt_note output channel — E02-S03.
+
+    The stalled note is delivered via get_stalled_count() / _build_stalled_note()
+    and exposed as the 'gantt_note' JSON field in the CLI output. It is NOT
+    appended inside generate_gantt() (which would place it inside the Mermaid
+    code fence, producing invalid syntax).
+    """
 
     def _make_state_with_stalled(self, n_stalled=1, n_normal=1):
         """
@@ -2963,68 +3029,114 @@ class TestStalledGanttNote(unittest.TestCase):
             "dispatches": dispatches,
         }
 
-    def test_stalled_note_singular(self):
-        """gantt_note contains singular 'dispatch detected' when exactly 1 stalled."""
+    # ── Gantt body must NOT contain the stalled note ───────────────────────────
+    # The note lives outside the Mermaid fence in {{GANTT_NOTE}} — not in the
+    # gantt body string returned by generate_gantt().
+
+    def test_stalled_note_not_in_gantt_body_singular(self):
+        """Stalled note is NOT inside generate_gantt() body (would corrupt Mermaid)."""
         state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
-        result = cd.generate_gantt(state, mode="work")
-        self.assertIn("1 stalled dispatch detected", result)
+        gantt_body = cd.generate_gantt(state, mode="work")
+        self.assertNotIn("stalled dispatch detected", gantt_body)
+
+    def test_stalled_note_not_in_gantt_body_plural(self):
+        """Stalled note text is absent from generate_gantt() even with multiple stalled."""
+        state = self._make_state_with_stalled(n_stalled=3, n_normal=1)
+        gantt_body = cd.generate_gantt(state, mode="work")
+        self.assertNotIn("stalled dispatch detected", gantt_body)
+
+    def test_stalled_label_in_task_line(self):
+        """Gantt task lines still include [stalled] label suffix (per-task marker)."""
+        state = self._make_state_with_stalled(n_stalled=1, n_normal=0)
+        gantt_body = cd.generate_gantt(state, mode="work")
+        # The [stalled] suffix on task lines is valid Mermaid label text
+        self.assertIn("[stalled]", gantt_body)
+
+    def test_no_stalled_label_when_all_normal(self):
+        """No [stalled] label appears in Gantt body when all dispatches are normal."""
+        state = self._make_state_with_stalled(n_stalled=0, n_normal=2)
+        gantt_body = cd.generate_gantt(state, mode="work")
+        self.assertNotIn("[stalled]", gantt_body)
+        self.assertNotIn("stalled dispatch", gantt_body)
+
+    # ── get_stalled_count() ───────────────────────────────────────────────────
+
+    def test_stalled_note_singular(self):
+        """get_stalled_count returns 1 when exactly 1 dispatch is stalled."""
+        state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
+        self.assertEqual(cd.get_stalled_count(state), 1)
 
     def test_stalled_note_plural(self):
-        """gantt_note contains plural 'dispatches detected' when 2+ stalled."""
+        """get_stalled_count returns correct count for multiple stalled dispatches."""
         state = self._make_state_with_stalled(n_stalled=2, n_normal=1)
-        result = cd.generate_gantt(state, mode="work")
-        self.assertIn("2 stalled dispatches detected", result)
+        self.assertEqual(cd.get_stalled_count(state), 2)
+
+    def test_get_stalled_count_zero_when_all_normal(self):
+        """get_stalled_count returns 0 when no dispatches are stalled."""
+        state = self._make_state_with_stalled(n_stalled=0, n_normal=2)
+        self.assertEqual(cd.get_stalled_count(state), 0)
+
+    def test_get_stalled_count_none_fields_no_crash(self):
+        """get_stalled_count does not crash when dispatch has None duration_ms or tokens."""
+        state = {
+            "dispatches": [
+                {"agent": "builder-sonnet", "model": "sonnet", "issue": 1,
+                 "started_at": "2026-03-15T10:01:00Z", "duration_ms": None, "tokens": None},
+                {"agent": "builder-sonnet", "model": "sonnet", "issue": 2,
+                 "started_at": "2026-03-15T10:02:00Z", "duration_ms": 10000, "tokens": 30},
+            ],
+            "session": {"backlog": 1, "started_at": "2026-03-15T10:00:00Z"},
+            "epics": {},
+        }
+        count = cd.get_stalled_count(state)
+        # Only the second dispatch (30 tok/10s = 3 tok/s) is stalled; None dispatch is not
+        self.assertEqual(count, 1)
+
+    # ── _build_stalled_note() ─────────────────────────────────────────────────
 
     def test_stalled_note_threshold_message(self):
-        """gantt_note contains the threshold description."""
-        state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
-        result = cd.generate_gantt(state, mode="work")
-        self.assertIn("< 50 tok/s throughput", result)
+        """_build_stalled_note contains the threshold description."""
+        note = cd._build_stalled_note(1)
+        self.assertIn("< 50 tok/s throughput", note)
 
     def test_stalled_note_api_throttling_message(self):
-        """gantt_note contains the explanation about usage limit waits."""
-        state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
-        result = cd.generate_gantt(state, mode="work")
-        self.assertIn("usage limit waits or API throttling", result)
-
-    def test_no_stalled_note_when_all_normal(self):
-        """gantt_note stalled line is absent when no dispatches are stalled."""
-        state = self._make_state_with_stalled(n_stalled=0, n_normal=2)
-        result = cd.generate_gantt(state, mode="work")
-        self.assertNotIn("[stalled]", result)
-        self.assertNotIn("stalled dispatch", result)
+        """_build_stalled_note contains the explanation about usage limit waits."""
+        note = cd._build_stalled_note(1)
+        self.assertIn("usage limit waits or API throttling", note)
 
     def test_stalled_note_exact_format_singular(self):
         """Stalled note matches exact format contract for singular."""
-        state = self._make_state_with_stalled(n_stalled=1, n_normal=0)
-        result = cd.generate_gantt(state, mode="work")
+        note = cd._build_stalled_note(1)
         expected = (
             "*1 stalled dispatch detected (< 50 tok/s throughput). "
             "Duration may include usage limit waits or API throttling.*"
         )
-        self.assertIn(expected, result)
+        self.assertEqual(note, expected)
 
     def test_stalled_note_exact_format_plural(self):
         """Stalled note matches exact format contract for plural."""
-        state = self._make_state_with_stalled(n_stalled=3, n_normal=0)
-        result = cd.generate_gantt(state, mode="work")
+        note = cd._build_stalled_note(3)
         expected = (
             "*3 stalled dispatches detected (< 50 tok/s throughput). "
             "Duration may include usage limit waits or API throttling.*"
         )
-        self.assertIn(expected, result)
+        self.assertEqual(note, expected)
+
+    def test_build_stalled_note_returns_none_when_zero(self):
+        """_build_stalled_note returns None when stalled_count is 0."""
+        self.assertIsNone(cd._build_stalled_note(0))
 
     def test_stalled_note_in_work_mode(self):
-        """Stalled note is present in work mode."""
+        """get_stalled_count works correctly regardless of which gantt mode was used."""
         state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
-        result = cd.generate_gantt(state, mode="work")
-        self.assertIn("stalled dispatch", result)
+        cd.generate_gantt(state, mode="work")
+        self.assertEqual(cd.get_stalled_count(state), 1)
 
     def test_stalled_note_in_wall_clock_mode(self):
-        """Stalled note is present in wall-clock mode too."""
+        """get_stalled_count works correctly with wall-clock mode gantt."""
         state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
-        result = cd.generate_gantt(state, mode="wall-clock")
-        self.assertIn("stalled dispatch", result)
+        cd.generate_gantt(state, mode="wall-clock")
+        self.assertEqual(cd.get_stalled_count(state), 1)
 
     def test_stalled_note_constant_value(self):
         """_STALLED_THRESHOLD_TOKS constant equals 50."""

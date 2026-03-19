@@ -685,10 +685,6 @@ _AGENT_COLOR_TAG = {
     "reviewer": ":done",
 }
 
-# Module-level cache for the stalled dispatch count from the most recent
-# generate_gantt() call. Keyed by "last" so get_stalled_count() can retrieve
-# the result without re-scanning dispatches.
-_gantt_stalled_count: dict = {"last": 0}
 
 
 def _parse_iso(ts):
@@ -1063,8 +1059,7 @@ def generate_gantt(state, mode="work"):
 
     # Stalled dispatch counter — tracks dispatches below _STALLED_THRESHOLD_TOKS tok/s.
     # Informational only: does not affect bar width, position, or cumulative offset.
-    # The count is stored in _gantt_stalled_count so get_stalled_count() can retrieve it
-    # without re-scanning dispatches. The note is rendered OUTSIDE the Mermaid fence via
+    # The note is rendered OUTSIDE the Mermaid fence via
     # generate_gantt_note() / get_stalled_count() → {{GANTT_NOTE}} template channel.
     stalled_count = 0
 
@@ -1117,11 +1112,6 @@ def generate_gantt(state, mode="work"):
         if mode == "work":
             wave_max_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
             cumulative_offset_s += wave_max_s
-
-    # Store stalled count for retrieval by get_stalled_count().
-    # The stalled note is NOT appended here — it lives outside the Mermaid code
-    # fence in the {{GANTT_NOTE}} template channel, not inside the gantt body.
-    _gantt_stalled_count["last"] = stalled_count
 
     return "\n".join(lines)
 

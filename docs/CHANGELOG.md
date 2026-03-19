@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-03-19
+
 ### Gantt Chart Readability: Story Code Regression and Work Timeline Mode (backlog #242, ~100m wall-clock)
 
 - **Story code regression fixed:** Breakdown table now includes a Story column (e.g., `E01-S02`) for builder/reviewer/fix dispatches, with `--` for design/plan/retro
@@ -12,6 +14,7 @@
 - 2 epics, 5 stories: E01 Story Code Regression (2 stories), E02 Work Timeline Mode (3 stories)
 - 252 Python tests + 44 shell integration tests, all passing
 - 2 fix cycles: E01-S01 (template scope creep), E02-S03 (stalled note inside Mermaid fence + None guard)
+
 ## 2026-03-19
 
 ### Dual-Write PM Layer (backlog #227)

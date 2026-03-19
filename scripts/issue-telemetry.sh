@@ -199,7 +199,6 @@ elif [ -n "$GANTT_FROM_STATE" ] && [ -f "$GANTT_FROM_STATE" ]; then
     --pricing "$_PRICING_CACHE" --config "$_CFG_FILE")
   _process_state_result "$_state_result"
   GANTT=$(echo "$_state_result" | jq -r '.gantt // empty')
-  GANTT_NOTE=$(echo "$_state_result" | jq -r '.gantt_note // empty')
 elif [ -n "$DISPATCHES_FROM_STATE" ] && [ -f "$DISPATCHES_FROM_STATE" ]; then
   # Use compute-dispatches.py to convert the state file and compute all metrics:
   # breakdown, summary (with fix cycles row), cost, duration_ms, tokens,
@@ -353,7 +352,6 @@ eval_condition() {
     TIME_SAVED)              [ -n "$TIME_SAVED_HUMAN" ] ;;
     BREAKDOWN)               [ -n "$BREAKDOWN" ] ;;
     GANTT)                   [ -n "$GANTT" ] ;;
-    GANTT_NOTE)              [ -n "$GANTT_NOTE" ] ;;
     FOOTER)                  [ -n "$FOOTER" ] ;;
     FIX_CYCLES)              [ -n "$FIX_FOOTER" ] ;;
     DISCLAIMER)              [ "$COST_EST" != "—" ] || [ -n "$BREAKDOWN" ] ;;
@@ -421,10 +419,6 @@ render_template() {
     fi
     if [[ "$line" == "{{GANTT}}" ]]; then
       [ -n "$GANTT" ] && printf '%s\n' "$GANTT"
-      continue
-    fi
-    if [[ "$line" == "{{GANTT_NOTE}}" ]]; then
-      [ -n "$GANTT_NOTE" ] && printf '%s\n' "$GANTT_NOTE"
       continue
     fi
     if [[ "$line" == "{{FOOTER}}" ]]; then

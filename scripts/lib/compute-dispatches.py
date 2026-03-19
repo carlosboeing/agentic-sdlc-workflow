@@ -45,6 +45,9 @@ from datetime import datetime, timezone
 _SPLIT_IN = 0.75
 _SPLIT_OUT = 0.25
 
+# Gap threshold: inter-wave idle time above this value is annotated in gantt_note
+_GAP_THRESHOLD_S = 300  # 5 minutes
+
 # Agent type to telemetry phase mapping (mirrors the embedded Python in telemetry.sh)
 AGENT_TO_PHASE = {
     "designer": "Design",
@@ -418,6 +421,17 @@ def state_to_dispatches(state):
     # Build story code map (issue → "E01-S01") for Story column
     story_labels = _build_story_labels(state)
 
+    # Fallback: when _build_story_labels() returns no mapping (e.g., all branches missing),
+    # assign sequential story codes from epic/story position in state.epics.
+    # Only applies to issues that actually appear in state.epics.*.stories.
+    if not story_labels:
+        for epic_key, epic in state.get("epics", {}).items():
+            epic_num = epic_key[1:]  # "e01" → "01"
+            for story_idx, issue_num in enumerate(epic.get("stories", {}).keys(), start=1):
+                story_num = f"{story_idx:02d}"
+                code = f"E{epic_num.upper()}-S{story_num}"
+                story_labels[int(issue_num)] = code
+
     dispatches = []
     raw_dispatches = state.get("dispatches", [])
 
@@ -686,21 +700,114 @@ def _build_story_labels(state):
     Build a dict mapping issue number (int) → "ENN-SNN" story code.
 
     Derived from state.epics: epic key "e01" + story branch "e01-s02/..." → "E01-S02"
+
+    Stories with no "branch" field are skipped gracefully. When state.epics is
+    non-empty but no labels can be extracted (e.g., all branches missing), a
+    warning is printed to stderr.
     """
     story_labels = {}
-    for epic_key, epic in state.get("epics", {}).items():
+    epics = state.get("epics", {})
+    for epic_key, epic in epics.items():
         # epic_key: "e01", "e02", etc. → extract numeric part
         epic_num = epic_key[1:]  # "01", "02"
         for issue_num, story in epic.get("stories", {}).items():
             branch = story.get("branch", "")
+            # Skip stories without a branch field (branch is empty string or absent)
+            if not branch:
+                continue
             # branch like "e01-s02/destination-profiles" → extract "s02"
             # Remove epic prefix: "e01-s02/..." → "s02/..."
             rest = branch.replace(f"{epic_key}-", "", 1)  # "s02/destination-profiles"
             story_part = rest.split("/")[0]  # "s02"
-            story_num = story_part[1:] if story_part.startswith("s") else story_part
+            if not story_part.startswith("s"):
+                continue  # Unexpected format — skip
+            story_num = story_part[1:]
             code = f"E{epic_num.upper()}-S{story_num.upper()}"
             story_labels[int(issue_num)] = code
+
+    if epics and not story_labels:
+        print(
+            "Warning: state.epics is non-empty but no story labels were extracted. "
+            "Stories may be missing the 'branch' field. Story codes will be absent from the breakdown.",
+            file=sys.stderr,
+        )
+
     return story_labels
+
+
+def generate_gantt_note(state):
+    """
+    Detect wall-clock gaps between waves and generate a gantt_note string.
+
+    A gap is the idle time between one wave ending (anchor + max_duration) and
+    the next wave starting. Gaps greater than _GAP_THRESHOLD_S (300s / 5 minutes)
+    are annotated.
+
+    Args:
+        state: Parsed orchestrator state file dict.
+
+    Returns:
+        str or None: A note string when annotatable gaps exist, None otherwise.
+
+    Format:
+        *Timeline compressed: N gap(s) removed (Xh Ym, Zh Wm idle).
+         X-axis shows agent running time, not wall-clock time.*
+    """
+    raw_dispatches = state.get("dispatches", [])
+    if len(raw_dispatches) < 2:
+        return None
+
+    # Sort and group dispatches into waves (same logic as generate_gantt)
+    def _sort_key(d):
+        try:
+            ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
+        except Exception:
+            ts = 0.0
+        return (ts, d.get("id", 0))
+
+    sorted_dispatches = sorted(raw_dispatches, key=_sort_key)
+    waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
+
+    if len(waves) < 2:
+        return None
+
+    # Compute inter-wave gaps
+    gap_durations_s = []
+    for i in range(len(waves) - 1):
+        wave_anchor_s, wave_dispatches = waves[i]
+        wave_max_duration_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
+        wave_end_s = wave_anchor_s + wave_max_duration_s
+
+        next_wave_anchor_s, _ = waves[i + 1]
+        gap_s = next_wave_anchor_s - wave_end_s
+
+        if gap_s > _GAP_THRESHOLD_S:
+            gap_durations_s.append(gap_s)
+
+    if not gap_durations_s:
+        return None
+
+    # Format individual gap durations as "Xh Ym" or "Ym"
+    def _fmt_gap(seconds):
+        total_minutes = int(seconds) // 60
+        hours = total_minutes // 60
+        mins = total_minutes % 60
+        if hours > 0 and mins > 0:
+            return f"{hours}h {mins}m"
+        elif hours > 0:
+            return f"{hours}h"
+        else:
+            return f"{mins}m"
+
+    gap_count = len(gap_durations_s)
+    gap_word = "gap" if gap_count == 1 else "gaps"
+    gap_list = ", ".join(_fmt_gap(s) for s in gap_durations_s)
+
+    return (
+        f"*Timeline compressed: {gap_count} {gap_word} removed "
+        f"({gap_list} idle). "
+        f"X-axis shows agent running time, not wall-clock time.*"
+    )
 
 
 def _select_tick_interval(total_seconds):
@@ -1041,6 +1148,9 @@ def main(argv=None):
         result = compute_from_state(state, pricing_rates)
         if args.gantt:
             result["gantt"] = generate_gantt(state, mode=args.gantt_mode)
+            gantt_note = generate_gantt_note(state)
+            if gantt_note is not None:
+                result["gantt_note"] = gantt_note
         if args.overhead:
             overhead = compute_overhead(state)
             result["overhead_ms"] = overhead["overhead_ms"]

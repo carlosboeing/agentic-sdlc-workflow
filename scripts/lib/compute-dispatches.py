@@ -45,6 +45,12 @@ from datetime import datetime, timezone
 _SPLIT_IN = 0.75
 _SPLIT_OUT = 0.25
 
+# Stalled dispatch threshold: dispatches below this throughput (tokens/second) are
+# annotated with "[stalled]" in the Gantt label. Stalled dispatches indicate possible
+# usage limit waits or API throttling. Detection is informational — does not affect
+# bar width, position, or cumulative offset.
+_STALLED_THRESHOLD_TOKS = 50
+
 # Agent type to telemetry phase mapping (mirrors the embedded Python in telemetry.sh)
 AGENT_TO_PHASE = {
     "designer": "Design",
@@ -714,6 +720,23 @@ def _select_tick_interval(total_seconds):
         return "10minute"
 
 
+def _is_stalled(d):
+    """
+    Return True if a dispatch's throughput is below _STALLED_THRESHOLD_TOKS.
+
+    Guards:
+    - Zero duration: no throughput data — not stalled (avoids division by zero).
+    - Zero tokens: no throughput data — not stalled (e.g., API errors).
+    """
+    dur_ms = d.get("duration_ms", 0)
+    tokens = d.get("tokens", 0)
+    if dur_ms == 0 or tokens == 0:
+        return False
+    dur_s = dur_ms / 1000
+    throughput = tokens / dur_s
+    return throughput < _STALLED_THRESHOLD_TOKS
+
+
 def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=False):
     """
     Generate a Gantt task label, color tag, and duration_s for a dispatch.
@@ -724,6 +747,10 @@ def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=
 
     Returns (label, color_tag_str, dur_s).
     color_tag_str is one of ":active", ":done", ":crit", or "" (no tag).
+
+    Dispatches with throughput < _STALLED_THRESHOLD_TOKS tok/s get a " [stalled]"
+    suffix appended to the label. This is purely informational — color tag and
+    duration_s are unaffected.
     """
     agent = d.get("agent", "unknown")
     agent_prefix = agent.split("-")[0]  # "builder", "reviewer", "designer", etc.
@@ -762,6 +789,10 @@ def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=
         label = f"Retro Agent ({dur_label})"
     else:
         label = f"{agent.capitalize()} ({dur_label})"
+
+    # Stalled suffix — informational only, does not affect color tag or duration_s
+    if _is_stalled(d):
+        label = f"{label} [stalled]"
 
     # Color tag: fix cycles always :crit; others from _AGENT_COLOR_TAG
     if is_fix_cycle:
@@ -914,6 +945,10 @@ def generate_gantt(state, mode="work"):
     # Cumulative offset for work mode (seconds). Increases by max(duration_ms)/1000 per wave.
     cumulative_offset_s = 0.0
 
+    # Stalled dispatch counter — tracks dispatches below _STALLED_THRESHOLD_TOKS tok/s.
+    # Informational only: does not affect bar width, position, or cumulative offset.
+    stalled_count = 0
+
     for wave_anchor_s, wave_dispatches in waves:
         # Determine the offset for this wave
         if mode == "work":
@@ -947,6 +982,10 @@ def generate_gantt(state, mode="work"):
                 d, story_labels, is_fix_build=is_fix_build, is_re_review=is_re_review
             )
 
+            # Count stalled dispatches for the gantt_note
+            if _is_stalled(d):
+                stalled_count += 1
+
             if color_tag:
                 task_line = f"    {label}   {color_tag},:t{task_id}, {offset_str}, {dur_s}s"
             else:
@@ -959,6 +998,17 @@ def generate_gantt(state, mode="work"):
         if mode == "work":
             wave_max_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
             cumulative_offset_s += wave_max_s
+
+    # Append stalled dispatch note when any stalled dispatches were detected.
+    # This note is picked up by issue-telemetry.sh as the gantt_note annotation.
+    if stalled_count > 0:
+        dispatch_word = "dispatch" if stalled_count == 1 else "dispatches"
+        stalled_note = (
+            f"*{stalled_count} stalled {dispatch_word} detected "
+            f"(< 50 tok/s throughput). "
+            f"Duration may include usage limit waits or API throttling.*"
+        )
+        lines.append(stalled_note)
 
     return "\n".join(lines)
 

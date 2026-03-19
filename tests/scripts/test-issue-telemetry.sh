@@ -476,7 +476,7 @@ fi
 
 echo ""
 
-# --- Test 17: Local adapter writes comment file ---
+# --- Test 17: Local adapter writes comment inline to item file ---
 echo "Test Group: Local adapter comment file creation"
 
 LOCAL_ADAPTER_DIR="$REPO_ROOT/scripts/lib/adapters/pm/local"
@@ -488,8 +488,28 @@ else
   LOCAL_WORKFLOW_DIR=$(mktemp -d)
   trap 'rm -rf "$LOCAL_WORKFLOW_DIR"' EXIT
 
+  # Create required directory structure and a minimal item file for issue 42
+  # pm_add_comment silently skips when the item file does not exist
+  mkdir -p "$LOCAL_WORKFLOW_DIR/items"
+  cat > "$LOCAL_WORKFLOW_DIR/items/42.md" <<'ITEM_EOF'
+---
+id: 42
+title: "Test Issue"
+type: story
+status: backlog
+labels:
+  - hierarchy/story
+parent: null
+state: open
+created: 2026-01-01T00:00:00Z
+updated: 2026-01-01T00:00:00Z
+---
+
+Test issue body.
+ITEM_EOF
+
   # Run telemetry with local adapter injected via _PM_TEST_ADAPTER_DIR
-  # _LOCAL_WORKFLOW_DIR controls where comment files are written
+  # _LOCAL_WORKFLOW_DIR controls where the item file lives
   STDERR_FILE=$(mktemp)
   LOCAL_EXIT=0
   LOCAL_OUTPUT=$(
@@ -513,53 +533,41 @@ else
     FAIL=$((FAIL + 1))
   fi
 
-  # Verify comment directory for issue 42 was created
-  COMMENT_DIR="$LOCAL_WORKFLOW_DIR/comments/42"
-  if [ -d "$COMMENT_DIR" ]; then
-    echo "  PASS: Comment directory created for issue 42"
+  # Verify item file exists and contains rendered telemetry content
+  ITEM_FILE="$LOCAL_WORKFLOW_DIR/items/42.md"
+  if [ -f "$ITEM_FILE" ] && grep -q 'Telemetry\|sonnet\|abc1234' "$ITEM_FILE" 2>/dev/null; then
+    echo "  PASS: Item file contains rendered telemetry content"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: Comment directory not found at $COMMENT_DIR"
+    echo "  FAIL: Item file missing or lacks telemetry content"
+    [ -f "$ITEM_FILE" ] && echo "    File: $ITEM_FILE" && head -10 "$ITEM_FILE"
     FAIL=$((FAIL + 1))
   fi
 
-  # Verify at least one comment file was created
-  COMMENT_COUNT=$(find "$COMMENT_DIR" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$COMMENT_COUNT" -gt 0 ]; then
-    echo "  PASS: Comment file created ($COMMENT_COUNT file(s))"
+  # Verify comment has the <!-- comment: ... --> timestamp marker
+  if grep -q '^<!-- comment:' "$ITEM_FILE" 2>/dev/null; then
+    echo "  PASS: Item file has <!-- comment: ... --> timestamp marker"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: No comment files found in $COMMENT_DIR"
+    echo "  FAIL: Item file missing <!-- comment: ... --> timestamp marker"
     FAIL=$((FAIL + 1))
   fi
 
-  # Verify comment file contains telemetry content (rendered markdown)
-  COMMENT_FILE=$(find "$COMMENT_DIR" -maxdepth 1 -name "*.md" | head -1)
-  if [ -n "$COMMENT_FILE" ] && grep -q 'Telemetry\|sonnet\|abc1234' "$COMMENT_FILE" 2>/dev/null; then
-    echo "  PASS: Comment file contains rendered telemetry content"
+  # Verify Activity Log separator was appended (─────────)
+  if grep -q '─────────' "$ITEM_FILE" 2>/dev/null; then
+    echo "  PASS: Item file has Activity Log separator"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: Comment file missing or lacks telemetry content"
-    [ -n "$COMMENT_FILE" ] && echo "    File: $COMMENT_FILE" && head -5 "$COMMENT_FILE"
+    echo "  FAIL: Item file missing Activity Log separator"
     FAIL=$((FAIL + 1))
   fi
 
-  # Verify comment file has the expected <!-- posted: ... --> header
-  if [ -n "$COMMENT_FILE" ] && grep -q '^<!-- posted:' "$COMMENT_FILE" 2>/dev/null; then
-    echo "  PASS: Comment file has <!-- posted: ... --> timestamp header"
+  # Verify Activity Log heading exists
+  if grep -q '^## Activity Log' "$ITEM_FILE" 2>/dev/null; then
+    echo "  PASS: Item file has Activity Log heading"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: Comment file missing <!-- posted: ... --> timestamp header"
-    FAIL=$((FAIL + 1))
-  fi
-
-  # Verify slug: telemetry heading -> slug should be "telemetry"
-  COMMENT_FILENAME=$(basename "$COMMENT_FILE" 2>/dev/null || echo "")
-  if echo "$COMMENT_FILENAME" | grep -q 'telemetry'; then
-    echo "  PASS: Comment filename includes 'telemetry' slug ($COMMENT_FILENAME)"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: Comment filename does not include 'telemetry' slug ($COMMENT_FILENAME)"
+    echo "  FAIL: Item file missing ## Activity Log heading"
     FAIL=$((FAIL + 1))
   fi
 fi

@@ -821,8 +821,8 @@ compute-dispatches.py --from-state <file> --gantt --gantt-mode wall-clock
 
 | # | Action | Type | Token Impact | Duration Impact | Effort |
 |---|--------|------|-------------|-----------------|--------|
-| 1 | **Revert reviewer routing: all reviews → opus** — Sonnet reviewers use 2x tokens (57K vs 28K), take 2x longer (2m 20s vs 1m 10s), identical quality (0 fix cycles in either model). See § 4.2. | Config change | Save ~87K/run | Save ~3m 30s/run | 1 minute |
-| 2 | **Fix R12 cost in CHANGELOG** — $12.55 → $4.77. The $30/M rate was a miscalculation; every other run uses the correct $10/M blended rate. See § 1. | Doc fix | — | — | 5 minutes |
+| 1 | ~~**Revert reviewer routing: all reviews → opus**~~ — Sonnet reviewers use 2x tokens (57K vs 28K), take 2x longer (2m 20s vs 1m 10s), identical quality (0 fix cycles in either model). See § 4.2. **Done:** Removed `reviewerRouting` config, deleted `reviewer-sonnet.md` and `reviewer-opus.md` variant files, simplified to single `reviewer.md` with `model: inherit`. Commit `d6e8799`. | ~~Config change~~ | Save ~87K/run | Save ~3m 30s/run | ✅ Done |
+| 2 | ~~**Fix R12 cost in CHANGELOG**~~ — $12.55 → $4.77. The $30/M rate was a miscalculation; every other run uses the correct $10/M blended rate. See § 1. **Done:** Commit `d6e8799`. | ~~Doc fix~~ | — | — | ✅ Done |
 
 > **Note:** The `--skip-design` and `skipRetro: true` flags are already supported and can save 4-8m each per run. These are per-run judgment calls, not implementation items: use `--skip-design` when the backlog issue has clear ACs, and `skipRetro: true` for test runs that don't need convention learning.
 

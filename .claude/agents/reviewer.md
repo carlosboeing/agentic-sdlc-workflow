@@ -57,7 +57,6 @@ When reviewing a PR or set of changes:
 
 ### Code Quality
 - [ ] No `object` or `dynamic` types
-- [ ] Files under 200 lines
 - [ ] DI follows existing patterns (scoped services, constructor injection)
 - [ ] No silent exception swallowing — log or rethrow at system boundaries
 - [ ] No unnecessary abstractions (YAGNI)

@@ -53,6 +53,8 @@ AGENT_TO_PHASE = {
     "builder-sonnet": "Build",
     "builder-opus": "Build",
     "reviewer": "Review",
+    "reviewer-sonnet": "Review",
+    "reviewer-opus": "Review",
     "retro": "Retro",
 }
 
@@ -292,7 +294,7 @@ def compute_fix_cycles(raw_dispatches, pricing_rates):
         agent = d.get("agent", "")
         issue = d.get("issue")
         is_builder = agent.startswith("builder")
-        is_reviewer = agent == "reviewer"
+        is_reviewer = agent.startswith("reviewer")
 
         if is_builder and issue is not None:
             if issue in first_builder_seen:
@@ -414,14 +416,37 @@ def state_to_dispatches(state):
     dispatches = []
     raw_dispatches = state.get("dispatches", [])
 
+    # Builder-centric fix cycle tracking (matches compute_fix_cycles semantics):
+    # - A builder re-dispatch for an issue that already had a builder = fix cycle
+    # - The reviewer dispatch that follows a fix cycle builder = re-review
+    # This avoids mislabeling retried reviews (e.g., after API errors) as fix cycles.
+    first_builder_seen: set = set()    # issues with at least one builder dispatch
+    pending_re_review: set = set()     # issues awaiting re-review after a fix builder
+
     for d in raw_dispatches:
         agent = d.get("agent", "unknown")
         model = d.get("model", "unknown")
         issue = d.get("issue")
         phase = AGENT_TO_PHASE.get(agent, "Other")
+        agent_prefix = agent.split("-")[0]
+
+        # Detect fix cycles using builder-centric logic
+        is_fix_build = False
+        is_re_review = False
+        if issue is not None:
+            if agent_prefix == "builder":
+                if issue in first_builder_seen:
+                    is_fix_build = True
+                    pending_re_review.add(issue)
+                else:
+                    first_builder_seen.add(issue)
+            elif agent_prefix == "reviewer":
+                if issue in pending_re_review:
+                    is_re_review = True
+                    pending_re_review.discard(issue)
 
         # Build human-readable agent label
-        agent_base = agent.split("-")[0].capitalize()
+        agent_base = agent_prefix.capitalize()
         if agent_base == "Builder":
             agent_label = f"Builder ({model})"
         elif agent_base == "Reviewer":
@@ -437,11 +462,23 @@ def state_to_dispatches(state):
         elif phase == "Retro":
             task = f"Retrospective (#{issue})" if issue else "Retrospective"
         elif phase == "Review" and issue:
-            if issue in issue_titles:
+            if is_re_review:
+                # Re-review after a fix cycle builder
+                if issue in issue_titles:
+                    task = f"Re-review {issue_titles[issue]} (#{issue})"
+                else:
+                    task = f"Re-review (#{issue})"
+            elif issue in issue_titles:
                 title = issue_titles[issue]
                 task = f"Review {title} (#{issue})"
             else:
                 task = f"PR Review (#{issue})"
+        elif phase == "Build" and is_fix_build and issue:
+            # Builder re-dispatch to fix reviewer findings
+            if issue in issue_titles:
+                task = f"Fix {issue_titles[issue]} (#{issue})"
+            else:
+                task = f"Fix (#{issue})"
         elif issue and issue in issue_titles:
             task = f"{issue_titles[issue]} (#{issue})"
         elif issue:
@@ -668,13 +705,13 @@ def _select_tick_interval(total_seconds):
         return "10minute"
 
 
-def _gantt_label_for_dispatch(d, story_labels, fix_counts):
+def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=False):
     """
     Generate a Gantt task label, color tag, and duration_s for a dispatch.
 
     story_labels: dict mapping issue int → "ENN-SNN" string
-    fix_counts: dict mapping (issue, agent_prefix) → count seen so far *before*
-                this dispatch (0 = first occurrence, not a fix cycle)
+    is_fix_build: True if this is a builder re-dispatch (fix cycle)
+    is_re_review: True if this is a reviewer dispatch following a fix cycle builder
 
     Returns (label, color_tag_str, dur_s).
     color_tag_str is one of ":active", ":done", ":crit", or "" (no tag).
@@ -686,9 +723,7 @@ def _gantt_label_for_dispatch(d, story_labels, fix_counts):
     dur_s = dur_ms // 1000
     dur_label = fmt_duration(dur_ms)
 
-    # Fix cycle: same (issue, agent_prefix) pair seen before
-    pair_key = (issue, agent_prefix)
-    is_fix_cycle = fix_counts.get(pair_key, 0) > 0
+    is_fix_cycle = is_fix_build or is_re_review
 
     # Story code for build/review dispatches
     story_code = story_labels.get(issue) if issue else None
@@ -822,8 +857,11 @@ def generate_gantt(state):
     # Group into parallel waves using tolerance window
     waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
 
-    # Track fix cycle counts: (issue, agent_prefix) → number of dispatches seen
-    fix_counts: dict = {}
+    # Builder-centric fix cycle tracking (matches compute_fix_cycles semantics):
+    # - A builder re-dispatch for an issue that already had a builder = fix cycle
+    # - The reviewer dispatch that follows a fix cycle builder = re-review
+    first_builder_seen: set = set()
+    pending_re_review: set = set()
 
     lines = []
 
@@ -848,12 +886,25 @@ def generate_gantt(state):
             agent = d.get("agent", "unknown")
             agent_prefix = agent.split("-")[0]
             issue = d.get("issue")
-            pair_key = (issue, agent_prefix)
 
-            label, color_tag, dur_s = _gantt_label_for_dispatch(d, story_labels, fix_counts)
+            # Detect fix cycles using builder-centric logic
+            is_fix_build = False
+            is_re_review = False
+            if issue is not None:
+                if agent_prefix == "builder":
+                    if issue in first_builder_seen:
+                        is_fix_build = True
+                        pending_re_review.add(issue)
+                    else:
+                        first_builder_seen.add(issue)
+                elif agent_prefix == "reviewer":
+                    if issue in pending_re_review:
+                        is_re_review = True
+                        pending_re_review.discard(issue)
 
-            # Increment fix count *after* generating label for this dispatch
-            fix_counts[pair_key] = fix_counts.get(pair_key, 0) + 1
+            label, color_tag, dur_s = _gantt_label_for_dispatch(
+                d, story_labels, is_fix_build=is_fix_build, is_re_review=is_re_review
+            )
 
             if color_tag:
                 task_line = f"    {label}   {color_tag},:t{task_id}, {offset_str}, {dur_s}s"

@@ -152,7 +152,6 @@ Read the project's CLAUDE.md for the specific testing framework, naming conventi
 Read the project's CLAUDE.md for project-specific code conventions. These universal rules always apply:
 
 - **Use precise types** — avoid `object`, `dynamic`, `any`, or equivalent loose types
-- **Small, focused files** — under 200 lines each, split if larger
 - **Follow existing patterns** — match the project's DI, config, and architectural patterns
 - **Register new services** — when creating a new service/provider class, ensure it's registered in the project's dependency injection setup in the same commit. Unit tests often mock the DI layer, so missing registrations pass all tests but fail at runtime.
 - **Comment only non-obvious logic** — no `// set the variable` comments

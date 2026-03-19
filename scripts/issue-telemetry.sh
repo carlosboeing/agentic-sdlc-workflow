@@ -7,7 +7,7 @@ set -euo pipefail
 # Usage: ./scripts/issue-telemetry.sh <issue-number> --model <model> --duration <ms> --commit <hash>
 #        [--tokens <total>] [--tool-uses <n>] [--rate <cents-per-M>] [--cost <dollars>]
 #        [--dispatches <json-file>] [--dispatches-from-state <state-file>]
-#        [--gantt-from-state <state-file>]
+#        [--gantt-from-state <state-file>] [--gantt-mode <work|wall-clock>]
 #        [--breakdown <markdown>] [--pr <pr-number>] [--wall-clock <ms>] [--gantt <mermaid-body>]
 #        [--summary <markdown>] [--footer <markdown>]
 #
@@ -53,6 +53,10 @@ set -euo pipefail
 # --dispatches-from-state + Gantt generation in a single Python call). Takes precedence over
 # --gantt when both are provided.
 #
+# --gantt-mode selects the Gantt timeline display mode (only used with --gantt-from-state):
+#   work        — cumulative active time (default): collapses wall-clock gaps; first task at 00:00:00
+#   wall-clock  — absolute timestamps from session.started_at (original behavior)
+#
 # --footer provides trailing text (e.g., notes, PR link) rendered before the disclaimer.
 #
 # --gantt provides the body of a Mermaid gantt chart (everything after the gantt keyword).
@@ -66,7 +70,7 @@ _PRICING_CACHE="$_CFG_REPO_ROOT/.agentic-workflow/pricing.json"
 TEMPLATE_FILE="$SCRIPT_DIR/templates/telemetry.md"
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <issue-number> --model <model> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--breakdown <markdown>] [--pr <n>] [--wall-clock <ms>] [--gantt <mermaid-body>] [--gantt-from-state <state-file>] [--summary <markdown>] [--footer <markdown>]"
+  echo "Usage: $0 <issue-number> --model <model> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--breakdown <markdown>] [--pr <n>] [--wall-clock <ms>] [--gantt <mermaid-body>] [--gantt-from-state <state-file>] [--gantt-mode <work|wall-clock>] [--summary <markdown>] [--footer <markdown>]"
   exit 1
 fi
 
@@ -87,7 +91,9 @@ BREAKDOWN=""
 PR_NUMBER=""
 WALL_CLOCK_MS=""
 GANTT=""
+GANTT_NOTE=""
 GANTT_FROM_STATE=""
+GANTT_MODE="work"
 RATE_OVERRIDE=""
 COST_OVERRIDE=""
 SUMMARY=""
@@ -108,6 +114,7 @@ while [ $# -gt 0 ]; do
     --wall-clock) WALL_CLOCK_MS="$2"; shift 2 ;;
     --gantt) GANTT="$2"; shift 2 ;;
     --gantt-from-state) GANTT_FROM_STATE="$2"; shift 2 ;;
+    --gantt-mode) GANTT_MODE="$2"; shift 2 ;;
     --rate) RATE_OVERRIDE="$2"; shift 2 ;;
     --cost) COST_OVERRIDE="$2"; shift 2 ;;
     --summary) SUMMARY="$2"; shift 2 ;;
@@ -196,9 +203,11 @@ elif [ -n "$GANTT_FROM_STATE" ] && [ -f "$GANTT_FROM_STATE" ]; then
   _state_result=$(python3 "$SCRIPT_DIR/lib/compute-dispatches.py" \
     --from-state "$GANTT_FROM_STATE" \
     --gantt \
+    --gantt-mode "$GANTT_MODE" \
     --pricing "$_PRICING_CACHE" --config "$_CFG_FILE")
   _process_state_result "$_state_result"
   GANTT=$(echo "$_state_result" | jq -r '.gantt // empty')
+  GANTT_NOTE=$(echo "$_state_result" | jq -r '.gantt_note // empty')
 elif [ -n "$DISPATCHES_FROM_STATE" ] && [ -f "$DISPATCHES_FROM_STATE" ]; then
   # Use compute-dispatches.py to convert the state file and compute all metrics:
   # breakdown, summary (with fix cycles row), cost, duration_ms, tokens,
@@ -352,6 +361,7 @@ eval_condition() {
     TIME_SAVED)              [ -n "$TIME_SAVED_HUMAN" ] ;;
     BREAKDOWN)               [ -n "$BREAKDOWN" ] ;;
     GANTT)                   [ -n "$GANTT" ] ;;
+    GANTT_NOTE)              [ -n "$GANTT_NOTE" ] ;;
     FOOTER)                  [ -n "$FOOTER" ] ;;
     FIX_CYCLES)              [ -n "$FIX_FOOTER" ] ;;
     DISCLAIMER)              [ "$COST_EST" != "—" ] || [ -n "$BREAKDOWN" ] ;;
@@ -419,6 +429,10 @@ render_template() {
     fi
     if [[ "$line" == "{{GANTT}}" ]]; then
       [ -n "$GANTT" ] && printf '%s\n' "$GANTT"
+      continue
+    fi
+    if [[ "$line" == "{{GANTT_NOTE}}" ]]; then
+      [ -n "$GANTT_NOTE" ] && printf '%s\n' "$GANTT_NOTE"
       continue
     fi
     if [[ "$line" == "{{FOOTER}}" ]]; then

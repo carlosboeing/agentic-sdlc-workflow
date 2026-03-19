@@ -24,6 +24,7 @@
     TIME_SAVED               — Time saved > 0
     BREAKDOWN                — Per-story breakdown table provided
     GANTT                    — Gantt chart data provided
+    GANTT_NOTE               — Gap annotation note provided (timeline compressed)
     FOOTER                   — Footer text provided (e.g., notes, PR link)
     FIX_CYCLES               — Fix cycle footer line provided (computed from dispatches)
     DISCLAIMER               — Cost estimates or breakdown shown
@@ -110,6 +111,10 @@ gantt
 {{GANTT}}
 ```
 <!-- END_GANTT -->
+<!-- IF_GANTT_NOTE -->
+
+{{GANTT_NOTE}}
+<!-- END_GANTT_NOTE -->
 <!-- IF_FOOTER -->
 
 {{FOOTER}}

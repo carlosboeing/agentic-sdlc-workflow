@@ -45,6 +45,14 @@ from datetime import datetime, timezone
 _SPLIT_IN = 0.75
 _SPLIT_OUT = 0.25
 
+# Stalled dispatch threshold: dispatches below this throughput (tokens/second) are
+# annotated with "[stalled]" in the Gantt label. Stalled dispatches indicate possible
+# usage limit waits or API throttling. Detection is informational — does not affect
+# bar width, position, or cumulative offset.
+_STALLED_THRESHOLD_TOKS = 50
+# Gap threshold: inter-wave idle time above this value is annotated in gantt_note
+_GAP_THRESHOLD_S = 300  # 5 minutes
+
 # Agent type to telemetry phase mapping (mirrors the embedded Python in telemetry.sh)
 AGENT_TO_PHASE = {
     "designer": "Design",
@@ -418,20 +426,16 @@ def state_to_dispatches(state):
     # Build story code map (issue → "E01-S01") for Story column
     story_labels = _build_story_labels(state)
 
-    # Build fallback reverse-lookup map: issue number → "ENN-SNN"
-    # Used when _build_story_labels() returns no mapping for an issue (e.g., missing branches).
-    # Derives story code from epic key and story iteration order.
-    fallback_story_labels = {}
+    # Fallback: when _build_story_labels() returns no mapping (e.g., all branches missing),
+    # assign sequential story codes from epic/story position in state.epics.
+    # Only applies to issues that actually appear in state.epics.*.stories.
     if not story_labels:
         for epic_key, epic in state.get("epics", {}).items():
             epic_num = epic_key[1:]  # "e01" → "01"
-            for ordinal, (issue_str, _) in enumerate(epic.get("stories", {}).items(), start=1):
-                try:
-                    issue_int = int(issue_str)
-                    code = f"E{epic_num.upper()}-S{ordinal:02d}"
-                    fallback_story_labels[issue_int] = code
-                except ValueError:
-                    pass
+            for story_idx, issue_num in enumerate(epic.get("stories", {}).keys(), start=1):
+                story_num = f"{story_idx:02d}"
+                code = f"E{epic_num.upper()}-S{story_num}"
+                story_labels[int(issue_num)] = code
 
     dispatches = []
     raw_dispatches = state.get("dispatches", [])
@@ -506,12 +510,8 @@ def state_to_dispatches(state):
         else:
             task = agent
 
-        # Attach story_code: ENN-SNN for build/review dispatches; empty for others.
-        # Use fallback_story_labels when branch-based story_labels has no entry for this issue.
-        if issue is not None:
-            story_code = story_labels.get(issue) or fallback_story_labels.get(issue, "")
-        else:
-            story_code = ""
+        # Attach story_code: ENN-SNN for build/review dispatches; empty for others
+        story_code = story_labels.get(issue, "") if issue is not None else ""
 
         dispatches.append({
             "agent": agent_label,
@@ -685,6 +685,11 @@ _AGENT_COLOR_TAG = {
     "reviewer": ":done",
 }
 
+# Module-level cache for the stalled dispatch count from the most recent
+# generate_gantt() call. Keyed by "last" so get_stalled_count() can retrieve
+# the result without re-scanning dispatches.
+_gantt_stalled_count: dict = {"last": 0}
+
 
 def _parse_iso(ts):
     """Parse an ISO 8601 UTC timestamp string to a datetime object."""
@@ -706,9 +711,9 @@ def _build_story_labels(state):
 
     Derived from state.epics: epic key "e01" + story branch "e01-s02/..." → "E01-S02"
 
-    Stories with a missing or empty 'branch' field are skipped gracefully.
-    When state.epics is non-empty but no labels can be extracted (e.g., all stories
-    lack a branch), a diagnostic warning is printed to stderr.
+    Stories with no "branch" field are skipped gracefully. When state.epics is
+    non-empty but no labels can be extracted (e.g., all branches missing), a
+    warning is printed to stderr.
     """
     story_labels = {}
     epics = state.get("epics", {})
@@ -717,33 +722,102 @@ def _build_story_labels(state):
         epic_num = epic_key[1:]  # "01", "02"
         for issue_num, story in epic.get("stories", {}).items():
             branch = story.get("branch", "")
+            # Skip stories without a branch field (branch is empty string or absent)
             if not branch:
-                # Missing or empty branch — skip this story gracefully
                 continue
             # branch like "e01-s02/destination-profiles" → extract "s02"
             # Remove epic prefix: "e01-s02/..." → "s02/..."
             rest = branch.replace(f"{epic_key}-", "", 1)  # "s02/destination-profiles"
             story_part = rest.split("/")[0]  # "s02"
             if not story_part.startswith("s"):
-                # Branch doesn't follow the expected sNN pattern — skip
-                continue
-            story_num = story_part[1:]  # "02"
-            if not story_num:
-                # Empty story number after stripping "s" — skip
-                continue
+                continue  # Unexpected format — skip
+            story_num = story_part[1:]
             code = f"E{epic_num.upper()}-S{story_num.upper()}"
             story_labels[int(issue_num)] = code
 
-    # Diagnostic: warn when epics exist but no labels could be extracted
     if epics and not story_labels:
         print(
-            "Warning: state.epics is non-empty but no story labels were extracted "
-            "(stories may be missing 'branch' fields). "
-            "Fallback story code extraction will be attempted in state_to_dispatches().",
+            "Warning: state.epics is non-empty but no story labels were extracted. "
+            "Stories may be missing the 'branch' field. Story codes will be absent from the breakdown.",
             file=sys.stderr,
         )
 
     return story_labels
+
+
+def generate_gantt_note(state):
+    """
+    Detect wall-clock gaps between waves and generate a gantt_note string.
+
+    A gap is the idle time between one wave ending (anchor + max_duration) and
+    the next wave starting. Gaps greater than _GAP_THRESHOLD_S (300s / 5 minutes)
+    are annotated.
+
+    Args:
+        state: Parsed orchestrator state file dict.
+
+    Returns:
+        str or None: A note string when annotatable gaps exist, None otherwise.
+
+    Format:
+        *Timeline compressed: N gap(s) removed (Xh Ym, Zh Wm idle).
+         X-axis shows agent running time, not wall-clock time.*
+    """
+    raw_dispatches = state.get("dispatches", [])
+    if len(raw_dispatches) < 2:
+        return None
+
+    # Sort and group dispatches into waves (same logic as generate_gantt)
+    def _sort_key(d):
+        try:
+            ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
+        except Exception:
+            ts = 0.0
+        return (ts, d.get("id", 0))
+
+    sorted_dispatches = sorted(raw_dispatches, key=_sort_key)
+    waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
+
+    if len(waves) < 2:
+        return None
+
+    # Compute inter-wave gaps
+    gap_durations_s = []
+    for i in range(len(waves) - 1):
+        wave_anchor_s, wave_dispatches = waves[i]
+        wave_max_duration_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
+        wave_end_s = wave_anchor_s + wave_max_duration_s
+
+        next_wave_anchor_s, _ = waves[i + 1]
+        gap_s = next_wave_anchor_s - wave_end_s
+
+        if gap_s > _GAP_THRESHOLD_S:
+            gap_durations_s.append(gap_s)
+
+    if not gap_durations_s:
+        return None
+
+    # Format individual gap durations as "Xh Ym" or "Ym"
+    def _fmt_gap(seconds):
+        total_minutes = int(seconds) // 60
+        hours = total_minutes // 60
+        mins = total_minutes % 60
+        if hours > 0 and mins > 0:
+            return f"{hours}h {mins}m"
+        elif hours > 0:
+            return f"{hours}h"
+        else:
+            return f"{mins}m"
+
+    gap_count = len(gap_durations_s)
+    gap_word = "gap" if gap_count == 1 else "gaps"
+    gap_list = ", ".join(_fmt_gap(s) for s in gap_durations_s)
+
+    return (
+        f"*Timeline compressed: {gap_count} {gap_word} removed "
+        f"({gap_list} idle). "
+        f"X-axis shows agent running time, not wall-clock time.*"
+    )
 
 
 def _select_tick_interval(total_seconds):
@@ -757,21 +831,44 @@ def _select_tick_interval(total_seconds):
         return "10minute"
 
 
+def _is_stalled(d):
+    """
+    Return True if a dispatch's throughput is below _STALLED_THRESHOLD_TOKS.
+
+    Guards:
+    - None or zero duration: no throughput data — not stalled (avoids TypeError/ZeroDivisionError).
+    - None or zero tokens: no throughput data — not stalled (e.g., API errors).
+    """
+    dur_ms = d.get("duration_ms") or 0
+    tokens = d.get("tokens") or 0
+    if dur_ms <= 0 or tokens <= 0:
+        return False
+    dur_s = dur_ms / 1000
+    throughput = tokens / dur_s
+    return throughput < _STALLED_THRESHOLD_TOKS
+
+
 def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=False):
     """
-    Generate a Gantt task label, color tag, and duration_s for a dispatch.
+    Generate a Gantt task label, color tag, duration_s, and stalled flag for a dispatch.
 
     story_labels: dict mapping issue int → "ENN-SNN" string
     is_fix_build: True if this is a builder re-dispatch (fix cycle)
     is_re_review: True if this is a reviewer dispatch following a fix cycle builder
 
-    Returns (label, color_tag_str, dur_s).
+    Returns (label, color_tag_str, dur_s, stalled).
     color_tag_str is one of ":active", ":done", ":crit", or "" (no tag).
+    stalled is True when throughput < _STALLED_THRESHOLD_TOKS tok/s.
+
+    Dispatches with throughput < _STALLED_THRESHOLD_TOKS tok/s get a " [stalled]"
+    suffix appended to the label. This is purely informational — color tag and
+    duration_s are unaffected. The caller can use the returned stalled flag for
+    counting without calling _is_stalled() again.
     """
     agent = d.get("agent", "unknown")
     agent_prefix = agent.split("-")[0]  # "builder", "reviewer", "designer", etc.
     issue = d.get("issue")
-    dur_ms = d.get("duration_ms", 0)
+    dur_ms = d.get("duration_ms") or 0  # None guard: treat None as 0
     dur_s = dur_ms // 1000
     dur_label = fmt_duration(dur_ms)
 
@@ -806,13 +903,20 @@ def _gantt_label_for_dispatch(d, story_labels, is_fix_build=False, is_re_review=
     else:
         label = f"{agent.capitalize()} ({dur_label})"
 
+    # Stalled suffix — informational only, does not affect color tag or duration_s.
+    # Compute once here so the caller can use the returned flag without calling
+    # _is_stalled() a second time (avoids redundant per-dispatch computation).
+    stalled = _is_stalled(d)
+    if stalled:
+        label = f"{label} [stalled]"
+
     # Color tag: fix cycles always :crit; others from _AGENT_COLOR_TAG
     if is_fix_cycle:
         color_tag = ":crit"
     else:
         color_tag = _AGENT_COLOR_TAG.get(agent_prefix, "")  # "" = no tag (builder → emerald)
 
-    return label, color_tag, dur_s
+    return label, color_tag, dur_s, stalled
 
 
 def _group_dispatches_by_parallel_wave(sorted_dispatches):
@@ -853,22 +957,39 @@ def _group_dispatches_by_parallel_wave(sorted_dispatches):
     return waves
 
 
-def generate_gantt(state):
+def generate_gantt(state, mode="work"):
     """
     Generate a Mermaid Gantt chart body from an orchestrator state file dict.
 
-    Uses absolute HH:MM:SS offsets from session.started_at for each task
-    position. Dispatches within 5 seconds of each other are grouped into the
-    same parallel wave and share the wave's anchor offset.
+    Two display modes are supported:
 
-    No 'section' directives are emitted — task labels are self-explanatory.
+    - ``mode="work"`` (default): Cumulative active time. Each wave's Gantt
+      offset is the sum of prior waves' ``max(duration_ms)`` values. Wall-clock
+      gaps between waves are collapsed so the timeline shows only active work
+      time. The first wave always starts at ``00:00:00``.
+
+    - ``mode="wall-clock"``: Absolute timestamp offsets from
+      ``session.started_at``. Preserves the original behavior where each task's
+      X-position reflects real elapsed wall-clock time.
+
+    Dispatches within 5 seconds of each other are grouped into the same
+    parallel wave and share the wave's Gantt offset. No 'section' directives
+    are emitted — task labels are self-explanatory.
 
     Args:
         state: Parsed orchestrator state file dict.
+        mode: ``"work"`` (default) or ``"wall-clock"``.
 
     Returns:
         str: Complete Mermaid Gantt body (header lines + task lines).
+
+    Raises:
+        ValueError: If ``mode`` is not ``"work"`` or ``"wall-clock"``.
     """
+    _VALID_MODES = {"work", "wall-clock"}
+    if mode not in _VALID_MODES:
+        raise ValueError(f"Invalid gantt mode {mode!r}. Must be one of: {sorted(_VALID_MODES)}")
+
     session_started_at_str = state.get("session", {}).get("started_at", "1970-01-01T00:00:00Z")
     try:
         session_start = _parse_iso(session_started_at_str)
@@ -892,22 +1013,29 @@ def generate_gantt(state):
 
     sorted_dispatches = sorted(raw_dispatches, key=_sort_key)
 
-    # Compute total run duration for tick interval selection.
-    # = max(offset_s + duration_ms/1000) across all dispatches.
-    total_duration_s = 0.0
-    for d in raw_dispatches:
-        try:
-            ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
-        except Exception:
-            ts = session_start_s
-        offset_s = ts - session_start_s
-        end_s = offset_s + d.get("duration_ms", 0) / 1000
-        total_duration_s = max(total_duration_s, end_s)
-
-    tick_interval = _select_tick_interval(total_duration_s)
-
     # Group into parallel waves using tolerance window
     waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
+
+    # Compute total run duration for tick interval selection.
+    # In work mode: sum of per-wave max(duration_ms) = cumulative active time.
+    # In wall-clock mode: max(offset_s + duration_ms/1000) across all dispatches.
+    if mode == "work":
+        total_duration_s = 0.0
+        for _wave_anchor_s, wave_dispatches in waves:
+            wave_max_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
+            total_duration_s += wave_max_s
+    else:
+        total_duration_s = 0.0
+        for d in raw_dispatches:
+            try:
+                ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
+            except Exception:
+                ts = session_start_s
+            offset_s = ts - session_start_s
+            end_s = offset_s + d.get("duration_ms", 0) / 1000
+            total_duration_s = max(total_duration_s, end_s)
+
+    tick_interval = _select_tick_interval(total_duration_s)
 
     # Builder-centric fix cycle tracking (matches compute_fix_cycles semantics):
     # - A builder re-dispatch for an issue that already had a builder = fix cycle
@@ -930,8 +1058,23 @@ def generate_gantt(state):
 
     task_id = 1
 
+    # Cumulative offset for work mode (seconds). Increases by max(duration_ms)/1000 per wave.
+    cumulative_offset_s = 0.0
+
+    # Stalled dispatch counter — tracks dispatches below _STALLED_THRESHOLD_TOKS tok/s.
+    # Informational only: does not affect bar width, position, or cumulative offset.
+    # The count is stored in _gantt_stalled_count so get_stalled_count() can retrieve it
+    # without re-scanning dispatches. The note is rendered OUTSIDE the Mermaid fence via
+    # generate_gantt_note() / get_stalled_count() → {{GANTT_NOTE}} template channel.
+    stalled_count = 0
+
     for wave_anchor_s, wave_dispatches in waves:
-        offset_s = wave_anchor_s - session_start_s
+        # Determine the offset for this wave
+        if mode == "work":
+            offset_s = cumulative_offset_s
+        else:
+            offset_s = wave_anchor_s - session_start_s
+
         offset_str = _fmt_offset(offset_s)
 
         for d in wave_dispatches:
@@ -954,9 +1097,13 @@ def generate_gantt(state):
                         is_re_review = True
                         pending_re_review.discard(issue)
 
-            label, color_tag, dur_s = _gantt_label_for_dispatch(
+            # _gantt_label_for_dispatch returns stalled flag — use it for counting
+            # to avoid calling _is_stalled() a second time per dispatch.
+            label, color_tag, dur_s, stalled = _gantt_label_for_dispatch(
                 d, story_labels, is_fix_build=is_fix_build, is_re_review=is_re_review
             )
+            if stalled:
+                stalled_count += 1
 
             if color_tag:
                 task_line = f"    {label}   {color_tag},:t{task_id}, {offset_str}, {dur_s}s"
@@ -966,7 +1113,50 @@ def generate_gantt(state):
             lines.append(task_line)
             task_id += 1
 
+        # Advance cumulative offset by this wave's critical path (work mode only)
+        if mode == "work":
+            wave_max_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
+            cumulative_offset_s += wave_max_s
+
+    # Store stalled count for retrieval by get_stalled_count().
+    # The stalled note is NOT appended here — it lives outside the Mermaid code
+    # fence in the {{GANTT_NOTE}} template channel, not inside the gantt body.
+    _gantt_stalled_count["last"] = stalled_count
+
     return "\n".join(lines)
+
+
+def get_stalled_count(state):
+    """
+    Count stalled dispatches in a state file without rendering a Gantt chart.
+
+    A dispatch is stalled when its throughput (tokens / duration_s) is below
+    _STALLED_THRESHOLD_TOKS. This is a direct scan of raw_dispatches — it does
+    NOT depend on a prior generate_gantt() call.
+
+    Returns an int: the number of stalled dispatches (0 when none).
+    """
+    count = 0
+    for d in state.get("dispatches", []):
+        if _is_stalled(d):
+            count += 1
+    return count
+
+
+def _build_stalled_note(stalled_count):
+    """
+    Build the stalled-dispatch annotation string for the gantt_note channel.
+
+    Returns None when stalled_count is 0.
+    """
+    if stalled_count == 0:
+        return None
+    dispatch_word = "dispatch" if stalled_count == 1 else "dispatches"
+    return (
+        f"*{stalled_count} stalled {dispatch_word} detected "
+        f"(< 50 tok/s throughput). "
+        f"Duration may include usage limit waits or API throttling.*"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1012,6 +1202,12 @@ def main(argv=None):
         help="Also generate Mermaid Gantt chart body (only valid with --from-state)",
     )
     parser.add_argument(
+        "--gantt-mode",
+        choices=["work", "wall-clock"],
+        default="work",
+        help="Gantt timeline mode: 'work' (cumulative active time, default) or 'wall-clock' (absolute timestamps)",
+    )
+    parser.add_argument(
         "--overhead",
         action="store_true",
         default=False,
@@ -1040,7 +1236,18 @@ def main(argv=None):
             state = json.load(f)
         result = compute_from_state(state, pricing_rates)
         if args.gantt:
-            result["gantt"] = generate_gantt(state)
+            result["gantt"] = generate_gantt(state, mode=args.gantt_mode)
+            # Combine gap annotations (E02-S02) and stalled annotations (E02-S03)
+            # into a single gantt_note string, each on its own line when both present.
+            gantt_note_parts = []
+            gap_note = generate_gantt_note(state)
+            if gap_note is not None:
+                gantt_note_parts.append(gap_note)
+            stalled_note = _build_stalled_note(get_stalled_count(state))
+            if stalled_note is not None:
+                gantt_note_parts.append(stalled_note)
+            if gantt_note_parts:
+                result["gantt_note"] = "\n".join(gantt_note_parts)
         if args.overhead:
             overhead = compute_overhead(state)
             result["overhead_ms"] = overhead["overhead_ms"]

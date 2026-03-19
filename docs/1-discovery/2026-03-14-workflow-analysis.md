@@ -106,7 +106,7 @@ main
 - **Builder failure:** Retry up to 2 times, then halt with a failure comment on the issue. Telemetry is captured even from failed dispatches.
 - **Review rejection:** Re-dispatch builder to fix on the same branch, then re-review. Maximum 2 fix cycles before requesting human intervention.
 - **Resumed agents:** When an agent is interrupted and resumed, metrics from both invocations are summed defensively.
-- **Board drift:** `issue-set-status.sh` includes post-mutation verification with retry. `check-board-drift.sh` provides timed re-verification diagnostics (+10s, +30s).
+- **Board drift:** `item-set-status.sh` includes post-mutation verification with retry. `check-board-drift.sh` provides timed re-verification diagnostics (+10s, +30s).
 - **Rate limits:** Per-issue GraphQL queries (~1 point each) replaced heavy `item-list` queries (~200+ points) after Run 10.
 
 ### Lesson System
@@ -126,12 +126,12 @@ All agents are instructed to update CLAUDE.md and their own agent files when the
 
 | Script | Purpose |
 |--------|---------|
-| `issue-create-backlog.sh` | Create backlog item with full board setup (issue + board + status + label) |
-| `issue-set-status.sh` | Set project board status with per-issue GraphQL, retry, and verification |
-| `issue-start.sh` | Post "Work Started" comment + set board to In Progress |
-| `issue-review.sh` | Post "Ready for Review" comment + set board to In Review |
-| `issue-telemetry.sh` | Post telemetry (story, epic, or backlog level) from template |
-| `issue-close.sh` | Close issue + set board to Done |
+| `item-create.sh` | Create backlog item with full board setup (issue + board + status + label) |
+| `item-set-status.sh` | Set project board status with per-issue GraphQL, retry, and verification |
+| `item-start.sh` | Post "Work Started" comment + set board to In Progress |
+| `item-review.sh` | Post "Ready for Review" comment + set board to In Review |
+| `item-telemetry.sh` | Post telemetry (story, epic, or backlog level) from template |
+| `item-close.sh` | Close issue + set board to Done |
 | `cleanup-post-merge.sh` | Remove stale branches, worktrees, state directories |
 | `check-board-drift.sh` | Diagnostic: set status, re-verify at +10s and +30s |
 | `validate-logs.sh` | Report on board-status, orchestrator, and drift logs |
@@ -246,22 +246,22 @@ CLAUDE.md specifies the actual hierarchy: `main → backlog/<N>-<slug> → epic/
 
 **Phase 3 uses stale plan matching pattern.** `orchestrator.md` Phase 3 (line 224) uses `grep -rl "<backlog-issue-number>" docs/3-plans/` — the same raw content grep that was fixed for design docs in Phase 0 after Run 10. Should use `grep -rl "^backlog: <backlog-issue-number>$" docs/3-plans/`.
 
-**Status option IDs exist in 2 places.** CLAUDE.md has the canonical table; `issue-set-status.sh` has its own copy (lines 49–57). This is necessary (scripts can't read CLAUDE.md at runtime) but creates a maintenance risk.
+**Status option IDs exist in 2 places.** CLAUDE.md has the canonical table; `item-set-status.sh` has its own copy (lines 49–57). This is necessary (scripts can't read CLAUDE.md at runtime) but creates a maintenance risk.
 
 **Gantt color tagging rules are correctly duplicated.** CLAUDE.md and `orchestrator.md` both carry the Gantt color table. This is valid — the orchestrator needs them in its own context.
 
-**Pricing fallback rates are inconsistent.** `fetch-pricing.sh` defaults: opus $15/$75 input/output (blended ~$30/M). `issue-telemetry.sh` hardcoded rates: opus $5/$25 (blended ~$10/M). These are 3x apart. The web fetch normally provides live rates, so this only matters when both the web fetch fails AND `--rate` isn't passed — but when it does, costs would be reported at 3x the correct value (or 1/3, depending on which is right).
+**Pricing fallback rates are inconsistent.** `fetch-pricing.sh` defaults: opus $15/$75 input/output (blended ~$30/M). `item-telemetry.sh` hardcoded rates: opus $5/$25 (blended ~$10/M). These are 3x apart. The web fetch normally provides live rates, so this only matters when both the web fetch fails AND `--rate` isn't passed — but when it does, costs would be reported at 3x the correct value (or 1/3, depending on which is right).
 
 #### 1.3 Script Coverage
 
 | Script | In CLAUDE.md | Referenced by Agents | Status |
 |--------|:------------:|:--------------------:|--------|
-| `issue-create-backlog.sh` | Yes | orchestrator | OK |
-| `issue-set-status.sh` | Yes | designer, planner, builder, orchestrator | OK |
-| `issue-start.sh` | Yes | builder | OK |
-| `issue-review.sh` | Yes | builder | OK |
-| `issue-telemetry.sh` | Yes | orchestrator | OK |
-| `issue-close.sh` | Yes | orchestrator | OK |
+| `item-create.sh` | Yes | orchestrator | OK |
+| `item-set-status.sh` | Yes | designer, planner, builder, orchestrator | OK |
+| `item-start.sh` | Yes | builder | OK |
+| `item-review.sh` | Yes | builder | OK |
+| `item-telemetry.sh` | Yes | orchestrator | OK |
+| `item-close.sh` | Yes | orchestrator | OK |
 | `cleanup-post-merge.sh` | Yes | orchestrator | OK |
 | `check-board-drift.sh` | Yes | **Not referenced by any agent** | Gap |
 | `validate-logs.sh` | Yes | **Not referenced by any agent** | Gap |
@@ -284,7 +284,7 @@ No agent describes manual commands where a script already handles the task — t
 
 **`dispatch-story.sh` tells builders to self-merge.** Line 134: "After completing the story, merge it back into the epic branch (not `main`)." The current convention explicitly prohibits this — builders must NOT merge; the orchestrator merges after review.
 
-**`fetch-pricing.sh` hardcoded fallback rates don't match `issue-telemetry.sh`.** See §1.2 above.
+**`fetch-pricing.sh` hardcoded fallback rates don't match `item-telemetry.sh`.** See §1.2 above.
 
 **35+ lesson files from Runs 2–6 are candidates for archiving.** By the three-tier retention model, lessons from issues 57, 89, 106, 122, 146, 162 are 6+ runs old. Their learnings are compiled into retro docs and most are implemented as conventions. They should be moved to `lessons/archive/` per the documented retention policy.
 
@@ -328,10 +328,10 @@ The actual execution order is 8 → 10 → 11 → *human merges* → 9. But the 
 | Review | Reviewer finds critical issues | Yes | Fix cycle, max 2 rounds |
 | Review | Reviewer produces invalid verdict | No | No parsing validation |
 | Merge | Merge conflict | **No** | Not documented in orchestrator.md |
-| Board | Board update fails | Yes | `issue-set-status.sh` retry + verification |
+| Board | Board update fails | Yes | `item-set-status.sh` retry + verification |
 | Board | Rate limit hit | Yes | CLAUDE.md rate limit section |
 | Retro | Retro agent fails | Partial | `dispatch-workflow.sh` says "run manually later" but orchestrator.md doesn't address it |
-| Telemetry | `issue-telemetry.sh` fails | No | No fallback |
+| Telemetry | `item-telemetry.sh` fails | No | No fallback |
 | PR | PR creation fails | No | No fallback |
 | General | Session interruption | Yes | State file resume |
 
@@ -440,7 +440,7 @@ The three-level hierarchy (**Backlog Item > Epic > Story**) is not just a naming
 
 | File | Mode | Assumption |
 |------|------|-----------|
-| `issue-telemetry.sh` L197 | `--summary` → BACKLOG mode | Only 2 rendering modes exist |
+| `item-telemetry.sh` L197 | `--summary` → BACKLOG mode | Only 2 rendering modes exist |
 | `templates/telemetry.md` L12–15 | BACKLOG vs STORY conditionals | Template hardcodes 2 modes |
 | `orchestrator.md` L397–408 | "When all stories in an epic are complete, post telemetry on the epic issue" | Exactly 2-level rollup |
 
@@ -703,7 +703,7 @@ These are structural observations about the system that don't fit neatly into a 
 
 **The phase ordering is a DAG, not a sequence.** The workflow has a human-in-the-loop synchronization point (PR merge) that splits the pipeline into pre-merge and post-merge segments. But the phase numbering (0–11) treats it as a linear sequence. The actual execution topology is a DAG: Phases 8→10→11 run pre-merge, then the human merges, then Phase 9 runs post-merge. The orchestrator has been working around this for 11 runs by implicitly reordering phases — a sign that the abstraction (numbered phases) doesn't match the actual topology. Renumbering (as proposed in Quick Win H) fixes the symptom; the deeper fix is acknowledging that post-merge work is a separate lifecycle stage, not a numbered phase.
 
-**The pricing inconsistency is a "two-failure" bug.** The inconsistent hardcoded fallback rates between `fetch-pricing.sh` ($30/M for opus) and `issue-telemetry.sh` ($10/M for opus) only manifest when the Anthropic pricing page is unreachable AND the `--rate` flag isn't passed from the state file. Both conditions must fail simultaneously. This is exactly the kind of bug that survives for months because the happy path always works — the web fetch succeeds, the state file provides rates, and the hardcoded fallbacks are never exercised. Worth fixing precisely because it will bite at the worst time (during an outage when you most need accurate cost data).
+**The pricing inconsistency is a "two-failure" bug.** The inconsistent hardcoded fallback rates between `fetch-pricing.sh` ($30/M for opus) and `item-telemetry.sh` ($10/M for opus) only manifest when the Anthropic pricing page is unreachable AND the `--rate` flag isn't passed from the state file. Both conditions must fail simultaneously. This is exactly the kind of bug that survives for months because the happy path always works — the web fetch succeeds, the state file provides rates, and the hardcoded fallbacks are never exercised. Worth fixing precisely because it will bite at the worst time (during an outage when you most need accurate cost data).
 
 **The taxonomy is a simplicity-vs-flexibility trade-off.** The current system optimizes for simplicity (fixed 3 levels, hardcoded everywhere) at the cost of flexibility. The PM tool ecosystem requires the opposite — configurable depth, tool-specific naming, adaptable mapping. The proposed depth-indexed model with configurable display names resolves this by making the "number of levels" a configuration parameter rather than an architectural constant. This is analogous to the database pattern of schema-on-read vs schema-on-write: the current system enforces the schema at write time (planner must create exactly 3 levels), while a configurable system would enforce constraints at read time (orchestrator validates the structure against configured rules). The migration path matters more than the end state — each step must leave the system functional.
 
@@ -735,7 +735,7 @@ These are structural observations about the system that don't fit neatly into a 
 | C | Add designer/planner dispatch failure handling | 10 min | `orchestrator.md` |
 | D | Add merge conflict handling to Phase 7 | 10 min | `orchestrator.md` |
 | E | Document PR body edit for retro issue in Phase 10 | 5 min | `orchestrator.md` |
-| F | Align hardcoded pricing fallbacks between scripts | 10 min | `fetch-pricing.sh` or `issue-telemetry.sh` |
+| F | Align hardcoded pricing fallbacks between scripts | 10 min | `fetch-pricing.sh` or `item-telemetry.sh` |
 | G | Add `validate-logs.sh` to retro agent gathering inputs | 5 min | `retro.md` |
 | H | Renumber phases for correct execution order (8→9=retro→10=telemetry→11=cleanup) | 10 min | `orchestrator.md` |
 

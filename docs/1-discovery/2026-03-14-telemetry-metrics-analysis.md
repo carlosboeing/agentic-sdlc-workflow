@@ -863,7 +863,7 @@ The current telemetry captures duration, tokens, tool uses, and estimated cost. 
 | Metric | Value | How to Capture |
 |--------|-------|---------------|
 | **Input vs output token split** | Enables accurate cost calculation (input ≠ output rates) | Agent tool result may expose this; otherwise parse from API response |
-| **Tokens/second per dispatch** | Already computable from tokens ÷ duration; should be a standard field in `issue-telemetry.sh` | Add `--speed` flag computed from `tokens / (duration_ms / 1000)` |
+| **Tokens/second per dispatch** | Already computable from tokens ÷ duration; should be a standard field in `item-telemetry.sh` | Add `--speed` flag computed from `tokens / (duration_ms / 1000)` |
 | **Context window utilisation** | How close each dispatch gets to the context limit; proxy for compaction risk | Track max context usage from agent session |
 | **Orchestrator token count** | Currently excluded; 29–51% of wall-clock is orchestrator overhead | Capture via `/cost` delta at start/end of orchestrator session |
 | **Time-to-first-token** | Latency before generation starts; varies by model and API load | Would need SDK-level instrumentation |

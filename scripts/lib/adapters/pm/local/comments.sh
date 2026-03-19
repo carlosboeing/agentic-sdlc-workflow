@@ -4,7 +4,7 @@
 # Provides:
 #   pm_add_comment <item-id> <body>       — append comment to item file's
 #                                           Activity Log section
-#   pm_post_telemetry <item-id> [flags..] — delegate to issue-telemetry.sh
+#   pm_post_telemetry <item-id> [flags..] — delegate to item-telemetry.sh
 #
 # Comments are appended inline to .workflow/items/<id>.md with a separator
 # line and Activity Log heading. Each comment has a <!-- comment: ISO -->
@@ -91,10 +91,10 @@ pm_add_comment() {
 
 # --- pm_post_telemetry ---
 # Usage: pm_post_telemetry <item-id> [flags...]
-# Delegates to scripts/issue-telemetry.sh, passing all flags through unchanged.
-# Locates issue-telemetry.sh relative to REPO_ROOT.
+# Delegates to scripts/item-telemetry.sh, passing all flags through unchanged.
+# Locates item-telemetry.sh relative to REPO_ROOT.
 pm_post_telemetry() {
   local item_id="$1"
   shift
-  "$REPO_ROOT/scripts/issue-telemetry.sh" "$item_id" "$@"
+  "$REPO_ROOT/scripts/item-telemetry.sh" "$item_id" "$@"
 }

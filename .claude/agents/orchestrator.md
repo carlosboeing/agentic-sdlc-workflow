@@ -74,7 +74,7 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 3. **Create integration branch** `backlog/<N>-<slug>` from main, push to remote. If it already exists, check it out and pull.
 
-4. **Board setup:** Add backlog issue to project board (use `issue-create-backlog.sh` or `gh project item-add` + `issue-set-status.sh`). Add `backlog/<N>-<slug>` label. Prefix title with `[#<N>]` if missing.
+4. **Board setup:** Add backlog issue to project board (use `item-create.sh` or `gh project item-add` + `item-set-status.sh`). Add `backlog/<N>-<slug>` label. Prefix title with `[#<N>]` if missing.
 
 5. **Check recommendations tracker** (`docs/4-reviews/retro-recommendations.md`).
 
@@ -94,7 +94,7 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 **Skip if:** design doc exists referencing this backlog item, OR prompt says "skip design".
 
-**Before Phase 1** (or first non-skipped phase), set backlog board status to **In Progress** (`issue-set-status.sh`).
+**Before Phase 1** (or first non-skipped phase), set backlog board status to **In Progress** (`item-set-status.sh`).
 
 **Autonomous:**
 1. Dispatch designer:
@@ -105,7 +105,7 @@ Execute these phases in order. Each phase has a verification step before proceed
             Integration branch: backlog/<N>-<slug>"
    ```
 2. Auto-merge the design doc PR into integration branch.
-3. Close the design issue (`issue-close.sh`).
+3. Close the design issue (`item-close.sh`).
 
 **Interactive:** Dispatch designer without "autonomous". Wait for human to merge the PR.
 
@@ -121,7 +121,7 @@ Prompt: "[autonomous —] Create an implementation plan for backlog item #<N> (<
          Integration branch: backlog/<N>-<slug>"
 ```
 
-**After plan PR merge (autonomous):** Set all story issues to **Ready** sequentially (`issue-set-status.sh`). Close the plan issue.
+**After plan PR merge (autonomous):** Set all story issues to **Ready** sequentially (`item-set-status.sh`). Close the plan issue.
 
 ### Phase 3: Read the Plan
 
@@ -160,18 +160,18 @@ For each story (or wave of independent stories):
 
 2. **Set board to In Progress** before dispatch:
    ```bash
-   ./scripts/issue-set-status.sh <N> in-progress
+   ./scripts/item-set-status.sh <N> in-progress
    # Parallel wave — use batch:
    ./scripts/batch-set-status.sh 112:in-progress 113:in-progress
    ```
 
 3. **Dispatch the builder** with issue number, epic branch, story branch, and plan context.
 
-4. **After builder returns:** Verify "Ready for Review" comment exists. Check commits on story branch. Set board to **In Review** (`issue-set-status.sh` or `batch-set-status.sh`).
+4. **After builder returns:** Verify "Ready for Review" comment exists. Check commits on story branch. Set board to **In Review** (`item-set-status.sh` or `batch-set-status.sh`).
 
 5. **Post per-story telemetry** immediately:
    ```bash
-   ./scripts/issue-telemetry.sh <N> --model <model> --duration <ms> \
+   ./scripts/item-telemetry.sh <N> --model <model> --duration <ms> \
      --commit $(git rev-parse e<NN>-s<NN>/<branch>) --tokens <tokens> --tool-uses <uses>
    ```
 
@@ -231,7 +231,7 @@ git branch --merged HEAD | grep -q "e<NN>-s<NN>/<branch>" && \
 
 After all stories for an epic, merge epic into integration branch (`--no-ff`), push, clean up epic branch. Update epic board status.
 
-**Post per-epic telemetry (MANDATORY — do not skip).** After merging each epic into the integration branch, post telemetry on the epic issue before proceeding to the next wave. This has been skipped in multiple runs (see rec X). Use `issue-telemetry.sh` with `--dispatches-from-state`, filtering to that epic's stories only.
+**Post per-epic telemetry (MANDATORY — do not skip).** After merging each epic into the integration branch, post telemetry on the epic issue before proceeding to the next wave. This has been skipped in multiple runs (see rec X). Use `item-telemetry.sh` with `--dispatches-from-state`, filtering to that epic's stories only.
 
 ### Phase 8: Open Backlog PR
 
@@ -239,7 +239,7 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
 
 2. **Post per-epic telemetry** on each epic issue:
    ```bash
-   ./scripts/issue-telemetry.sh <epic-issue> \
+   ./scripts/item-telemetry.sh <epic-issue> \
      --dispatches-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
      --commit $(git rev-parse backlog/<N>-<slug>)
    ```
@@ -261,9 +261,9 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
    The `Closes` list MUST include backlog, ALL epics, ALL stories, and design/plan issues.
 
 4. **Create a retro issue** (before dispatching, so retro can start immediately):
-   Use `issue-create.sh` to ensure both GitHub and local PM items are created:
+   Use `item-create.sh` to ensure both GitHub and local PM items are created:
    ```bash
-   RETRO_ISSUE=$(./scripts/issue-create.sh docs \
+   RETRO_ISSUE=$(./scripts/item-create.sh docs \
      --title "[#<N>] Write retrospective for <title>" \
      --label "type/docs" --label "backlog/<N>-<slug>")
    ```
@@ -297,13 +297,13 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
    git merge <retro-worktree-branch> --no-ff -m "docs(retro): merge retrospective"
    git push origin backlog/<N>-<slug>
    ```
-   Close retro issue (`issue-close.sh`). Include in backlog PR `Closes` list (as `Related (already closed)`).
+   Close retro issue (`item-close.sh`). Include in backlog PR `Closes` list (as `Related (already closed)`).
 
 7. **Set backlog to In Review.** Re-verify ALL board statuses (defense against drift):
    ```bash
-   for ISSUE in <design> <plan> <retro>; do ./scripts/issue-close.sh $ISSUE; done
-   for ISSUE in <stories> <epics>; do ./scripts/issue-set-status.sh $ISSUE in-review; done
-   ./scripts/issue-set-status.sh <backlog> in-review
+   for ISSUE in <design> <plan> <retro>; do ./scripts/item-close.sh $ISSUE; done
+   for ISSUE in <stories> <epics>; do ./scripts/item-set-status.sh $ISSUE in-review; done
+   ./scripts/item-set-status.sh <backlog> in-review
    ```
    This step is mandatory — do not skip even if prior status calls reported success.
 
@@ -317,7 +317,7 @@ Post a **full lifecycle telemetry summary** on the backlog issue and PR descript
 
 **Post telemetry:**
 ```bash
-./scripts/issue-telemetry.sh <backlog-number> \
+./scripts/item-telemetry.sh <backlog-number> \
   --dispatches-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
   --gantt-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
   --model opus \
@@ -345,7 +345,7 @@ Computes `overhead_ms = wall_clock - critical_path` from dispatch timestamps. In
 
 After the human merges the backlog PR (`gh pr merge --squash`):
 
-1. **Set board to Done** for all issues (`issue-close.sh` for each).
+1. **Set board to Done** for all issues (`item-close.sh` for each).
 2. **Run cleanup:** `git checkout main && git pull && ./scripts/cleanup-post-merge.sh <backlog-number>`
 3. **Verify:** only `main` locally, no workflow branches on remote, no stale worktrees, `.agentic-workflow/runs/` empty.
 
@@ -367,7 +367,7 @@ If no difficulty label, default to `builder-sonnet` and post a warning.
 
 ### Project Board Updates
 
-All board constants (Project ID, option IDs) are in CLAUDE.md — single source of truth. **Always use `issue-set-status.sh`** for updates. Do not use `gh project item-list` (expensive, ~200 points/call).
+All board constants (Project ID, option IDs) are in CLAUDE.md — single source of truth. **Always use `item-set-status.sh`** for updates. Do not use `gh project item-list` (expensive, ~200 points/call).
 
 ### Epic Status Sync
 
@@ -380,7 +380,7 @@ Update epic board status whenever a story transitions:
 
 ### Per-Story Telemetry
 
-Post immediately after each builder. Every story must have three comments: "Work Started" (`issue-start.sh`), "Ready for Review" (`issue-review.sh`), "Telemetry" (`issue-telemetry.sh`).
+Post immediately after each builder. Every story must have three comments: "Work Started" (`item-start.sh`), "Ready for Review" (`item-review.sh`), "Telemetry" (`item-telemetry.sh`).
 
 ### Cost Computation
 
@@ -439,7 +439,7 @@ Run `./scripts/state.sh reconstruct <backlog-number>` to rebuild from GitHub com
 | Reader | What it reads | When |
 |--------|--------------|------|
 | Orchestrator | Everything | On resume, before each phase |
-| `issue-telemetry.sh` | `pricing.rates` (via `.agentic-workflow/pricing.json`) | When posting telemetry |
+| `item-telemetry.sh` | `pricing.rates` (via `.agentic-workflow/pricing.json`) | When posting telemetry |
 | Retro agent | `dispatches[]`, `epics.*` | When writing retrospective |
 | Future agents | `session`, `pricing` | When they need session-level info |
 

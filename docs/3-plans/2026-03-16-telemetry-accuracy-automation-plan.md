@@ -12,7 +12,7 @@ design: docs/2-design/2026-03-16-telemetry-accuracy-automation.md
 
 This plan decomposes backlog item #106 into 2 epics and 7 stories. The work refactors the telemetry pipeline to eliminate manual Gantt construction, improve timestamp precision, extract embedded Python into a testable module, and add two new metrics (fix cycle overhead and lifecycle duration baseline).
 
-**Epic 1 -- Telemetry Pipeline Refactor** (4 stories, sequential): Extract embedded Python into `scripts/lib/compute-dispatches.py`, update `issue-telemetry.sh` to call the external module, add `--gantt-from-state` support, and update the telemetry template for fix cycle metrics.
+**Epic 1 -- Telemetry Pipeline Refactor** (4 stories, sequential): Extract embedded Python into `scripts/lib/compute-dispatches.py`, update `item-telemetry.sh` to call the external module, add `--gantt-from-state` support, and update the telemetry template for fix cycle metrics.
 
 **Epic 2 -- Conventions & Documentation** (3 stories, mixed parallel/sequential): Update orchestrator conventions for precise timestamps and `--gantt-from-state` usage, update CLAUDE.md helper script table and telemetry conventions, and add the changelog duration convention.
 
@@ -22,9 +22,9 @@ Epic 1 must complete before Epic 2 begins because the convention updates in E02 
 
 **Why 2 epics (not 1 or 3):** The work splits naturally into code changes (scripts, Python, template) and convention/documentation changes (orchestrator.md, CLAUDE.md, changelog). These have different review criteria (code correctness + test passing vs convention consistency + propagation completeness). A single epic would conflate code and docs. Three epics would split either the code or docs without meaningful distinction -- the Python extraction, Gantt generation, and fix cycle metrics are tightly coupled in the same script pipeline.
 
-**Why E01 has 4 stories (not 3 or 5):** The Python extraction (E01-S01) is the foundation that all other code stories depend on. Gantt generation (E01-S02) and fix cycle metrics (E01-S03) both add features to the extracted Python module. The telemetry script refactor (E01-S04) updates `issue-telemetry.sh` to wire the new flag and consume the new output fields. Merging S01 and S04 into one story would exceed the single-session scope (extracting ~230 lines of Python, writing a ~250-line module with tests, AND updating the caller). Splitting Gantt and fix cycles into separate stories keeps each change atomic and independently testable.
+**Why E01 has 4 stories (not 3 or 5):** The Python extraction (E01-S01) is the foundation that all other code stories depend on. Gantt generation (E01-S02) and fix cycle metrics (E01-S03) both add features to the extracted Python module. The telemetry script refactor (E01-S04) updates `item-telemetry.sh` to wire the new flag and consume the new output fields. Merging S01 and S04 into one story would exceed the single-session scope (extracting ~230 lines of Python, writing a ~250-line module with tests, AND updating the caller). Splitting Gantt and fix cycles into separate stories keeps each change atomic and independently testable.
 
-**Why no ADR:** The Python extraction is a straightforward refactoring (moving embedded code to an external file) that follows the project's existing pattern of calling Python from bash. No new architectural pattern is introduced -- `issue-telemetry.sh` already runs Python via heredocs; it will now call an external script instead. The decision was already made in the design doc.
+**Why no ADR:** The Python extraction is a straightforward refactoring (moving embedded code to an external file) that follows the project's existing pattern of calling Python from bash. No new architectural pattern is introduced -- `item-telemetry.sh` already runs Python via heredocs; it will now call an external script instead. The decision was already made in the design doc.
 
 ## File Inventory
 
@@ -37,7 +37,7 @@ Epic 1 must complete before Epic 2 begins because the convention updates in E02 
 | E01-S03 | Modify | `scripts/lib/compute-dispatches.py` | Python script |
 | E01-S03 | Modify | `scripts/lib/test_compute_dispatches.py` | Python test |
 | E01-S03 | Modify | `scripts/templates/telemetry.md` | Template |
-| E01-S04 | Modify | `scripts/issue-telemetry.sh` | Bash script |
+| E01-S04 | Modify | `scripts/item-telemetry.sh` | Bash script |
 | E02-S01 | Modify | `.claude/agents/orchestrator.md` | Agent file |
 | E02-S02 | Modify | `CLAUDE.md` | Project conventions |
 | E02-S03 | Modify | `CLAUDE.md` | Project conventions |
@@ -90,7 +90,7 @@ graph TD
 
 **Branch:** `e01-s01/extract-python-module`
 
-**Summary:** Extract the two embedded Python heredoc blocks from `issue-telemetry.sh` into `scripts/lib/compute-dispatches.py` as a standalone, testable Python script. This story creates the module with the existing functionality only -- no new features (Gantt, fix cycles) are added yet.
+**Summary:** Extract the two embedded Python heredoc blocks from `item-telemetry.sh` into `scripts/lib/compute-dispatches.py` as a standalone, testable Python script. This story creates the module with the existing functionality only -- no new features (Gantt, fix cycles) are added yet.
 
 **Files to create:**
 - `scripts/lib/compute-dispatches.py` (executable)
@@ -113,12 +113,12 @@ graph TD
 - [ ] Script runs independently from the command line: `python3 scripts/lib/compute-dispatches.py --dispatches <file> --pricing <file>`
 
 **Implementation notes:**
-- Extract the Python code from `issue-telemetry.sh` lines 117-261 (the `_run_dispatches_computation` function's heredoc) and lines 281-371 (the state file conversion heredoc). The bash variables referenced via string interpolation (`$_CFG_FILE`, `$_PRICING_CACHE`, `$dispatches_file`, `$DISPATCHES_FROM_STATE`, `$_wall_clock_tmp`) become CLI arguments.
+- Extract the Python code from `item-telemetry.sh` lines 117-261 (the `_run_dispatches_computation` function's heredoc) and lines 281-371 (the state file conversion heredoc). The bash variables referenced via string interpolation (`$_CFG_FILE`, `$_PRICING_CACHE`, `$dispatches_file`, `$DISPATCHES_FROM_STATE`, `$_wall_clock_tmp`) become CLI arguments.
 - Use `argparse` for argument parsing. The script should be usable both as a CLI tool and importable as a module for testing.
 - Use `if __name__ == '__main__':` to separate the entry point from the functions.
 - The test file should include fixtures based on realistic dispatch data (use Run 13 or Run 14 patterns for realistic data shapes). Use `tempfile.NamedTemporaryFile` for test fixture files.
 - The `--from-state` mode currently writes wall-clock data to a separate temp file (`$_wall_clock_tmp`). In the extracted version, include `wall_clock_ms` and `has_parallel` in the main JSON output instead of a side-channel file.
-- **Do NOT modify `issue-telemetry.sh` in this story.** The bash script continues to use the heredocs until E01-S04 wires up the external module call. This keeps the story atomic -- extraction only, no caller changes.
+- **Do NOT modify `item-telemetry.sh` in this story.** The bash script continues to use the heredocs until E01-S04 wires up the external module call. This keeps the story atomic -- extraction only, no caller changes.
 
 **Difficulty classification:**
 - Touches 1 directory (`scripts/lib/`)
@@ -220,8 +220,8 @@ graph TD
 - [ ] Fix cycle footer line: `*Fix cycles: <count> / <total_stories> stories (<rate>% fix rate), adding <duration> and <cost> (<pct>% of total cost).*`
 - [ ] The template adds `{{FIX_SUMMARY_ROW}}` injection point in the Summary table area
 - [ ] The template adds `{{FIX_FOOTER}}` injection point before the disclaimer
-- [ ] `issue-telemetry.sh` gains two new template variables: `FIX_SUMMARY_ROW` and `FIX_FOOTER` (populated from the Python output when fix cycles exist, empty otherwise)
-- [ ] `issue-telemetry.sh` adds a `FIX_CYCLES` condition to `eval_condition()`
+- [ ] `item-telemetry.sh` gains two new template variables: `FIX_SUMMARY_ROW` and `FIX_FOOTER` (populated from the Python output when fix cycles exist, empty otherwise)
+- [ ] `item-telemetry.sh` adds a `FIX_CYCLES` condition to `eval_condition()`
 - [ ] Unit tests added for fix cycle detection:
   - Test with zero fix cycles (all stories pass review first time)
   - Test with fix cycles (one story has a builder re-dispatch after a reviewer dispatch)
@@ -234,7 +234,7 @@ graph TD
 - For the template changes: add `<!-- IF_FIX_CYCLES -->` / `<!-- END_FIX_CYCLES -->` blocks. The `FIX_CYCLES` condition is true when the `FIX_SUMMARY_ROW` variable is non-empty.
 - The `FIX_SUMMARY_ROW` is injected inside the Summary table (between `{{SUMMARY}}` rows and the Total row). Since the Total row is currently part of the Python-computed `summary` string, the fix cycle row must be injected by the Python script itself -- append it to the summary rows before the Total row. This means the template does not need a `{{FIX_SUMMARY_ROW}}` injection point; instead, the Python script includes the fix cycle row in its `summary` output.
 - The `FIX_FOOTER` is a separate injection point in the template, after `{{FOOTER}}` and before the disclaimer.
-- In `issue-telemetry.sh`, parse the `fix_cycles` object from the Python output and format the footer line.
+- In `item-telemetry.sh`, parse the `fix_cycles` object from the Python output and format the footer line.
 
 **Difficulty classification:**
 - Modifies 3 files (Python module, test file, template)
@@ -245,17 +245,17 @@ graph TD
 
 ---
 
-### E01-S04: Wire External Python Module in issue-telemetry.sh (medium)
+### E01-S04: Wire External Python Module in item-telemetry.sh (medium)
 
 **Branch:** `e01-s04/wire-external-module`
 
-**Summary:** Replace the two embedded Python heredoc blocks in `issue-telemetry.sh` with calls to the external `compute-dispatches.py` module. Add `--gantt-from-state` flag handling. This is the integration story that connects E01-S01/S02/S03 to the telemetry script.
+**Summary:** Replace the two embedded Python heredoc blocks in `item-telemetry.sh` with calls to the external `compute-dispatches.py` module. Add `--gantt-from-state` flag handling. This is the integration story that connects E01-S01/S02/S03 to the telemetry script.
 
 **Files to modify:**
-- `scripts/issue-telemetry.sh`
+- `scripts/item-telemetry.sh`
 
 **Acceptance criteria:**
-- [ ] The `_run_dispatches_computation()` function in `issue-telemetry.sh` no longer contains a Python heredoc. Instead, it calls `python3 "$SCRIPT_DIR/lib/compute-dispatches.py" --dispatches <file> --pricing <pricing> --config <config>` and parses the JSON output
+- [ ] The `_run_dispatches_computation()` function in `item-telemetry.sh` no longer contains a Python heredoc. Instead, it calls `python3 "$SCRIPT_DIR/lib/compute-dispatches.py" --dispatches <file> --pricing <pricing> --config <config>` and parses the JSON output
 - [ ] The `--dispatches-from-state` code path no longer contains a Python heredoc. Instead, it calls `python3 "$SCRIPT_DIR/lib/compute-dispatches.py" --from-state <state-file> --pricing <pricing> --config <config>` and parses the JSON output
 - [ ] Wall-clock computation is read from the Python output's `wall_clock_ms` field instead of a separate temp file
 - [ ] `has_parallel` is read from the Python output instead of a separate temp file
@@ -273,13 +273,13 @@ graph TD
 - [ ] Existing `--gantt` flag continues to work as-is (manual Gantt strings still accepted)
 
 **Implementation notes:**
-- The key refactoring is replacing two Python heredocs with two calls to the external script. The bash argument parsing, template rendering, and `gh` posting code remain in `issue-telemetry.sh`.
+- The key refactoring is replacing two Python heredocs with two calls to the external script. The bash argument parsing, template rendering, and `gh` posting code remain in `item-telemetry.sh`.
 - For `--gantt-from-state`, the implementation is a convenience that combines `--dispatches-from-state` + automatic Gantt. A single call to `compute-dispatches.py --from-state <file> --gantt` produces all needed data (breakdown, summary, cost, duration, tokens, wall_clock_ms, gantt, fix_cycles).
 - The `FIX_FOOTER` variable is set by parsing `fix_cycles` from the Python output. Format: `*Fix cycles: <count> / <total_stories> stories (<rate_pct>% fix rate), adding <duration> and <cost> (<cost_pct>% of total cost).*`
 - Note the `format_duration()` function is currently defined at line 397 but first called at line 382 (in the wall-clock auto-computation block). The heredoc path worked around this because Python had its own `fmt_duration`. With the external module, this bash function may be called earlier. Move its definition to before the dispatches processing section.
 
 **Difficulty classification:**
-- Modifies 1 file (`issue-telemetry.sh`) but requires careful surgery to replace embedded code without breaking the surrounding bash logic
+- Modifies 1 file (`item-telemetry.sh`) but requires careful surgery to replace embedded code without breaking the surrounding bash logic
 - Touches argument parsing, multiple code paths, template variable setup, and temp file management
 - Requires understanding the interaction between bash and the external Python module
 - Backward compatibility testing needed for all existing flag combinations
@@ -334,9 +334,9 @@ graph TD
 - `CLAUDE.md`
 
 **Acceptance criteria:**
-- [ ] Helper scripts table updated: `issue-telemetry.sh` signature includes `--gantt-from-state <state-file>` in the options list
+- [ ] Helper scripts table updated: `item-telemetry.sh` signature includes `--gantt-from-state <state-file>` in the options list
 - [ ] Helper scripts table updated: new row for `scripts/lib/compute-dispatches.py` with brief description: `Compute dispatch metrics (breakdown, summary, Gantt, fix cycles) from state or dispatch JSON`
-- [ ] `--gantt-from-state` flag documented in the `issue-telemetry.sh` usage section near the existing `--gantt` documentation
+- [ ] `--gantt-from-state` flag documented in the `item-telemetry.sh` usage section near the existing `--gantt` documentation
 - [ ] Wall-clock auto-computation section updated to mention that `--gantt-from-state` also computes wall-clock (same as `--dispatches-from-state`)
 - [ ] Backlog PR Strategy section updated: the `--gantt` parameter in the backlog-level telemetry example is replaced with `--gantt-from-state`
 - [ ] Gantt color tagging section notes that tags are now auto-assigned by `compute-dispatches.py` based on agent type
@@ -344,7 +344,7 @@ graph TD
 - [ ] No unrelated changes to other sections of CLAUDE.md
 
 **Implementation notes:**
-- Focus on the sections that reference `issue-telemetry.sh`, Gantt construction, and telemetry conventions. The primary sections to update: helper scripts table, `--dispatches-from-state` documentation, backlog PR strategy, Gantt color tagging, and value column convention.
+- Focus on the sections that reference `item-telemetry.sh`, Gantt construction, and telemetry conventions. The primary sections to update: helper scripts table, `--dispatches-from-state` documentation, backlog PR strategy, Gantt color tagging, and value column convention.
 - The wall-clock auto-computation paragraph already describes the `--dispatches-from-state` behavior; extend it to cover `--gantt-from-state` as well.
 
 **Difficulty classification:**
@@ -415,7 +415,7 @@ backlog/106-telemetry-accuracy           (integration branch)
 
 | Risk | Likelihood | Mitigation |
 |------|-----------|------------|
-| Python module output format differs subtly from heredoc output | Medium | Unit tests compare against known fixtures; E01-S04 tests end-to-end by running `issue-telemetry.sh` with test data |
+| Python module output format differs subtly from heredoc output | Medium | Unit tests compare against known fixtures; E01-S04 tests end-to-end by running `item-telemetry.sh` with test data |
 | Mermaid absolute positioning syntax not supported by GitHub renderer | Low | Design doc assumption 1 notes this; fallback is `after`-based Gantt with manual offset comments |
 | `format_duration()` move in E01-S04 introduces a bash regression | Low | The function is self-contained; moving it up is safe. Verify by running existing test fixtures through the script |
 | Parallel Wave 2 (E01-S02 + E01-S03) creates merge conflicts in `compute-dispatches.py` | Medium | Both stories add code to the same Python file but in different areas (Gantt in S02, fix cycles in S03). Pre-create branches from same base. If conflicts arise, resolve during merge to epic branch. |

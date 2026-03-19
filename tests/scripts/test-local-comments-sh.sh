@@ -335,24 +335,24 @@ assert_contains "idempotency_guard_no_error" "sourced_ok" "$RESULT"
 rm -rf "$TMPDIR"
 echo ""
 
-# --- Test Group 11: pm_post_telemetry delegates to issue-telemetry.sh ---
-echo "Test Group: pm_post_telemetry delegates to issue-telemetry.sh"
+# --- Test Group 11: pm_post_telemetry delegates to item-telemetry.sh ---
+echo "Test Group: pm_post_telemetry delegates to item-telemetry.sh"
 
 TMPDIR=$(mktemp -d)
 STUB_BIN="$TMPDIR/bin"
 mkdir -p "$STUB_BIN"
-cat > "$STUB_BIN/issue-telemetry.sh" << 'STUB'
+cat > "$STUB_BIN/item-telemetry.sh" << 'STUB'
 #!/usr/bin/env bash
 echo "TELEMETRY_CALLED: $*"
 STUB
-chmod +x "$STUB_BIN/issue-telemetry.sh"
+chmod +x "$STUB_BIN/item-telemetry.sh"
 
 RESULT=$(bash --norc --noprofile -c "
   _LOCAL_COMMON_LOADED=''
   _LOCAL_WORKFLOW_DIR='$TMPDIR/.workflow'
   REPO_ROOT='$TMPDIR'
   mkdir -p '$TMPDIR/scripts'
-  cp '$STUB_BIN/issue-telemetry.sh' '$TMPDIR/scripts/issue-telemetry.sh'
+  cp '$STUB_BIN/item-telemetry.sh' '$TMPDIR/scripts/item-telemetry.sh'
   source '$COMMON_SH'
   source '$COMMENTS_SH'
   pm_post_telemetry 42 --model sonnet --duration 1000 --commit abc123

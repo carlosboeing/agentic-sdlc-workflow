@@ -14,11 +14,11 @@ This plan decomposes the Local-First PM System design (backlog #111) into three 
 
 ### Decomposition rationale
 
-The design specifies 8 modules (1 shared `_common.sh` + 7 domain modules) plus a config update and a `issue-telemetry.sh` refactor. The decomposition follows a layered dependency strategy:
+The design specifies 8 modules (1 shared `_common.sh` + 7 domain modules) plus a config update and a `item-telemetry.sh` refactor. The decomposition follows a layered dependency strategy:
 
 - **E01 (Foundation):** The shared utilities and core item CRUD that everything else depends on. These must be built first.
 - **E02 (Domain Modules):** Four independent modules (`board.sh`, `comments.sh`, `hierarchy.sh`, `labels.sh`) that depend only on `_common.sh`. These can all be built in parallel.
-- **E03 (Composition and Integration):** Modules that compose on multiple E02 modules (`lifecycle.sh` depends on `board.sh` + `comments.sh`), reconciliation (depends on `board.sh` + `items.sh`), and the `issue-telemetry.sh` refactor that makes telemetry adapter-agnostic.
+- **E03 (Composition and Integration):** Modules that compose on multiple E02 modules (`lifecycle.sh` depends on `board.sh` + `comments.sh`), reconciliation (depends on `board.sh` + `items.sh`), and the `item-telemetry.sh` refactor that makes telemetry adapter-agnostic.
 
 **Why 3 epics instead of 1 large or 7 tiny:** Three epics give meaningful parallelism (4 parallel stories in E02), clear dependency boundaries, and manageable epic-level progress tracking. A single epic would force all 9 stories into a linear dependency chain, wasting time. Seven per-module epics would add overhead with no benefit since modules within E02 are truly independent.
 
@@ -40,7 +40,7 @@ graph TB
     subgraph "E03: Composition + Integration"
         S06["E03-S01<br/>lifecycle.sh<br/>(easy)"]
         S07["E03-S02<br/>reconcile.sh<br/>(medium)"]
-        S08["E03-S03<br/>issue-telemetry.sh refactor<br/>(medium)"]
+        S08["E03-S03<br/>item-telemetry.sh refactor<br/>(medium)"]
         S09["E03-S04<br/>Adapter integration test<br/>(easy)"]
     end
 
@@ -208,7 +208,7 @@ Four modules that depend on `_common.sh` (and partially on `items.sh` for type a
 - [ ] Comment files have `<!-- posted: <ISO timestamp> -->` on the first line
 - [ ] Sequence numbers are zero-padded (001, 002, ...)
 - [ ] Slug derivation: first `###` or `##` heading, lowercase, hyphenated; falls back to `comment`
-- [ ] `pm_post_telemetry <id> [flags...]` delegates to `issue-telemetry.sh` passing all flags through
+- [ ] `pm_post_telemetry <id> [flags...]` delegates to `item-telemetry.sh` passing all flags through
 - [ ] Idempotency guard prevents double-sourcing
 - [ ] All files under 200 lines
 
@@ -325,23 +325,23 @@ Modules that compose on E02 outputs, plus the integration test suite.
 
 ---
 
-#### E03-S03: `issue-telemetry.sh` Adapter Refactor
+#### E03-S03: `item-telemetry.sh` Adapter Refactor
 
 **Difficulty:** medium
 
-**Summary:** Refactor `issue-telemetry.sh` to call `pm_add_comment` instead of `gh issue comment` directly. This makes telemetry posting adapter-agnostic, enabling the local adapter's `pm_post_telemetry` to work automatically. Minimal scope: one line change plus sourcing `pm.sh`.
+**Summary:** Refactor `item-telemetry.sh` to call `pm_add_comment` instead of `gh issue comment` directly. This makes telemetry posting adapter-agnostic, enabling the local adapter's `pm_post_telemetry` to work automatically. Minimal scope: one line change plus sourcing `pm.sh`.
 
 **Files to modify:**
-- `scripts/issue-telemetry.sh` (source `pm.sh`, replace `gh issue comment` with `pm_add_comment`)
+- `scripts/item-telemetry.sh` (source `pm.sh`, replace `gh issue comment` with `pm_add_comment`)
 
 **Files to update (test):**
-- `tests/scripts/test-issue-telemetry.sh` (update any tests that mock `gh issue comment` to account for the `pm_add_comment` path)
+- `tests/scripts/test-item-telemetry.sh` (update any tests that mock `gh issue comment` to account for the `pm_add_comment` path)
 
 **Acceptance criteria:**
-- [ ] `issue-telemetry.sh` sources `pm.sh` at startup
+- [ ] `item-telemetry.sh` sources `pm.sh` at startup
 - [ ] Comment posting uses `pm_add_comment "$ISSUE_NUMBER" "$RENDERED"` instead of `gh issue comment`
 - [ ] The `--pr` flag logic (`gh pr edit`) remains unchanged (VCS operation, not PM)
-- [ ] All existing `test-issue-telemetry.sh` tests pass (may need mock adapter adjustment)
+- [ ] All existing `test-item-telemetry.sh` tests pass (may need mock adapter adjustment)
 - [ ] When `pm.adapter=github`, behavior is byte-identical to current (GitHub adapter's `pm_add_comment` calls `gh issue comment`)
 - [ ] When `pm.adapter=local`, telemetry is written to `.workflow/comments/<id>/NNN-telemetry.md`
 
@@ -452,8 +452,8 @@ graph TD
 | File | Story | Change |
 |------|-------|--------|
 | `scripts/lib/config.sh` | E01-S01 | Add `CFG_LOCAL_WORKFLOW_DIR` |
-| `scripts/issue-telemetry.sh` | E03-S03 | Source pm.sh, replace `gh issue comment` with `pm_add_comment` |
-| `tests/scripts/test-issue-telemetry.sh` | E03-S03 | Update mocks for pm_add_comment delegation |
+| `scripts/item-telemetry.sh` | E03-S03 | Source pm.sh, replace `gh issue comment` with `pm_add_comment` |
+| `tests/scripts/test-item-telemetry.sh` | E03-S03 | Update mocks for pm_add_comment delegation |
 
 ## 6. Testing Strategy
 

@@ -831,7 +831,7 @@ compute-dispatches.py --from-state <file> --gantt --gantt-mode wall-clock
 | # | Action | Type | Token Impact | Duration Impact | Effort |
 |---|--------|------|-------------|-----------------|--------|
 | 3 | **Fix Gantt story code regression** — Labels used to show `E01-S02 Build (9m 3s)`, now show generic `Build (9m 3s)`. The `_gantt_label_for_dispatch()` function supports story codes via `_build_story_labels()`, but the mapping stopped populating for some dispatches. Also restore story codes in the breakdown table. | Code investigation | — | — (readability) | 2-4h |
-| 4 | **Scripted builder AC validation** — Builder instructions exist at `builder.md` L120-125 but are conditional ("if...") and advisory. 8/18 fix cycles (66%) were format/word-count violations that should have been caught. Replace advisory text with a mandatory validation script that checks measurable ACs before `issue-review.sh`. See § 9.2. | Script + agent | Save ~70K/prevented cycle | Save ~4m 30s/prevented cycle | 4-6h |
+| 4 | **Scripted builder AC validation** — Builder instructions exist at `builder.md` L120-125 but are conditional ("if...") and advisory. 8/18 fix cycles (66%) were format/word-count violations that should have been caught. Replace advisory text with a mandatory validation script that checks measurable ACs before `item-review.sh`. See § 9.2. | Script + agent | Save ~70K/prevented cycle | Save ~4m 30s/prevented cycle | 4-6h |
 
 ### 13.3 Structural Workflow Changes (Backlog Items)
 

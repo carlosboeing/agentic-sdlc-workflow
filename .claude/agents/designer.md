@@ -21,10 +21,10 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
 **Git workflow:**
 
 1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
-2. Create a GitHub Issue for the design work using `issue-create.sh` (ensures both GitHub and local PM items are created):
+2. Create a GitHub Issue for the design work using `item-create.sh` (ensures both GitHub and local PM items are created):
 
    ```bash
-   DESIGN_ISSUE=$(./scripts/issue-create.sh docs \
+   DESIGN_ISSUE=$(./scripts/item-create.sh docs \
      --title "[#<backlog>] Write design doc for X" \
      --label "type/docs" --label "backlog/<N>-<slug>")
    ```
@@ -41,7 +41,7 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
 
    ```bash
    gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
-   ./scripts/issue-set-status.sh <design-issue-number> in-progress
+   ./scripts/item-set-status.sh <design-issue-number> in-progress
    ```
 
 5. Create a `docs/<slug>` branch off the integration branch (`backlog/<N>-<slug>`). If the integration branch doesn't exist yet, create it from `main`: `git checkout main && git pull && git checkout -b backlog/<N>-<slug> && git push -u origin backlog/<N>-<slug>`, then branch from it.

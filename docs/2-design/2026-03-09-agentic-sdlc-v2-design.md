@@ -52,9 +52,9 @@ sequenceDiagram
     loop For each story
         Human->>CC: claude --agent builder-sonnet (via Agent tool)
         CC->>Repo: writes code, runs tests, commits, pushes
-        CC->>GH: issue-start.sh, issue-review.sh
+        CC->>GH: item-start.sh, item-review.sh
         Human->>Human: extracts telemetry from Agent result
-        Human->>GH: issue-telemetry.sh
+        Human->>GH: item-telemetry.sh
         Human->>Repo: merges story branch into epic
     end
 
@@ -206,14 +206,14 @@ sequenceDiagram
     par Independent stories
         Orch->>Worker: dispatch builder-sonnet (Agent tool)
         Worker->>Repo: code, test, commit, push
-        Worker->>GH: issue-start.sh, issue-review.sh
+        Worker->>GH: item-start.sh, item-review.sh
     and
         Orch->>Worker: dispatch builder-haiku (Agent tool)
         Worker->>Repo: code, test, commit, push
-        Worker->>GH: issue-start.sh, issue-review.sh
+        Worker->>GH: item-start.sh, item-review.sh
     end
 
-    Orch->>GH: issue-telemetry.sh (per story)
+    Orch->>GH: item-telemetry.sh (per story)
 
     loop Per story (review before merge)
         Orch->>Worker: dispatch reviewer (on story branch)
@@ -270,7 +270,7 @@ The designer and planner agents still follow their structured processes in auton
 - Reads GitHub issues to get story list, labels (difficulty), dependencies
 - Builds a dependency graph from the plan's Mermaid diagram or `depends_on` fields
 - Dispatches builders via Agent tool (in-session) or `scripts/dispatch-story.sh` (CLI)
-- Posts telemetry via `scripts/issue-telemetry.sh` after each worker completes
+- Posts telemetry via `scripts/item-telemetry.sh` after each worker completes
 - Updates project board status via `gh project item-edit`
 - Merges story branches into epic branch
 - Dispatches reviewer after each story (or batch of parallel stories)
@@ -441,7 +441,7 @@ New script that encapsulates the full story dispatch lifecycle:
 # 2. Writes prompt file to .dispatch/story-<n>.md with full context
 # 3. Invokes claude --agent <agent> --model <model> in headless mode
 # 4. Captures exit code
-# 5. On success: runs issue-telemetry.sh, returns 0
+# 5. On success: runs item-telemetry.sh, returns 0
 # 6. On failure: posts failure comment on issue, returns 1
 ```
 
@@ -490,9 +490,9 @@ Required additions to `DevOpsConfig.ShellAllowlist`:
   "dotnet publish", "dotnet ef migrations add",
   "./scripts/dispatch-story.sh",
   "./scripts/dispatch-workflow.sh",
-  "./scripts/issue-start.sh",
-  "./scripts/issue-review.sh",
-  "./scripts/issue-telemetry.sh",
+  "./scripts/item-start.sh",
+  "./scripts/item-review.sh",
+  "./scripts/item-telemetry.sh",
   "./scripts/issue-merged.sh",
   "gh issue",
   "gh pr",
@@ -708,7 +708,7 @@ documentation before completing your task:
 
 Changes to CLAUDE.md and agent files should be committed alongside your
 implementation work, not deferred. If the change is significant enough to
-warrant team review, note it in your issue-review.sh comment.
+warrant team review, note it in your item-review.sh comment.
 ```
 
 #### Scope by agent role
@@ -888,7 +888,7 @@ The original v2 design above was tested across four end-to-end runs. Each run va
 
 ### Dynamic Pricing
 
-**Problem:** Token cost estimates were hardcoded in `issue-telemetry.sh`. When Anthropic updated model pricing (e.g., Opus 4 at $15/$75 → Opus 4.6 at $5/$25), estimates became 3× too high.
+**Problem:** Token cost estimates were hardcoded in `item-telemetry.sh`. When Anthropic updated model pricing (e.g., Opus 4 at $15/$75 → Opus 4.6 at $5/$25), estimates became 3× too high.
 
 **Solution:** `scripts/fetch-pricing.sh` fetches live pricing from `anthropic.com/pricing` at session start, parses model-versioned rates, and outputs JSON. The orchestrator stores the result in the state file under `pricing`. When posting telemetry, the orchestrator passes the rate to the script via `--rate <cents-per-M>`, overriding hardcoded defaults.
 
@@ -898,7 +898,7 @@ The original v2 design above was tested across four end-to-end runs. Each run va
 
 ### Telemetry System
 
-The telemetry system evolved significantly across runs. `issue-telemetry.sh` is the core script, which renders from a reusable template (`scripts/templates/telemetry.md`) — the single source of truth for all telemetry output format. The template uses `{{VAR}}` placeholders and `<!-- IF_X -->...<!-- END_X -->` conditional blocks, processed by a bash renderer in the script. To reuse in another project, copy the template and renderer function.
+The telemetry system evolved significantly across runs. `item-telemetry.sh` is the core script, which renders from a reusable template (`scripts/templates/telemetry.md`) — the single source of truth for all telemetry output format. The template uses `{{VAR}}` placeholders and `<!-- IF_X -->...<!-- END_X -->` conditional blocks, processed by a bash renderer in the script. To reuse in another project, copy the template and renderer function.
 
 #### Parameters
 
@@ -930,8 +930,8 @@ All output is defined in `scripts/templates/telemetry.md`. The script generates:
 
 | Tier | Where | What | Posted by |
 |------|-------|------|-----------|
-| **Per-story** | Story issue comment | Single builder's metrics | Orchestrator via `issue-telemetry.sh` |
-| **Per-epic** | Epic issue comment | Scoped to stories in that epic only (no cross-contamination) | Orchestrator via `issue-telemetry.sh` |
+| **Per-story** | Story issue comment | Single builder's metrics | Orchestrator via `item-telemetry.sh` |
+| **Per-epic** | Epic issue comment | Scoped to stories in that epic only (no cross-contamination) | Orchestrator via `item-telemetry.sh` |
 | **Full lifecycle** | Backlog issue comment + PR description | All phases (design, plan, build, review, retro) across all epics | Orchestrator manually |
 
 **Scoping rule (Run 3 fix):** Each epic issue gets only its own stories in the telemetry breakdown. The backlog issue and PR are the only places where cross-epic aggregate telemetry belongs.
@@ -946,7 +946,7 @@ The backlog-level telemetry includes all agent work, not just builders:
 |-------|-------|----------------|
 | Design | Designer | `duration_ms`, `total_tokens`, `tool_uses` from Agent tool result |
 | Plan | Planner | Same |
-| Build | Builders (per story) | Already captured via `issue-telemetry.sh` |
+| Build | Builders (per story) | Already captured via `item-telemetry.sh` |
 | Review | Reviewers (per story + epic) | Same (even from failed/limited dispatches) |
 | Retro | Retro agent | Same |
 
@@ -965,7 +965,7 @@ The backlog-level telemetry includes all agent work, not just builders:
 | In Progress → In Review | After builder completes (sequentially, one story at a time) | Orchestrator |
 | In Review → Done | After epic PR merges and `issue-merged.sh` runs | Orchestrator |
 
-Builder scripts (`issue-start.sh`, `issue-review.sh`) still update the board as defense-in-depth, but the orchestrator is the source of truth.
+Builder scripts (`item-start.sh`, `item-review.sh`) still update the board as defense-in-depth, but the orchestrator is the source of truth.
 
 **Parallel wave verification:** After a parallel wave completes, the orchestrator queries the board for all stories in the wave and fixes any that didn't transition correctly. This catches silent failures from concurrent API calls.
 
@@ -1184,9 +1184,9 @@ claude --agent orchestrator \
 
 | File | Purpose | Norris-specific? |
 |------|---------|------------------|
-| `issue-start.sh` | Posts "Work Started" comment on issue, records model/agent/timestamp | Yes — hardcoded `REPO` |
-| `issue-review.sh` | Posts "Ready for Review" comment on issue, records commit hash | Yes — hardcoded `REPO` |
-| `issue-telemetry.sh` | Posts telemetry (tokens, cost, duration, breakdown table, Gantt chart) to issue or PR | Yes — hardcoded `REPO`, board IDs |
+| `item-start.sh` | Posts "Work Started" comment on issue, records model/agent/timestamp | Yes — hardcoded `REPO` |
+| `item-review.sh` | Posts "Ready for Review" comment on issue, records commit hash | Yes — hardcoded `REPO` |
+| `item-telemetry.sh` | Posts telemetry (tokens, cost, duration, breakdown table, Gantt chart) to issue or PR | Yes — hardcoded `REPO`, board IDs |
 | `issue-merged.sh` | Closes issue and sets project board status to Done | Yes — hardcoded `REPO`, project ID, field ID, status ID |
 | `dispatch-story.sh` | CLI dispatch: reads issue, prompts builder agent via Claude CLI, posts telemetry on completion | Yes — hardcoded `REPO` |
 | `dispatch-workflow.sh` | Full lifecycle CLI orchestration: design → plan → build → review → retro | Yes — hardcoded `REPO`, all board IDs |
@@ -1280,9 +1280,9 @@ Use this to copy files from NeuralNorris into a new framework repo. For each fil
 
 | File | Action |
 |------|--------|
-| `issue-start.sh` | Copy. Replace hardcoded `REPO="carlosboeing/agentic-sdlc-workflow"` with adapter config lookup. |
-| `issue-review.sh` | Copy. Same — replace hardcoded `REPO`. |
-| `issue-telemetry.sh` | Copy. Replace hardcoded `REPO` and board IDs with adapter config. |
+| `item-start.sh` | Copy. Replace hardcoded `REPO="carlosboeing/agentic-sdlc-workflow"` with adapter config lookup. |
+| `item-review.sh` | Copy. Same — replace hardcoded `REPO`. |
+| `item-telemetry.sh` | Copy. Replace hardcoded `REPO` and board IDs with adapter config. |
 | `issue-merged.sh` | Copy. Replace hardcoded `REPO`, project ID, field ID, status ID with adapter config. |
 | `dispatch-story.sh` | Copy. Replace hardcoded `REPO` with adapter config. |
 | `dispatch-workflow.sh` | Copy. Replace hardcoded `REPO`, `carlosboeing`, all board IDs with adapter config. |

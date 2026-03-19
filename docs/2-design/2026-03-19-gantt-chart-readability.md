@@ -39,7 +39,7 @@ A prior gap compression attempt (commit `4f51e4d`) was built and reverted (commi
 - Story lifecycle swimlanes
 - Interactive dispatch consolidation (multiple dispatches of the same issue/agent merged into one bar)
 - Throughput normalization (adjusting bar width by tok/s instead of wall-clock)
-- Changes to `issue-telemetry.sh` (only its Python dependency changes)
+- Changes to `item-telemetry.sh` (only its Python dependency changes)
 - Changes to the telemetry Markdown template (`scripts/templates/telemetry.md`) beyond adding a Story column header
 
 ## 3. Approaches Considered
@@ -61,7 +61,7 @@ Replace the Gantt X-axis with cumulative active time. Each wave's offset is comp
 - Produces compact, readable charts regardless of session interruptions
 - Wall-clock mode retained as `--gantt-mode wall-clock` for diagnostic use
 
-**Cons:** Changes the default Gantt output (existing consumers must adapt). However, only the orchestrator and `issue-telemetry.sh` consume this output, and both are under our control.
+**Cons:** Changes the default Gantt output (existing consumers must adapt). However, only the orchestrator and `item-telemetry.sh` consume this output, and both are under our control.
 
 ### Approach C: Wall-Clock with Smart Compression
 
@@ -373,12 +373,12 @@ These constraints confirm that cumulative active time is the right approach. Try
 ## 7. Migration and Compatibility
 
 **Breaking change:** The default Gantt output changes from wall-clock to cumulative active time. All existing consumers are internal:
-- `issue-telemetry.sh` calls `compute-dispatches.py --gantt` -- will get the new default automatically
-- Orchestrator passes `--gantt-from-state` to `issue-telemetry.sh` -- same effect
+- `item-telemetry.sh` calls `compute-dispatches.py --gantt` -- will get the new default automatically
+- Orchestrator passes `--gantt-from-state` to `item-telemetry.sh` -- same effect
 
 No external consumers exist. The change is safe to make as the new default.
 
-**Breakdown table format change:** Adding the Story column changes the number of columns in the breakdown table. The telemetry template header must be updated in sync. The `issue-telemetry.sh` script passes the breakdown rows through without parsing columns, so no changes are needed there.
+**Breakdown table format change:** Adding the Story column changes the number of columns in the breakdown table. The telemetry template header must be updated in sync. The `item-telemetry.sh` script passes the breakdown rows through without parsing columns, so no changes are needed there.
 
 **Existing test compatibility:** Existing tests that check breakdown row format (pipe count, column content) will need updating. Existing Gantt tests that check absolute offsets will need updating or gating behind `mode="wall-clock"`.
 
@@ -402,11 +402,11 @@ No external consumers exist. The change is safe to make as the new default.
 
    **Recommendation:** Do not change the color. The `[stalled]` label suffix and `gantt_note` annotation are sufficient. Adding a 5th color would require custom Mermaid CSS which is not portable across GitHub rendering.
 
-2. **Should the `--gantt-mode` flag be exposed in `issue-telemetry.sh`?** Currently `issue-telemetry.sh` passes `--gantt-from-state` without a mode flag.
+2. **Should the `--gantt-mode` flag be exposed in `item-telemetry.sh`?** Currently `item-telemetry.sh` passes `--gantt-from-state` without a mode flag.
 
-   **Recommendation:** Add `--gantt-mode` passthrough to `issue-telemetry.sh` for completeness, defaulting to `work`. This allows diagnostic wall-clock charts when needed without changing the default telemetry output.
+   **Recommendation:** Add `--gantt-mode` passthrough to `item-telemetry.sh` for completeness, defaulting to `work`. This allows diagnostic wall-clock charts when needed without changing the default telemetry output.
 
-3. **What happens to the `gantt_note` template variable if `issue-telemetry.sh` uses `--gantt` (explicit body) instead of `--gantt-from-state`?** In that case, `compute-dispatches.py` is not called and there is no `gantt_note`.
+3. **What happens to the `gantt_note` template variable if `item-telemetry.sh` uses `--gantt` (explicit body) instead of `--gantt-from-state`?** In that case, `compute-dispatches.py` is not called and there is no `gantt_note`.
 
    **Recommendation:** The `gantt_note` conditional block in the template is only populated when `compute-dispatches.py` returns one. When using `--gantt` with a manual body, no note is emitted. This is correct -- manual Gantt bodies are already curated by the caller.
 

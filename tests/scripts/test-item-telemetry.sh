@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# test-issue-telemetry.sh — Validates issue-telemetry.sh refactoring (S04).
+# test-item-telemetry.sh — Validates item-telemetry.sh refactoring (S04).
 # Tests that the Python heredoc has been replaced with compute-dispatches.py calls,
 # and that --gantt-from-state flag works correctly.
 #
@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/issue-telemetry.sh"
+SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/item-telemetry.sh"
 FIXTURE_DIR="$REPO_ROOT/tests/fixtures/telemetry"
 PY_MODULE="$REPO_ROOT/scripts/lib/compute-dispatches.py"
 
@@ -69,9 +69,9 @@ assert_exit_code() {
   fi
 }
 
-# Run issue-telemetry.sh with a mocked gh that captures the rendered body.
+# Run item-telemetry.sh with a mocked gh that captures the rendered body.
 # Returns the rendered markdown body via stdout.
-# Sets LAST_EXIT_CODE to the exit code of issue-telemetry.sh.
+# Sets LAST_EXIT_CODE to the exit code of item-telemetry.sh.
 LAST_EXIT_CODE=0
 LAST_STDERR=""
 
@@ -124,7 +124,7 @@ GHEOF
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
 echo "========================================"
-echo "Testing issue-telemetry.sh (S04 wire external module)"
+echo "Testing item-telemetry.sh (S04 wire external module)"
 echo "========================================"
 echo ""
 
@@ -440,10 +440,10 @@ echo ""
 echo "Test Group: pm.sh sourcing"
 
 if grep -qE 'source[[:space:]].*pm\.sh|source[[:space:]].*"\$SCRIPT_DIR/lib/pm\.sh"|\.[[:space:]].*pm\.sh' "$SCRIPT_UNDER_TEST"; then
-  echo "  PASS: issue-telemetry.sh sources pm.sh"
+  echo "  PASS: item-telemetry.sh sources pm.sh"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: issue-telemetry.sh does not source pm.sh"
+  echo "  FAIL: item-telemetry.sh does not source pm.sh"
   FAIL=$((FAIL + 1))
 fi
 

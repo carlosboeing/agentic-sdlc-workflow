@@ -125,7 +125,7 @@ The backlog-level telemetry posted on issue 248 shows `--` in the Story column f
 
 | Commit | Change | Trigger |
 |--------|--------|---------|
-| `680555c` | CLAUDE.md helper scripts table updated with `--gantt-mode` flag | E02-S01 added `--gantt-mode` to `compute-dispatches.py` and `issue-telemetry.sh` |
+| `680555c` | CLAUDE.md helper scripts table updated with `--gantt-mode` flag | E02-S01 added `--gantt-mode` to `compute-dispatches.py` and `item-telemetry.sh` |
 
 No other convention changes were made during this backlog item. The CLAUDE.md change was a propagation update (adding the new flag to the helper scripts table), not a convention change.
 

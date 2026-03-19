@@ -2,7 +2,7 @@
 """
 compute-dispatches.py — Compute telemetry breakdown/summary rows from dispatch data.
 
-Extracted from issue-telemetry.sh. Produces IDENTICAL output to the embedded
+Extracted from item-telemetry.sh. Produces IDENTICAL output to the embedded
 Python heredocs in _run_dispatches_computation() and the state file conversion block.
 
 Usage:
@@ -68,7 +68,7 @@ AGENT_TO_PHASE = {
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Formatting helpers (identical to embedded Python in issue-telemetry.sh)
+# Formatting helpers (identical to embedded Python in item-telemetry.sh)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def fmt_duration(ms):
@@ -109,7 +109,7 @@ def load_pricing(pricing_cache, cfg_file):
     """
     Load pricing rates for known models.
 
-    Resolution order (mirrors embedded Python in issue-telemetry.sh):
+    Resolution order (mirrors embedded Python in item-telemetry.sh):
       1. Config pricing override (cfg_file .pricing.<model>.inputPerM/outputPerM)
       2. Cached pricing file (pricing_cache .rates.<model>.inputPerM/outputPerM)
 
@@ -169,7 +169,7 @@ def compute_from_dispatches(dispatches, pricing_rates):
     """
     Compute telemetry output from a list of structured dispatch dicts.
 
-    This is the extracted body of _run_dispatches_computation() in issue-telemetry.sh.
+    This is the extracted body of _run_dispatches_computation() in item-telemetry.sh.
 
     Each dispatch dict must have:
       agent       — human-readable agent label (e.g. "Builder (sonnet)")
@@ -407,7 +407,7 @@ def state_to_dispatches(state):
     """
     Convert orchestrator state file dispatches[] to the structured dispatch format.
 
-    This is the extracted state file conversion block from issue-telemetry.sh
+    This is the extracted state file conversion block from item-telemetry.sh
     (lines 281-371). Maps agent types to phases and generates human-readable
     task labels from epic/story data.
 
@@ -534,7 +534,7 @@ def compute_wall_clock(raw_dispatches):
     Dispatches with different started_at ran sequentially → sum them.
 
     This is the extracted wall-clock computation from the state file heredoc
-    (lines 354-368 of issue-telemetry.sh).
+    (lines 354-368 of item-telemetry.sh).
 
     Returns (wall_clock_ms, has_parallel).
     """

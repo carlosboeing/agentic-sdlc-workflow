@@ -10,7 +10,7 @@ scope: Local-First PM System -- file-based PM adapter implementing all 15 pm_* f
 
 ## Summary
 
-Backlog item #111 implemented the local PM adapter (`scripts/lib/adapters/pm/local/`), a file-based implementation of the `pm_*` function contract defined by the PM Abstraction Layer (#109). When `pm.adapter` is set to `"local"`, the entire workflow operates against `.workflow/` files instead of GitHub Issues/Projects -- zero-config, offline-capable project management. The work created 8 modules across 3 epics (9 stories), all 15 `pm_*` functions, and refactored `issue-telemetry.sh` to use the adapter boundary. All 9 stories completed with 391 tests across 14 test files, 5 fix cycles across 4 stories, and 53 total review findings. This was the second infrastructure backlog item and the first to build a complete adapter against the `pm.sh` interface.
+Backlog item #111 implemented the local PM adapter (`scripts/lib/adapters/pm/local/`), a file-based implementation of the `pm_*` function contract defined by the PM Abstraction Layer (#109). When `pm.adapter` is set to `"local"`, the entire workflow operates against `.workflow/` files instead of GitHub Issues/Projects -- zero-config, offline-capable project management. The work created 8 modules across 3 epics (9 stories), all 15 `pm_*` functions, and refactored `item-telemetry.sh` to use the adapter boundary. All 9 stories completed with 391 tests across 14 test files, 5 fix cycles across 4 stories, and 53 total review findings. This was the second infrastructure backlog item and the first to build a complete adapter against the `pm.sh` interface.
 
 ## Timeline
 
@@ -184,7 +184,7 @@ No changes were made to CLAUDE.md or agent files during this backlog item. The `
 
 ### For the Workflow
 
-1. **Local adapter validates the PM abstraction layer end-to-end.** All 15 `pm_*` functions were implemented against a completely different backend (filesystem vs. GitHub API) without modifying any workflow scripts. The `issue-telemetry.sh` refactor (E03-S03, 2 lines changed) was the only modification to an existing script, and it made telemetry posting adapter-agnostic. This validates the abstraction boundary designed in BL109.
+1. **Local adapter validates the PM abstraction layer end-to-end.** All 15 `pm_*` functions were implemented against a completely different backend (filesystem vs. GitHub API) without modifying any workflow scripts. The `item-telemetry.sh` refactor (E03-S03, 2 lines changed) was the only modification to an existing script, and it made telemetry posting adapter-agnostic. This validates the abstraction boundary designed in BL109.
 
 2. **Greenfield adapter implementation is significantly cheaper than abstraction extraction.** BL111 (9 stories, $14.70) is comparable in scope to BL109 (10 stories, $19.03) but 23% cheaper. The cost difference comes almost entirely from the design phase ($1.12 vs $7.05). Build costs are similar ($6.29 vs $6.23). This confirms observation xii: greenfield infrastructure takes 1.5-2x less time than refactoring existing code.
 

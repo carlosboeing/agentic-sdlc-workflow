@@ -53,23 +53,23 @@ Your deliverables are: working code, passing tests, and commits on the correct b
 **Always use the helper scripts:**
 ```bash
 # When starting a story
-./scripts/issue-start.sh <number> --model <model> --agent builder
+./scripts/item-start.sh <number> --model <model> --agent builder
 
 # When completing a story
-./scripts/issue-review.sh <number> <commit-hash>
+./scripts/item-review.sh <number> <commit-hash>
 ```
 
-The orchestrator tells you which model you're running on in the dispatch prompt. **You MUST pass that value** to `issue-start.sh` via `--model`. If not specified, use `--model unknown`.
+The orchestrator tells you which model you're running on in the dispatch prompt. **You MUST pass that value** to `item-start.sh` via `--model`. If not specified, use `--model unknown`.
 
-Note: Issues are NOT closed at story completion — they move to Review. The orchestrator closes them with `issue-close.sh` after the backlog PR merges.
+Note: Issues are NOT closed at story completion — they move to Review. The orchestrator closes them with `item-close.sh` after the backlog PR merges.
 
 ### GitHub Project Board Status
 
-**On start:** Calling `issue-start.sh` (above) automatically sets the board to **In Progress** — no separate board update step needed.
+**On start:** Calling `item-start.sh` (above) automatically sets the board to **In Progress** — no separate board update step needed.
 
-**On completion:** Calling `issue-review.sh` (above) automatically sets the board to **In Review** — no separate board update step needed.
+**On completion:** Calling `item-review.sh` (above) automatically sets the board to **In Review** — no separate board update step needed.
 
-The orchestrator also sets these statuses before and after dispatch as defense-in-depth. You do not need to call `issue-set-status.sh` directly.
+The orchestrator also sets these statuses before and after dispatch as defense-in-depth. You do not need to call `item-set-status.sh` directly.
 
 ## Git Workflow (REQUIRED)
 
@@ -125,7 +125,7 @@ git branch --show-current  # MUST match expected branch
    Fix any violations before proceeding -- the reviewer will catch them and require a fix cycle.
 4. **Verify files are staged** -- especially when writing to gitignored directories (e.g., `test-output/`). Use `git add -f <path>` if the directory is in `.gitignore`, then verify with `git status` or `git diff --cached` before committing.
 5. Push your story branch: `git push -u origin <branch-name>`
-6. Run `./scripts/issue-review.sh <number> <commit-hash>`
+6. Run `./scripts/item-review.sh <number> <commit-hash>`
 7. **Do NOT merge your story branch into the epic branch** -- the orchestrator handles merges after review
 8. **Do NOT create a PR to `main` or merge to `main`** -- the orchestrator handles epic-to-main PRs
 
@@ -187,4 +187,4 @@ When you encounter any of the following, you MUST update the relevant documentat
 2. **A command that needed a flag you didn't expect** (e.g., --limit 100) — Update the command example in CLAUDE.md or the agent file.
 3. **An instruction in your agent file that was wrong or misleading** — Fix it directly.
 
-Changes to CLAUDE.md and agent files should be committed alongside your implementation work, not deferred. If the change is significant enough to warrant team review, note it in your issue-review.sh comment.
+Changes to CLAUDE.md and agent files should be committed alongside your implementation work, not deferred. If the change is significant enough to warrant team review, note it in your item-review.sh comment.

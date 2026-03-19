@@ -109,7 +109,7 @@ graph TD
 Bundle of orchestrator enhancements: Sonnet reviews for easy stories, early story branch creation, streaming reviews (review as each builder finishes), batched board updates, batch issue creation in planner, format templates for parallel content, orchestrator override pattern documentation, and orchestrator overhead metrics.
 
 **[#106 Telemetry Accuracy & Automation](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/106)** — `size/M` ✅
-Fix hand-crafted Gantt charts by generating them from state data with precise timestamps. Extract the 602-line `issue-telemetry.sh` dispatch computation into a separate Python module. Add tracking for fix cycle overhead and run duration baselines.
+Fix hand-crafted Gantt charts by generating them from state data with precise timestamps. Extract the 602-line `item-telemetry.sh` dispatch computation into a separate Python module. Add tracking for fix cycle overhead and run duration baselines.
 
 **[#150 Split orchestrator.md](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/150)** — `size/S` ✅
 Reduced `orchestrator.md` from 1,323 to 503 lines (62% reduction) by extracting inline scripts into `scripts/state.sh` (836 lines) and deleting dead content. Added `scripts/schemas/orchestrator-state.v1.json`. First run with extracted scripts validated in Run 16.

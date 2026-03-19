@@ -566,17 +566,17 @@ This is the correct decomposition:
 
 ### 5.5 `pm_post_telemetry` special handling
 
-`pm_post_telemetry` delegates to `issue-telemetry.sh`, which is a complex script that handles template rendering, duration computation, Gantt chart generation, and comment posting. Both the local and GitHub adapter implementations delegate to it identically.
+`pm_post_telemetry` delegates to `item-telemetry.sh`, which is a complex script that handles template rendering, duration computation, Gantt chart generation, and comment posting. Both the local and GitHub adapter implementations delegate to it identically.
 
 For dual-write, `pm_post_telemetry` should be **local-only** (not dual-written):
 
-1. `issue-telemetry.sh` calls `pm_add_comment` internally to post the comment
+1. `item-telemetry.sh` calls `pm_add_comment` internally to post the comment
 2. `pm_add_comment` is dual-written (writes local file AND posts GitHub comment)
 3. Therefore, calling `pm_post_telemetry` once naturally dual-writes
 
 If `pm_post_telemetry` were dual-written, the telemetry would be posted twice to GitHub.
 
-**Prerequisite:** `issue-telemetry.sh` must call `pm_add_comment` instead of `gh issue comment` directly. This refactoring was already identified as in-scope in the BL111 design doc (Section 14). It is a prerequisite for this feature and should be included in the implementation plan.
+**Prerequisite:** `item-telemetry.sh` must call `pm_add_comment` instead of `gh issue comment` directly. This refactoring was already identified as in-scope in the BL111 design doc (Section 14). It is a prerequisite for this feature and should be included in the implementation plan.
 
 Add to local-only list:
 
@@ -584,7 +584,7 @@ Add to local-only list:
 _PM_LOCAL_ONLY_FUNCTIONS=(
   pm_get_item pm_list_items pm_get_status  # read-only
   pm_start_work pm_complete_work           # composed of dual-written primitives
-  pm_post_telemetry                        # delegates to issue-telemetry.sh
+  pm_post_telemetry                        # delegates to item-telemetry.sh
                                            # which calls pm_add_comment (dual-written)
   pm_reconcile                             # reconciliation is adapter-specific
 )
@@ -888,7 +888,7 @@ The local adapter files are unchanged (they were already deployed by BL111). The
 
 ### Assumptions made
 
-1. **`issue-telemetry.sh` refactoring is a prerequisite.** The telemetry script must call `pm_add_comment` instead of `gh issue comment` for dual-write to work transparently. This refactoring was identified in the BL111 design doc and is relatively small (one line change + sourcing pm.sh).
+1. **`item-telemetry.sh` refactoring is a prerequisite.** The telemetry script must call `pm_add_comment` instead of `gh issue comment` for dual-write to work transparently. This refactoring was identified in the BL111 design doc and is relatively small (one line change + sourcing pm.sh).
 
 2. **Background processes (`&` + `disown`) are reliable in the workflow.** The orchestrator runs long-lived Bash sessions where backgrounded processes complete before the session exits. If background processes are killed prematurely (e.g., session timeout), some external writes may be lost. This is acceptable because local writes are the source of truth and reconciliation catches up.
 
@@ -952,7 +952,7 @@ Define pm.sh operations as events. Local adapter subscribes as mandatory handler
 | **ID synchronization complexity** | The `pm_create_item` special wrapper (external ID as local ID) is the most complex part. If it proves too fragile, fall back to deferred reconciliation and accept the ID mismatch. |
 | **Temptation to build bidirectional sync** | Explicitly out of scope. Document the unidirectional flow clearly. |
 | **GitHub adapter prefix injection cascades** | All 7 GitHub adapter modules need the same mechanical change. Risk of missing one. Mitigation: script the change, verify with grep. |
-| **`issue-telemetry.sh` refactoring grows in scope** | Scope to one change: replace `gh issue comment` with `pm_add_comment`. Do not refactor the template rendering. |
+| **`item-telemetry.sh` refactoring grows in scope** | Scope to one change: replace `gh issue comment` with `pm_add_comment`. Do not refactor the template rendering. |
 
 ## 14. Related Documents
 

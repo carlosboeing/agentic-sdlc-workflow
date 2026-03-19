@@ -10,7 +10,7 @@
 - **Gap annotations:** `gantt_note` generated below the chart when inter-wave gaps > 5 minutes are compressed, listing individual gap durations
 - **Stalled dispatch detection:** Dispatches with < 50 tok/s throughput annotated with `[stalled]` suffix in Gantt labels; count included in `gantt_note`
 - **Template update:** `scripts/templates/telemetry.md` breakdown header updated to 6-column format; `GANTT_NOTE` conditional block added
-- **CLI passthrough:** `issue-telemetry.sh --gantt-mode` flag passes through to `compute-dispatches.py`
+- **CLI passthrough:** `item-telemetry.sh --gantt-mode` flag passes through to `compute-dispatches.py`
 - 2 epics, 5 stories: E01 Story Code Regression (2 stories), E02 Work Timeline Mode (3 stories)
 - 252 Python tests + 44 shell integration tests, all passing
 - 2 fix cycles: E01-S01 (template scope creep), E02-S03 (stalled note inside Mermaid fence + None guard)
@@ -45,7 +45,7 @@
 - `.workflow/comments/<id>/NNN-slug.md` — timestamped comment history per item
 - Auto-increment ID generation via `_next_id` file, no external dependencies
 - Individual files ARE the index — no centralized board.yaml, no concurrent write conflicts by design
-- Refactored `issue-telemetry.sh` to use `pm_add_comment` (adapter-agnostic telemetry posting)
+- Refactored `item-telemetry.sh` to use `pm_add_comment` (adapter-agnostic telemetry posting)
 - Added `CFG_LOCAL_WORKFLOW_DIR` config field (default: `.workflow`)
 - 3 epics, 9 stories: E01 Foundation (2 stories), E02 Domain Modules (3 stories), E03 Composition + Integration (4 stories)
 - 300+ unit tests across 16 test suites plus integration test, all passing
@@ -57,7 +57,7 @@
 - Created `scripts/lib/pm.sh` adapter loader with config-driven adapter selection (`pm.adapter` in config)
 - Built GitHub adapter in `scripts/lib/adapters/pm/github/` with 7 modules: items.sh, board.sh, reconcile.sh, comments.sh, hierarchy.sh, labels.sh, lifecycle.sh
 - Defined ~13 generic PM functions (pm_create_item, pm_get_item, pm_list_items, pm_done, pm_set_status, pm_add_to_board, pm_batch_set_status, pm_reconcile, pm_add_comment, pm_post_telemetry, pm_link_child, pm_add_label, pm_start_work, pm_complete_work, pm_update_item)
-- Converted 8 existing scripts (issue-set-status.sh, batch-set-status.sh, issue-start.sh, issue-review.sh, issue-close.sh, issue-create-backlog.sh, reconcile-board.sh, setup-labels.sh) to thin wrappers delegating to pm.sh
+- Converted 8 existing scripts (item-set-status.sh, batch-set-status.sh, item-start.sh, item-review.sh, item-close.sh, item-create.sh, reconcile-board.sh, setup-labels.sh) to thin wrappers delegating to pm.sh
 - Added cost budget enforcement library (`scripts/lib/cost-budget.sh`) with `maxCostPerRun` config support
 - Created ADR-0004: Shadow Stack Migration Strategy (build-alongside-verify-swap pattern)
 - Design doc includes three-layer abstraction landscape (PM/VCS/DOC), agent architecture audit, and forward compatibility for local-first PM (#111) and multi-PM adapters (#113)
@@ -100,7 +100,7 @@
 ### Telemetry Accuracy & Automation (backlog #106)
 
 - **Primary result:** Refactored the telemetry pipeline to eliminate manual Gantt construction, extract embedded Python into a testable module, and add fix cycle tracking
-- Extracted ~230 lines of embedded Python from `issue-telemetry.sh` into standalone `scripts/lib/compute-dispatches.py` (875 lines with Gantt + fix cycle features)
+- Extracted ~230 lines of embedded Python from `item-telemetry.sh` into standalone `scripts/lib/compute-dispatches.py` (875 lines with Gantt + fix cycle features)
 - Added `--gantt-from-state` flag: generates Mermaid Gantt charts with absolute HH:MM:SS offsets from state file dispatch data (no more hand-crafted `after` dependencies)
 - Added fix cycle detection: automatically counts builder re-dispatches, computes cost/duration overhead, and includes metrics in telemetry summaries
 - Added `lifecycle_duration_ms` convention: orchestrator records wall-clock duration at end of workflow for baseline tracking

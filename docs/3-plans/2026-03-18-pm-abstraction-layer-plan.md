@@ -51,12 +51,12 @@ Existing scripts become thin wrappers:
 
 ```
 scripts/
-  issue-set-status.sh                   # MODIFIED: delegates to pm_set_status
+  item-set-status.sh                   # MODIFIED: delegates to pm_set_status
   batch-set-status.sh                   # MODIFIED: delegates to pm_batch_set_status
-  issue-start.sh                        # MODIFIED: delegates to pm_start_work
-  issue-review.sh                       # MODIFIED: delegates to pm_complete_work
-  issue-close.sh                        # MODIFIED: delegates to pm_done
-  issue-create-backlog.sh               # MODIFIED: delegates to pm_create_item + pm_add_to_board + pm_set_status + pm_add_label
+  item-start.sh                        # MODIFIED: delegates to pm_start_work
+  item-review.sh                       # MODIFIED: delegates to pm_complete_work
+  item-close.sh                        # MODIFIED: delegates to pm_done
+  item-create.sh               # MODIFIED: delegates to pm_create_item + pm_add_to_board + pm_set_status + pm_add_label
   reconcile-board.sh                    # MODIFIED: delegates to pm_reconcile
   setup-labels.sh                       # MODIFIED: delegates to pm_add_label (repeated)
 ```
@@ -187,8 +187,8 @@ Build the adapter loader, config changes, and four independent leaf adapter modu
 - `scripts/lib/adapters/pm/github/items.sh`
 
 **Files to read (not modify):**
-- `scripts/issue-create-backlog.sh` (extract item creation logic)
-- `scripts/issue-close.sh` (extract close logic)
+- `scripts/item-create.sh` (extract item creation logic)
+- `scripts/item-close.sh` (extract close logic)
 
 **Acceptance Criteria:**
 - [ ] `pm_create_item <level> <title> [--body <text>] [--body-file <path>] [--labels <csv>]` creates a GitHub issue
@@ -228,18 +228,18 @@ Build the adapter loader, config changes, and four independent leaf adapter modu
 - `scripts/lib/adapters/pm/github/board.sh`
 
 **Files to read (not modify):**
-- `scripts/issue-set-status.sh` (extract all board logic)
+- `scripts/item-set-status.sh` (extract all board logic)
 - `scripts/batch-set-status.sh` (extract batch logic)
 - `scripts/reconcile-board.sh` (extract reconcile logic)
 
 **Acceptance Criteria:**
-- [ ] Internal helper `_gh_fetch_item_info <issue-number>` performs the lightweight per-issue GraphQL query (same as current `issue-set-status.sh`), returns JSON
+- [ ] Internal helper `_gh_fetch_item_info <issue-number>` performs the lightweight per-issue GraphQL query (same as current `item-set-status.sh`), returns JSON
 - [ ] Internal helper `_gh_extract_item_info <json>` sets `ITEM_ID` and `CURRENT_STATUS` variables
 - [ ] Internal helper `_gh_mutate_status <item-id> <option-id>` performs `gh project item-edit`
 - [ ] Internal helper `_gh_verify_status <issue-number> <expected-display>` re-fetches and compares, logs discrepancies
 - [ ] Internal helper `_gh_status_to_option_id <status>` maps status name to option ID using `CFG_STATUS_*` variables
 - [ ] Internal helper `_gh_status_to_display <status>` maps status name to display name (e.g., `in-progress` -> `In Progress`)
-- [ ] `pm_set_status <item-id> <status>` sets board status with retry, verification, and logging (full port of `issue-set-status.sh` logic)
+- [ ] `pm_set_status <item-id> <status>` sets board status with retry, verification, and logging (full port of `item-set-status.sh` logic)
 - [ ] `pm_add_to_board <item-id>` adds an issue to the project board via `gh project item-add`
 - [ ] `pm_batch_set_status <item-id>:<status> [...]` performs batch operations (full port of `batch-set-status.sh`)
 - [ ] `pm_reconcile --from-state <file> [--epic-issues <json>] [--dry-run]` performs reconciliation (full port of `reconcile-board.sh`)
@@ -269,17 +269,17 @@ Build the adapter loader, config changes, and four independent leaf adapter modu
 - `scripts/lib/adapters/pm/github/comments.sh`
 
 **Files to read (not modify):**
-- `scripts/issue-telemetry.sh` (understand interface for wrapping)
+- `scripts/item-telemetry.sh` (understand interface for wrapping)
 
 **Acceptance Criteria:**
 - [ ] `pm_add_comment <item-id> <body>` posts a comment on the GitHub issue
   - Uses `gh issue comment <item-id> --repo $CFG_REPO --body <body>`
   - Returns exit code 0 on success, non-zero on failure
-- [ ] `pm_post_telemetry <item-id> [flags...]` wraps `issue-telemetry.sh`
-  - Passes all flags through to the existing `issue-telemetry.sh` script unchanged
-  - Locates `issue-telemetry.sh` relative to `REPO_ROOT`
+- [ ] `pm_post_telemetry <item-id> [flags...]` wraps `item-telemetry.sh`
+  - Passes all flags through to the existing `item-telemetry.sh` script unchanged
+  - Locates `item-telemetry.sh` relative to `REPO_ROOT`
   - Does NOT rewrite or duplicate telemetry logic
-  - Accepts all flags that `issue-telemetry.sh` accepts: `--model`, `--duration`, `--commit`, `--tokens`, `--tool-uses`, `--rate`, `--cost`, `--wall-clock`, `--breakdown`, `--gantt`, `--gantt-from-state`, `--summary`, `--footer`, `--pr`, `--dispatches`, `--dispatches-from-state`
+  - Accepts all flags that `item-telemetry.sh` accepts: `--model`, `--duration`, `--commit`, `--tokens`, `--tool-uses`, `--rate`, `--cost`, `--wall-clock`, `--breakdown`, `--gantt`, `--gantt-from-state`, `--summary`, `--footer`, `--pr`, `--dispatches`, `--dispatches-from-state`
 - [ ] File is under 50 lines (thin wrapper)
 
 **Test Plan:**
@@ -340,20 +340,20 @@ Build the lifecycle adapter module (which composes on top of E01's items, board,
 - `scripts/lib/adapters/pm/github/lifecycle.sh`
 
 **Files to read (not modify):**
-- `scripts/issue-start.sh` (extract start logic)
-- `scripts/issue-review.sh` (extract review logic)
+- `scripts/item-start.sh` (extract start logic)
+- `scripts/item-review.sh` (extract review logic)
 - `scripts/lib/adapters/pm/github/items.sh` (composing)
 - `scripts/lib/adapters/pm/github/board.sh` (composing)
 - `scripts/lib/adapters/pm/github/comments.sh` (composing)
 
 **Acceptance Criteria:**
 - [ ] `pm_start_work <item-id> [--model <m>] [--agent <a>]` marks work as started
-  - Posts a "Work Started" comment (same format as current `issue-start.sh`: table with Agent, Model, Started timestamp)
+  - Posts a "Work Started" comment (same format as current `item-start.sh`: table with Agent, Model, Started timestamp)
   - Sets board status to In Progress via `pm_set_status` (defense-in-depth -- documented as removable in Phase 2)
   - Defaults `--model` and `--agent` to `"unknown"` if not provided
   - Uses `pm_add_comment` for the comment, `pm_set_status` for the board transition
 - [ ] `pm_complete_work <item-id> <commit-hash>` marks work as ready for review
-  - Posts a "Ready for Review" comment (same format as current `issue-review.sh`: table with Commit, Completed timestamp)
+  - Posts a "Ready for Review" comment (same format as current `item-review.sh`: table with Commit, Completed timestamp)
   - Sets board status to In Review via `pm_set_status`
   - Uses `pm_add_comment` for the comment, `pm_set_status` for the board transition
 - [ ] Both functions compose on top of sibling adapter modules (comments.sh, board.sh) -- no direct `gh` calls
@@ -363,7 +363,7 @@ Build the lifecycle adapter module (which composes on top of E01's items, board,
 **Test Plan:**
 - Source `pm.sh`, call `pm_start_work <test-issue> --model sonnet --agent builder`, verify "Work Started" comment posted and board status is In Progress
 - Call `pm_complete_work <test-issue> abc123`, verify "Ready for Review" comment posted and board status is In Review
-- Verify comment format matches current `issue-start.sh` / `issue-review.sh` output exactly (grep for `### ` + emoji + title pattern)
+- Verify comment format matches current `item-start.sh` / `item-review.sh` output exactly (grep for `### ` + emoji + title pattern)
 - Call `pm_start_work` without `--model`/`--agent`, verify defaults to "unknown"
 
 **Branch:** `e02-s01/adapter-lifecycle`
@@ -413,12 +413,12 @@ Convert existing scripts to thin wrappers delegating to pm.sh, and write the ADR
 **Difficulty:** hard
 
 **Files to modify:**
-- `scripts/issue-set-status.sh` (158 lines -> ~10 lines)
+- `scripts/item-set-status.sh` (158 lines -> ~10 lines)
 - `scripts/batch-set-status.sh` (158 lines -> ~10 lines)
-- `scripts/issue-start.sh` (50 lines -> ~10 lines)
-- `scripts/issue-review.sh` (37 lines -> ~10 lines)
-- `scripts/issue-close.sh` (26 lines -> ~10 lines)
-- `scripts/issue-create-backlog.sh` (115 lines -> ~30 lines)
+- `scripts/item-start.sh` (50 lines -> ~10 lines)
+- `scripts/item-review.sh` (37 lines -> ~10 lines)
+- `scripts/item-close.sh` (26 lines -> ~10 lines)
+- `scripts/item-create.sh` (115 lines -> ~30 lines)
 - `scripts/reconcile-board.sh` (163 lines -> ~10 lines)
 - `scripts/setup-labels.sh` (45 lines -> ~25 lines)
 
@@ -427,26 +427,26 @@ Convert existing scripts to thin wrappers delegating to pm.sh, and write the ADR
 
 **Acceptance Criteria:**
 - [ ] Each script becomes a thin wrapper: `source pm.sh` + delegate to the appropriate `pm_*` function
-- [ ] `issue-set-status.sh` delegates to `pm_set_status "$@"`
+- [ ] `item-set-status.sh` delegates to `pm_set_status "$@"`
 - [ ] `batch-set-status.sh` delegates to `pm_batch_set_status "$@"`
-- [ ] `issue-start.sh` delegates to `pm_start_work "$@"`
-- [ ] `issue-review.sh` delegates to `pm_complete_work "$@"`
-- [ ] `issue-close.sh` delegates to `pm_done "$@"`
-- [ ] `issue-create-backlog.sh` composes: `pm_create_item backlog` + `pm_add_to_board` + `pm_set_status backlog` + `pm_add_label` (preserves the multi-step backlog creation flow including title prefixing and placeholder replacement)
+- [ ] `item-start.sh` delegates to `pm_start_work "$@"`
+- [ ] `item-review.sh` delegates to `pm_complete_work "$@"`
+- [ ] `item-close.sh` delegates to `pm_done "$@"`
+- [ ] `item-create.sh` composes: `pm_create_item backlog` + `pm_add_to_board` + `pm_set_status backlog` + `pm_add_label` (preserves the multi-step backlog creation flow including title prefixing and placeholder replacement)
 - [ ] `reconcile-board.sh` delegates to `pm_reconcile "$@"`
 - [ ] `setup-labels.sh` calls `pm_add_label` in a loop with `--create-if-missing` for each standard label
 - [ ] All scripts preserve their existing CLI interface (same arguments, same exit codes, same output format)
 - [ ] All scripts have the same shebang (`#!/usr/bin/env bash`) and `set -euo pipefail`
 - [ ] Running the full test suite with the wrapper scripts produces identical results to the original scripts
 - [ ] No `gh` CLI calls remain in any wrapped script (all GitHub interactions go through `pm.sh`)
-- [ ] The `issue-create-backlog.sh` wrapper preserves the `#<this-issue>` placeholder replacement and `[#N]` title prefixing logic (these are orchestrator-level concerns that stay in the wrapper, not the adapter)
+- [ ] The `item-create.sh` wrapper preserves the `#<this-issue>` placeholder replacement and `[#N]` title prefixing logic (these are orchestrator-level concerns that stay in the wrapper, not the adapter)
 
 **Test Plan:**
 - Run each wrapper script with the same arguments as the original script, compare output
-- `./scripts/issue-set-status.sh <issue> ready` -- verify board transition works
-- `./scripts/issue-start.sh <issue> --model sonnet --agent builder` -- verify "Work Started" comment posted
-- `./scripts/issue-review.sh <issue> abc123` -- verify "Ready for Review" comment posted
-- `./scripts/issue-close.sh <issue>` -- verify issue closed and board status is Done
+- `./scripts/item-set-status.sh <issue> ready` -- verify board transition works
+- `./scripts/item-start.sh <issue> --model sonnet --agent builder` -- verify "Work Started" comment posted
+- `./scripts/item-review.sh <issue> abc123` -- verify "Ready for Review" comment posted
+- `./scripts/item-close.sh <issue>` -- verify issue closed and board status is Done
 - `./scripts/batch-set-status.sh <issue1>:ready <issue2>:ready` -- verify batch operation works
 - `./scripts/reconcile-board.sh --from-state <file> --dry-run` -- verify reconciliation works
 - Verify exit codes match original behavior (0 on success, 1 on failure)
@@ -501,7 +501,7 @@ Adapter functions follow the existing error convention from the scripts they por
 
 ### Logging Convention
 
-All board-related functions log to `.agentic-workflow/logs/board-status.log` using the same format as current `issue-set-status.sh`:
+All board-related functions log to `.agentic-workflow/logs/board-status.log` using the same format as current `item-set-status.sh`:
 ```
 [<ISO-timestamp>] issue=<N> status=<S> <message>
 ```
@@ -512,7 +512,7 @@ Per the project's coding convention, all new files must be under 200 lines. Expe
 - `pm.sh`: ~40 lines (loader only)
 - `items.sh`: ~120 lines
 - `board.sh`: ~180 lines (most complex -- ports three scripts)
-- `comments.sh`: ~30 lines (thin wrapper around `gh issue comment` + `issue-telemetry.sh`)
+- `comments.sh`: ~30 lines (thin wrapper around `gh issue comment` + `item-telemetry.sh`)
 - `hierarchy.sh`: ~30 lines
 - `labels.sh`: ~40 lines
 - `lifecycle.sh`: ~60 lines
@@ -524,7 +524,7 @@ If `board.sh` exceeds 200 lines during implementation, split the reconciliation 
 
 Per the design doc's explicit scope:
 - Agent `.md` files are NOT updated (deferred until pm.sh function names differ from current script names)
-- `issue-telemetry.sh` is NOT rewritten -- `pm_post_telemetry` wraps it
+- `item-telemetry.sh` is NOT rewritten -- `pm_post_telemetry` wraps it
 - `dispatch-workflow.sh` is NOT refactored (being deprecated)
 - `dispatch-story.sh` is NOT refactored (dispatch logic, not PM)
 - `cleanup-post-merge.sh` is NOT refactored (git cleanup, not PM)
@@ -537,7 +537,7 @@ Per the design doc's explicit scope:
 | Risk | Mitigation |
 |------|-----------|
 | `board.sh` exceeds 200 lines | Builder splits reconciliation into separate file within adapter directory |
-| `issue-create-backlog.sh` wrapper is complex (placeholder replacement, title prefixing) | These orchestrator-level concerns stay in the wrapper script, not the adapter |
+| `item-create.sh` wrapper is complex (placeholder replacement, title prefixing) | These orchestrator-level concerns stay in the wrapper script, not the adapter |
 | Comment format divergence breaks orchestrator parsers | E02-S01 acceptance criteria requires byte-identical comment format |
 | Adapter loader sourcing order matters | `pm.sh` sources alphabetically; `lifecycle.sh` comes after `items.sh`, `board.sh`, `comments.sh` alphabetically, so dependencies are naturally available |
 | Cost budget function depends on state.sh which is not being refactored | `cost-budget.sh` reads the state file directly with `jq`, independent of `state.sh` |

@@ -20,7 +20,7 @@ Three failures compounded:
 
 2. **No computed fallback.** The state file contains all data needed to compute the critical path (dispatch timestamps, durations, and parallel wave structure), but the orchestrator has no automated way to derive wall-clock from this data. Without a measured or computed value, the orchestrator reused the sequential sum.
 
-3. **No validation.** `issue-telemetry.sh` accepts whatever `--wall-clock` value is passed. It does not check whether `wall-clock == duration` is suspicious when the dispatch log shows parallel dispatches.
+3. **No validation.** `item-telemetry.sh` accepts whatever `--wall-clock` value is passed. It does not check whether `wall-clock == duration` is suspicious when the dispatch log shows parallel dispatches.
 
 ## Prevention
 
@@ -30,8 +30,8 @@ Three failures compounded:
    - Sum the critical path segments
    - This eliminates dependence on `$SECONDS`
 
-2. **Add validation to `issue-telemetry.sh`.** When `--wall-clock` equals `--duration` and the state file (or `--dispatches-from-state`) shows parallel dispatches, emit a warning: "Wall-clock equals sequential duration — did you forget to compute the critical path?"
+2. **Add validation to `item-telemetry.sh`.** When `--wall-clock` equals `--duration` and the state file (or `--dispatches-from-state`) shows parallel dispatches, emit a warning: "Wall-clock equals sequential duration — did you forget to compute the critical path?"
 
-3. **Add a `compute_wall_clock()` function to the orchestrator.** A Python snippet that reads the state file and returns the critical path duration. Run it before calling `issue-telemetry.sh`.
+3. **Add a `compute_wall_clock()` function to the orchestrator.** A Python snippet that reads the state file and returns the critical path duration. Run it before calling `item-telemetry.sh`.
 
 4. **Do not use `$SECONDS` as the primary wall-clock source.** It is unreliable across long sessions, subshells, and session interruptions. Use the computed critical path as the primary source, and `$SECONDS` as a cross-check if available.

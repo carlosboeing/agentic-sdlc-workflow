@@ -3,7 +3,7 @@
 #
 # Provides:
 #   pm_add_comment <item-id> <body>    — post a comment on a GitHub issue
-#   pm_post_telemetry <item-id> [flags...] — delegate to issue-telemetry.sh
+#   pm_post_telemetry <item-id> [flags...] — delegate to item-telemetry.sh
 #
 # Exported via pm.sh loader. Requires CFG_REPO and REPO_ROOT to be set.
 #
@@ -27,10 +27,10 @@ eval "${_PM_FN_PREFIX}pm_add_comment() {
 }"
 
 # pm_post_telemetry <item-id> [flags...]
-# Delegates to scripts/issue-telemetry.sh, passing all flags through unchanged.
-# Locates issue-telemetry.sh relative to REPO_ROOT.
+# Delegates to scripts/item-telemetry.sh, passing all flags through unchanged.
+# Locates item-telemetry.sh relative to REPO_ROOT.
 eval "${_PM_FN_PREFIX}pm_post_telemetry() {
   local item_id=\"\$1\"
   shift
-  \"\$REPO_ROOT/scripts/issue-telemetry.sh\" \"\$item_id\" \"\$@\"
+  \"\$REPO_ROOT/scripts/item-telemetry.sh\" \"\$item_id\" \"\$@\"
 }"

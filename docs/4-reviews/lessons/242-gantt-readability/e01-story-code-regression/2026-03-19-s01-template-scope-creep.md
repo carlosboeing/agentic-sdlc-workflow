@@ -10,7 +10,7 @@ severity: medium
 
 ## What happened
 
-E01-S01's builder modified `scripts/templates/telemetry.md` (updating the breakdown header row from 5 to 6 columns) alongside the `compute-dispatches.py` changes. This template change was explicitly scoped to E01-S02 (issue 250) per the plan. The premature change broke 3 of 44 shell integration tests in `tests/scripts/test-issue-telemetry.sh` because the test assertions still expected the 5-column header.
+E01-S01's builder modified `scripts/templates/telemetry.md` (updating the breakdown header row from 5 to 6 columns) alongside the `compute-dispatches.py` changes. This template change was explicitly scoped to E01-S02 (issue 250) per the plan. The premature change broke 3 of 44 shell integration tests in `tests/scripts/test-item-telemetry.sh` because the test assertions still expected the 5-column header.
 
 The reviewer (dispatch 4) correctly identified this as scope creep (C1) and noted the broken tests (C2). The fix was a clean revert of the template change (commit `8039f37`), taking 1m 18s.
 

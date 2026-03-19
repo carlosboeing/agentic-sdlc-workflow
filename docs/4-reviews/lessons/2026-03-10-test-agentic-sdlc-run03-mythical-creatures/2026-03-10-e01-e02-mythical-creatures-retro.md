@@ -97,7 +97,7 @@ Stories jumped directly from Planned to Done, skipping Todo, In Progress, and In
 
 **Root cause A: Missing Planned-to-Todo transition.** CLAUDE.md assigns this to "Human (on plan PR merge)" but in autonomous mode there is no human. The orchestrator auto-merged the plan PR but did not assume the human's responsibility for transitioning stories to "Todo."
 
-**Root cause B: Concurrent board updates silently failed.** Wave 1's 4 parallel builders each called `issue-start.sh` (In Progress) and `issue-review.sh` (In Review) simultaneously. The 3 haiku builders' updates were silently lost -- likely a GitHub Projects API race condition when 4 agents call `gh project item-edit` concurrently. The sonnet builder's updates succeeded, as did all Wave 2/3 builders at lower concurrency.
+**Root cause B: Concurrent board updates silently failed.** Wave 1's 4 parallel builders each called `item-start.sh` (In Progress) and `item-review.sh` (In Review) simultaneously. The 3 haiku builders' updates were silently lost -- likely a GitHub Projects API race condition when 4 agents call `gh project item-edit` concurrently. The sonnet builder's updates succeeded, as did all Wave 2/3 builders at lower concurrency.
 
 The final `issue-merged.sh` calls (run sequentially by the orchestrator) worked correctly, masking the problem by jumping everything to Done. The board was visually wrong for the entire build duration.
 
@@ -138,7 +138,7 @@ Evidence: epic telemetry on issues #94, #95, and PR #104.
 
 ### For Builders
 
-1. **Word count compliance must be verified before committing.** The sonnet builder on E01-S04 produced 569 words against a 500-word cap, requiring 2 fix cycles. Builders should run `wc -w` and compare against the acceptance criteria before calling `issue-review.sh`.
+1. **Word count compliance must be verified before committing.** The sonnet builder on E01-S04 produced 569 words against a 500-word cap, requiring 2 fix cycles. Builders should run `wc -w` and compare against the acceptance criteria before calling `item-review.sh`.
 2. **Scope discipline in parallel branches.** E01-S03's haiku builder included `taxonomy.md` (E01-S01's file) in its commit. Builders working on parallel branches must commit only the files specified in their story's acceptance criteria.
 3. **Cross-story consistency is unguaranteed in parallel dispatch.** The Stoneback Leviathan was aquatic in E01-S04 but terrestrial in E02-S01/E02-S03. Builders working from acceptance criteria alone (not reading each other's output) can produce irreconcilable content. This is acceptable for workflow tests but would be a problem in production.
 
@@ -152,7 +152,7 @@ Evidence: epic telemetry on issues #94, #95, and PR #104.
 
 1. **Parallel dispatch works and provides significant speedup.** The 1.8x speedup (25m 50s -> 14m 2s) validates the architecture. Wave 1 with 4 concurrent builders is the proven upper bound so far.
 2. **Per-story review catches real issues.** The word count violation on E01-S04 and the scope leak on E01-S03 were both caught by per-story review. The epic-level review caught the cross-story habitat contradiction. Both review levels add value.
-3. **Mixed-model cost estimation needs improvement.** The current `issue-telemetry.sh` single-model flag produces misleading headlines for mixed-model epics. The per-story breakdown is accurate; the headline is not.
+3. **Mixed-model cost estimation needs improvement.** The current `item-telemetry.sh` single-model flag produces misleading headlines for mixed-model epics. The per-story breakdown is accurate; the headline is not.
 4. **Autonomous mode needs explicit phase transitions.** The Planned-to-Todo transition was previously "human's job" -- in autonomous mode, the orchestrator must own all board transitions that would normally be human-triggered.
 
 ## Recommendations
@@ -161,9 +161,9 @@ Evidence: epic telemetry on issues #94, #95, and PR #104.
 
 2. **Audit agent tool lists against instruction content** -- Add a pre-flight check: before dispatching an agent, verify its `tools` frontmatter includes `Bash` if the agent's instructions reference `gh`, `git`, or other CLI commands. This is a one-time fix for existing agents but should be a convention for new agent files. *Status: already fixed for planner (commit `cfb2231`); convention change proposed.*
 
-3. **Add per-model cost rows to epic telemetry** -- The `issue-telemetry.sh` script should accept multiple `--model` flags or compute cost from the breakdown table rather than applying a single model rate to all tokens. This eliminates the misleading headline cost. *Status: proposed as an issue for the planner, not a convention change.*
+3. **Add per-model cost rows to epic telemetry** -- The `item-telemetry.sh` script should accept multiple `--model` flags or compute cost from the breakdown table rather than applying a single model rate to all tokens. This eliminates the misleading headline cost. *Status: proposed as an issue for the planner, not a convention change.*
 
-4. **Builders must verify word counts before committing** -- Add to builder agent instructions: "Run `wc -w <output-file>` and compare against the acceptance criteria word count range before calling `issue-review.sh`." This would have prevented 2 of the 3 review cycles. *Status: proposed for convention change.*
+4. **Builders must verify word counts before committing** -- Add to builder agent instructions: "Run `wc -w <output-file>` and compare against the acceptance criteria word count range before calling `item-review.sh`." This would have prevented 2 of the 3 review cycles. *Status: proposed for convention change.*
 
 5. **Cross-story consistency review should be explicit in the plan** -- When parallel stories describe shared entities, the plan should specify a "consistency contract" -- a set of facts (e.g., "Stoneback Leviathan is terrestrial") that all builders must respect. The reviewer checklist should include a cross-reference section for shared entities. *Status: observation; not a convention change (requires plan-level thinking).*
 

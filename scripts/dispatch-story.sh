@@ -191,7 +191,7 @@ if [ "$EXIT_CODE" -eq 0 ]; then
   TELEM_ARGS=("$ISSUE_NUMBER" --model "$MODEL" --duration "$DURATION_MS" --commit "$STORY_COMMIT")
   [ "$TOTAL_TOKENS" -gt 0 ] 2>/dev/null && TELEM_ARGS+=(--tokens "$TOTAL_TOKENS")
   [ "$TOOL_USES" -gt 0 ] 2>/dev/null && TELEM_ARGS+=(--tool-uses "$TOOL_USES")
-  "$SCRIPT_DIR/issue-telemetry.sh" "${TELEM_ARGS[@]}"
+  "$SCRIPT_DIR/item-telemetry.sh" "${TELEM_ARGS[@]}"
 else
   TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   echo "claude exited with code $EXIT_CODE. Posting failure comment..."

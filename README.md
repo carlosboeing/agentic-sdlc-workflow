@@ -360,12 +360,12 @@ The workflow enforces several safety mechanisms:
   logs/                    ← Diagnostic logs (board status, drift detection)
 
 scripts/
-  issue-set-status.sh     ← Board status transitions
-  issue-start.sh          ← Mark story as started
-  issue-review.sh         ← Mark story as ready for review
-  issue-telemetry.sh      ← Post telemetry to issues/PRs
-  issue-close.sh          ← Close issue and set board to Done
-  issue-create-backlog.sh ← Create backlog item with board setup
+  item-set-status.sh     ← Board status transitions
+  item-start.sh          ← Mark story as started
+  item-review.sh         ← Mark story as ready for review
+  item-telemetry.sh      ← Post telemetry to issues/PRs
+  item-close.sh          ← Close issue and set board to Done
+  item-create.sh ← Create backlog item with board setup
   fetch-pricing.sh        ← Fetch current Anthropic API pricing
   cleanup-post-merge.sh   ← Post-merge branch and state cleanup
   check-board-drift.sh    ← Detect board status persistence drift

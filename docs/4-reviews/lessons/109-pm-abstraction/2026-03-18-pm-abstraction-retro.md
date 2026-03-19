@@ -117,10 +117,10 @@ The planner's three-epic structure with a clear dependency graph (plan commit `5
 This was the first backlog item that modified core workflow scripts (board management, status transitions, issue creation). The existing workflow was never disrupted:
 
 - All 8 wrapper scripts preserve their original CLI interfaces (same arguments, same exit codes).
-- The `issue-create-backlog.sh` wrapper retained orchestrator-level concerns (placeholder replacement, title prefixing) while delegating PM operations to adapter functions.
+- The `item-create.sh` wrapper retained orchestrator-level concerns (placeholder replacement, title prefixing) while delegating PM operations to adapter functions.
 - No agent `.md` files were modified -- agents continue calling the same scripts with the same arguments.
 
-**Evidence:** The E03-S01 reviewer verified all 413 tests passed (including the 124 pre-existing tests from other test suites like `test-dispatch-workflow.sh`, `test-issue-telemetry.sh`, `test-validate-logs.sh`).
+**Evidence:** The E03-S01 reviewer verified all 413 tests passed (including the 124 pre-existing tests from other test suites like `test-dispatch-workflow.sh`, `test-item-telemetry.sh`, `test-validate-logs.sh`).
 
 ## What Didn't Work
 

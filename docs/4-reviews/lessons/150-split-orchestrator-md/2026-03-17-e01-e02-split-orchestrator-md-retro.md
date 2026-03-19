@@ -49,7 +49,7 @@ Backlog item 150 reduced `orchestrator.md` from 1,323 to 503 lines (62% reductio
 | E02-S02 | 161 | medium | sonnet | 3m 41s | 73K | ~$0.44 | opus | APPROVE | 0 |
 | **Story Build Total** | | | | **32m 58s** | **448K** | **~$3.27** | | | **2** |
 
-*Note: Build telemetry comes from `issue-telemetry.sh` comments on each story issue. Fix cycle telemetry for E01-S01 (2 builder re-dispatches + 2 re-reviews) was not posted as separate telemetry comments -- the durations above reflect only the initial build dispatch. The reviewer posted review comments on the issue but no separate telemetry for fix cycle dispatches. The design phase telemetry was not posted to an issue (no design telemetry convention for interactive design). Plan telemetry was also not posted.*
+*Note: Build telemetry comes from `item-telemetry.sh` comments on each story issue. Fix cycle telemetry for E01-S01 (2 builder re-dispatches + 2 re-reviews) was not posted as separate telemetry comments -- the durations above reflect only the initial build dispatch. The reviewer posted review comments on the issue but no separate telemetry for fix cycle dispatches. The design phase telemetry was not posted to an issue (no design telemetry convention for interactive design). Plan telemetry was also not posted.*
 
 ### Aggregate
 

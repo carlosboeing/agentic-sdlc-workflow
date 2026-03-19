@@ -168,7 +168,7 @@ The state file has no dispatch entries with epic issue numbers (172, 173, 174). 
 
 ### 4. Designer/Planner Doc Issues Appear on Board Delayed
 
-The user observed that designer/planner doc issues (169, 171) appear on the project board approximately 3 minutes after dispatch, not immediately. This is because the design and plan issues are created by the designer/planner agents mid-execution (via `issue-create-backlog.sh` or `gh issue create`), not by the orchestrator upfront. The orchestrator dispatches the agent, which then creates the issue, which then gets added to the board. The delay is the agent's startup + issue creation time.
+The user observed that designer/planner doc issues (169, 171) appear on the project board approximately 3 minutes after dispatch, not immediately. This is because the design and plan issues are created by the designer/planner agents mid-execution (via `item-create.sh` or `gh issue create`), not by the orchestrator upfront. The orchestrator dispatches the agent, which then creates the issue, which then gets added to the board. The delay is the agent's startup + issue creation time.
 
 **Impact:** During the first few minutes of a run, the project board does not reflect all work in progress. This is a UX gap for humans monitoring the board, not a correctness issue.
 

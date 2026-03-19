@@ -127,8 +127,8 @@ agentic-sdlc-plugin/
 +-- hooks/
 |   +-- hooks.json
 +-- scripts/
-|   +-- issue-set-status.sh
-|   +-- issue-telemetry.sh
+|   +-- item-set-status.sh
+|   +-- item-telemetry.sh
 |   +-- ...
 +-- templates/
 |   +-- telemetry.md

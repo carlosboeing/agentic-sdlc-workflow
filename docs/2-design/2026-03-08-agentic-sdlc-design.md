@@ -61,7 +61,7 @@ Four agents in `.claude/agents/`, each with strict separation of concerns.
   - Use NSubstitute for mocking, Arrange/Act/Assert pattern
   - Follow naming convention: `Method_Condition_ExpectedResult`
   - Create atomic commits using conventional commits
-  - Run `issue-start.sh` at start, `issue-review.sh` at end
+  - Run `item-start.sh` at start, `item-review.sh` at end
   - Branch off epic branches, never commit to `main`
 - **Does NOT:** Create issues, modify plans, or make architectural decisions
 - **Tools:** Read, Write, Edit, Grep, Glob, Bash, Agent
@@ -173,9 +173,9 @@ No status labels — GitHub Issues open/closed state and GitHub Project board co
 
 | Script | Purpose |
 |---|---|
-| `issue-start.sh <number> --model <model> --agent <agent>` | Comment on issue with start timestamp, model, agent |
-| `issue-review.sh <number> <commit-hash>` | Comment with completion info, move to Review column |
-| `issue-telemetry.sh <number> --model <model> --duration <ms> --commit <hash>` | Post telemetry metrics as issue comment |
+| `item-start.sh <number> --model <model> --agent <agent>` | Comment on issue with start timestamp, model, agent |
+| `item-review.sh <number> <commit-hash>` | Comment with completion info, move to Review column |
+| `item-telemetry.sh <number> --model <model> --duration <ms> --commit <hash>` | Post telemetry metrics as issue comment |
 | `issue-merged.sh <number>` | Close issue, move to Done column |
 | `setup-labels.sh` | Create all labels in the repo (idempotent) |
 
@@ -251,9 +251,9 @@ Before assigning difficulty, the planner considers:
 1. Read difficulty label from GitHub Issue
 2. Map to model per routing table
 3. Dispatch builder via Agent tool with model parameter
-4. Builder runs `issue-start.sh` → implements → runs `issue-review.sh`
+4. Builder runs `item-start.sh` → implements → runs `item-review.sh`
 5. Review the PR
-6. Post telemetry via `issue-telemetry.sh`
+6. Post telemetry via `item-telemetry.sh`
 
 ---
 

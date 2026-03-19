@@ -14,7 +14,7 @@ set -euo pipefail
 # Output: JSON to stdout. Exit 0 on success (live or cached), exit 1 if no data.
 #
 # Note: The config file pricing section is an OPTIONAL OVERRIDE handled by
-# issue-telemetry.sh at consumption time — this script does NOT read the config.
+# item-telemetry.sh at consumption time — this script does NOT read the config.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

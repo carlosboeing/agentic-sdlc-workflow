@@ -25,7 +25,7 @@ Three layers bind the workflow to GitHub:
 
 | Layer | Examples | Impact of swap |
 |-------|----------|---------------|
-| **Scripts** | `gh issue list`, `gh pr create`, `gh project item-edit`, `issue-start.sh`, `issue-telemetry.sh` | Rewrite every script |
+| **Scripts** | `gh issue list`, `gh pr create`, `gh project item-edit`, `item-start.sh`, `item-telemetry.sh` | Rewrite every script |
 | **Agent instructions** | Literal `gh` commands and `jq` queries in orchestrator, planner, designer `.md` files | Rewrite every agent file |
 | **Concepts** | "Issues", "PRs", "labels", "project board option IDs" baked into CLAUDE.md and conventions | Re-map vocabulary throughout |
 
@@ -180,9 +180,9 @@ With MCP tools handling project management and code hosting operations, the curr
 
 | Current script | MCP replacement | Remaining purpose |
 |---------------|----------------|-------------------|
-| `issue-start.sh` | `pm_update_status(id, "in_progress")` + `pm_post_comment(id, "Work Started")` | None — agents call MCP directly |
-| `issue-review.sh` | `pm_update_status(id, "in_review")` + `pm_post_comment(id, "Ready for Review")` | None |
-| `issue-telemetry.sh` | `pm_post_comment(id, formatted_telemetry)` | Telemetry formatting logic (could be a skill or utility) |
+| `item-start.sh` | `pm_update_status(id, "in_progress")` + `pm_post_comment(id, "Work Started")` | None — agents call MCP directly |
+| `item-review.sh` | `pm_update_status(id, "in_review")` + `pm_post_comment(id, "Ready for Review")` | None |
+| `item-telemetry.sh` | `pm_post_comment(id, formatted_telemetry)` | Telemetry formatting logic (could be a skill or utility) |
 | `issue-merged.sh` | `pm_close_item(id)` + `pm_update_status(id, "done")` | None |
 | `dispatch-story.sh` | Orchestrator agent calls builder subagent directly | None |
 | `dispatch-workflow.sh` | Orchestrator agent is the workflow | None — or thin CLI wrapper that invokes `claude --agent orchestrator` |
@@ -250,4 +250,4 @@ Build or accept community-contributed MCP servers for other platforms:
 2. **Provider capability gaps** — Not all providers support all operations (e.g., Linear has no "project board" concept like GitHub Projects). How do we handle missing capabilities — error, fallback, or degrade gracefully?
 3. **Auth management** — Each MCP server needs its own auth (GitHub token, Jira API key, Linear API key). Should the plugin manage a unified credential store, or delegate to each server?
 4. **Schema evolution** — As the MCP tool interfaces evolve, how do we version them without breaking existing providers?
-5. **Telemetry formatting** — `issue-telemetry.sh` has significant formatting logic (cost calculation, speed, breakdown tables). Should this be a skill, a utility in the plugin, or part of the MCP server?
+5. **Telemetry formatting** — `item-telemetry.sh` has significant formatting logic (cost calculation, speed, breakdown tables). Should this be a skill, a utility in the plugin, or part of the MCP server?

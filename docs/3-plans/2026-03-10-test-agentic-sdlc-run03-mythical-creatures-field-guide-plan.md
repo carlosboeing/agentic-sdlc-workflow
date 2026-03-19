@@ -304,7 +304,7 @@ graph TD
 3. **Wave 1:** Dispatch 4 builders concurrently via Agent tool:
    - `subagent_type: "builder-haiku"` for E01-S01, E01-S02, E01-S03
    - `subagent_type: "builder-sonnet"` for E02-S01
-4. After each builder completes: post telemetry via `issue-telemetry.sh`
+4. After each builder completes: post telemetry via `item-telemetry.sh`
 5. After each builder completes: dispatch `subagent_type: "reviewer"` on the story branch
 6. If reviewer finds critical issues: re-dispatch builder (max 2 cycles)
 7. Merge each story branch into its epic branch

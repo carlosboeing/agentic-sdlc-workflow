@@ -147,9 +147,9 @@ pm_update_item() {
 MOCK_ADAPTER
 
 # =====================================================
-# Test Group 1: issue-set-status.sh is a wrapper
+# Test Group 1: item-set-status.sh is a wrapper
 # =====================================================
-echo "Test Group: issue-set-status.sh delegates to pm_set_status"
+echo "Test Group: item-set-status.sh delegates to pm_set_status"
 
 > "$CALL_LOG"
 TMPOUT=$(mktemp)
@@ -158,7 +158,7 @@ export _MOCK_CALL_LOG="$CALL_LOG"
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-set-status.sh\" 42 in-progress
+  \"$REPO_ROOT/scripts/item-set-status.sh\" 42 in-progress
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -170,12 +170,12 @@ assert_contains "issue_set_status_calls_pm_set_status" "CALL:pm_set_status|42 in
 
 echo ""
 
-# Test: issue-set-status.sh preserves error on missing args
+# Test: item-set-status.sh preserves error on missing args
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-set-status.sh\"
+  \"$REPO_ROOT/scripts/item-set-status.sh\"
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -224,16 +224,16 @@ assert_contains "batch_set_status_shows_usage_on_no_args" "Usage" "$OUTPUT"
 echo ""
 
 # =====================================================
-# Test Group 3: issue-start.sh is a wrapper
+# Test Group 3: item-start.sh is a wrapper
 # =====================================================
-echo "Test Group: issue-start.sh delegates to pm_start_work"
+echo "Test Group: item-start.sh delegates to pm_start_work"
 
 > "$CALL_LOG"
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-start.sh\" 42 --model sonnet --agent builder
+  \"$REPO_ROOT/scripts/item-start.sh\" 42 --model sonnet --agent builder
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -247,12 +247,12 @@ assert_contains "issue_start_prints_started_message" "started" "$OUTPUT"
 
 echo ""
 
-# Test: issue-start.sh preserves error on missing args
+# Test: item-start.sh preserves error on missing args
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-start.sh\"
+  \"$REPO_ROOT/scripts/item-start.sh\"
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -264,16 +264,16 @@ assert_contains "issue_start_shows_usage_on_no_args" "Usage" "$OUTPUT"
 echo ""
 
 # =====================================================
-# Test Group 4: issue-review.sh is a wrapper
+# Test Group 4: item-review.sh is a wrapper
 # =====================================================
-echo "Test Group: issue-review.sh delegates to pm_complete_work"
+echo "Test Group: item-review.sh delegates to pm_complete_work"
 
 > "$CALL_LOG"
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-review.sh\" 55 abc123
+  \"$REPO_ROOT/scripts/item-review.sh\" 55 abc123
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -286,12 +286,12 @@ assert_contains "issue_review_prints_review_message" "review" "$OUTPUT"
 
 echo ""
 
-# Test: issue-review.sh preserves error on missing args
+# Test: item-review.sh preserves error on missing args
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-review.sh\"
+  \"$REPO_ROOT/scripts/item-review.sh\"
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -303,16 +303,16 @@ assert_contains "issue_review_shows_usage_on_no_args" "Usage" "$OUTPUT"
 echo ""
 
 # =====================================================
-# Test Group 5: issue-close.sh is a wrapper
+# Test Group 5: item-close.sh is a wrapper
 # =====================================================
-echo "Test Group: issue-close.sh delegates to pm_done"
+echo "Test Group: item-close.sh delegates to pm_done"
 
 > "$CALL_LOG"
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-close.sh\" 77
+  \"$REPO_ROOT/scripts/item-close.sh\" 77
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -324,12 +324,12 @@ assert_contains "issue_close_calls_pm_done" "CALL:pm_done|77" "$CALLS"
 
 echo ""
 
-# Test: issue-close.sh preserves error on missing args
+# Test: item-close.sh preserves error on missing args
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-close.sh\"
+  \"$REPO_ROOT/scripts/item-close.sh\"
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -419,11 +419,11 @@ echo ""
 echo "Test Group: No direct gh CLI calls in wrapper scripts"
 
 SCRIPTS=(
-  "issue-set-status.sh"
+  "item-set-status.sh"
   "batch-set-status.sh"
-  "issue-start.sh"
-  "issue-review.sh"
-  "issue-close.sh"
+  "item-start.sh"
+  "item-review.sh"
+  "item-close.sh"
   "reconcile-board.sh"
   "setup-labels.sh"
 )
@@ -443,11 +443,11 @@ for script in "${SCRIPTS[@]}"; do
   fi
 done
 
-# issue-create-backlog.sh is special: it still has gh CLI calls for
+# item-create.sh is special: it still has gh CLI calls for
 # placeholder replacement and title prefixing (orchestrator-level concerns).
 # But it should NOT have gh calls for board/label/issue-create operations
 # (those go through pm_*).
-SCRIPT_PATH="$REPO_ROOT/scripts/issue-create-backlog.sh"
+SCRIPT_PATH="$REPO_ROOT/scripts/item-create.sh"
 # Check that pm_create_item, pm_add_to_board, pm_set_status, pm_add_label are used
 if grep -q "pm_create_item" "$SCRIPT_PATH" && \
    grep -q "pm_add_to_board" "$SCRIPT_PATH" && \
@@ -468,12 +468,12 @@ echo ""
 echo "Test Group: All wrappers have shebang and set -euo pipefail"
 
 ALL_SCRIPTS=(
-  "issue-set-status.sh"
+  "item-set-status.sh"
   "batch-set-status.sh"
-  "issue-start.sh"
-  "issue-review.sh"
-  "issue-close.sh"
-  "issue-create-backlog.sh"
+  "item-start.sh"
+  "item-review.sh"
+  "item-close.sh"
+  "item-create.sh"
   "reconcile-board.sh"
   "setup-labels.sh"
 )
@@ -519,16 +519,16 @@ done
 echo ""
 
 # =====================================================
-# Test Group 11: issue-create-backlog.sh preserves arg parsing
+# Test Group 11: item-create.sh preserves arg parsing
 # =====================================================
-echo "Test Group: issue-create-backlog.sh preserves argument parsing"
+echo "Test Group: item-create.sh preserves argument parsing"
 
 # Test missing required args
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export _PM_TEST_ADAPTER_DIR=\"$MOCK_DIR/adapter\"
   export _MOCK_CALL_LOG=\"$CALL_LOG\"
-  \"$REPO_ROOT/scripts/issue-create-backlog.sh\"
+  \"$REPO_ROOT/scripts/item-create.sh\"
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 OUTPUT=$(cat "$TMPOUT")
@@ -559,22 +559,22 @@ check_line_count() {
 }
 
 # Thresholds: original lines -> wrapper lines (approx targets from AC)
-# issue-set-status.sh:    158 -> ~10 (generous: 25 with comments)
+# item-set-status.sh:    158 -> ~10 (generous: 25 with comments)
 # batch-set-status.sh:    158 -> ~10 (generous: 25 with comments)
-# issue-start.sh:          50 -> ~10 (generous: 25 with comments)
-# issue-review.sh:         37 -> ~10 (generous: 25 with comments)
-# issue-close.sh:          26 -> ~10 (generous: 25 with comments)
+# item-start.sh:          50 -> ~10 (generous: 25 with comments)
+# item-review.sh:         37 -> ~10 (generous: 25 with comments)
+# item-close.sh:          26 -> ~10 (generous: 25 with comments)
 # reconcile-board.sh:     163 -> ~10 (generous: 25 with comments)
 # setup-labels.sh:         45 -> ~25 (generous: 65 with loop + labels)
-# issue-create-backlog.sh: 115 -> ~30 (generous: 100 with orchestrator logic)
-check_line_count "issue-set-status.sh" 25
+# item-create.sh: 115 -> ~30 (generous: 100 with orchestrator logic)
+check_line_count "item-set-status.sh" 25
 check_line_count "batch-set-status.sh" 25
-check_line_count "issue-start.sh" 25
-check_line_count "issue-review.sh" 25
-check_line_count "issue-close.sh" 25
+check_line_count "item-start.sh" 25
+check_line_count "item-review.sh" 25
+check_line_count "item-close.sh" 25
 check_line_count "reconcile-board.sh" 25
 check_line_count "setup-labels.sh" 65
-check_line_count "issue-create-backlog.sh" 100
+check_line_count "item-create.sh" 100
 
 echo ""
 

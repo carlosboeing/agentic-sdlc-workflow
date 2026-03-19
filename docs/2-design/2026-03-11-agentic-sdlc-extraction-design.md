@@ -42,7 +42,7 @@ The extraction must separate **process** (how work flows) from **knowledge** (wh
 | Category | Files | Norris-specific content to strip |
 |----------|-------|----------------------------------|
 | **Agents** | `.claude/agents/orchestrator.md`, `planner.md`, `designer.md`, `builder.md`, `builder-{haiku,sonnet,opus}.md`, `reviewer.md`, `retro.md` | All `.NET`, `NN.*`, `ITool`, `IKernelTool`, Blazor, EF Core, SQLite, DI pattern references; all `gh` CLI commands and board IDs |
-| **Scripts** | `scripts/issue-start.sh`, `issue-review.sh`, `issue-telemetry.sh`, `issue-merged.sh`, `dispatch-story.sh`, `dispatch-workflow.sh`, `setup-labels.sh`, `fetch-pricing.sh` | `REPO="carlosboeing/agentic-sdlc-workflow"`, project board IDs, status option IDs |
+| **Scripts** | `scripts/item-start.sh`, `item-review.sh`, `item-telemetry.sh`, `issue-merged.sh`, `dispatch-story.sh`, `dispatch-workflow.sh`, `setup-labels.sh`, `fetch-pricing.sh` | `REPO="carlosboeing/agentic-sdlc-workflow"`, project board IDs, status option IDs |
 | **Templates** | `scripts/templates/telemetry.md` | Already generic |
 | **Config** | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/.gitignore` | `dotnet` command allowlists (tech-stack specific) |
 | **Workflows** | `.github/workflows/sentinel.yml`, `auto-close-issues.yml` | Repo references, NeuralNorris security checklist |

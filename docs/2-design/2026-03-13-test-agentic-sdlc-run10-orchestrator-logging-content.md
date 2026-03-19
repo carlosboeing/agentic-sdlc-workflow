@@ -24,7 +24,7 @@ Run 9 exposed a board-status persistence issue: all story and epic issues remain
 
 This run validates that:
 - The logging captures all expected events during a real multi-story build
-- The `issue-set-status.sh` post-mutation verification correctly detects mismatches
+- The `item-set-status.sh` post-mutation verification correctly detects mismatches
 - The PostToolUse hook filters and logs the right commands
 - Content stories can be built and reviewed while logging is active (no hook interference)
 
@@ -44,7 +44,7 @@ This run validates that:
 - Testing C# compilation, DI wiring, or unit tests (markdown and scripts only)
 - Implementing log rotation or cleanup (logs are per-session and small)
 - Auto-remediation on VERIFY_MISMATCH (diagnostic data collection only)
-- Changing other scripts (`issue-close.sh`, `issue-start.sh`, etc.) -- they delegate to `issue-set-status.sh`
+- Changing other scripts (`item-close.sh`, `item-start.sh`, etc.) -- they delegate to `item-set-status.sh`
 
 ---
 
@@ -58,7 +58,7 @@ The logging infrastructure from the design doc is already implemented on `main`:
 
 | Component | Design Doc Spec | Current State | Gap |
 |-----------|----------------|---------------|-----|
-| `scripts/issue-set-status.sh` logging | File logging with verification | Fully implemented | None |
+| `scripts/item-set-status.sh` logging | File logging with verification | Fully implemented | None |
 | `.claude/hooks/log-tool.sh` | PostToolUse hook with allowlist | Fully implemented | Minor: handles `Task` tool (actual CC API name), not `Agent` as design doc specified |
 | `.claude/hooks/log-filter.conf` | Regex allowlist | Fully implemented | None |
 | `.claude/settings.json` hooks | `PostToolUse` registration | Registered for `Bash` and `Task` | Format differs from design doc (actual CC hook API uses flat `matcher` string, not nested `toolName` object) |

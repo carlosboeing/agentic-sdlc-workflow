@@ -149,9 +149,9 @@ Evidence: designer agent file lacks `Bash`; orchestrator handled all design-phas
 
 ### 6. Missing Issue Comments on E01-S03 (#114)
 
-Issue #114 has only 2 comments (Telemetry and Code Review) -- the "Work Started" and "Ready for Review" comments from `issue-start.sh` and `issue-review.sh` are absent. Issues #112 and #113 (same wave) have all expected comments. This creates a data gap for the retro: builder start/completion timestamps for #114 must be inferred from the git log rather than from explicit issue markers.
+Issue #114 has only 2 comments (Telemetry and Code Review) -- the "Work Started" and "Ready for Review" comments from `item-start.sh` and `item-review.sh` are absent. Issues #112 and #113 (same wave) have all expected comments. This creates a data gap for the retro: builder start/completion timestamps for #114 must be inferred from the git log rather than from explicit issue markers.
 
-Root cause: likely a GitHub API rate limiting issue during parallel dispatch. The `issue-start.sh` and `issue-review.sh` scripts may have failed silently for #114.
+Root cause: likely a GitHub API rate limiting issue during parallel dispatch. The `item-start.sh` and `item-review.sh` scripts may have failed silently for #114.
 
 Evidence: issue #114 comment list shows only Telemetry and Code Review; compare with #112 and #113 which have all 4 expected comments.
 

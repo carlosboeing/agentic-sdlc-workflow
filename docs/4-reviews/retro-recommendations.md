@@ -30,7 +30,7 @@ Last updated: 2026-03-19 (compiled from Runs 2-16 + backlogs 105, 106, 109, 111,
 - **Source:** Backlog 106 (rec 1)
 - **Recurrence:** 1 run (E01-S03 scope creep into E01-S04's files)
 - **Priority:** Medium
-- **Description:** Builders should treat the story issue's `Files to modify` section as a hard constraint. When E01-S03 modified `issue-telemetry.sh` (which was E01-S04's scope), it pre-completed half of E01-S04's acceptance criteria and created downstream confusion. Builders should flag to the orchestrator if they need to modify files outside their listed scope, rather than silently doing so.
+- **Description:** Builders should treat the story issue's `Files to modify` section as a hard constraint. When E01-S03 modified `item-telemetry.sh` (which was E01-S04's scope), it pre-completed half of E01-S04's acceptance criteria and created downstream confusion. Builders should flag to the orchestrator if they need to modify files outside their listed scope, rather than silently doing so.
 - **Effort:** Low (builder.md instruction update)
 
 ### P. Consider model routing for docs-only reviewers
@@ -231,17 +231,17 @@ Last updated: 2026-03-19 (compiled from Runs 2-16 + backlogs 105, 106, 109, 111,
 | 13  | Builder must push to remote in worktree mode                         | Run 8         | CLAUDE.md convention                              |
 | 14  | CLI dispatch scope clarified (standalone terminal only)              | Run 2         | CLAUDE.md convention                              |
 | 15  | All story issues included in backlog PR `Closes` list                | Run 2         | CLAUDE.md convention                              |
-| 16  | `--cost` flag on `issue-telemetry.sh` for mixed-model epics          | Run 2         | Script updated                                    |
+| 16  | `--cost` flag on `item-telemetry.sh` for mixed-model epics          | Run 2         | Script updated                                    |
 | 17  | Reviewer dispatch is mandatory (no skip option)                      | Run 2         | CLAUDE.md + orchestrator.md                       |
 | 18  | Single-PR workflow (`backlog/<N>-<slug>` to `main`)                  | Run 6         | CLAUDE.md convention                              |
 | 19  | Fix artifact matching to use YAML frontmatter grep                   | Run 10        | orchestrator.md updated                           |
-| 20  | Replace `item-list` with per-issue GraphQL in `issue-set-status.sh`  | Run 10        | Pre-Run 11 commit `487b382`                       |
-| 21  | `issue-create-backlog.sh` for consolidated backlog item setup        | Run 10 lesson | Pre-Run 11 commit `0785196`                       |
+| 20  | Replace `item-list` with per-issue GraphQL in `item-set-status.sh`  | Run 10        | Pre-Run 11 commit `487b382`                       |
+| 21  | `item-create.sh` for consolidated backlog item setup        | Run 10 lesson | Pre-Run 11 commit `0785196`                       |
 | 22  | Story branches created from recorded epic base before parallel waves | Run 9         | CLAUDE.md convention                              |
 | 23  | Audit agent tool lists when instructions reference CLI commands      | Run 3         | CLAUDE.md convention                              |
 | 24  | Post-wave comment verification for parallel builders                 | Runs 4, 11    | CLAUDE.md convention (Run 11)                     |
 | 25  | Document `gh project item-add` does not set default status           | Run 11        | CLAUDE.md convention (Run 11)                     |
-| 26  | GraphQL rate limit awareness convention in CLAUDE.md                 | Runs 6-8, 10  | CLAUDE.md (pre-Run 11), `issue-set-status.sh` fix |
+| 26  | GraphQL rate limit awareness convention in CLAUDE.md                 | Runs 6-8, 10  | CLAUDE.md (pre-Run 11), `item-set-status.sh` fix |
 | 27  | Remove duplicated status option IDs from orchestrator.md             | Run 6         | orchestrator.md (Run 11 post-run cleanup)         |
 | 28  | Parallel review dispatch for independent stories                     | Run 6         | Validated in Run 11 Wave 3 (3 parallel reviews)   |
 | 29  | Inline Gantt color tagging rules in orchestrator.md                  | Run 11        | orchestrator.md + CLAUDE.md (Run 11 post-run fix) |
@@ -251,7 +251,7 @@ Last updated: 2026-03-19 (compiled from Runs 2-16 + backlogs 105, 106, 109, 111,
 | F   | Document orchestrator override pattern for pre-fixed reviewer findings | Runs 9, 14  | orchestrator.md "Orchestrator Override Pattern" section (backlog 105) |
 | G   | Track autonomous lifecycle duration baseline                         | Run 9 (rec G) | Backlog 106 E02-S03: `lifecycle_duration_ms` in state schema + changelog duration convention |
 | H   | Capture orchestrator overhead metrics (wall-clock heuristic)         | Run 10        | CLAUDE.md + orchestrator.md (backlog 105)         |
-| I   | Extract dispatch computation from issue-telemetry.sh                 | Run 12 (rec I) | Backlog 106 E01-S01 through E01-S04: `compute-dispatches.py` (875 lines, 123 tests) |
+| I   | Extract dispatch computation from item-telemetry.sh                 | Run 12 (rec I) | Backlog 106 E01-S01 through E01-S04: `compute-dispatches.py` (875 lines, 123 tests) |
 | L   | Track fix cycle overhead as per-run metric                           | Run 14 (rec L) | Backlog 106 E01-S03: structured `fix_cycles` object in `compute-dispatches.py` output |
 
 

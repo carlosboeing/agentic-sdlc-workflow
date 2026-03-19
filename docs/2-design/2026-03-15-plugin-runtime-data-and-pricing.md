@@ -57,12 +57,12 @@ Everything that makes the workflow work, categorized by type:
 | `.claude/hooks/log-filter.conf` | Allowlist for which commands to log |
 | `.claude/settings.json` | CC platform settings (hooks config) |
 | `.claude/agentic-sdlc-config.json` | Plugin config (GitHub project, board IDs, model routing, pricing override) |
-| `scripts/issue-set-status.sh` | Set board status for an issue |
-| `scripts/issue-telemetry.sh` | Post telemetry to issues/PRs |
-| `scripts/issue-create-backlog.sh` | Create backlog item with board setup |
-| `scripts/issue-start.sh` | Post "Work Started" comment |
-| `scripts/issue-review.sh` | Post "Ready for Review" comment |
-| `scripts/issue-close.sh` | Close issue and set board to Done |
+| `scripts/item-set-status.sh` | Set board status for an issue |
+| `scripts/item-telemetry.sh` | Post telemetry to issues/PRs |
+| `scripts/item-create.sh` | Create backlog item with board setup |
+| `scripts/item-start.sh` | Post "Work Started" comment |
+| `scripts/item-review.sh` | Post "Ready for Review" comment |
+| `scripts/item-close.sh` | Close issue and set board to Done |
 | `scripts/fetch-pricing.sh` | Fetch/cache API pricing |
 | `scripts/dispatch-story.sh` | CLI dispatch for story builders |
 | `scripts/dispatch-workflow.sh` | CLI full lifecycle orchestration |
@@ -79,7 +79,7 @@ Everything that makes the workflow work, categorized by type:
 | Current location | Purpose | Written by |
 |-----------------|---------|-----------|
 | `.claude/state/<N>/orchestrator.json` | Per-run workflow state | Orchestrator |
-| `.claude/logs/board-status.log` | Board status change log | `issue-set-status.sh` |
+| `.claude/logs/board-status.log` | Board status change log | `item-set-status.sh` |
 | `.claude/logs/orchestrator.log` | Orchestrator activity log | `log-tool.sh` hook |
 | `.claude/logs/board-drift.log` | Board drift detection log | `check-board-drift.sh` |
 | `.claude/worktrees/` | Worktree artifacts | CC Agent tool |
@@ -107,12 +107,12 @@ Everything that makes the workflow work, categorized by type:
 │       └── log-filter.conf
 │
 ├── scripts/                             ← Workflow scripts
-│   ├── issue-set-status.sh
-│   ├── issue-telemetry.sh
-│   ├── issue-create-backlog.sh
-│   ├── issue-start.sh
-│   ├── issue-review.sh
-│   ├── issue-close.sh
+│   ├── item-set-status.sh
+│   ├── item-telemetry.sh
+│   ├── item-create.sh
+│   ├── item-start.sh
+│   ├── item-review.sh
+│   ├── item-close.sh
 │   ├── fetch-pricing.sh
 │   ├── dispatch-story.sh
 │   ├── dispatch-workflow.sh
@@ -179,7 +179,7 @@ Pricing data is dynamic — it changes when Anthropic releases new models or adj
 
 ```
 ┌──────────────────────────────────┐
-│  issue-telemetry.sh              │  ← Pure function, no pricing knowledge
+│  item-telemetry.sh              │  ← Pure function, no pricing knowledge
 │  Reads pricing from external     │
 │  source, computes costs          │
 └──────────┬───────────────────────┘
@@ -212,7 +212,7 @@ Pricing data is dynamic — it changes when Anthropic releases new models or adj
                   └──────────────────────────────┘
 ```
 
-#### `issue-telemetry.sh` reads pricing (priority order)
+#### `item-telemetry.sh` reads pricing (priority order)
 
 1. **Config `pricing`** (if present in `agentic-sdlc-config.json`) → user override, skip cache entirely
 2. **Cached pricing** `.agentic-workflow/pricing.json` → normal path (written by `fetch-pricing.sh`)
@@ -223,7 +223,7 @@ Pricing data is dynamic — it changes when Anthropic releases new models or adj
 1. **Tier 1 — Primary:** Scrape `https://www.anthropic.com/pricing`. The HTML is parseable (Webflow site with pricing in rendered content). Parse model names, versions, input/output rates. Pick the latest version per model family (Opus, Sonnet, Haiku).
 2. **Tier 2 — Secondary:** Fetch `https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json`. Community-maintained, reliable raw JSON. Filter for latest `claude-opus-*`, `claude-sonnet-*`, `claude-haiku-*` entries.
 3. **Tier 3 — Fallback:** Read existing `.agentic-workflow/pricing.json` from a previous successful fetch. The file persists across runs, so a successful fetch in Run 11 covers a failed fetch in Run 12.
-4. **No data:** Exit with error, log warning. `issue-telemetry.sh` will show `—` for costs and post a message explaining why costs couldn't be calculated.
+4. **No data:** Exit with error, log warning. `item-telemetry.sh` will show `—` for costs and post a message explaining why costs couldn't be calculated.
 
 On successful fetch (Tier 1 or 2), the script writes/updates `.agentic-workflow/pricing.json`.
 
@@ -259,7 +259,7 @@ Most users should **not** have a `pricing` section in their config. The default 
 
 ### 3. tokenSplit: fixed constant in the script
 
-The `tokenSplit` (75% input / 25% output assumption) is baked into `issue-telemetry.sh` as a fixed constant, not user-configurable and not stored in any external file. Rationale:
+The `tokenSplit` (75% input / 25% output assumption) is baked into `item-telemetry.sh` as a fixed constant, not user-configurable and not stored in any external file. Rationale:
 - The Agent tool reports only total tokens, not the input/output split
 - The 75/25 ratio is based on observed patterns across 12 test runs
 - Cost estimates are already approximate (the disclaimer says so)
@@ -281,7 +281,7 @@ All workflow runtime files are currently scattered across three locations. This 
 | Current location | What | Written by | New location |
 |-----------------|------|-----------|--------------|
 | `.claude/state/<N>/orchestrator.json` | Per-run workflow state | Orchestrator | `.agentic-workflow/runs/<N>/orchestrator.json` |
-| `.claude/logs/board-status.log` | Board status change log | `issue-set-status.sh` | `.agentic-workflow/logs/board-status.log` |
+| `.claude/logs/board-status.log` | Board status change log | `item-set-status.sh` | `.agentic-workflow/logs/board-status.log` |
 | `.claude/logs/orchestrator.log` | Orchestrator activity log | CC hooks | `.agentic-workflow/logs/orchestrator.log` |
 | `.claude/logs/board-drift.log` | Board drift detection log | `check-board-drift.sh` | `.agentic-workflow/logs/board-drift.log` |
 | `.claude/worktrees/` | Worktree artifacts | CC Agent tool | `.agentic-workflow/worktrees/` |
@@ -294,7 +294,7 @@ All workflow runtime files are currently scattered across three locations. This 
 |---------|-----|
 | `pricing` section required in config | `pricing` section optional (override only) |
 | `fetch-pricing.sh` reads from config | `fetch-pricing.sh` scrapes web → writes cache |
-| `issue-telemetry.sh` reads config `_cfg_blended_rate()` | `issue-telemetry.sh` reads cache file first, config override if present |
+| `item-telemetry.sh` reads config `_cfg_blended_rate()` | `item-telemetry.sh` reads cache file first, config override if present |
 | `.claude/.gitignore` includes `state/`, `logs/`, `worktrees/` | Project `.gitignore` includes `.agentic-workflow/` |
 | Hardcoded `$15/$75` Opus rates in config | Live rates from Anthropic ($5/$25 for Opus 4.6) |
 | `tokenSplit` in config file | `tokenSplit` as constant in script |
@@ -304,8 +304,8 @@ All workflow runtime files are currently scattered across three locations. This 
 | Script | Changes needed |
 |--------|---------------|
 | `fetch-pricing.sh` | Rewrite: 3-tier web fetch → cache write to `.agentic-workflow/pricing.json` |
-| `issue-telemetry.sh` | Update `_cfg_blended_rate()`: read cache file first, config override if present. Bake in `tokenSplit` as constant. |
-| `issue-set-status.sh` | Update `LOG_DIR` from `.claude/logs` to `.agentic-workflow/logs` |
+| `item-telemetry.sh` | Update `_cfg_blended_rate()`: read cache file first, config override if present. Bake in `tokenSplit` as constant. |
+| `item-set-status.sh` | Update `LOG_DIR` from `.claude/logs` to `.agentic-workflow/logs` |
 | `check-board-drift.sh` | Update `LOG_DIR` from `.claude/logs` to `.agentic-workflow/logs` |
 | `validate-logs.sh` | Update all log paths to `.agentic-workflow/logs/` |
 | `dispatch-story.sh` | Update `DISPATCH_DIR` from `.dispatch` to `.agentic-workflow/dispatch` |

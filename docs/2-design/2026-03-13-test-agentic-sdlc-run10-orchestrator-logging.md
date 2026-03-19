@@ -7,11 +7,11 @@ backlog: 14
 
 ## Problem
 
-During Run 9 (backlog #14), all story and epic issues remained at **In Progress** on the project board despite the orchestrator reporting successful status transitions (`✓ #18 → in-review`). The root cause is unknown — the `issue-set-status.sh` script reports success based on the `gh project item-edit` API call completing, but doesn't verify the status actually persisted.
+During Run 9 (backlog #14), all story and epic issues remained at **In Progress** on the project board despite the orchestrator reporting successful status transitions (`✓ #18 → in-review`). The root cause is unknown — the `item-set-status.sh` script reports success based on the `gh project item-edit` API call completing, but doesn't verify the status actually persisted.
 
 We need diagnostic logging at two layers:
 
-1. **Board status script** (`issue-set-status.sh`) — capture API internals: item ID lookup, mutation response, and a post-mutation verification read.
+1. **Board status script** (`item-set-status.sh`) — capture API internals: item ID lookup, mutation response, and a post-mutation verification read.
 2. **Orchestrator workflow** — capture the orchestrator's decisions and actions: agent dispatches, branch operations, phase transitions.
 
 ---
@@ -22,7 +22,7 @@ We need diagnostic logging at two layers:
 
 **File:** `.claude/logs/board-status.log`
 
-**What changes in `scripts/issue-set-status.sh`:**
+**What changes in `scripts/item-set-status.sh`:**
 
 1. **Log every invocation** with timestamp, issue number, requested status, caller PID.
 2. **Log the item ID lookup result** and the current board status before mutation.
@@ -106,7 +106,7 @@ if tool_name == "Bash":
 #### Orchestrator Log Format
 
 ```
-[2026-03-13T02:15:00Z] session=abc123 tool=Bash cmd="./scripts/issue-set-status.sh 18 in-progress" exit=0 stdout="✓ #18 → in-progress"
+[2026-03-13T02:15:00Z] session=abc123 tool=Bash cmd="./scripts/item-set-status.sh 18 in-progress" exit=0 stdout="✓ #18 → in-progress"
 [2026-03-13T02:15:05Z] session=abc123 tool=Task type=builder-haiku prompt="Implement story #18..." duration=149628 tokens=113527 tool_uses=43
 [2026-03-13T02:20:00Z] session=abc123 tool=Bash cmd="git merge origin/e01-s01/kitchen-counter --no-ff" exit=0
 ```
@@ -153,7 +153,7 @@ Hooks are registered in `.claude/settings.json` using a flat `matcher` string an
     log-filter.conf       ← allowlist patterns for Bash command filtering
   logs/                   ← gitignored, ephemeral
     orchestrator.log      ← workflow-level log (from hook)
-    board-status.log      ← board API diagnostic log (from issue-set-status.sh)
+    board-status.log      ← board API diagnostic log (from item-set-status.sh)
   .gitignore              ← add: logs/
 ```
 
@@ -166,7 +166,7 @@ Add `logs/` to `.claude/.gitignore` (alongside `state/` and `worktrees/`). Logs 
 
 | Event                                 | `orchestrator.log` (hook)                | `board-status.log` (script)                                |
 | ------------------------------------- | ---------------------------------------- | ---------------------------------------------------------- |
-| `issue-set-status.sh` called          | ✓ command + exit code + stdout           | ✓ item ID, current status, mutation response, verification |
+| `item-set-status.sh` called          | ✓ command + exit code + stdout           | ✓ item ID, current status, mutation response, verification |
 | `gh pr create`                        | ✓ command + exit code                    | —                                                          |
 | `git merge ...`                       | ✓ command + exit code                    | —                                                          |
 | Agent dispatched                      | ✓ type, prompt summary, duration, tokens | —                                                          |
@@ -179,7 +179,7 @@ Add `logs/` to `.claude/.gitignore` (alongside `state/` and `worktrees/`). Logs 
 
 **In scope:**
 
-- `scripts/issue-set-status.sh` — add logging + post-mutation verification
+- `scripts/item-set-status.sh` — add logging + post-mutation verification
 - `.claude/hooks/log-tool.sh` — new hook script
 - `.claude/hooks/log-filter.conf` — new filter config
 - `.claude/settings.json` — add hook registration
@@ -187,7 +187,7 @@ Add `logs/` to `.claude/.gitignore` (alongside `state/` and `worktrees/`). Logs 
 
 **Out of scope:**
 
-- Changes to other scripts (`issue-close.sh`, `issue-start.sh`, etc.) — they delegate to `issue-set-status.sh` which will now log internally.
+- Changes to other scripts (`item-close.sh`, `item-start.sh`, etc.) — they delegate to `item-set-status.sh` which will now log internally.
 - Changes to orchestrator agent file — the hook captures orchestrator actions automatically without explicit logging calls.
 - Log rotation or cleanup — logs are per-session and small enough to not need rotation.
 
@@ -195,7 +195,7 @@ Add `logs/` to `.claude/.gitignore` (alongside `state/` and `worktrees/`). Logs 
 
 1. **Should the hook truncate long stdout?** Proposed: first 500 chars. Some `gh` commands return verbose JSON.
 2. **Should the hook log stderr separately?** Proposed: yes, if non-empty (captures warnings/errors).
-3. **Should the post-mutation verification in `issue-set-status.sh` retry on mismatch?** Proposed: no — log the mismatch for diagnosis but don't retry (the current run's manual fix already handles it). We want data first, then decide on auto-remediation.
+3. **Should the post-mutation verification in `item-set-status.sh` retry on mismatch?** Proposed: no — log the mismatch for diagnosis but don't retry (the current run's manual fix already handles it). We want data first, then decide on auto-remediation.
 
 ---
 
@@ -212,7 +212,7 @@ All artifacts specified in the design have been implemented:
 - **`.claude/hooks/log-tool.sh`** — PostToolUse hook script that filters and logs tool invocations
 - **`.claude/hooks/log-filter.conf`** — allowlist patterns for Bash command filtering
 - **`.claude/settings.json`** — hook registration with updated format (flat `matcher` string + nested `hooks` array)
-- **`scripts/issue-set-status.sh`** — enhanced with board status logging and post-mutation verification
+- **`scripts/item-set-status.sh`** — enhanced with board status logging and post-mutation verification
 - **`.claude/.gitignore`** — includes `logs/` directory to keep ephemeral diagnostics out of the repo
 
 ### Validation

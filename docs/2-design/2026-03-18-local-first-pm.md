@@ -575,15 +575,15 @@ pm_batch_set_status() {
 
 #### `pm_post_telemetry <item-id> [flags...]`
 
-**Recommendation: Delegate to `issue-telemetry.sh` with local-mode output.**
+**Recommendation: Delegate to `item-telemetry.sh` with local-mode output.**
 
-The telemetry script (`scripts/issue-telemetry.sh`) is 600+ lines of template rendering, duration computation, Gantt chart generation, and cost calculation. Reimplementing this in the local adapter would be wasteful and error-prone.
+The telemetry script (`scripts/item-telemetry.sh`) is 600+ lines of template rendering, duration computation, Gantt chart generation, and cost calculation. Reimplementing this in the local adapter would be wasteful and error-prone.
 
-Instead, `pm_post_telemetry` calls `issue-telemetry.sh` with a `--local` flag (or detects the adapter automatically). The telemetry script renders the same markdown output but instead of posting a GitHub issue comment, it:
+Instead, `pm_post_telemetry` calls `item-telemetry.sh` with a `--local` flag (or detects the adapter automatically). The telemetry script renders the same markdown output but instead of posting a GitHub issue comment, it:
 1. Writes the rendered telemetry as a comment file in `.workflow/comments/<id>/`
 2. Appends to the PR description if `--pr` is specified (via `gh pr edit` -- this remains a VCS operation, not a PM operation)
 
-Implementation option: `issue-telemetry.sh` already composes on `pm_add_comment` indirectly (it uses `gh issue comment`). If it is refactored to call `pm_add_comment` instead, the local adapter automatically handles telemetry storage. This refactor is minimal: replace `gh issue comment "$ISSUE" --body "$BODY"` with `pm_add_comment "$ISSUE" "$BODY"`.
+Implementation option: `item-telemetry.sh` already composes on `pm_add_comment` indirectly (it uses `gh issue comment`). If it is refactored to call `pm_add_comment` instead, the local adapter automatically handles telemetry storage. This refactor is minimal: replace `gh issue comment "$ISSUE" --body "$BODY"` with `pm_add_comment "$ISSUE" "$BODY"`.
 
 **Alternative considered:** Absorb telemetry rendering into the adapter. Rejected -- too much duplication and the telemetry template is PM-agnostic.
 
@@ -667,7 +667,7 @@ A critical invariant: **callers must not need to change behavior based on which 
 
 The `--json` output from `pm_get_item` must produce valid JSON with field names matching the GitHub adapter's output. The key callers:
 
-- `pm_get_item "$N" --json body | jq -r '.body // empty'` -- used by `issue-create-backlog.sh`
+- `pm_get_item "$N" --json body | jq -r '.body // empty'` -- used by `item-create.sh`
 - `pm_get_item "$N" --json number,title,state` -- used by tests
 
 The local adapter builds this JSON from frontmatter fields using `jq` or a heredoc template.
@@ -796,14 +796,14 @@ The `.workflow/` directory should be committed to the repository by default. Thi
 
 The telemetry pipeline has two concerns: (1) rendering the telemetry markdown, and (2) storing it.
 
-**Rendering** is handled by `issue-telemetry.sh` and `compute-dispatches.py` -- these are PM-agnostic. They compute durations, costs, Gantt charts, and format the template. Nothing in the rendering pipeline depends on GitHub.
+**Rendering** is handled by `item-telemetry.sh` and `compute-dispatches.py` -- these are PM-agnostic. They compute durations, costs, Gantt charts, and format the template. Nothing in the rendering pipeline depends on GitHub.
 
 **Storage** is currently GitHub-specific: the rendered markdown is posted as an issue comment via `gh issue comment`. The local adapter replaces this with a local comment file.
 
 ### Implementation plan
 
-1. `pm_post_telemetry` in the local adapter delegates to `issue-telemetry.sh` (same as GitHub adapter)
-2. `issue-telemetry.sh` is refactored to call `pm_add_comment` for posting the telemetry comment, instead of directly calling `gh issue comment`
+1. `pm_post_telemetry` in the local adapter delegates to `item-telemetry.sh` (same as GitHub adapter)
+2. `item-telemetry.sh` is refactored to call `pm_add_comment` for posting the telemetry comment, instead of directly calling `gh issue comment`
 3. When the local adapter is active, `pm_add_comment` writes the telemetry to `.workflow/comments/<id>/NNN-telemetry.md`
 4. The `--pr` flag for appending telemetry to PR descriptions remains a VCS operation (`gh pr edit`) and is handled separately. In pure local mode (no GitHub), this flag is a no-op.
 
@@ -890,28 +890,28 @@ assert_eq "status is OPEN" "OPEN" "$STATUS"
 
 This does not test switching mid-run (which is not a supported use case), but validates that the local adapter produces output that callers parse identically.
 
-## 14. `issue-telemetry.sh` Refactoring Scope
+## 14. `item-telemetry.sh` Refactoring Scope
 
-For the local adapter to handle `pm_post_telemetry`, `issue-telemetry.sh` must call `pm_add_comment` instead of `gh issue comment` directly. This is a small, scoped refactoring:
+For the local adapter to handle `pm_post_telemetry`, `item-telemetry.sh` must call `pm_add_comment` instead of `gh issue comment` directly. This is a small, scoped refactoring:
 
 ### Current (GitHub-coupled)
 
 ```bash
-# In issue-telemetry.sh
+# In item-telemetry.sh
 gh issue comment "$ISSUE" --repo "$CFG_REPO" --body "$RENDERED_BODY"
 ```
 
 ### Target (adapter-agnostic)
 
 ```bash
-# In issue-telemetry.sh
+# In item-telemetry.sh
 source "$SCRIPT_DIR/lib/pm.sh"
 pm_add_comment "$ISSUE" "$RENDERED_BODY"
 ```
 
 ### Scope of change
 
-1. `issue-telemetry.sh`: Replace `gh issue comment` call with `pm_add_comment` (1 line change + source pm.sh)
+1. `item-telemetry.sh`: Replace `gh issue comment` call with `pm_add_comment` (1 line change + source pm.sh)
 2. The `--pr` flag logic (appending to PR description) stays as-is -- it uses `gh pr edit` which is a VCS operation
 
 This refactoring is prerequisite for the local adapter but benefits all adapters: any future PM adapter (Jira, Linear) automatically gets telemetry posting for free.
@@ -957,7 +957,7 @@ Work items stored in a SQLite database with markdown export for human readabilit
 
 2. **YAML frontmatter stays simple.** The `sed`/`awk`-based parser handles single-line scalar fields and simple list arrays. Multi-line YAML values, nested objects, or anchor/alias syntax are not supported. The adapter constrains its schema to avoid these.
 
-3. **`issue-telemetry.sh` refactoring is in scope.** The local adapter needs `pm_post_telemetry` to work, which requires `issue-telemetry.sh` to call `pm_add_comment` instead of `gh issue comment`. This is a prerequisite story, not a stretch goal.
+3. **`item-telemetry.sh` refactoring is in scope.** The local adapter needs `pm_post_telemetry` to work, which requires `item-telemetry.sh` to call `pm_add_comment` instead of `gh issue comment`. This is a prerequisite story, not a stretch goal.
 
 4. **The `--pr` flag on `pm_post_telemetry` is a no-op in pure local mode.** Appending telemetry to a PR description requires `gh pr edit`, which is a VCS operation. In local-only mode (no GitHub), there are no PRs. The flag is silently ignored.
 
@@ -979,7 +979,7 @@ Work items stored in a SQLite database with markdown export for human readabilit
 |------|-----------|
 | **`sed -i` cross-platform incompatibility** | macOS uses `sed -i ''`, Linux uses `sed -i`. Use a wrapper function. Current workflow runs on macOS only, so deferred. |
 | **Frontmatter parsing edge cases** | Constrain the schema to simple values. Document the constraint. Add a validation function that checks file integrity. |
-| **`issue-telemetry.sh` refactoring grows in scope** | Scope to one line change: replace `gh issue comment` with `pm_add_comment`. Do not refactor the template rendering or computation logic. |
+| **`item-telemetry.sh` refactoring grows in scope** | Scope to one line change: replace `gh issue comment` with `pm_add_comment`. Do not refactor the template rendering or computation logic. |
 | **Temptation to add dual-write sync engine** | Explicitly out of scope. The sync engine is a separate feature that builds on top of this adapter. |
 | **Temptation to build a web dashboard for `.workflow/` data** | Explicitly deferred to #116. The local adapter only provides the data layer. |
 | **Performance concerns with scanning all items** | For fewer than 1000 items, scanning is instant (~50ms). Do not add caching or indexing until a measured need exists. |

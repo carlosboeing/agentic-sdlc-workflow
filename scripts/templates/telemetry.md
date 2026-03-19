@@ -1,7 +1,7 @@
 <!--
   Telemetry Template — Reusable across projects.
   Single source of truth for all telemetry output (story, epic, backlog, PR).
-  Used by issue-telemetry.sh to render GitHub issue comments and PR descriptions.
+  Used by item-telemetry.sh to render GitHub issue comments and PR descriptions.
 
   Syntax:
     {{VAR}}                  — Variable substituted at render time

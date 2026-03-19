@@ -267,7 +267,7 @@ This table is the authoritative reference for wrapper behavior. Builders for E02
 | `pm_get_status` | Local-only | Always read from local |
 | `pm_start_work` | Composed | Local only (calls `pm_add_comment` + `pm_set_status` which are dual-write) |
 | `pm_complete_work` | Composed | Local only (calls `pm_add_comment` + `pm_set_status` which are dual-write) |
-| `pm_post_telemetry` | Composed | Local only (delegates to `issue-telemetry.sh` which calls `pm_add_comment`) |
+| `pm_post_telemetry` | Composed | Local only (delegates to `item-telemetry.sh` which calls `pm_add_comment`) |
 | `pm_reconcile` | Composed | Local only (`_external_pm_reconcile` available for explicit orchestrator use) |
 
 ## 6. Dependency Graph

@@ -235,8 +235,8 @@ assert_contains "pm_complete_work_sets_in_review" "55|in-review" "$STATUS_CALLS"
 
 echo ""
 
-# --- Test Group 8: Comment format matches issue-start.sh exactly ---
-echo "Test Group: Comment format byte-identical to issue-start.sh"
+# --- Test Group 8: Comment format matches item-start.sh exactly ---
+echo "Test Group: Comment format byte-identical to item-start.sh"
 
 > "$COMMENT_LOG"
 TMPOUT=$(mktemp)
@@ -270,8 +270,8 @@ esac
 
 echo ""
 
-# --- Test Group 9: Comment format matches issue-review.sh exactly ---
-echo "Test Group: Comment format byte-identical to issue-review.sh"
+# --- Test Group 9: Comment format matches item-review.sh exactly ---
+echo "Test Group: Comment format byte-identical to item-review.sh"
 
 > "$COMMENT_LOG"
 TMPOUT=$(mktemp)

@@ -86,14 +86,14 @@ Add cumulative active time Gantt mode, gap annotations, and stalled dispatch det
 
 #### E02-S01: Cumulative Active Time Mode and CLI Flag (medium)
 
-**What:** Implement the core work timeline algorithm in `generate_gantt()` and add the `--gantt-mode` CLI flag to `compute-dispatches.py` and passthrough in `issue-telemetry.sh`.
+**What:** Implement the core work timeline algorithm in `generate_gantt()` and add the `--gantt-mode` CLI flag to `compute-dispatches.py` and passthrough in `item-telemetry.sh`.
 
 **Files to modify:**
 - `scripts/lib/compute-dispatches.py`
   - `generate_gantt()` -- add `mode` parameter (default `"work"`); when `mode="work"`, compute cumulative offset from wave critical paths; when `mode="wall-clock"`, retain current absolute-timestamp behavior
   - `main()` -- add `--gantt-mode` argument (choices: `work`, `wall-clock`; default: `work`); pass to `generate_gantt()`
   - `_select_tick_interval()` -- adjust for work timeline (total active time may be much shorter than wall-clock)
-- `scripts/issue-telemetry.sh`
+- `scripts/item-telemetry.sh`
   - Add `--gantt-mode` flag passthrough to `compute-dispatches.py`
 - `scripts/lib/test_compute_dispatches.py`
   - Add `test_work_timeline_no_gaps` -- verify no-gap session produces same offsets as wall-clock
@@ -112,7 +112,7 @@ Add cumulative active time Gantt mode, gap annotations, and stalled dispatch det
 - [ ] Default mode is `work`
 - [ ] `--gantt-mode` CLI flag works with `--gantt` and `--from-state`
 - [ ] `--gantt-mode` without `--gantt` is either ignored or rejected (no crash)
-- [ ] `issue-telemetry.sh --gantt-mode <mode>` passes through to Python
+- [ ] `item-telemetry.sh --gantt-mode <mode>` passes through to Python
 - [ ] Existing Gantt tests pass (with mode adjustments)
 - [ ] New cumulative offset tests pass
 
@@ -126,7 +126,7 @@ Add cumulative active time Gantt mode, gap annotations, and stalled dispatch det
   - Gap threshold constant: `_GAP_THRESHOLD_S = 300` (5 minutes)
   - Format: `*Timeline compressed: N gap(s) removed (Xh Ym, Zh Wm idle). X-axis shows agent running time, not wall-clock time.*`
   - `main()` -- include `gantt_note` in JSON output when present
-- `scripts/issue-telemetry.sh`
+- `scripts/item-telemetry.sh`
   - Extract `gantt_note` from Python output when present
   - Pass `gantt_note` to template rendering (if applicable, or append below chart)
 - `scripts/templates/telemetry.md`
@@ -143,7 +143,7 @@ Add cumulative active time Gantt mode, gap annotations, and stalled dispatch det
 - [ ] `gantt_note` is absent from output when no gaps exist
 - [ ] Note format uses correct singular/plural for gap count
 - [ ] Note lists individual gap durations
-- [ ] `issue-telemetry.sh` can extract and use `gantt_note`
+- [ ] `item-telemetry.sh` can extract and use `gantt_note`
 - [ ] Template has `GANTT_NOTE` conditional block
 - [ ] New tests pass
 
@@ -231,7 +231,7 @@ Both epics produce content in the same file (`compute-dispatches.py`). The follo
 **Risks:**
 1. **Existing test breakage from column change** (E01-S01) -- Adding the Story column shifts pipe positions in breakdown rows. All tests that assert on breakdown content must be updated. Mitigation: the story explicitly lists this as a task.
 2. **Existing Gantt test breakage from mode change** (E02-S01) -- Changing the default Gantt mode from wall-clock to work timeline will break tests that assert on absolute offsets. Mitigation: update tests to use `mode="wall-clock"` or adapt assertions.
-3. **`issue-telemetry.sh` passthrough** (E02-S01) -- Shell script changes alongside Python changes. Mitigation: the passthrough is a simple flag relay with no logic.
+3. **`item-telemetry.sh` passthrough** (E02-S01) -- Shell script changes alongside Python changes. Mitigation: the passthrough is a simple flag relay with no logic.
 
 ## 8. Files Modified Summary
 
@@ -240,5 +240,5 @@ Both epics produce content in the same file (`compute-dispatches.py`). The follo
 | `scripts/lib/compute-dispatches.py` | X | X | X | X | X |
 | `scripts/lib/test_compute_dispatches.py` | X | X | X | X | X |
 | `scripts/templates/telemetry.md` | | X | | X | |
-| `scripts/issue-telemetry.sh` | | | X | X | |
+| `scripts/item-telemetry.sh` | | | X | X | |
 | `CLAUDE.md` | | | X | | |

@@ -34,7 +34,7 @@ Epic 1 must complete before Epic 2 begins because the orchestrator.md rewrite in
 
 **Why no `reconstruct` subcommand in this backlog item:** The design doc describes `state.sh reconstruct` as the fault tolerance backstop. However, implementing a full reconstruction from GitHub issue comments, branch state, and board status is significantly more complex than the other subcommands. It requires parsing telemetry comment formats, querying multiple GitHub APIs, and handling partial/inconsistent state. Including it would push E01-S02 from medium to hard difficulty and risk scope creep. The plan includes the reconstruct subcommand stub (prints "not yet implemented" and exits 1) in E01-S02. The orchestrator.md rewrite in E02-S01 references reconstruct as a future capability. A separate backlog item should address the full implementation when fault tolerance becomes a priority.
 
-**Why no ADR:** The design decision (extracting inline scripts to real scripts) follows the project's existing pattern. `issue-telemetry.sh` already calls `compute-dispatches.py` for complex computation. `state.sh` follows the same pattern: bash wrapper that delegates to Python for JSON manipulation. No new architectural pattern is introduced.
+**Why no ADR:** The design decision (extracting inline scripts to real scripts) follows the project's existing pattern. `item-telemetry.sh` already calls `compute-dispatches.py` for complex computation. `state.sh` follows the same pattern: bash wrapper that delegates to Python for JSON manipulation. No new architectural pattern is introduced.
 
 ## File Inventory
 
@@ -361,7 +361,7 @@ The overhead row is NOT included in the summary or breakdown tables automaticall
 - [ ] Cost Computation section retains ONLY the "never hardcode rates" rule (2 lines)
 - [ ] State Schema section references `scripts/schemas/orchestrator-state.v1.json` instead of inline JSON example
 - [ ] State Fallback section references `state.sh reconstruct` instead of manual fallback protocol
-- [ ] Epic-Level Telemetry section condensed to point at `issue-telemetry.sh --dispatches-from-state`
+- [ ] Epic-Level Telemetry section condensed to point at `item-telemetry.sh --dispatches-from-state`
 - [ ] Timestamp recording convention (10 lines) is preserved -- it requires orchestrator judgment
 - [ ] State Readers table (9 lines) is preserved -- it is architectural context
 - [ ] Override Pattern (criteria + when NOT + evidence) is fully preserved

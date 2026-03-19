@@ -23,10 +23,10 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
 **Git workflow:**
 
 1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
-2. Create a GitHub Issue for the plan work using `issue-create.sh`:
+2. Create a GitHub Issue for the plan work using `item-create.sh`:
 
    ```bash
-   PLAN_ISSUE=$(./scripts/issue-create.sh docs \
+   PLAN_ISSUE=$(./scripts/item-create.sh docs \
      --title "[#<backlog>] Write implementation plan for X" \
      --label "type/docs" --label "backlog/<N>-<slug>")
    ```
@@ -107,7 +107,7 @@ Always save docs immediately, even as drafts.
 
 ## GitHub Issues & Projects (REQUIRED)
 
-When creating implementation plans, you MUST also create the corresponding GitHub Issues and labels. **Always use `./scripts/issue-create.sh`** (not `gh issue create`) to ensure both GitHub and local PM items are created. GitHub is the **single source of truth** for all work tracking.
+When creating implementation plans, you MUST also create the corresponding GitHub Issues and labels. **Always use `./scripts/item-create.sh`** (not `gh issue create`) to ensure both GitHub and local PM items are created. GitHub is the **single source of truth** for all work tracking.
 
 ### Creating Issues from Plans
 
@@ -125,7 +125,7 @@ After writing a plan with epics and stories:
    - **Blocked by line (REQUIRED):** Every story must include `**Blocked by:** none` or `**Blocked by:** #N, #N (description)` in the metadata block. This is machine-parsed by the orchestrator to validate dependencies before dispatch. Use `none` explicitly when there are no blockers — never omit the line.
    - Labels: `hierarchy/story` + the `backlog/<issue>-<slug>` label + type label + **difficulty label**
    ```bash
-   ./scripts/issue-create.sh story \
+   ./scripts/item-create.sh story \
      --title "[#<backlog>/E01-S01] Add config property for feature X" \
      --label "hierarchy/story" --label "backlog/<issue>-<slug>" \
      --label "type/feature" --label "difficulty/easy" \
@@ -137,7 +137,7 @@ After writing a plan with epics and stories:
    - Body: checklist of all story issues
    - Labels: `hierarchy/epic` + the `backlog/<issue>-<slug>` label
    ```bash
-   ./scripts/issue-create.sh epic \
+   ./scripts/item-create.sh epic \
      --title "[#<backlog>/E01] Feature name" \
      --label "hierarchy/epic" --label "backlog/<issue>-<slug>" \
      --body "## Stories\n- [ ] #N [E01-S01] Story 1\n- [ ] #N [E01-S02] Story 2"
@@ -158,13 +158,13 @@ Every issue you create MUST be added to the project board with the correct statu
 2. **Set status to Ready** (stories/epics from a not-yet-approved plan):
 
    ```bash
-   ./scripts/issue-set-status.sh <issue-number> ready
+   ./scripts/item-set-status.sh <issue-number> ready
    ```
 
 3. **Set the plan work issue to In Progress** (you are actively working on it):
 
    ```bash
-   ./scripts/issue-set-status.sh <plan-issue-number> in-progress
+   ./scripts/item-set-status.sh <plan-issue-number> in-progress
    ```
 
 ### Issue Hierarchy (REQUIRED)

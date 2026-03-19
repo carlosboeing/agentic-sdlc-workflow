@@ -122,24 +122,24 @@ The following table documents every agent's current PM interactions, gathered by
 
 | Agent | Creates items | Reads items | Board transitions | Comments | Hierarchy | Labels | Telemetry |
 |-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Designer** | 1 issue (design doc) | `gh issue list`, `gh issue view` | `issue-set-status.sh` (In Progress) | -- | `addSubIssue` (link to backlog) | `type/docs`, `backlog/*` | -- |
-| **Planner** | N issues (epics + stories + plan) | `gh issue list`, `gh issue view` | `issue-set-status.sh` (Ready, In Progress) | -- | `addSubIssue` (stories to epic, epics to backlog) | `hierarchy/*`, `backlog/*`, `type/*`, `difficulty/*` | -- |
-| **Builder** | -- | `gh issue list`, `gh issue view` | `issue-start.sh` (In Progress), `issue-review.sh` (In Review) | "Work Started", "Ready for Review" | -- | -- | -- |
+| **Designer** | 1 issue (design doc) | `gh issue list`, `gh issue view` | `item-set-status.sh` (In Progress) | -- | `addSubIssue` (link to backlog) | `type/docs`, `backlog/*` | -- |
+| **Planner** | N issues (epics + stories + plan) | `gh issue list`, `gh issue view` | `item-set-status.sh` (Ready, In Progress) | -- | `addSubIssue` (stories to epic, epics to backlog) | `hierarchy/*`, `backlog/*`, `type/*`, `difficulty/*` | -- |
+| **Builder** | -- | `gh issue list`, `gh issue view` | `item-start.sh` (In Progress), `item-review.sh` (In Review) | "Work Started", "Ready for Review" | -- | -- | -- |
 | **Reviewer** | -- | `gh pr diff`, `gh issue view` | -- | Review findings (on PR or issue) | -- | -- | -- |
-| **Orchestrator** | Backlog issue, retro issue | `gh issue list`, `gh issue view`, `gh pr list` | `issue-set-status.sh` (all transitions), `batch-set-status.sh`, `reconcile-board.sh` | Retroactive comments, failure comments | `addSubIssue` (retro to backlog) | `backlog/*` | `issue-telemetry.sh` (all levels) |
+| **Orchestrator** | Backlog issue, retro issue | `gh issue list`, `gh issue view`, `gh pr list` | `item-set-status.sh` (all transitions), `batch-set-status.sh`, `reconcile-board.sh` | Retroactive comments, failure comments | `addSubIssue` (retro to backlog) | `backlog/*` | `item-telemetry.sh` (all levels) |
 | **Retro** | -- | `gh issue view`, `gh api` (PR comments) | -- | Convention change comments | -- | -- | -- |
 
 ### 3.2 Current Inconsistencies
 
-1. **Builder uses `issue-start.sh`/`issue-review.sh` but designer/planner/retro do not.** Designer and planner call `issue-set-status.sh` directly. There is no "Work Started" comment for design or plan phases.
+1. **Builder uses `item-start.sh`/`item-review.sh` but designer/planner/retro do not.** Designer and planner call `item-set-status.sh` directly. There is no "Work Started" comment for design or plan phases.
 
-2. **Board transitions are duplicated.** Builder scripts call `issue-set-status.sh` as defense-in-depth, AND the orchestrator sets status before/after dispatch. This was necessary because GitHub Projects API is unreliable, but it means 2-3 API calls per transition instead of 1.
+2. **Board transitions are duplicated.** Builder scripts call `item-set-status.sh` as defense-in-depth, AND the orchestrator sets status before/after dispatch. This was necessary because GitHub Projects API is unreliable, but it means 2-3 API calls per transition instead of 1.
 
 3. **Hierarchy creation is scattered.** Designer calls `addSubIssue` for design issue. Planner calls `addSubIssue` for epics and stories. Orchestrator calls `addSubIssue` for retro issue. Each uses raw GraphQL.
 
-4. **Item creation uses different patterns.** Orchestrator uses `issue-create-backlog.sh` (a helper script). Planner uses raw `gh issue create`. Designer uses raw `gh issue create`.
+4. **Item creation uses different patterns.** Orchestrator uses `item-create.sh` (a helper script). Planner uses raw `gh issue create`. Designer uses raw `gh issue create`.
 
-5. **Board management on the critical path.** The orchestrator blocks on `issue-set-status.sh` before and after every dispatch. This adds ~9-10 minutes per 30-story run to the critical path -- pure overhead that delivers no correctness benefit (board is informational, not a prerequisite for dispatch).
+5. **Board management on the critical path.** The orchestrator blocks on `item-set-status.sh` before and after every dispatch. This adds ~9-10 minutes per 30-story run to the critical path -- pure overhead that delivers no correctness benefit (board is informational, not a prerequisite for dispatch).
 
 6. **Telemetry posting is orchestrator-only.** Agents do not know their own cost or duration. This is correct (the Agent tool returns metrics), but it means telemetry posting cannot be delegated.
 
@@ -364,21 +364,21 @@ The GitHub adapter absorbs the shared infrastructure currently spread across ind
 
 | Current location | Moves to | What it does |
 |-----------------|----------|-------------|
-| `issue-set-status.sh` (item ID lookup via GraphQL) | `board.sh` (`_gh_fetch_item_info`) | Lightweight per-issue query for board item ID + current status |
-| `issue-set-status.sh` (status mutation) | `board.sh` (`_gh_mutate_status`) | `gh project item-edit` with option IDs from config |
-| `issue-set-status.sh` (post-mutation verification) | `board.sh` (`_gh_verify_status`) | Re-fetch after mutation, log discrepancies |
-| `issue-set-status.sh` (retry logic) | `board.sh` (`_gh_retry_fetch`) | 3-second retry on race condition after `item-add` |
+| `item-set-status.sh` (item ID lookup via GraphQL) | `board.sh` (`_gh_fetch_item_info`) | Lightweight per-issue query for board item ID + current status |
+| `item-set-status.sh` (status mutation) | `board.sh` (`_gh_mutate_status`) | `gh project item-edit` with option IDs from config |
+| `item-set-status.sh` (post-mutation verification) | `board.sh` (`_gh_verify_status`) | Re-fetch after mutation, log discrepancies |
+| `item-set-status.sh` (retry logic) | `board.sh` (`_gh_retry_fetch`) | 3-second retry on race condition after `item-add` |
 | `batch-set-status.sh` (batch fetch + mutate + verify) | `board.sh` (`pm_batch_set_status`) | Orchestrated batch with single verification pass |
 | `reconcile-board.sh` (batch query + diff + fix) | `board.sh` (`pm_reconcile`) | Aliased GraphQL query for batch-read, Python diff computation |
-| `issue-telemetry.sh` (all of it) | `comments.sh` (`pm_post_telemetry`) | Delegates to the existing `issue-telemetry.sh` script (not rewritten) |
-| `issue-create-backlog.sh` (issue creation + board + label) | `items.sh` (`pm_create_item`) + `board.sh` + `labels.sh` | Decomposed into composable adapter functions |
+| `item-telemetry.sh` (all of it) | `comments.sh` (`pm_post_telemetry`) | Delegates to the existing `item-telemetry.sh` script (not rewritten) |
+| `item-create.sh` (issue creation + board + label) | `items.sh` (`pm_create_item`) + `board.sh` + `labels.sh` | Decomposed into composable adapter functions |
 
 ### 5.3 Backward-Compatible Wrappers
 
 Existing script names are preserved as thin wrappers that delegate to pm.sh:
 
 ```bash
-# scripts/issue-set-status.sh (after migration)
+# scripts/item-set-status.sh (after migration)
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -387,7 +387,7 @@ pm_set_status "$@"
 ```
 
 This means:
-- **No breaking changes** for agents or orchestrator that call `./scripts/issue-set-status.sh`
+- **No breaking changes** for agents or orchestrator that call `./scripts/item-set-status.sh`
 - The actual logic lives in `scripts/lib/adapters/pm/github/board.sh`
 - When the adapter changes (e.g., to `local`), the wrapper calls the same `pm_set_status` which routes to a different adapter
 
@@ -395,12 +395,12 @@ Scripts that become wrappers:
 
 | Script | Delegates to |
 |--------|-------------|
-| `issue-set-status.sh` | `pm_set_status` |
+| `item-set-status.sh` | `pm_set_status` |
 | `batch-set-status.sh` | `pm_batch_set_status` |
-| `issue-start.sh` | `pm_start_work` |
-| `issue-review.sh` | `pm_complete_work` |
-| `issue-close.sh` | `pm_done` |
-| `issue-create-backlog.sh` | `pm_create_item` (with `--level backlog`) + `pm_add_to_board` + `pm_set_status` + `pm_add_label` |
+| `item-start.sh` | `pm_start_work` |
+| `item-review.sh` | `pm_complete_work` |
+| `item-close.sh` | `pm_done` |
+| `item-create.sh` | `pm_create_item` (with `--level backlog`) + `pm_add_to_board` + `pm_set_status` + `pm_add_label` |
 | `reconcile-board.sh` | `pm_reconcile` |
 | `setup-labels.sh` | `pm_add_label` (repeated calls) |
 
@@ -414,7 +414,7 @@ Scripts that are NOT wrapped (they remain independent or are VCS-scope):
 | `check-board-drift.sh` | Diagnostic tool, can use pm.sh internally |
 | `state.sh` | Orchestrator state, not PM |
 | `fetch-pricing.sh` | Pricing data, not PM |
-| `issue-telemetry.sh` | Called by `pm_post_telemetry`, not wrapped |
+| `item-telemetry.sh` | Called by `pm_post_telemetry`, not wrapped |
 
 ## 6. Cost Budget
 
@@ -464,7 +464,7 @@ The migration follows a three-phase "build alongside, verify, swap" pattern. Thi
 ```mermaid
 graph LR
     subgraph "Phase 1: Build Alongside"
-        OLD1["Existing scripts<br/>(issue-set-status.sh, etc.)"]
+        OLD1["Existing scripts<br/>(item-set-status.sh, etc.)"]
         NEW1["New adapter stack<br/>(pm.sh + adapters/pm/github/)"]
     end
 
@@ -474,7 +474,7 @@ graph LR
     end
 
     subgraph "Phase 3: Swap"
-        WRAP["Thin wrappers<br/>(issue-set-status.sh)"]
+        WRAP["Thin wrappers<br/>(item-set-status.sh)"]
         FINAL["pm.sh + adapter<br/>(primary path)"]
     end
 
@@ -504,9 +504,9 @@ Create the entire new adapter stack in new files and folders. Do not touch exist
 - `scripts/lib/adapters/pm/github/lifecycle.sh`
 
 **What does NOT change:**
-- `scripts/issue-set-status.sh` (unchanged, still works)
-- `scripts/issue-start.sh` (unchanged)
-- `scripts/issue-review.sh` (unchanged)
+- `scripts/item-set-status.sh` (unchanged, still works)
+- `scripts/item-start.sh` (unchanged)
+- `scripts/item-review.sh` (unchanged)
 - All agent `.md` files (unchanged)
 - Config file (new `pm.adapter` field added, not breaking)
 
@@ -517,7 +517,7 @@ Create the entire new adapter stack in new files and folders. Do not touch exist
 Existing scripts optionally call both old and new paths, compare results. Non-blocking -- discrepancies are logged, not fatal.
 
 ```bash
-# Example: issue-set-status.sh with shadow verification
+# Example: item-set-status.sh with shadow verification
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/pm.sh"
 
@@ -723,9 +723,9 @@ It does NOT apply to:
 
 1. **Bash is sufficient for the adapter layer.** The GitHub adapter's most complex operations (batched GraphQL queries, JSON processing) already use Python in the current `reconcile-board.sh` and `compute-dispatches.py`. The adapter will continue this Bash+Python hybrid pattern where needed.
 
-2. **`issue-telemetry.sh` is not rewritten.** The telemetry script (602 lines, complex template rendering) is called by `pm_post_telemetry` rather than absorbed into the adapter. It is too large and specialized to duplicate inside the adapter, and its interface (CLI flags) is already clean.
+2. **`item-telemetry.sh` is not rewritten.** The telemetry script (602 lines, complex template rendering) is called by `pm_post_telemetry` rather than absorbed into the adapter. It is too large and specialized to duplicate inside the adapter, and its interface (CLI flags) is already clean.
 
-3. **Agent file changes are deferred to Phase 3 (swap).** During Phase 1 (build alongside), agents continue calling `./scripts/issue-start.sh` etc. The wrapper swap in Phase 3 is invisible to agents. Agent `.md` files are updated only if the pm.sh functions have different flag names or semantics than the current scripts.
+3. **Agent file changes are deferred to Phase 3 (swap).** During Phase 1 (build alongside), agents continue calling `./scripts/item-start.sh` etc. The wrapper swap in Phase 3 is invisible to agents. Agent `.md` files are updated only if the pm.sh functions have different flag names or semantics than the current scripts.
 
 4. **Defense-in-depth board transitions are kept.** The orchestrator continues to set board status before/after dispatch even though agents also call `pm_start_work`/`pm_complete_work`. This redundancy is documented as removable in Phase 2 when local-first PM eliminates the external API failure mode.
 
@@ -733,7 +733,7 @@ It does NOT apply to:
 
 ### Open Questions
 
-1. **Should `pm_post_telemetry` wrap `issue-telemetry.sh` or replace it?** Wrapping is simpler (call the existing script), but replacing would bring telemetry fully under the adapter. Recommendation: wrap for now, reassess in #111 when the local adapter needs its own telemetry format.
+1. **Should `pm_post_telemetry` wrap `item-telemetry.sh` or replace it?** Wrapping is simpler (call the existing script), but replacing would bring telemetry fully under the adapter. Recommendation: wrap for now, reassess in #111 when the local adapter needs its own telemetry format.
 
 2. **Should the adapter handle `dispatch-workflow.sh` PM operations?** The dispatch workflow script has 20 `gh` calls -- the most of any script. However, it is being deprecated in favor of the orchestrator agent. Recommendation: do not refactor `dispatch-workflow.sh` -- it will be removed when #112 (Plugin Packaging) ships.
 
@@ -772,7 +772,7 @@ Build the GitHub adapter as an MCP server from the start, bypassing the Bash ada
 | Risk | Mitigation |
 |------|-----------|
 | **Agent file updates cascade** -- changing how agents call PM functions touches all 6 agents + 3 builder variants + 2 reviewer variants (11 files). | Phase 1 does not change agent files. Phase 3 (swap) changes only the wrapper scripts, not agent instructions. Agent file updates are deferred to when `pm.sh` function names differ from current script names. |
-| **`issue-telemetry.sh` is complex** (602 lines) and tempting to absorb. | Explicitly out of scope for absorption. `pm_post_telemetry` wraps it. |
+| **`item-telemetry.sh` is complex** (602 lines) and tempting to absorb. | Explicitly out of scope for absorption. `pm_post_telemetry` wraps it. |
 | **Shadow verify (Phase 2) may add significant effort** for marginal confidence gain. | Marked as stretch goal. Skip if time-constrained. |
 | **`dispatch-workflow.sh` has 20 gh calls** and is tempting to refactor. | Explicitly out of scope. It is being deprecated in favor of the orchestrator agent. |
 | **DOC layer abstraction** is tempting to design alongside PM. | Explicitly deferred. Mentioned in Section 2 for context only. Async doc sync issues are unresolved. |

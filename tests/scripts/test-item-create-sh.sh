@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-issue-create-sh.sh — Tests for scripts/issue-create.sh
+# test-item-create-sh.sh — Tests for scripts/item-create.sh
 #
 # Tests the CLI wrapper that routes through pm_create_item.
 # Uses _PM_TEST_ADAPTER_DIR to avoid GitHub API calls.
@@ -7,7 +7,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ISSUE_CREATE="$REPO_ROOT/scripts/issue-create.sh"
+ISSUE_CREATE="$REPO_ROOT/scripts/item-create.sh"
 LOCAL_ADAPTER_DIR="$REPO_ROOT/scripts/lib/adapters/pm/local"
 
 PASS=0
@@ -62,7 +62,7 @@ assert_exit_nonzero() {
 }
 
 echo "========================================"
-echo "Testing scripts/issue-create.sh"
+echo "Testing scripts/item-create.sh"
 echo "========================================"
 echo ""
 
@@ -70,23 +70,23 @@ echo ""
 echo "Test Group: File existence"
 
 if [ -f "$ISSUE_CREATE" ]; then
-  echo "  PASS: issue-create.sh exists"
+  echo "  PASS: item-create.sh exists"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: issue-create.sh not found at $ISSUE_CREATE"
+  echo "  FAIL: item-create.sh not found at $ISSUE_CREATE"
   FAIL=$((FAIL + 1))
 fi
 
 if [ -x "$ISSUE_CREATE" ]; then
-  echo "  PASS: issue-create.sh is executable"
+  echo "  PASS: item-create.sh is executable"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: issue-create.sh is not executable"
+  echo "  FAIL: item-create.sh is not executable"
   FAIL=$((FAIL + 1))
 fi
 echo ""
 
-# Helper to run issue-create.sh in a test environment
+# Helper to run item-create.sh in a test environment
 run_create() {
   local tmpdir="$1"
   shift

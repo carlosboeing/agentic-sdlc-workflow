@@ -179,11 +179,20 @@ eval "${_PM_FN_PREFIX}pm_update_item() {
 }"
 
 # --- pm_append_body ---
-# Usage: pm_append_body <item-id> <content>
+# Usage: pm_append_body <item-id> <content> [--updated-by <agent>]
 # Appends content to the existing issue body via gh issue edit --body.
+# When --updated-by is provided, prepends an attribution line to the appended content.
 eval "${_PM_FN_PREFIX}pm_append_body() {
   local item_id=\"\$1\"
-  local content=\"\$2\"
+  local content=\"\$2\"; shift 2
+  local updated_by=\"\"
+  while [[ \$# -gt 0 ]]; do
+    case \"\$1\" in --updated-by) updated_by=\"\$2\"; shift 2 ;; *) shift ;; esac
+  done
+  if [ -n \"\$updated_by\" ]; then
+    content=\"> 🤖 **Updated by:** \$updated_by · **Date:** \$(date -u +%Y-%m-%dT%H:%M:%SZ)
+\$content\"
+  fi
 
   local current_body
   current_body=\$(gh issue view \"\$item_id\" --repo \"\$CFG_REPO\" --json body -q '.body // \"\"') || return 1

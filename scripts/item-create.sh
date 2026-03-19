@@ -114,7 +114,7 @@ if type pm_add_to_board &>/dev/null; then
   if [ "$IS_BACKLOG_SETUP" = true ]; then
     echo "Adding to project board..." >&2
   fi
-  pm_add_to_board "$ISSUE_NUMBER" 2>/dev/null || true
+  pm_add_to_board "$ISSUE_NUMBER" >&2 || true
 fi
 
 # --- Backlog-specific setup (only when --slug is provided) ---

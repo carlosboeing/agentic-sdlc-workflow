@@ -566,7 +566,7 @@ check_line_count() {
 # item-close.sh:          26 -> ~10 (generous: 25 with comments)
 # reconcile-board.sh:     163 -> ~10 (generous: 25 with comments)
 # setup-labels.sh:         45 -> ~25 (generous: 65 with loop + labels)
-# item-create.sh: 115 -> ~30 (generous: 100 with orchestrator logic)
+# item-create.sh: merged issue-create.sh + issue-create-backlog.sh (generous: 175)
 check_line_count "item-set-status.sh" 25
 check_line_count "batch-set-status.sh" 25
 check_line_count "item-start.sh" 25
@@ -574,7 +574,7 @@ check_line_count "item-review.sh" 25
 check_line_count "item-close.sh" 25
 check_line_count "reconcile-board.sh" 25
 check_line_count "setup-labels.sh" 65
-check_line_count "item-create.sh" 100
+check_line_count "item-create.sh" 175
 
 echo ""
 

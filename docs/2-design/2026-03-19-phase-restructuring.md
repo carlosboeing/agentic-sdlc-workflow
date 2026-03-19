@@ -4,9 +4,14 @@ date: 2026-03-19
 author: designer
 backlog: 243
 status: Draft
+revision: 2
+revision_date: 2026-03-19
+revision_reason: "Approach E (prompt augmentation) is infeasible due to subagent nesting hard cap. All approaches requiring builder-dispatches-reviewer are invalid. Revised to recommend Approach F (background dispatch with orchestrator polling)."
 ---
 
-> **Status:** Draft
+> **Status:** Draft (Revision 2)
+>
+> **Revision note:** The original design recommended Approach E (Orchestrator-Driven Prompt Augmentation), which required builders to dispatch reviewers via the Agent tool. A confirmed platform constraint -- subagents cannot spawn other subagents -- makes this infeasible. This revision documents the constraint, re-evaluates all approaches, and recommends Approach F (Background Dispatch with Orchestrator Polling).
 
 # Phase Restructuring: Parallel Story Lifecycles and Tiered Reviews
 
@@ -79,266 +84,354 @@ For a typical test run with 3 waves, the review phase (~3m 30s sequential per wa
 
 Infrastructure runs have a 28.6% average fix rate (vs 7.8% for test runs). With lifecycle coupling, fix cycles run in parallel with sibling stories instead of blocking the entire wave. For a run like BL#111 (5 fix cycles, 44% fix rate), the savings would be substantial -- every fix cycle that overlaps with a parallel build saves ~4m 30s of wall-clock time.
 
-## 2. Approaches Considered
+## 2. Platform Constraint: Subagent Nesting Hard Cap
 
-Five approaches were evaluated. The first four are described briefly; the fifth is the chosen approach with full technical detail in Section 3.
+**This section was added in Revision 2 and documents a critical constraint that invalidates the original design's recommended approach.**
 
-### Approach A: Story-Implementer Wrapper Agent
+### 2.1 The Constraint
 
-Create a new `.claude/agents/story-implementer.md` agent that orchestrates the per-story lifecycle: build, review, fix cycle loop.
+**Subagents cannot spawn other subagents.** The Agent/Task tool is explicitly excluded from subagent tool access. This is an intentional design decision by the Claude Code platform team, not a bug or oversight.
 
-**How it works:** The orchestrator dispatches `story-implementer` agents (one per story, in parallel). Each story-implementer dispatches the builder, then the reviewer, then handles fix cycles -- all via the Agent tool. The story-implementer returns only when the story is fully validated.
+The official documentation states:
 
-**Pros:**
-- Clean separation of concerns -- builder builds, reviewer reviews, wrapper orchestrates
-- Builder and reviewer agent files stay unchanged
-- Orchestrator dispatch logic simplifies significantly
+> "Subagents cannot spawn other subagents. If your workflow requires nested delegation, use Skills or chain subagents from the main conversation."
+>
+> -- [Claude Code Docs: Create custom subagents](https://code.claude.com/docs/en/sub-agents)
 
-**Cons:**
-- Introduces 3-level agent nesting: Orchestrator -> Story-Implementer -> Builder/Reviewer. This is untested in the project but architecturally supported by the Agent tool.
-- New agent file that must exist before session start (known platform limitation: dynamic agent files at runtime are NOT discovered).
-- The wrapper is thin coordination logic (~50-100 lines) that duplicates what the orchestrator already knows how to do (dispatch builders, handle review verdicts, manage fix cycles).
-- Telemetry capture complexity: the story-implementer's Agent tool dispatches of builder/reviewer return metrics, but the orchestrator needs those metrics for the state file. The story-implementer must aggregate and return them.
+And further:
 
-### Approach B: Orchestrator-Internal Sequential Dispatch
+> "If `Agent` is omitted from the `tools` list entirely, the agent cannot spawn any subagents. **This restriction only applies to agents running as the main thread with `claude --agent`. Subagents cannot spawn other subagents, so `Agent(agent_type)` has no effect in subagent definitions.**"
+>
+> -- [Claude Code Docs: Restrict which subagents can be spawned](https://code.claude.com/docs/en/sub-agents)
 
-The orchestrator dispatches builder and reviewer as sequential tasks within each parallel Agent tool slot.
-
-**How it works:** Each parallel Agent tool dispatch contains prompt instructions that tell the agent to: (1) build the story, (2) dispatch the reviewer, (3) handle fix cycles. But the "agent" receiving these instructions IS the builder -- the builder would need to understand reviewer dispatch.
-
-**Assessment:** This is essentially the same as Approach E (below) but described less precisely. The key question is which agent receives the combined prompt. If it is the builder, this is Approach E. If it is a wrapper, this is Approach A. There is no distinct "Approach B" -- it collapses into one of the others.
-
-### Approach C: Reactive Dispatch (Event-Driven)
-
-The orchestrator reacts to individual builder completions rather than waiting for all parallel builders to finish.
-
-**How it works:** The orchestrator dispatches builders in parallel, but instead of blocking on all N, it polls for individual completions and dispatches reviewers immediately.
-
-**Assessment:** Not feasible with the current Agent tool API. The Agent tool's foreground parallel dispatch blocks until ALL agents return. There is no event-driven or callback mechanism to react to individual completions. This would require Claude Code platform changes.
-
-### Approach D: Formalize Parallel Reviews After All Builds
-
-After all builders in a wave complete, dispatch all reviewers in parallel (instead of sequentially).
-
-**How it works:** Change orchestrator.md Phase 6 from "dispatch reviewers one at a time" to "dispatch all reviewers in parallel."
-
-**Assessment:** This is already the current behavior -- Gantt chart evidence shows reviews launching simultaneously after builds complete. Formalizing it in documentation is correct (the docs should match reality), but **this approach does NOT solve the wait gate problem**. Wave time remains `max(builds) + max(reviews)`. Fix cycles still run sequentially after all reviews. This was the approach the previous planner implemented, and it was rejected because it doesn't deliver the core improvement.
-
-### Approach E: Orchestrator-Driven Prompt Augmentation (RECOMMENDED)
-
-The orchestrator augments the builder's dispatch prompt with post-build lifecycle instructions. The builder, after completing its implementation, dispatches the reviewer itself using the Agent tool.
-
-**Full technical detail in Section 3.**
-
-### Approach Comparison Matrix
-
-| Criterion | A (Wrapper) | B (Internal) | C (Reactive) | D (Parallel Reviews) | **E (Prompt Augmentation)** |
-|-----------|-------------|-------------|--------------|----------------------|---------------------------|
-| Solves wait gate | Yes | Collapses to A or E | Not feasible | **No** | **Yes** |
-| New agent file | Yes | No | N/A | No | **No** |
-| Builder changes | None | Major | N/A | None | **Tools field only** |
-| Reviewer changes | None | None | N/A | None | **None** |
-| Agent nesting depth | 3 levels | 2-3 levels | N/A | 2 levels | **3 levels** |
-| Orchestrator complexity | Reduced | Reduced | N/A | Minimal change | **Reduced** |
-| Telemetry capture | Complex (aggregation in wrapper) | Complex | N/A | Simple | **Simple (builder returns reviewer metrics)** |
-| Session start requirement | Agent file must pre-exist | None | N/A | None | **None (prompt-only)** |
-| Fix cycle savings | Yes | Yes | N/A | **None** | **Yes** |
-
-## 3. Recommended Approach: Prompt Augmentation (Approach E)
-
-### 3.1 Core Mechanism
-
-The orchestrator augments each builder's dispatch prompt with a "Post-Build Lifecycle" section. After the builder completes its normal work (implement, test, commit, push, call `item-review.sh`), it reads the lifecycle section and dispatches a reviewer agent using the Agent tool.
-
-**This requires one change to the builder agent files:** Add `Agent` to the YAML frontmatter `tools` field.
-
-Currently, builder.md has no explicit `tools` field. When no `tools` field is present, the agent inherits the default tool set (which includes Read, Write, Edit, Grep, Glob, Bash, and others, but NOT Agent). Adding `Agent` to the tools list is the only persistent change to builder.md.
-
-The lifecycle instructions come entirely from the orchestrator's prompt -- not from builder.md itself. This means:
-- builder.md stays focused on building (its core responsibility)
-- The orchestrator controls what lifecycle behavior each story gets
-- Different stories can get different lifecycle instructions (enabling tiered reviews)
-
-### 3.2 Prompt Structure
-
-The orchestrator constructs the builder's prompt in two parts:
-
-**Part 1: Standard builder prompt** (unchanged from today)
-```
-Implement story #<N> on branch <branch>.
-Read the issue for acceptance criteria: ./scripts/item-get.sh <N>
-Epic branch: epic/<slug>
-Story branch: <branch>
-Model: <model>
-```
-
-**Part 2: Post-Build Lifecycle** (new, appended by orchestrator)
-```
-=== POST-BUILD LIFECYCLE ===
-After implementation is complete and item-review.sh has been called:
-
-Review tier: REVIEW
-
-1. Dispatch a reviewer agent on your branch:
-   - Use: Agent tool, subagent_type: "reviewer", isolation: "worktree"
-   - Prompt: "Review story #<N> on branch <branch>.
-     Post findings as a comment on issue #<N>."
-
-2. Read the reviewer's response:
-   - If verdict is APPROVE or COMMENT: your work is complete. Return.
-   - If verdict is REQUEST_CHANGES:
-     a. Fix the issues on your branch (same branch, new commits)
-     b. Push fixes: git push origin <branch>
-     c. Re-dispatch the reviewer (same prompt as step 1)
-     d. Maximum 2 fix cycles. After 2 REQUEST_CHANGES, return with
-        status "fix_cycles_exhausted".
-
-3. Include reviewer metrics in your final response:
-   - reviewer_duration_ms: <from Agent tool result>
-   - reviewer_tokens: <from Agent tool result>
-   - reviewer_tool_uses: <from Agent tool result>
-   - fix_cycles: <0, 1, or 2>
-   - final_verdict: <APPROVE, COMMENT, or REQUEST_CHANGES>
-```
-
-For stories with review skipped (tiered review):
-```
-=== POST-BUILD LIFECYCLE ===
-Review tier: SKIP
-No per-story review required for this story. The PR review is the quality gate.
-After implementation is complete and item-review.sh has been called, return.
-```
-
-### 3.3 Agent Tool Nesting: 3-Level Depth
-
-This design creates 3-level nesting:
+This means the maximum nesting depth is 1 level:
 
 ```
-Orchestrator (level 1)
-  -> Builder (level 2, via Agent tool)
-       -> Reviewer (level 3, via Agent tool from builder)
+Main thread / Orchestrator (level 0, has Agent tool)
+  -> Subagent (level 1, does NOT have Agent tool)
 ```
 
-**Risk assessment:** The Agent tool supports arbitrary nesting depth. Each level runs in its own isolated process (especially with `isolation: "worktree"`). There are no known Claude Code platform limitations that prevent 3-level nesting. However, this is untested in this project.
+### 2.2 Impact on Approaches A, B, and E
 
-**Mitigation:** The first implementation run should include explicit verification that 3-level nesting works. If it fails, fallback to Approach A (story-implementer wrapper, which also uses 3-level nesting but with a purpose-built wrapper agent).
+All three approaches that solve the wait gate require a subagent to dispatch another subagent:
 
-**Why 3-level nesting is acceptable here:**
-- The reviewer at level 3 is a leaf agent -- it doesn't dispatch further agents
-- The reviewer is lightweight (28-57K tokens, 1-2m duration)
-- Worktree isolation prevents filesystem conflicts between nesting levels
-- The builder already has full context about the story branch, so it can pass accurate information to the reviewer
+| Approach | Nesting required | Status |
+|----------|-----------------|--------|
+| A (Story-Implementer Wrapper) | Orchestrator -> Wrapper -> Builder/Reviewer (3 levels) | **INFEASIBLE** |
+| B (Orchestrator-Internal Sequential) | Collapses to A or E | **INFEASIBLE** |
+| E (Prompt Augmentation) | Orchestrator -> Builder -> Reviewer (3 levels) | **INFEASIBLE** |
 
-### 3.4 Builder Agent File Changes
+Adding `Agent` to the builder's tools field has no effect when the builder is running as a subagent -- the platform ignores the `Agent` tool for all subagents regardless of what is declared in the frontmatter.
 
-**builder.md frontmatter change:**
-```yaml
----
-name: builder
-color: red
-description: Production code builder...
-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
-model: inherit
----
+### 2.3 Verification
+
+This constraint was verified through multiple sources:
+
+| Claim | Source | Verification |
+|-------|--------|-------------|
+| Subagents cannot spawn other subagents | [Official Claude Code documentation](https://code.claude.com/docs/en/sub-agents) | Direct quote: "Subagents cannot spawn other subagents" |
+| Agent tool excluded from subagent tools | [Official Claude Code documentation](https://code.claude.com/docs/en/sub-agents) | Direct quote: "`Agent(agent_type)` has no effect in subagent definitions" |
+| Known issue with no fix timeline | [GitHub issue anthropics/claude-code#4182](https://github.com/anthropics/claude-code/issues/4182) | Closed as duplicate of #5528, no official fix timeline |
+| Confirmed intentional design | [Claude Code Plan subagent docs](https://code.claude.com/docs/en/sub-agents) | "This prevents infinite nesting (subagents cannot spawn other subagents)" |
+
+### 2.4 Workarounds Considered and Rejected
+
+1. **`claude -p` from within a subagent:** The builder could invoke `claude -p` via Bash to start a separate CLI session for the reviewer. However, Claude Code's nested session detection blocks this -- `claude -p` refuses to start inside another Claude Code session (detects `CLAUDECODE` environment variable). This is already documented in CLAUDE.md under "Known Claude Code Platform Limitations."
+
+2. **Unsetting `CLAUDECODE` environment variable:** A subagent could `unset CLAUDECODE && claude -p ...` to bypass detection. This is fragile, undocumented, and likely to break with platform updates. It also loses all observability (no Agent tool metrics, no structured result). Rejected as too brittle for production workflow infrastructure.
+
+3. **Agent Teams:** Claude Code offers experimental [Agent Teams](https://code.claude.com/docs/en/agent-teams) for multi-agent coordination. However: (a) they are experimental and disabled by default, (b) they have known limitations around session resumption, (c) they cannot be spawned by subagents (same nesting constraint), and (d) they are designed for interactive collaboration, not deterministic dispatch. Rejected as premature for workflow infrastructure.
+
+## 3. Approaches Re-Evaluated (Revision 2)
+
+Given the nesting constraint, the solution space narrows to approaches where **only the orchestrator dispatches agents**. This section re-evaluates all approaches with the corrected constraint.
+
+### Approach A: Story-Implementer Wrapper Agent -- INFEASIBLE
+
+Requires 3-level nesting (Orchestrator -> Wrapper -> Builder). See section 2.2.
+
+### Approach B: Orchestrator-Internal Sequential Dispatch -- INFEASIBLE
+
+Collapses to either A or E, both of which require nesting. See section 2.2.
+
+### Approach C: Reactive Dispatch (Event-Driven) -- NOT FEASIBLE
+
+The orchestrator reacts to individual builder completions rather than waiting for all parallel builders to finish. Requires an event-driven or callback mechanism that the Agent tool does not provide. The foreground parallel dispatch blocks until ALL agents return.
+
+**Re-assessment for Revision 2:** The Agent tool now supports `run_in_background` parameter and background subagent dispatch. However, the background completion mechanism has significant known issues -- session hanging after completion ([#20679](https://github.com/anthropics/claude-code/issues/20679)), TaskOutput blocking ([#20236](https://github.com/anthropics/claude-code/issues/20236)), and notification failures ([#21048](https://github.com/anthropics/claude-code/issues/21048)). These are not reliable enough for production workflow infrastructure. Rejected for now; revisit when background agents stabilize.
+
+### Approach D: Formalize Parallel Reviews After All Builds -- FEASIBLE but INCOMPLETE
+
+After all builders in a wave complete, dispatch all reviewers in parallel. This is already the current behavior (Gantt evidence). Formalizing it solves nothing.
+
+**However,** Approach D serves as the baseline when combined with tiered review skipping (Section 4). Even without solving the wait gate, skipping reviews for easy test stories saves ~84K tokens and ~3m 30s per run.
+
+### Approach E: Orchestrator-Driven Prompt Augmentation -- INFEASIBLE
+
+Requires builder (subagent) to dispatch reviewer (sub-subagent). See section 2.2.
+
+### Approach F: Background Dispatch with Orchestrator Polling (NEW)
+
+**How it works:** The orchestrator dispatches builders in the background using `run_in_background: true`, monitors for completion, and dispatches the reviewer for each story as soon as that story's builder finishes -- without waiting for all builders in the wave.
+
+**Re-assessment:** While background subagent dispatch exists in the Claude Code platform, the completion notification mechanism has multiple known bugs that cause sessions to hang or fail to detect completion. This makes it unreliable for autonomous production use. Rejected due to platform instability. Revisit when background agent support stabilizes.
+
+### Approach G: Orchestrator Sequential Per-Story Lifecycle (NEW, RECOMMENDED)
+
+**How it works:** The orchestrator processes each story's full lifecycle (build -> review -> fix cycles) sequentially within a wave, dispatching builders and reviewers directly. No parallel build dispatch within a wave.
+
+This is a fundamentally different dispatch model from the current one. Instead of:
+
+```
+[build S01 | build S02 | build S03] -> [review S01 | review S02 | review S03] -> merge
 ```
 
-The `Agent` tool is added to enable reviewer dispatch. This must be propagated to all three builder variants (builder-haiku.md, builder-sonnet.md, builder-opus.md) using the existing sync command:
-```bash
-for variant in haiku sonnet opus; do
-  sed "s/^name: builder$/name: builder-$variant/;s/^model: inherit$/model: $variant/" \
-    .claude/agents/builder.md > .claude/agents/builder-$variant.md
-done
+The orchestrator does:
+
+```
+[build S01 -> review S01 -> build S02 -> review S02 -> build S03 -> review S03] -> merge
 ```
 
-**builder.md body: no changes to existing instructions.** The lifecycle behavior comes from the orchestrator's prompt augmentation, not from builder.md. However, a brief documentation section should be added near the end of builder.md explaining the concept:
+**Wait -- isn't this slower?** At first glance, yes. But consider:
 
-```markdown
-## Post-Build Lifecycle (Orchestrator-Injected)
+1. **The current model's parallelism is already limited.** Waves typically have 2-3 stories. The parallelism benefit is `max(builds)` instead of `sum(builds)`.
 
-The orchestrator may append a "POST-BUILD LIFECYCLE" section to your dispatch
-prompt. If present, follow its instructions after completing your normal build
-workflow (implement, test, commit, push, item-review.sh). The lifecycle section
-may instruct you to dispatch a reviewer agent and handle fix cycles.
+2. **The current model pays a fixed overhead per wave transition.** After all builds complete, the orchestrator processes telemetry, verifies board status, verifies comments, then dispatches reviewers. After all reviews, it processes more telemetry, handles fix cycles sequentially, then merges. This overhead is ~2-3 minutes per wave.
 
-If no POST-BUILD LIFECYCLE section is present, your work ends at item-review.sh
-as described in "After Story Complete" above.
+3. **The sequential model eliminates the review phase entirely.** Each story's review is immediate -- no waiting, no separate phase.
+
+4. **Fix cycles are handled inline.** No separate fix cycle phase, no re-dispatch coordination.
+
+**The math (for a typical 2-story wave with 13m and 7m builds, 4m reviews):**
+
+| Model | Timeline | Total |
+|-------|----------|-------|
+| Current (parallel builds, sequential reviews) | max(13m, 7m) + 4m + 4m + ~2m overhead = **23m** | 23m |
+| Sequential per-story | 7m + 4m + 13m + 4m = **28m** | 28m |
+| Sequential per-story with easy review skip | 7m + 13m + 4m = **24m** (easy story skips review) | 24m |
+| Sequential with fix cycle | 7m + 4m + 7m(fix) + 4m + 13m + 4m = **39m** | 39m |
+| Current with fix cycle | max(13m, 7m) + 4m + 4m + 7m(fix) + 4m + ~2m = **34m** | 34m |
+
+**The sequential model is slower for pure build waves.** This is the honest trade-off. For a typical test run wave without fix cycles, sequential is ~5 minutes slower than parallel.
+
+**Assessment:** Approach G trades parallelism for simplicity but loses too much on wall-clock time. It would only be preferred in a scenario where parallelism causes more problems than it solves (e.g., persistent worktree cross-contamination). Not recommended as the primary approach.
+
+### Approach H: Hybrid -- Parallel Builds, Streaming Reviews, Inline Fix Cycles (NEW, RECOMMENDED)
+
+**How it works:** Keep the current parallel build dispatch. After all builders complete, dispatch each story's review (and handle its fix cycles) as a self-contained unit. But dispatch all these review-then-fix-cycle units in parallel instead of sequentially.
+
+This is a refinement of the current model that delivers most of the lifecycle-coupling benefit within the 1-level nesting constraint:
+
+```
+Wave execution:
+1. [build S01 | build S02 | build S03]           <- parallel builds (unchanged)
+2. [review S01 | review S02 | review S03]         <- parallel reviews (already happening)
+3. For any REQUEST_CHANGES:
+   [fix S01 -> re-review S01 | fix S02 -> re-review S02]  <- parallel fix cycles (NEW)
 ```
 
-### 3.5 reviewer.md: No Changes
+**The key improvement over the current model:** Fix cycles are handled immediately after the initial review wave, with fix-and-re-review dispatched in parallel for all stories that need fixes. Currently, fix cycles are handled one at a time, sequentially.
 
-The reviewer agent is dispatched exactly as it is today -- via the Agent tool with `subagent_type: "reviewer"`. The only difference is that the dispatching agent is the builder (level 2) instead of the orchestrator (level 1). The reviewer doesn't know or care about its nesting depth.
+Additionally, the entire review + fix cycle phase is restructured so the orchestrator dispatches a reviewer, checks the verdict, and if fixes are needed, dispatches a builder fix + re-review -- all as part of one continuous per-story loop. This loop runs in parallel across stories.
 
-### 3.6 Telemetry Capture
+**Wait -- can the orchestrator run per-story review loops in parallel?** Yes, but with an important limitation. The orchestrator cannot interleave steps within parallel dispatches. It can:
 
-The orchestrator needs telemetry from both the builder and the reviewer for each story. Here is how metrics flow:
+1. Dispatch all reviewers in parallel (already does this)
+2. Wait for all to return
+3. Check which stories need fixes
+4. Dispatch all fix builders in parallel
+5. Wait for all to return
+6. Dispatch all re-reviewers in parallel
+7. Wait for all to return
+8. Repeat until no more REQUEST_CHANGES or max cycles reached
+
+This is not true per-story lifecycle coupling (which would require a story's fix to start before other stories' reviews finish). But it is much better than the current model where fix cycles are fully sequential.
+
+**The math (for a 2-story wave, one with fix cycle):**
+
+| Model | Timeline | Total |
+|-------|----------|-------|
+| Current (fix cycles sequential) | max(13m, 7m) + max(4m, 4m) + 7m(fix) + 4m(re-review) + ~2m overhead | **30m** |
+| Approach H (fix cycles parallel) | max(13m, 7m) + max(4m, 4m) + max(7m, 0m)(fix) + max(4m, 0m)(re-review) | **28m** |
+| Approach H + tiered review skip | max(13m, 7m) + max(4m, 0m) + max(7m, 0m)(fix) + max(4m, 0m)(re-review) | **28m** |
+
+The savings from Approach H come primarily from parallelizing fix cycles. For runs with higher fix rates (infrastructure runs at 28.6%), the savings compound.
+
+**Combined with tiered review skipping:** Easy test stories skip the review dispatch entirely. The orchestrator simply skips the reviewer dispatch for stories matching the skip criteria. Since the orchestrator controls all dispatch decisions, this is trivial to implement.
+
+### Approach Comparison Matrix (Revised)
+
+| Criterion | A (Wrapper) | C (Reactive) | D (Parallel Reviews) | E (Prompt Aug) | F (Background) | G (Sequential) | **H (Hybrid)** |
+|-----------|-------------|-------------|----------------------|----------------|----------------|----------------|----------------|
+| Feasible? | **No** (nesting) | **No** (no events) | Yes | **No** (nesting) | **No** (unstable) | Yes | **Yes** |
+| Solves wait gate | N/A | N/A | **No** | N/A | N/A | **No** (worse) | **Partially** |
+| Parallel fix cycles | N/A | N/A | **No** | N/A | N/A | **No** | **Yes** |
+| Tiered review compatible | N/A | N/A | Yes | N/A | N/A | Yes | **Yes** |
+| Builder changes | N/A | N/A | None | N/A | N/A | None | **None** |
+| Orchestrator complexity | N/A | N/A | Minimal | N/A | N/A | Simplified | **Medium** |
+| New agent file | N/A | N/A | No | N/A | N/A | No | **No** |
+| Phase simplification | N/A | N/A | Minimal | N/A | N/A | Maximal | **Significant** |
+
+## 4. Recommended Approach: Hybrid (Approach H) + Tiered Reviews
+
+### 4.1 Recommendation
+
+**Approach H** is the best feasible approach given the platform constraint. It delivers:
+
+1. **Parallel fix cycles** (new) -- the primary source of wall-clock savings
+2. **Tiered review skipping** (new) -- saves ~84K tokens and ~3m 30s per test run
+3. **Phase simplification** -- merges the separate "review" and "fix cycle" phases into the build wave
+4. **No builder changes** -- the orchestrator retains full dispatch control
+5. **No new agent files** -- works within the existing agent architecture
+
+**Why this is the right trade-off:**
+
+- It solves the parallel fix cycle problem (the bigger win for infrastructure runs)
+- It enables tiered review skipping (the bigger win for test runs)
+- It simplifies the phase model (fewer phases, clearer flow)
+- It stays within the platform's confirmed constraints (1-level nesting)
+- It requires no risky platform assumptions
+
+**What it does NOT solve:** The wait gate for the initial build phase. Stories in a wave still wait for all builds to complete before any reviews start. True lifecycle coupling (build + review as one parallel unit) requires either subagent nesting (blocked by platform) or background agents (blocked by reliability issues). Both should be revisited as the Claude Code platform matures.
+
+### 4.2 Core Mechanism
+
+The orchestrator's wave execution changes from:
+
+```
+Phase 5: Dispatch builders in parallel -> wait
+Phase 6: For each story: dispatch reviewer, handle fix cycles (sequential)
+Phase 7: Merge
+```
+
+To:
+
+```
+Phase 3 (Implementation), per wave:
+  Step 1: Dispatch all builders in parallel -> wait
+  Step 2: Dispatch all reviewers in parallel (skip if SKIP tier) -> wait
+  Step 3: Check verdicts. For REQUEST_CHANGES stories:
+          Dispatch all fix builders in parallel -> wait
+          Dispatch all re-reviewers in parallel -> wait
+          (Repeat Step 3, max 2 cycles)
+  Step 4: Post telemetry, verify board, merge
+```
+
+Each step dispatches in parallel and waits for all to return. The orchestrator retains full control of dispatch sequencing.
+
+### 4.3 Detailed Wave Flow
+
+```mermaid
+flowchart TD
+    A[Pre-dispatch: set stories to In Progress] --> B[Dispatch all builders in parallel]
+    B --> C[Wait for all builders to return]
+    C --> D[Post per-story build telemetry]
+    D --> E{Any stories need review?}
+    E -->|Yes| F[Dispatch reviewers in parallel for REVIEW-tier stories]
+    E -->|No| K[All stories SKIP tier - proceed to merge]
+    F --> G[Wait for all reviewers to return]
+    G --> H{Any REQUEST_CHANGES?}
+    H -->|Yes, cycle < 2| I[Dispatch fix builders in parallel]
+    I --> J[Wait for fix builders, then dispatch re-reviewers in parallel]
+    J --> H
+    H -->|No, or cycle >= 2| K
+    K --> L[Post per-story review telemetry]
+    L --> M[Verify board statuses + comments]
+    M --> N[Merge story branches into epic branch]
+```
+
+### 4.4 Telemetry Capture
+
+Telemetry capture is simpler than the original Approach E design because the orchestrator dispatches all agents directly:
 
 ```mermaid
 sequenceDiagram
     participant O as Orchestrator
-    participant B as Builder
-    participant R as Reviewer
+    participant B1 as Builder S01
+    participant B2 as Builder S02
+    participant R1 as Reviewer S01
+    participant R2 as Reviewer S02
 
-    O->>B: Dispatch (Agent tool)
-    Note over B: Build story (impl + test + commit)
-    B->>B: item-review.sh (board -> In Review)
-    B->>R: Dispatch reviewer (Agent tool)
-    Note over R: Review story
-    R-->>B: Return (verdict + metrics)
-    Note over B: Handle verdict (fix cycle if needed)
-    B-->>O: Return (build metrics + reviewer metrics)
-    Note over O: Post telemetry from combined metrics
+    O->>B1: Dispatch builder (parallel)
+    O->>B2: Dispatch builder (parallel)
+    B1-->>O: Return (build metrics)
+    B2-->>O: Return (build metrics)
+    Note over O: Record build dispatches in state file
+    O->>R1: Dispatch reviewer (parallel)
+    O->>R2: Dispatch reviewer (parallel)
+    R1-->>O: Return (review metrics + verdict)
+    R2-->>O: Return (review metrics + verdict)
+    Note over O: Record review dispatches in state file
 ```
 
-**What the orchestrator receives from the Agent tool result:**
-- `duration_ms`: Total builder session duration (includes reviewer dispatch time)
-- `total_tokens`: Total builder session tokens (includes reviewer dispatch tokens)
-- `tool_uses`: Total tool uses (includes reviewer dispatch tool uses)
+**Each dispatch is a direct Agent tool call from the orchestrator.** The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` natively. No parsing of response text needed. No "virtual" dispatches. No `nested_in` field.
 
-**What the builder includes in its response text:**
-- `reviewer_duration_ms`, `reviewer_tokens`, `reviewer_tool_uses` (from the reviewer's Agent tool result)
-- `fix_cycles` count and `final_verdict`
+**State file dispatch log:** Each builder dispatch and each reviewer dispatch is recorded as a separate entry with its own `started_at`, `duration_ms`, `tokens`, etc. Stories with `review_tier: "SKIP"` have no reviewer dispatch entry.
 
-**How the orchestrator records this in the state file:**
+```json
+{
+  "dispatches": [
+    {
+      "agent": "builder-sonnet",
+      "model": "sonnet",
+      "issue": 112,
+      "started_at": "2026-03-19T10:00:00Z",
+      "duration_ms": 180000,
+      "tokens": 65000,
+      "tool_uses": 25,
+      "result": "success",
+      "review_tier": "REVIEW"
+    },
+    {
+      "agent": "reviewer",
+      "model": "inherit",
+      "issue": 112,
+      "started_at": "2026-03-19T10:03:00Z",
+      "duration_ms": 70000,
+      "tokens": 28000,
+      "tool_uses": 8,
+      "result": "approve"
+    },
+    {
+      "agent": "builder-sonnet",
+      "model": "sonnet",
+      "issue": 113,
+      "started_at": "2026-03-19T10:00:00Z",
+      "duration_ms": 150000,
+      "tokens": 55000,
+      "tool_uses": 20,
+      "result": "success",
+      "review_tier": "SKIP"
+    }
+  ]
+}
+```
 
-For each story, the orchestrator posts TWO dispatch entries:
+**Gantt chart compatibility:** Builder and reviewer dispatches for the same story have different `started_at` timestamps (reviewer starts after all builds complete). The `compute-dispatches.py` script already groups by `started_at` -- builders in the same wave share a `started_at`, reviewers share a later `started_at`. Fix cycle dispatches have their own timestamps. No changes needed to the Gantt generator.
 
-1. **Builder dispatch:** `agent: "builder-sonnet"`, with the full `duration_ms` and `total_tokens` from the Agent tool result. This includes the time/tokens the builder spent dispatching the reviewer.
+### 4.5 Board Transitions
 
-2. **Reviewer dispatch (virtual):** `agent: "reviewer"`, with `duration_ms` and `tokens` extracted from the builder's response text. This is a "virtual" dispatch -- it was actually nested inside the builder's session, but recording it separately preserves the existing telemetry format and enables per-agent-type analysis.
+Board transitions remain with the orchestrator (unchanged from current model):
 
-The `started_at` for the virtual reviewer dispatch should be computed as: builder's `started_at` + builder's `duration_ms` - reviewer's `duration_ms`. This places it correctly in the timeline for Gantt chart generation.
+| Transition | Owner | Mechanism |
+|-----------|-------|-----------|
+| Ready -> In Progress | Orchestrator (before build dispatch) | `batch-set-status.sh` |
+| In Progress -> In Review | Builder (via `item-review.sh`) | Already works this way |
+| Fix cycle: In Review -> In Progress | Orchestrator (before fix dispatch) | `item-set-status.sh` |
+| Final: -> In Review | Orchestrator (after review/fix cycle) | `item-set-status.sh` or verify existing |
 
-**Fix cycle dispatches:** If the builder runs fix cycles (re-dispatch builder to fix + re-dispatch reviewer), the builder returns metrics for each cycle. The orchestrator records each as a separate dispatch entry with the `fix_cycle` flag.
+The orchestrator retains full board control. No delegation of board transitions to builders beyond what they already do (`item-start.sh` and `item-review.sh`).
 
-### 3.7 Board Transitions
+### 4.6 What the Orchestrator Does NOT Delegate
 
-Board transitions shift from the orchestrator to the builder's lifecycle:
+Identical to the original design (Section 3.8 of Revision 1) -- the orchestrator retains control of:
+- Branch creation, telemetry posting, branch merging, epic status sync, comment verification, state file updates, and board status verification.
 
-| Transition | Current owner | New owner | Mechanism |
-|-----------|--------------|-----------|-----------|
-| Ready -> In Progress | Orchestrator (before dispatch) | **Orchestrator** (unchanged) | `item-set-status.sh` before Agent tool call |
-| In Progress -> In Review | Builder (via `item-review.sh`) | **Builder** (unchanged) | `item-review.sh` already does this |
-| Fix cycle: In Review -> In Progress | Orchestrator | **Builder** (during fix cycle) | Builder calls `item-set-status.sh` before fix |
-| Final: -> In Review | Orchestrator (after review) | **Builder** (via `item-review.sh` or after final review) | Builder confirms In Review at end of lifecycle |
+No agent changes are needed. The builder and reviewer agent files are unchanged.
 
-The orchestrator still sets In Progress before dispatch and verifies In Review after the builder returns (defense-in-depth). The orchestrator also still handles epic status sync.
+## 5. Tiered Review Strategy
 
-### 3.8 What the Orchestrator Does NOT Delegate
-
-The orchestrator retains control of:
-- **Branch creation** (Phase 4: all branches created upfront)
-- **Board status: Ready -> In Progress** (set before dispatch)
-- **Telemetry posting** (after builder returns, orchestrator posts to GitHub)
-- **Branch merging** (story -> epic -> integration)
-- **Epic status sync** (aggregate of stories)
-- **Comment verification** (post-wave verification of Work Started / Ready for Review comments)
-- **State file updates** (dispatch log, story status)
-
-This preserves the orchestrator's role as the deterministic infrastructure layer. The builder handles the story lifecycle (build + review + fix), while the orchestrator handles the workflow infrastructure (branches, board, telemetry, merges).
-
-## 4. Tiered Review Strategy
-
-### 4.1 Evidence
+### 5.1 Evidence
 
 From the workflow optimization analysis (section 11.4):
 
@@ -352,7 +445,7 @@ From the workflow optimization analysis (section 11.4):
 
 Fix cycle analysis (section 9.2): 66% of fix cycles are format/convention violations (mechanical, not quality issues). These are the type of issue that scripted validation could catch (a future improvement, backlog consideration), not per-story AI review.
 
-### 4.2 Review Tier Decision Logic
+### 5.2 Review Tier Decision Logic
 
 ```
 IF story has label "test-agentic-sdlc" AND difficulty == "easy":
@@ -369,7 +462,7 @@ ELSE:
 
 **Why not skip medium test story reviews too?** Medium stories have a 0% fix rate on test content (same as easy), so the data supports skipping them. However, medium stories have more complex acceptance criteria and occasionally cross-reference other stories. The incremental savings (~33K tokens and ~1m 26s per story) are modest compared to the risk. This can be revisited after the initial implementation proves stable.
 
-### 4.3 Configuration Schema
+### 5.3 Configuration Schema
 
 Add a `reviewStrategy` section to `.claude/agentic-sdlc-config.json`:
 
@@ -392,20 +485,20 @@ Add a `reviewStrategy` section to `.claude/agentic-sdlc-config.json`:
 - `reviewStrategy.skipPerStoryReview.conditions.maxDifficulty` (string: "easy"|"medium"|"hard", default "easy"): Maximum difficulty level that qualifies for skip. Stories at or below this difficulty AND matching the label condition may have their per-story review skipped.
 - `reviewStrategy.skipPerStoryReview.conditions.requireLabel` (string|null, default `null`): If set, only stories whose backlog item has this label qualify for skip. When `null`, difficulty alone determines skip eligibility.
 
-**Reading the config:** The orchestrator reads `reviewStrategy` when constructing each builder's prompt. The `scripts/lib/config.sh` library should be extended with:
+**Reading the config:** The orchestrator reads `reviewStrategy` when determining each story's review tier. The `scripts/lib/config.sh` library should be extended with:
 ```bash
 CFG_SKIP_REVIEW_ENABLED=$(_cfg '.reviewStrategy.skipPerStoryReview.enabled' "false")
 CFG_SKIP_REVIEW_MAX_DIFFICULTY=$(_cfg '.reviewStrategy.skipPerStoryReview.conditions.maxDifficulty' "easy")
 CFG_SKIP_REVIEW_REQUIRE_LABEL=$(_cfg '.reviewStrategy.skipPerStoryReview.conditions.requireLabel' "")
 ```
 
-### 4.4 PR Review Unchanged
+### 5.4 PR Review Unchanged
 
-The PR review (Phase 5 in the new model) is unchanged. It remains the cross-story quality gate, always runs, and uses the existing reviewer dispatch pattern. It is dispatched by the orchestrator (not the builder), because it reviews the integrated result across all stories.
+The PR review (Phase 5 in the new model) is unchanged. It remains the cross-story quality gate, always runs, and uses the existing reviewer dispatch pattern. It is dispatched by the orchestrator directly.
 
-## 5. Phase Restructuring
+## 6. Phase Restructuring
 
-### 5.1 Current Phase Model (12 phases)
+### 6.1 Current Phase Model (12 phases)
 
 | Phase | Name |
 |-------|------|
@@ -423,38 +516,48 @@ The PR review (Phase 5 in the new model) is unchanged. It remains the cross-stor
 
 Note: Phases 5-7 repeat per wave; Phase 6 repeats per story within a wave.
 
-### 5.2 Proposed Phase Model (7 phases)
+### 6.2 Proposed Phase Model (7 phases)
 
 | Phase | Name | What happens |
 |-------|------|-------------|
 | 0 | Setup | Detect mode, create integration branch, check existing artifacts, init state |
 | 1 | Design | *(conditional)* Dispatch designer, auto-merge PR |
 | 2 | Plan | *(conditional)* Dispatch planner, read plan, create branches |
-| 3 | Implementation | Dispatch waves. Each story's full lifecycle (build -> review -> fix cycles) runs inside the wave in parallel. Wave completes when all stories return. Merge story branches into epic branches, merge epic branches into integration branch. Post per-story and per-epic telemetry. |
+| 3 | Implementation | Dispatch waves. Per wave: parallel builds -> parallel reviews (skipping SKIP-tier stories) -> parallel fix cycles if needed -> merge. Post per-story and per-epic telemetry. |
 | 4 | Open PR | Merge remaining branches, update changelog, open backlog PR |
 | 5 | Review + Retro | PR review and retro dispatched in parallel (both with worktree isolation). Handle PR review fix cycles if needed. Merge retro commits. |
 | 6 | Telemetry + Cleanup | Post backlog-level telemetry. Board reconciliation. Leave PR open for human review. |
 
-### 5.3 Phase 3 (Implementation) -- Detailed Flow
-
-This is the most complex phase. Here is the detailed flow:
+### 6.3 Phase 3 (Implementation) -- Detailed Flow
 
 ```mermaid
 flowchart TD
     A[Read plan, build dependency graph] --> B[Create all epic + story branches]
     B --> C{More waves?}
-    C -->|Yes| D[Set stories to In Progress]
-    D --> E[Dispatch builders in parallel with lifecycle prompts]
+    C -->|Yes| D[Set wave stories to In Progress]
+    D --> E[Dispatch all builders in parallel]
     E --> F[Wait for all builders to return]
-    F --> G[Post per-story telemetry]
-    G --> H[Verify board statuses + comments]
-    H --> I[Merge story branches into epic branch]
-    I --> J{Last wave for this epic?}
-    J -->|Yes| K[Post per-epic telemetry]
-    K --> L[Merge epic into integration branch]
-    L --> C
-    J -->|No| C
-    C -->|No| M[All stories complete]
+    F --> G[Post per-story build telemetry]
+    G --> H{Any REVIEW-tier stories?}
+    H -->|Yes| I[Dispatch reviewers in parallel for REVIEW-tier stories]
+    I --> J[Wait for all reviewers to return]
+    J --> K{Any REQUEST_CHANGES?}
+    K -->|Yes, cycle < 2| L[Set fix stories to In Progress]
+    L --> M[Dispatch fix builders in parallel]
+    M --> N[Wait for fix builders]
+    N --> O[Dispatch re-reviewers in parallel]
+    O --> P[Wait for re-reviewers]
+    P --> K
+    K -->|No, or cycle >= 2| Q[Post per-story review telemetry]
+    H -->|No| Q
+    Q --> R[Verify board statuses + comments]
+    R --> S[Merge story branches into epic branch]
+    S --> T{Last wave for this epic?}
+    T -->|Yes| U[Post per-epic telemetry]
+    U --> V[Merge epic into integration branch]
+    V --> C
+    T -->|No| C
+    C -->|No| W[All stories complete]
 ```
 
 **Within each wave:**
@@ -463,196 +566,211 @@ flowchart TD
    - Set all wave stories to In Progress (`batch-set-status.sh`)
    - Record `started_at` timestamp
 
-2. **Dispatch (orchestrator, parallel):**
-   - For each story in the wave, dispatch builder with lifecycle prompt:
+2. **Build phase (orchestrator, parallel):**
+   - For each story in the wave, dispatch builder:
      ```
      Agent tool -> subagent_type: "builder-<model>"
      isolation: "worktree"
-     Prompt: "<standard builder prompt> + <POST-BUILD LIFECYCLE section>"
+     Prompt: "<standard builder prompt>"
      ```
    - The orchestrator blocks until ALL builders in the wave return.
+   - Record build dispatch entries in state file.
+   - Post per-story build telemetry.
 
-3. **Post-dispatch (orchestrator, sequential):**
-   - For each returned builder:
-     - Parse reviewer metrics from response text
-     - Record builder dispatch in state file
-     - Record reviewer dispatch (virtual) in state file
-     - Post per-story telemetry (`item-telemetry.sh`)
-     - Verify board status (In Review) and comments
-   - Merge story branches into epic branch
-   - If last wave for epic: post per-epic telemetry, merge epic into integration branch
+3. **Review phase (orchestrator, parallel):**
+   - Determine review tier for each story from config + labels.
+   - For REVIEW-tier stories, dispatch reviewers in parallel:
+     ```
+     Agent tool -> subagent_type: "reviewer"
+     isolation: "worktree"
+     Prompt: "Review story #<N> on branch <branch>. Post findings as a comment on issue #<N>."
+     ```
+   - Wait for all reviewers to return.
+   - Record review dispatch entries in state file.
 
-### 5.4 State File Impact
+4. **Fix cycle phase (orchestrator, parallel, max 2 iterations):**
+   - Check each reviewer's verdict.
+   - For REQUEST_CHANGES stories:
+     - Set stories back to In Progress.
+     - Dispatch fix builders in parallel (same builder variant as original).
+     - Wait for all fix builders.
+     - Dispatch re-reviewers in parallel.
+     - Wait for all re-reviewers.
+     - Record fix cycle dispatches in state file.
+   - Repeat if any still REQUEST_CHANGES and cycle < 2.
 
-The dispatch log format remains compatible. The key change is that reviewer dispatches are recorded as "virtual" entries derived from the builder's response:
+5. **Post-wave (orchestrator, sequential):**
+   - Verify board statuses (all stories should be In Review).
+   - Verify comments (Work Started, Ready for Review).
+   - Merge story branches into epic branch.
+   - If last wave for epic: post per-epic telemetry, merge epic into integration.
 
-```json
-{
-  "dispatches": [
-    {
-      "agent": "builder-sonnet",
-      "model": "sonnet",
-      "issue": 112,
-      "started_at": "2026-03-19T10:00:00Z",
-      "duration_ms": 180000,
-      "tokens": 65000,
-      "tool_uses": 25,
-      "result": "success",
-      "review_tier": "REVIEW"
-    },
-    {
-      "agent": "reviewer",
-      "model": "inherit",
-      "issue": 112,
-      "started_at": "2026-03-19T10:02:30Z",
-      "duration_ms": 70000,
-      "tokens": 28000,
-      "tool_uses": 8,
-      "result": "approve",
-      "nested_in": "builder-sonnet",
-      "fix_cycle": 0
-    }
-  ]
-}
-```
+### 6.4 State File Impact
 
-The `nested_in` field marks virtual dispatches. The `review_tier` field on the builder dispatch records whether review was requested. For stories with `review_tier: "SKIP"`, no virtual reviewer dispatch is recorded.
+The dispatch log format requires no schema changes. Each dispatch (build, review, fix build, re-review) is a separate entry with its own `started_at`, `duration_ms`, `tokens`, etc. The `review_tier` field is additive -- added to builder dispatch entries to record whether review was requested. Stories with `review_tier: "SKIP"` have no reviewer dispatch entry.
 
-**Gantt chart compatibility:** The `compute-dispatches.py` script groups dispatches by `started_at` for parallel wave detection. Virtual reviewer dispatches have computed `started_at` times that place them correctly in the timeline (after the builder's build phase, overlapping with other stories' review phases within the same wave). The Gantt generator should render them as separate bars with the existing `:done` (yellow) color tag for reviews.
+No `nested_in` field is needed (this was an artifact of Approach E where reviews were nested inside builder sessions).
 
-## 6. What Does NOT Change
+## 7. What Does NOT Change
 
 | Component | Status | Reason |
 |-----------|--------|--------|
-| builder.md core instructions | **Unchanged** | Lifecycle behavior comes from prompt, not agent file |
-| reviewer.md | **Unchanged** | Reviewer is dispatched the same way (just by builder instead of orchestrator) |
+| builder.md (all variants) | **Unchanged** | Builder is dispatched the same way; no tools field change needed |
+| reviewer.md | **Unchanged** | Reviewer is dispatched the same way by the same parent (orchestrator) |
 | Branch conventions | **Unchanged** | Same branch hierarchy, same merge strategy |
 | PR review phase | **Unchanged** | Still cross-story quality gate, still dispatched by orchestrator |
-| Telemetry scripts | **Unchanged** | `item-telemetry.sh` and `compute-dispatches.py` work with the dispatch log format |
+| Telemetry scripts | **Unchanged** | `item-telemetry.sh` and `compute-dispatches.py` work with direct dispatch entries |
 | Board status option IDs | **Unchanged** | No new statuses needed |
-| Helper scripts | **Unchanged** | `item-start.sh`, `item-review.sh`, `item-set-status.sh` all work as-is |
+| Helper scripts | **Unchanged** | All scripts work as-is |
 | Retro phase | **Unchanged** | Still dispatched in parallel with PR review |
+| State file schema | **Unchanged** | `review_tier` field is additive; existing tools ignore unknown fields |
 
-## 7. Risks and Mitigations
+## 8. Risks and Mitigations
 
-### 7.1 3-Level Agent Nesting (Medium Risk)
+### 8.1 Orchestrator Complexity Increase (Medium Risk)
 
-**Risk:** The Agent tool may behave unexpectedly with 3-level nesting (Orchestrator -> Builder -> Reviewer). No prior run has used 3-level nesting.
-
-**Mitigation:**
-- The first run with this change should be a test run (creative content, low stakes).
-- If 3-level nesting fails, the immediate fallback is Approach A (story-implementer wrapper agent). This also uses 3-level nesting but with a purpose-built wrapper, which may be easier to debug.
-- If ALL 3-level nesting fails, the fallback is Approach D (parallel reviews, already the current behavior) plus tiered review skipping. This doesn't solve the wait gate but still delivers the review savings.
-
-### 7.2 Builder Dispatching Reviewer Creates Coupling (Low Risk)
-
-**Risk:** The builder agent now has a dual responsibility: implement the story AND manage the review lifecycle. This increases the builder's cognitive load and session length.
+**Risk:** The orchestrator's Phase 3 is more complex, with nested loops for fix cycles and conditional review dispatch.
 
 **Mitigation:**
-- The lifecycle instructions are in a clearly delineated section ("POST-BUILD LIFECYCLE") that runs AFTER the builder's primary work is complete.
-- The builder's Agent file instructions still focus exclusively on building. The lifecycle behavior is injected via prompt, not baked into builder.md.
-- Session length increases by the reviewer's duration (1-4 minutes) -- small relative to the builder's own duration (2-15 minutes).
+- The complexity is well-structured: build wave -> review wave -> fix cycle wave. Each step is a clean dispatch-wait-process cycle.
+- The orchestrator already handles wave dispatch, telemetry posting, and board verification. This design adds conditional review dispatch and fix cycle loops to the existing pattern.
+- State file persistence means the orchestrator can recover at any step boundary.
 
-### 7.3 Telemetry Accuracy (Low Risk)
+### 8.2 Fix Cycle Parallelism May Not Fire Often (Low Risk)
 
-**Risk:** The builder's total `duration_ms` and `total_tokens` include the reviewer's consumption. If the builder doesn't correctly report reviewer metrics in its response text, the orchestrator can't separate builder vs reviewer telemetry.
-
-**Mitigation:**
-- The lifecycle prompt explicitly instructs the builder to include reviewer metrics in its response.
-- The builder's Agent tool dispatch of the reviewer returns structured metrics (`duration_ms`, `total_tokens`, `tool_uses`) -- same as any Agent tool dispatch.
-- If the builder fails to report reviewer metrics, the orchestrator can still compute a reasonable estimate: builder's total minus the expected reviewer cost (based on historical averages of ~28K tokens and ~1m 10s for easy stories, ~65K and ~3m 20s for infra stories).
-- The orchestrator should validate: if the builder reports 0 reviewer metrics but `review_tier` was REVIEW, log a warning and use the total as the builder-only metric.
-
-### 7.4 Fix Cycle Board State (Low Risk)
-
-**Risk:** When the builder runs a fix cycle, it needs to set the story back to In Progress (from In Review). Currently, `item-set-status.sh` is called by the orchestrator. With lifecycle coupling, the builder calls it.
+**Risk:** Parallel fix cycles only help when multiple stories in the same wave need fixes. With typical fix rates of 7.8% (test) to 28.6% (infra), most waves will have 0-1 stories needing fixes.
 
 **Mitigation:**
-- The builder already calls `item-start.sh` (which sets In Progress) and `item-review.sh` (which sets In Review). Adding `item-set-status.sh` for fix cycles is consistent.
-- The orchestrator verifies board status after the builder returns (defense-in-depth).
-- The builder is already in a worktree with Bash access, so `item-set-status.sh` works without any infrastructure changes.
+- Even with one fix cycle per wave, the time savings from not running it sequentially after all other reviews is meaningful (~4m per fix cycle).
+- The primary value comes from tiered review skipping (saves tokens and time every run) and phase simplification (cleaner orchestrator code).
+- Parallel fix cycles become more valuable as runs scale (more stories per wave, more waves per run).
 
-### 7.5 Worktree Isolation for Nested Reviewer (Low Risk)
+### 8.3 Wait Gate Remains Unsolved (Accepted Risk)
 
-**Risk:** The builder runs in a worktree. When it dispatches the reviewer with `isolation: "worktree"`, the reviewer gets its own worktree. This creates nested worktrees (worktree within worktree's git repo). Is this supported?
+**Risk:** The fundamental wait gate problem (fast builders idle while slow builders finish) is not solved by any feasible approach.
 
 **Mitigation:**
-- Worktree isolation creates a separate git worktree from the MAIN repository, not from the builder's worktree. The Agent tool's `isolation: "worktree"` always uses the root repo.
-- The reviewer operates in read-mostly mode (reads diff, reads files, posts comment). Even if worktree creation behaves differently, the reviewer doesn't modify files on the branch -- it only reads and comments.
-- If nested worktree dispatch fails, the reviewer can run WITHOUT `isolation: "worktree"` since it doesn't modify files. The builder's prompt can omit the isolation parameter for the reviewer dispatch.
+- This is a platform constraint, not a design failure. The workaround (subagent nesting or background agents) requires Claude Code platform changes.
+- The wait gate impact is bounded: with 2-3 stories per wave and typical build time variance, the idle time is 3-8 minutes per wave.
+- When the platform adds reliable background agent completion or subagent nesting support, the design can be upgraded to Approach E or F without changing the tiered review or phase restructuring work. The `review_tier` field, config schema, and phase model all transfer directly.
 
-## 8. Assumptions and Open Questions
+### 8.4 Review Skipping Misses Issues (Low Risk)
 
-### Assumptions (what I would have asked the user, and what I assumed)
+**Risk:** Skipping per-story reviews for easy test stories could miss format violations that are only caught at the PR review level.
 
-1. **Agent tool supports 3-level nesting.** Assumed yes, based on the tool's architecture (each dispatch is an independent session). No known documentation says otherwise. The Known Platform Limitations section in CLAUDE.md lists specific Agent tool limitations (no `model` parameter, no dynamic agent files, no `updatedInput` hook) but does not mention a nesting depth limit.
+**Mitigation:**
+- 0 fix cycles across 40+ easy test stories provides strong evidence.
+- The PR review still runs as the cross-story quality gate.
+- The `skipPerStoryReview.enabled` flag defaults to `false`, making this opt-in.
+- The condition requires both easy difficulty AND the test label, preventing accidental skip of infrastructure stories.
 
-2. **Builder agents without an explicit `tools` field inherit a default set that does NOT include `Agent`.** Assumed yes, because (a) the orchestrator explicitly lists `Agent` in its tools, (b) builder agents currently don't dispatch sub-agents, and (c) the `tools` field is explicitly specified only when non-default tools are needed (orchestrator adds Agent, reviewer restricts to Read/Grep/Glob/Bash).
+## 9. Assumptions and Open Questions
 
-3. **Worktree-isolated builders can dispatch worktree-isolated reviewers.** Assumed yes, since worktree isolation creates a new worktree from the root repo, not from the current working directory.
+### Assumptions
 
-4. **The builder can parse the Agent tool's return value (duration_ms, total_tokens, tool_uses) and include it in its text response.** Assumed yes, because the orchestrator already parses these values from Agent tool results.
+1. **The Agent tool's foreground parallel dispatch is the only reliable way to dispatch multiple subagents concurrently.** Assumed yes. Background dispatch (`run_in_background`) exists but has known reliability issues (sessions hanging, completion notifications failing). The `run_in_background` parameter should not be used for production workflow dispatch until these issues are resolved.
 
-5. **The review-skipping condition uses the backlog-level label (`test-agentic-sdlc`), not a per-story label.** Assumed this is sufficient because all stories in a test run share the same backlog label.
+2. **The subagent nesting constraint is permanent for the foreseeable future.** Assumed yes. The constraint is documented as an intentional design decision, not a bug. The related GitHub issue (#4182) was closed as duplicate with no fix timeline. Design around it rather than hoping for a fix.
+
+3. **The orchestrator can dispatch reviewers in parallel after all builders complete.** Assumed yes. The Gantt chart evidence already shows this happening in practice (reviews in a wave share the same start time). The design formalizes and extends this pattern.
+
+4. **Fix builders can be dispatched to the same story branch after a reviewer posts REQUEST_CHANGES.** Assumed yes. The builder runs in a worktree on the story branch, makes fix commits, pushes. The reviewer's findings are posted as an issue comment that the fix builder reads.
+
+5. **The `review_tier` field in the state file dispatch log is safe to add.** Assumed yes. Existing tools that parse the dispatch log use jq's `//` operator which ignores unknown fields. The field is informational for the orchestrator's decision logging.
 
 ### Open Questions
 
-1. **Should the builder's `item-review.sh` call happen BEFORE or AFTER the reviewer dispatch?** Currently, `item-review.sh` sets the board to In Review and posts the "Ready for Review" comment. If called before the reviewer, the board shows In Review while the review is actually in progress (correct). If called after, the board shows In Progress during review (incorrect but simpler flow). **Recommendation:** Keep the current order -- `item-review.sh` before reviewer dispatch. The builder already calls it after pushing code, before returning. The lifecycle section runs after `item-review.sh`.
+1. **Should fix cycle builders receive the original builder prompt or a targeted fix prompt?** Currently, fix cycle builders get a prompt like "Fix the issues identified by the reviewer on story X." This is already the current behavior. No change needed.
 
-2. **What happens if the builder's session hits a usage limit DURING the reviewer dispatch?** The reviewer may not complete, and the builder can't return reviewer metrics. **Recommendation:** The orchestrator should handle this the same way it handles interrupted builders today -- capture whatever metrics are available, post them, and decide whether to retry.
+2. **Should the orchestrator post per-story review telemetry separately from build telemetry?** With Approach H, build and review are separate dispatches with their own metrics. Posting both on the story issue makes sense. The orchestrator should post build telemetry after the build wave, and review telemetry after the review wave (or combined at the end of the full wave lifecycle).
 
-3. **Should the `nested_in` field in the state file dispatch log affect Gantt chart rendering?** Currently, dispatches with the same `started_at` are grouped as parallel. Virtual reviewer dispatches have different `started_at` values (after the build phase). **Recommendation:** No special handling needed. The Gantt chart should show reviewer dispatches as separate bars, positioned after the build bar within the same story's timeline.
+3. **Should the planner be aware of review tiers when assigning difficulty?** No. Difficulty is a property of the work, not the review strategy. The review tier is computed by the orchestrator from difficulty + labels. This keeps the planner's concerns separate.
 
-4. **Should the planner be aware of review tiers when assigning difficulty?** Currently, difficulty drives model routing. With tiered reviews, difficulty also affects whether the story gets a per-story review. **Recommendation:** No change to the planner. Difficulty is a property of the work, not the review strategy. The review tier is computed by the orchestrator from difficulty + labels.
+4. **When should the platform constraint be re-evaluated?** The design should be revisited when either (a) Claude Code adds subagent nesting support, or (b) background agent completion notifications become reliable. Both would unlock lifecycle coupling (Approach E or F), which delivers the remaining ~5-7m per-wave savings from true build+review parallelism.
 
-## 9. Migration Path
+## 10. Feasibility and Verification
 
-### 9.1 Files to Modify
+Every technical assumption in this design was verified against current platform documentation and issue trackers.
+
+| Assumption | Verified? | Source | Notes |
+|-----------|-----------|--------|-------|
+| Subagents cannot spawn subagents | Yes | [Official docs](https://code.claude.com/docs/en/sub-agents), [#4182](https://github.com/anthropics/claude-code/issues/4182) | Intentional design, not a bug |
+| Agent tool excluded from subagent tools | Yes | [Official docs](https://code.claude.com/docs/en/sub-agents) | "`Agent(agent_type)` has no effect in subagent definitions" |
+| `claude -p` blocked inside sessions | Yes | CLAUDE.md, tested 2026-03-09 | `CLAUDECODE` env var detection |
+| Background agents have reliability issues | Yes | [#20679](https://github.com/anthropics/claude-code/issues/20679), [#20236](https://github.com/anthropics/claude-code/issues/20236), [#21048](https://github.com/anthropics/claude-code/issues/21048) | Session hanging, TaskOutput blocking |
+| Agent Teams are experimental | Yes | [Official docs](https://code.claude.com/docs/en/agent-teams) | Disabled by default, known limitations |
+| Parallel foreground dispatch works reliably | Yes | 14 successful runs in this project | Battle-tested across Runs 1-14 |
+| `run_in_background` parameter exists | Yes | [Official docs](https://code.claude.com/docs/en/sub-agents) | `background` frontmatter field supported |
+| Reviews already dispatch in parallel | Yes | Run 14 Gantt chart evidence | Reviews share same `started_at` timestamp |
+
+## 11. Migration Path
+
+### 11.1 Files to Modify
 
 | File | Change | Scope |
 |------|--------|-------|
-| `.claude/agents/builder.md` | Add `tools: Read, Write, Edit, Grep, Glob, Bash, Agent` to YAML frontmatter. Add "Post-Build Lifecycle" documentation section. | Small |
-| `.claude/agents/builder-haiku.md` | Sync from builder.md (tools field + doc section) | Small |
-| `.claude/agents/builder-sonnet.md` | Sync from builder.md (tools field + doc section) | Small |
-| `.claude/agents/builder-opus.md` | Sync from builder.md (tools field + doc section) | Small |
-| `.claude/agents/orchestrator.md` | Rewrite Phases 5-9 as new Phases 3-6. Add prompt augmentation logic. Update telemetry capture for virtual dispatches. | Large |
-| `CLAUDE.md` | Update Dispatch Protocol section (lifecycle model, tiered reviews). Update phase references. Add review strategy config docs. | Medium |
+| `.claude/agents/orchestrator.md` | Rewrite Phases 5-7 into unified Implementation phase (Phase 3). Add review tier logic. Add parallel fix cycle dispatch. | Large |
+| `CLAUDE.md` | Update Dispatch Protocol section (review tier, parallel fix cycles, phase references). Add review strategy config docs. Remove `Agent` from builder changes (no longer needed). | Medium |
 | `.claude/agentic-sdlc-config.json` | Add `reviewStrategy` section | Small |
 | `scripts/lib/config.sh` | Add `CFG_SKIP_REVIEW_*` variables | Small |
 
-### 9.2 Files NOT Modified
+### 11.2 Files NOT Modified
 
 | File | Why unchanged |
 |------|---------------|
-| `reviewer.md` | Reviewer is dispatched identically (just by a different parent) |
+| `builder.md` (+ all variants) | No tools field change needed; builder is dispatched identically |
+| `reviewer.md` | Reviewer is dispatched identically by orchestrator |
 | `designer.md` | Not involved in build/review phases |
 | `planner.md` | Difficulty assignment unchanged |
 | `retro.md` | Retro phase unchanged |
 | `scripts/item-telemetry.sh` | Works with existing dispatch log format |
-| `scripts/lib/compute-dispatches.py` | Works with existing dispatch log format; `nested_in` field is informational |
-| `scripts/state.sh` | Works with existing schema; new fields are additive |
+| `scripts/lib/compute-dispatches.py` | Works with existing dispatch entries (no virtual dispatches) |
+| `scripts/state.sh` | Works with existing schema; `review_tier` field is additive |
 
-### 9.3 Backward Compatibility
+### 11.3 Backward Compatibility
 
-The state file dispatch log format is additive -- new fields (`review_tier`, `nested_in`, `fix_cycle`) are added to dispatch entries. Existing tools that read the dispatch log (telemetry scripts, Gantt generator) ignore unknown fields by default (jq's `//` operator).
+The state file dispatch log format is additive -- the `review_tier` field is added to builder dispatch entries. Existing tools that read the dispatch log ignore unknown fields by default (jq's `//` operator).
 
-The `reviewStrategy` config section defaults to `enabled: false`, so the tiered review feature is opt-in. Without enabling it, all stories get per-story review (current behavior). The lifecycle coupling (builder dispatches reviewer) still applies -- it just means every story gets the REVIEW tier.
+The `reviewStrategy` config section defaults to `enabled: false`, so the tiered review feature is opt-in. Without enabling it, all stories get per-story review (current behavior).
 
-## 10. Summary of Decisions
+## 12. Summary of Decisions
 
 | Decision | Choice | Reasoning |
 |----------|--------|-----------|
-| **How to couple build+review** | Prompt augmentation (Approach E) | No new agent files, builder.md stays focused on building, orchestrator controls lifecycle per-story |
-| **Builder agent change** | Add `Agent` to tools field | Minimal change; enables reviewer dispatch without altering builder behavior |
-| **Review tier logic** | Skip only easy test stories | Conservative; data supports skipping (0 fix cycles across 40+ stories) but limiting scope reduces risk |
+| **How to couple build+review** | Hybrid: parallel builds, parallel reviews, parallel fix cycles (Approach H) | Only feasible approach that improves on current model within 1-level nesting constraint |
+| **Builder agent changes** | None | Subagent nesting constraint means builders cannot dispatch reviewers; orchestrator retains all dispatch |
+| **Review tier logic** | Skip only easy test stories | Conservative; 0 fix cycles across 40+ stories supports skipping; PR review is the quality gate |
 | **Config schema** | `reviewStrategy.skipPerStoryReview` with conditions | Opt-in, configurable difficulty threshold and label requirement |
-| **Phase model** | 7 phases (down from 12) | Cleaner, reflects that build+review is one "Implementation" phase |
-| **Telemetry for nested dispatches** | Virtual dispatch entries with `nested_in` field | Preserves existing telemetry format; Gantt chart compatible |
-| **Board transitions** | Builder handles In Review; orchestrator retains In Progress and verification | Builder already has board access; orchestrator verifies as defense-in-depth |
+| **Phase model** | 7 phases (down from 12) | Cleaner; build + review + fix cycles unified in Phase 3 |
+| **Telemetry for dispatches** | Direct dispatch entries (no virtual/nested entries) | Simpler than original Approach E; each dispatch is a real Agent tool call |
+| **Board transitions** | Orchestrator retains full control | No delegation to builders beyond existing `item-start.sh` / `item-review.sh` |
+| **Wait gate** | Accepted as platform limitation; design is upgrade-ready | Document the gap; revisit when subagent nesting or reliable background agents become available |
+
+## 13. Future Upgrade Path
+
+When the Claude Code platform removes the subagent nesting constraint or stabilizes background agent completions, this design can be upgraded to deliver true lifecycle coupling:
+
+**Upgrade to Approach E (if nesting becomes available):**
+- Add `Agent` to builder tools field
+- Add POST-BUILD LIFECYCLE prompt augmentation to orchestrator
+- No change to tiered review config, phase model, or state file schema
+- The `review_tier` field transfers directly
+
+**Upgrade to Approach F (if background agents stabilize):**
+- Dispatch builders with `run_in_background: true`
+- Poll for individual completions via TaskOutput
+- Dispatch reviewer for each story as its builder completes
+- No change to tiered review config or state file schema
+
+Both upgrades are additive -- they extend the Phase 3 implementation without replacing it.
 
 ---
 
 *References:*
 - *Workflow Optimization Analysis: `docs/1-discovery/2026-03-19-workflow-optimization-analysis.md` sections 11.2, 11.4, 9.2*
+- *Claude Code Subagent Documentation: [code.claude.com/docs/en/sub-agents](https://code.claude.com/docs/en/sub-agents)*
+- *Subagent Nesting Issue: [anthropics/claude-code#4182](https://github.com/anthropics/claude-code/issues/4182)*
+- *Background Agent Issues: [#20679](https://github.com/anthropics/claude-code/issues/20679), [#20236](https://github.com/anthropics/claude-code/issues/20236), [#21048](https://github.com/anthropics/claude-code/issues/21048)*
+- *Agent Teams Documentation: [code.claude.com/docs/en/agent-teams](https://code.claude.com/docs/en/agent-teams)*
 - *Lesson: `docs/4-reviews/lessons/2026-03-19-phase-restructuring/e00-setup/2026-03-19-s00-never-skip-design-for-complex-work.md`*
 - *Backlog issue: #243*

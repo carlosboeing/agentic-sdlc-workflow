@@ -20,7 +20,7 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
 
 **Git workflow:**
 
-1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
+1. Find the **backlog issue** for this feature (e.g., `./scripts/item-list.sh --state open`)
 2. Create a GitHub Issue for the design work using `item-create.sh` (ensures both GitHub and local PM items are created):
 
    ```bash
@@ -32,15 +32,12 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
 3. Link the design doc issue as a **sub-issue** of the backlog issue:
 
    ```bash
-   PARENT_ID=$(gh issue view <backlog-number> --json id -q .id)
-   CHILD_ID=$(gh issue view $DESIGN_ISSUE --json id -q .id)
-   gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
+   ./scripts/item-link-child.sh <backlog-number> $DESIGN_ISSUE
    ```
 
-4. **Add the design doc issue to the project board and set status to In Progress:**
+4. **Set the design doc issue status to In Progress** (item-create.sh already adds it to the project board):
 
    ```bash
-   gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
    ./scripts/item-set-status.sh <design-issue-number> in-progress
    ```
 
@@ -75,7 +72,7 @@ Before designing, read these files for context:
 
 Check GitHub Issues to understand current project state:
 ```bash
-gh issue list --state all --limit 100
+./scripts/item-list.sh --state all --limit 100
 ```
 
 ## Architecture Awareness

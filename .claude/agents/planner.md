@@ -22,7 +22,7 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
 
 **Git workflow:**
 
-1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
+1. Find the **backlog issue** for this feature (e.g., `./scripts/item-list.sh --state open`)
 2. Create a GitHub Issue for the plan work using `item-create.sh`:
 
    ```bash
@@ -34,9 +34,7 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
 3. Link the plan issue as a **sub-issue** of the backlog issue:
 
    ```bash
-   PARENT_ID=$(gh issue view <backlog-number> --json id -q .id)
-   CHILD_ID=$(gh issue view $PLAN_ISSUE --json id -q .id)
-   gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
+   ./scripts/item-link-child.sh <backlog-number> $PLAN_ISSUE
    ```
 
 4. **Set the plan issue to In Progress** on the project board (you are actively working on it)
@@ -46,12 +44,14 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
 8. **Link stories as sub-issues of their epic** (not the backlog — epics are the parent):
 
    ```bash
-   EPIC_ID=$(gh issue view <epic-number> --json id -q .id)
-   STORY_ID=$(gh issue view <story-number> --json id -q .id)
-   gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$EPIC_ID\", subIssueId: \"$STORY_ID\" }) { subIssue { id } } }"
+   ./scripts/item-link-child.sh <epic-number> <story-number>
    ```
 
-9. **Link epic issues as sub-issues of the backlog issue** (same `addSubIssue` pattern)
+9. **Link epic issues as sub-issues of the backlog issue** (same pattern):
+
+   ```bash
+   ./scripts/item-link-child.sh <backlog-number> <epic-number>
+   ```
 10. **Add all issues to the GitHub Project and set status to Ready** (see CLAUDE.md for project IDs and status option IDs)
 11. Open a PR **targeting the integration branch** (`backlog/<N>-<slug>`), not `main`. Add `type/docs` label, referencing the plan issue
 12. End with: _"Implementation plan PR created — awaiting human approval (merge) before stories can be started by the builder agent."_
@@ -94,7 +94,7 @@ Before planning, read these files for context:
 
 Check GitHub Issues to understand current project state:
 ```bash
-gh issue list --state all --limit 100
+./scripts/item-list.sh --state all --limit 100
 gh label list
 ```
 
@@ -147,21 +147,15 @@ After writing a plan with epics and stories:
 
 Every issue you create MUST be added to the project board with the correct status. See CLAUDE.md for project IDs and status option IDs.
 
-**After creating each issue:**
+**After creating each issue** (`item-create.sh` already adds items to the project board):
 
-1. **Add to project:**
-
-   ```bash
-   gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
-   ```
-
-2. **Set status to Ready** (stories/epics from a not-yet-approved plan):
+1. **Set status to Ready** (stories/epics from a not-yet-approved plan):
 
    ```bash
    ./scripts/item-set-status.sh <issue-number> ready
    ```
 
-3. **Set the plan work issue to In Progress** (you are actively working on it):
+2. **Set the plan work issue to In Progress** (you are actively working on it):
 
    ```bash
    ./scripts/item-set-status.sh <plan-issue-number> in-progress

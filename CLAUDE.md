@@ -98,7 +98,7 @@ Six specialized agents in `.claude/agents/`:
 
 ### For All Agents
 
-- Always check GitHub Issues first (`gh issue list`) to understand project state
+- Always check GitHub Issues first (`./scripts/item-list.sh`) to understand project state
 - Never start work without a corresponding GitHub Issue
 - Use conventional commits: `<type>(<scope>): <description>`
 - **Never use `#N` in commit messages** unless intentionally referencing a GitHub issue. GitHub auto-links any `#N` pattern to issue N, so reviewer warning numbers, list indices, or other numbered references must use a format without `#` (e.g., `warning 4`, `W4`, `item 4`). The `Fixes #N` / `Closes #N` footer is the correct place for issue references.
@@ -186,15 +186,13 @@ Backlog item (#5)
     └── ...
 ```
 
-Link sub-issues using `addSubIssue`:
+Link sub-issues using `item-link-child.sh`:
 
 ```bash
-PARENT_ID=$(gh issue view <parent-number> --json id -q .id)
-CHILD_ID=$(gh issue view <child-number> --json id -q .id)
-gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
+./scripts/item-link-child.sh <parent-number> <child-number>
 ```
 
-**Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `gh issue edit --body` to append below the existing body. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
+**Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `./scripts/item-append-body.sh <N> "<content>"` to append below the existing body. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
 
 **GitHub Project board:** All issues live on the [Agentic SDLC Workflow Project](https://github.com/users/carlosboeing/projects/7) (project number 7, owner `carlosboeing`).
 
@@ -225,10 +223,10 @@ Status field values and their meanings:
 
 Builder scripts (`item-start.sh`, `item-review.sh`) also update the board as defense-in-depth (they call `item-set-status.sh` internally), but the orchestrator is the source of truth. All board updates must be serialized -- the GitHub Projects API does not handle concurrent `item-edit` calls reliably.
 
-Adding an issue to the project and setting its status (**NOTE:** `gh project item-add` does NOT assign a default status -- the item appears with `status: null` and is invisible in status-filtered views. Always follow up with an explicit status set):
+Adding an issue to the project and setting its status: use `item-create.sh` (which calls `pm_add_to_board` internally). For pre-existing issues not yet on the board (**NOTE:** `gh project item-add` does NOT assign a default status -- the item appears with `status: null` and is invisible in status-filtered views. Always follow up with an explicit status set):
 
 ```bash
-# Add issue to project (does NOT set status — item will have status: null)
+# Add a pre-existing issue to project (does NOT set status — item will have status: null)
 gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
 
 # REQUIRED: Set status explicitly after adding
@@ -274,6 +272,10 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 
 | Script | Usage |
 |--------|-------|
+| `scripts/item-get.sh <N> [--json <fields>]` | Read a work item (replaces `gh issue view`) |
+| `scripts/item-list.sh [--label <l>] [--state <s>] [--limit <n>]` | List work items (replaces `gh issue list`) |
+| `scripts/item-link-child.sh <parent> <child>` | Link a child sub-issue to a parent (replaces `gh api graphql ... addSubIssue`) |
+| `scripts/item-comment.sh <N> <body>` | Post a comment on a work item (replaces `gh issue comment`) |
 | `scripts/item-create.sh <level> --title <t> [--body <text>] [--body-file <path>] [--label <l>] ... [--slug <s>]` | Create work item (backlog/epic/story/docs). For backlog with --slug: full Phase 0 setup (board + status + label) |
 | `scripts/item-set-status.sh <n> <status>` | Set project board status (backlog/ready/in-progress/in-review/done) |
 | `scripts/batch-set-status.sh <n>:<status> [<n>:<status> ...]` | Set board status for multiple issues: fetch-all, mutate-sequentially, verify-once |

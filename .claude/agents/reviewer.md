@@ -29,7 +29,7 @@ When reviewing a PR or set of changes:
 
 2. **Read the related GitHub Issue** for acceptance criteria:
    ```bash
-   gh issue view <number>
+   ./scripts/item-get.sh <number>
    ```
 
 3. **Read the relevant design doc** in `docs/2-design/` if applicable
@@ -124,9 +124,11 @@ In addition to end-of-backlog PR review, you may be dispatched to review a story
      ```
 5. **Post findings as an issue comment** (not a PR comment) on the story's GitHub issue:
    ```bash
-   gh issue comment <issue-number> --body "..."
+   ./scripts/item-comment.sh <issue-number> "..."
    ```
    Use the **Findings Format** from the Review Process section above.
+
+   NOTE: `gh pr diff`, `gh pr comment`, and `gh pr view` are VCS/code review operations — use them directly; they are not PM operations and do not use wrapper scripts.
 6. **Critical issues block merge:**
    - If critical issues found, the orchestrator dispatches the builder to fix on the story branch
    - You re-review after fixes are committed

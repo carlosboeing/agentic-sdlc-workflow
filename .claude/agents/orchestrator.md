@@ -58,15 +58,15 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 ### Phase 0: Detect Mode and Prerequisites
 
-1. **Read the backlog issue** (`gh issue view <N> --json title,body,labels`).
+1. **Read the backlog issue** (`./scripts/item-get.sh <N> --json title,body,labels`).
 
 2. **Dependency pre-check (REQUIRED):** Parse `**Blocked by:**` from the issue body. For each referenced issue, verify it is closed. If any are open, post a blocking comment and halt:
    ```bash
-   BODY=$(gh issue view <N> --json body -q '.body')
+   BODY=$(./scripts/item-get.sh <N> --json body)
    BLOCKED=$(echo "$BODY" | grep -oP '(?<=Blocked by:\*\* ).*' | head -1)
    if [ "$BLOCKED" != "none" ] && [ -n "$BLOCKED" ]; then
      for DEP in $(echo "$BLOCKED" | grep -oP '#\d+' | tr -d '#'); do
-       STATE=$(gh issue view $DEP --json state -q '.state')
+       STATE=$(./scripts/item-get.sh $DEP --json state)
        [ "$STATE" != "CLOSED" ] && echo "BLOCKED: Issue #$DEP is $STATE" && exit 1
      done
    fi
@@ -131,7 +131,7 @@ Prompt: "[autonomous —] Create an implementation plan for backlog item #<N> (<
 
 ### Phase 4: Read Stories, Build Dependency Graph, and Create All Branches
 
-1. List stories (`gh issue list --label "backlog/<N>-<slug>" --label "hierarchy/story" --state open --limit 100 --json number,title,labels,state`).
+1. List stories (`./scripts/item-list.sh --label "backlog/<N>-<slug>" --state open --limit 100`).
 2. Parse the plan's dependency graph to determine execution order.
 3. Identify parallel stories (no shared dependencies). All dispatches use `isolation: "worktree"`.
 4. **Create all epic and story branches upfront** — before dispatching builders:
@@ -185,9 +185,9 @@ For each story (or wave of independent stories):
 8. **After each parallel wave:** Verify board statuses (`batch-set-status.sh`). Verify issue comments — post any missing retroactively:
    ```bash
    for ISSUE_NUM in <wave story numbers>; do
-     COMMENTS=$(gh issue view $ISSUE_NUM --json comments -q '.comments[].body')
-     echo "$COMMENTS" | grep -q "Work Started" || gh issue comment $ISSUE_NUM --body "Work Started (posted retroactively by orchestrator)"
-     echo "$COMMENTS" | grep -q "Ready for Review" || gh issue comment $ISSUE_NUM --body "Ready for Review (posted retroactively by orchestrator)"
+     BODY=$(./scripts/item-get.sh $ISSUE_NUM --json body)
+     echo "$BODY" | grep -q "Work Started" || ./scripts/item-comment.sh $ISSUE_NUM "Work Started (posted retroactively by orchestrator)"
+     echo "$BODY" | grep -q "Ready for Review" || ./scripts/item-comment.sh $ISSUE_NUM "Ready for Review (posted retroactively by orchestrator)"
    done
    ```
    Parallel builders may fail to post comments due to API contention (see Run 4, Run 11).
@@ -267,7 +267,7 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
      --title "[#<N>] Write retrospective for <title>" \
      --label "type/docs" --label "backlog/<N>-<slug>")
    ```
-   Link as sub-issue of backlog (`addSubIssue` GraphQL mutation), add to project board, set to In Progress.
+   Link as sub-issue of backlog (`item-link-child.sh`), set to In Progress (item-create.sh already adds to board).
 
 5. **Dispatch PR reviewer and retro agent in parallel:**
    The PR reviewer reviews a frozen branch snapshot (worktree isolation). The retro commits in its own worktree but does NOT push until the review completes. This saves ~6 minutes per run.
@@ -359,7 +359,7 @@ After the human merges the backlog PR (`gh pr merge --squash`):
 
 All reviews use `subagent_type: "reviewer"` (model inherited from session).
 
-Extract label: `gh issue view <N> --json labels -q '[.labels[].name | select(startswith("difficulty/"))] | first'`
+Extract label: `./scripts/item-get.sh <N> --json labels`
 
 If no difficulty label, default to `builder-sonnet` and post a warning.
 

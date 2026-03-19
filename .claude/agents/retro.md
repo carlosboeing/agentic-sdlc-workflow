@@ -22,12 +22,12 @@ Your deliverables are: a retro doc in `docs/4-reviews/`, and optionally conventi
 
 1. **Read the retro issue** assigned to you by the orchestrator (contains the backlog item reference):
    ```bash
-   gh issue view <retro-issue-number>
+   ./scripts/item-get.sh <retro-issue-number>
    ```
 
 2. **Read the GitHub Issues** for the epics to understand scope:
    ```bash
-   gh issue view <epic-issue-number>
+   ./scripts/item-get.sh <epic-issue-number>
    ```
 
 3. **Read CLAUDE.md** — you need to know the current conventions before you can propose changes to them.
@@ -66,16 +66,17 @@ git log main..backlog/<N>-<slug> --stat --oneline
 ### Telemetry from GitHub Issue Comments
 
 ```bash
-# All comments on the epic issue (contains per-story telemetry)
-gh issue view <epic-issue-number> --json comments --jq '.comments[].body'
+# All telemetry on the epic issue (contains per-story telemetry via Activity Log section)
+./scripts/item-get.sh <epic-issue-number> --json body
 
-# All comments on each story issue
-gh issue view <story-issue-number> --json comments --jq '.comments[].body'
+# All telemetry on each story issue
+./scripts/item-get.sh <story-issue-number> --json body
 ```
 
 ### PR Review Findings
 
 ```bash
+# NOTE: PR operations are VCS operations (not PM) — use gh pr/gh api directly
 # Comments on the backlog PR
 gh api repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/pulls/<pr-number>/comments \
   --jq '.[].body'

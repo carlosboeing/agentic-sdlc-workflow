@@ -22,13 +22,13 @@ Your deliverables are: working code, passing tests, and commits on the correct b
 1. **Check GitHub Issues first** — they are the source of truth:
    ```bash
    # See all open stories
-   gh issue list --state open --limit 100
+   ./scripts/item-list.sh --state open --limit 100
 
    # See stories for a specific epic (use backlog label + hierarchy/story)
-   gh issue list --label "backlog/<issue>-<slug>" --label "hierarchy/story" --state open
+   ./scripts/item-list.sh --label "backlog/<issue>-<slug>" --state open
 
    # Read a specific story's details
-   gh issue view <number>
+   ./scripts/item-get.sh <number>
    ```
 
 2. **Read the plan and reference docs:**

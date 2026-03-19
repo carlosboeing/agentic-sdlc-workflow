@@ -9,6 +9,9 @@ related:
   - 2026-03-18-local-first-pm.md
 ---
 
+> **Note:** This document is historical context for its backlog item. For the current PM architecture (script layer, inline comments, dual-write adapters), see the [PM Architecture diagram in README.md](../../README.md#project-management-architecture).
+
+
 # Design: Dual-Write PM Layer
 
 > **Status:** Draft

@@ -10,6 +10,9 @@ related:
   - 2026-03-11-agentic-sdlc-workitem-taxonomy.md
 ---
 
+> **Note:** This document is historical context for its backlog item. For the current PM architecture (script layer, inline comments, dual-write adapters), see the [PM Architecture diagram in README.md](../../README.md#project-management-architecture).
+
+
 # Design: Local-First PM System
 
 > **Status:** Draft

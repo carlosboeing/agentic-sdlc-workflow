@@ -226,6 +226,114 @@ Backlog → Ready → In Progress → In Review → Done
 
 The orchestrator manages all transitions automatically, including keeping epic status in sync with its stories (e.g., if all stories are In Review, the epic moves to In Review).
 
+
+### Project Management Architecture
+
+Agents never call PM tools (GitHub, Jira, etc.) directly. All work item operations flow through a four-layer abstraction that keeps agents PM-agnostic:
+
+```mermaid
+graph TB
+    subgraph agents["🤖 Agent Layer"]
+        direction TB
+        D[Designer]
+        P[Planner]
+        B[Builder]
+        R[Reviewer]
+        O[Orchestrator]
+        RE[Retro]
+    end
+
+    subgraph scripts["📜 Script Layer"]
+        direction TB
+        subgraph board["Board and Telemetry"]
+            direction LR
+            s10["item-set-status"]
+            s11["item-telemetry"]
+            s12["batch-set-status"]
+        end
+        subgraph life["Lifecycle"]
+            direction LR
+            s6["item-start"]
+            s7["item-review"]
+            s8["item-comment"]
+            s9["item-close"]
+        end
+        subgraph crud["CRUD"]
+            direction LR
+            s1["item-create"]
+            s2["item-get"]
+            s3["item-list"]
+            s4["item-append-body"]
+            s5["item-link-child"]
+        end
+    end
+
+    subgraph pm["⚙️ PM Abstraction"]
+        direction LR
+        subgraph pitems["Items"]
+            direction LR
+            f1["create_item"]
+            f2["get_item"]
+            f3["update_item"]
+            f4["append_body"]
+            f5["list_items"]
+            f6["done"]
+        end
+        subgraph pboard["Board"]
+            direction LR
+            f7["set_status"]
+            f8["add_to_board"]
+            f9["batch_set_status"]
+        end
+        subgraph plife["Lifecycle"]
+            direction LR
+            f10["start_work"]
+            f11["complete_work"]
+        end
+        subgraph pother["Other"]
+            direction LR
+            f12["add_comment"]
+            f13["add_label"]
+            f14["link_child"]
+        end
+        pitems ~~~ pboard ~~~ plife ~~~ pother
+    end
+
+    subgraph storage["💾 Persistence Layer"]
+        direction LR
+        subgraph optional["Optional External Sync"]
+            direction LR
+            github["GitHub Issues + Projects"]
+            jira["Jira - future"]
+            linr["Linear - future"]
+            ado["Azure DevOps - future"]
+        end
+        subgraph always["Always On"]
+            direction LR
+            local[".workflow/items/id.md"]
+        end
+    end
+
+    agents -->|"agents only call scripts"| scripts
+    scripts -->|"scripts call pm functions"| pm
+    pm -->|"sync"| always
+    pm -.->|"fire-and-forget"| optional
+
+    style local fill:#059669,color:#fff
+    style github fill:#3b82f6,color:#fff
+    style jira fill:#6b7280,color:#fff
+    style linr fill:#6b7280,color:#fff
+    style ado fill:#6b7280,color:#fff
+```
+
+**Key design rules:**
+
+- **Agents only call wrapper scripts** (`scripts/item-*.sh`) — never `pm_*` functions or `gh` commands for PM operations
+- **Local persistence is always on** — every work item exists as a `.workflow/items/<id>.md` file with inline Activity Log (comments appended to the same file)
+- **External sync is optional** — GitHub is the current adapter; future adapters (Jira, Linear, Azure DevOps) plug in without changing any layer above
+- **Dual-write is transparent** — `pm.sh` auto-generates wrappers at load time that call local (sync) then external (fire-and-forget)
+
+
 ---
 
 ## Telemetry

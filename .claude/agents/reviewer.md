@@ -2,7 +2,6 @@
 name: reviewer
 color: magenta
 description: Code reviewer for checking PRs against project conventions, architecture patterns, test coverage, and code quality. Use when reviewing pull requests, validating implementations against design docs, or checking code quality.
-tools: Read, Grep, Glob, Bash
 model: inherit
 ---
 

@@ -2,7 +2,6 @@
 name: designer
 color: cyan
 description: Feature designer for brainstorming ideas, evaluating feasibility, and writing design docs. Use when exploring new features, discussing architecture trade-offs, evaluating backlog items, or making product decisions. Writes docs but does not modify code.
-tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch, WebFetch, Task
 model: inherit
 ---
 

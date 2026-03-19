@@ -2,7 +2,6 @@
 name: retro
 color: grey
 description: Retrospective agent — synthesizes lessons, telemetry, and review findings into a retro doc and proposes convention changes via PR.
-tools: Read, Write, Edit, Grep, Glob, Bash
 model: inherit
 ---
 

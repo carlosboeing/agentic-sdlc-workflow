@@ -2,7 +2,6 @@
 name: planner
 color: blue
 description: Technical planner for planning implementation, designing interfaces, structuring the codebase, and creating GitHub Issues with difficulty labels. Use when planning technical architecture, designing types/abstractions, creating implementation plans, or breaking work into epics and stories. Writes docs and creates issues but does not modify code.
-tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch, WebFetch, Task
 model: inherit
 ---
 

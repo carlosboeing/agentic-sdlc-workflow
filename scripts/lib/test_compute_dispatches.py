@@ -3143,5 +3143,358 @@ class TestStalledGanttNote(unittest.TestCase):
         self.assertEqual(cd._STALLED_THRESHOLD_TOKS, 50)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# E02-S02: Gap Annotation Generation
+# ──────────────────────────────────────────────────────────────────────────────
+
+# State fixture with a large gap between waves (9-hour gap → well above 300s threshold)
+_STATE_WITH_LARGE_GAP = {
+    **GANTT_STATE_FIXTURE,
+    "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+    "dispatches": [
+        {
+            "id": 1, "agent": "designer", "model": "opus",
+            "issue": 71, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 300000,  # 5 minutes
+            "tokens": 50000, "tool_uses": 20, "result": "success",
+        },
+        {
+            "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T19:00:00Z",  # 9-hour gap (32400s)
+            "duration_ms": 120000,  # 2 minutes
+            "tokens": 10000, "tool_uses": 5, "result": "success",
+        },
+    ],
+}
+
+# State fixture with two large gaps (> 5 minutes each)
+_STATE_WITH_TWO_LARGE_GAPS = {
+    **GANTT_STATE_FIXTURE,
+    "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T08:00:00Z"},
+    "dispatches": [
+        {
+            "id": 1, "agent": "designer", "model": "opus",
+            "issue": 71, "started_at": "2026-03-15T08:00:00Z",
+            "duration_ms": 120000,  # 2 minutes, ends at 08:02:00
+            "tokens": 50000, "tool_uses": 20, "result": "success",
+        },
+        {
+            "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",  # 2-hour gap (7200s)
+            "duration_ms": 180000,  # 3 minutes, ends at 10:03:00
+            "tokens": 10000, "tool_uses": 5, "result": "success",
+        },
+        {
+            "id": 3, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:48:00Z",  # 45-minute gap (2700s)
+            "duration_ms": 60000,  # 1 minute
+            "tokens": 5000, "tool_uses": 3, "result": "success",
+        },
+    ],
+}
+
+# State fixture with a small gap (< 5 minutes = below threshold, 240s)
+_STATE_WITH_SMALL_GAP = {
+    **GANTT_STATE_FIXTURE,
+    "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+    "dispatches": [
+        {
+            "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 120000,  # 2 minutes, ends at 10:02:00
+            "tokens": 10000, "tool_uses": 5, "result": "success",
+        },
+        {
+            "id": 2, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:06:00Z",  # 4-min gap (240s < 300s)
+            "duration_ms": 60000,
+            "tokens": 5000, "tool_uses": 3, "result": "success",
+        },
+    ],
+}
+
+# State fixture with no gaps (perfectly sequential)
+_STATE_NO_GAPS = {
+    **GANTT_STATE_FIXTURE,
+    "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+    "dispatches": [
+        {
+            "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 120000,  # 2 minutes, ends at 10:02:00
+            "tokens": 10000, "tool_uses": 5, "result": "success",
+        },
+        {
+            "id": 2, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:02:00Z",  # starts exactly when prior ends
+            "duration_ms": 60000,
+            "tokens": 5000, "tool_uses": 3, "result": "success",
+        },
+    ],
+}
+
+
+class TestGenerateGanttNote(unittest.TestCase):
+    """Tests for generate_gantt_note() function — E02-S02."""
+
+    def test_gap_threshold_constant_is_300(self):
+        """_GAP_THRESHOLD_S constant is 300 (5 minutes)."""
+        self.assertEqual(cd._GAP_THRESHOLD_S, 300)
+
+    def test_gantt_note_present_when_large_gap(self):
+        """gantt_note is returned when a gap > 5 minutes exists between waves."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note, "Expected gantt_note when gap > 5m exists")
+        self.assertIsInstance(note, str)
+        self.assertGreater(len(note), 0)
+
+    def test_gantt_note_absent_when_no_gaps(self):
+        """gantt_note is None when no inter-wave gaps > 5 minutes exist."""
+        note = cd.generate_gantt_note(_STATE_NO_GAPS)
+        self.assertIsNone(note, "Expected None gantt_note when no gaps > 5m")
+
+    def test_gantt_note_absent_when_gap_below_threshold(self):
+        """gantt_note is None when gaps are below the 5-minute threshold (240s < 300s)."""
+        note = cd.generate_gantt_note(_STATE_WITH_SMALL_GAP)
+        self.assertIsNone(note, "Expected None gantt_note when gap < 300s")
+
+    def test_gantt_note_absent_when_empty_dispatches(self):
+        """gantt_note is None when there are no dispatches."""
+        state = {**GANTT_STATE_FIXTURE, "dispatches": []}
+        note = cd.generate_gantt_note(state)
+        self.assertIsNone(note)
+
+    def test_gantt_note_absent_when_single_dispatch(self):
+        """gantt_note is None with a single dispatch (no inter-wave gaps possible)."""
+        state = {
+            **GANTT_STATE_FIXTURE,
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                    "duration_ms": 120000, "tokens": 10000, "tool_uses": 5, "result": "success",
+                },
+            ],
+        }
+        note = cd.generate_gantt_note(state)
+        self.assertIsNone(note)
+
+    def test_gantt_note_format_is_italic(self):
+        """gantt_note is italic markdown (starts with '*' and ends with '.*')."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note)
+        self.assertTrue(note.startswith("*"), f"Note must start with '*': {note!r}")
+        self.assertTrue(note.endswith(".*"), f"Note must end with '.*': {note!r}")
+
+    def test_gantt_note_single_gap_singular(self):
+        """When exactly 1 gap, the note says '1 gap' (not '1 gaps')."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note)
+        self.assertIn("1 gap", note, f"Expected singular '1 gap' in: {note!r}")
+        self.assertNotIn("1 gaps", note, f"Must not use '1 gaps': {note!r}")
+
+    def test_gantt_note_two_gaps_plural(self):
+        """When 2 gaps, the note says '2 gaps' (plural)."""
+        note = cd.generate_gantt_note(_STATE_WITH_TWO_LARGE_GAPS)
+        self.assertIsNotNone(note)
+        self.assertIn("2 gaps", note, f"Expected '2 gaps' (plural) in: {note!r}")
+
+    def test_gantt_note_contains_timeline_compressed(self):
+        """gantt_note contains 'Timeline compressed'."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note)
+        self.assertIn("Timeline compressed", note, f"Note must say 'Timeline compressed': {note!r}")
+
+    def test_gantt_note_contains_xaxis_explanation(self):
+        """gantt_note contains X-axis explanation about agent running time."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note)
+        self.assertIn("X-axis", note, f"Note must mention X-axis: {note!r}")
+        self.assertIn("agent running time", note, f"Note must mention 'agent running time': {note!r}")
+
+    def test_gantt_note_lists_gap_durations_in_parens(self):
+        """gantt_note lists individual gap durations in parentheses."""
+        note = cd.generate_gantt_note(_STATE_WITH_TWO_LARGE_GAPS)
+        self.assertIsNotNone(note)
+        self.assertIn("(", note, "Note should list gap durations in parentheses")
+        self.assertIn("idle", note, "Note should use 'idle' to describe gaps")
+
+    def test_gantt_note_exact_threshold_excluded(self):
+        """A gap of exactly 300 seconds is NOT included (must be strictly > 300s)."""
+        state = {
+            **GANTT_STATE_FIXTURE,
+            "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                    "duration_ms": 120000,  # 2 minutes, ends at 10:02:00
+                    "tokens": 10000, "tool_uses": 5, "result": "success",
+                },
+                {
+                    "id": 2, "agent": "reviewer", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:07:00Z",  # 5m gap = 300s exactly
+                    "duration_ms": 60000,
+                    "tokens": 5000, "tool_uses": 3, "result": "success",
+                },
+            ],
+        }
+        note = cd.generate_gantt_note(state)
+        self.assertIsNone(note, "Gap of exactly 300s should NOT trigger note (must be > 300s)")
+
+    def test_gantt_note_gap_above_threshold_included(self):
+        """A gap of 301 seconds (just above the threshold) IS included."""
+        state = {
+            **GANTT_STATE_FIXTURE,
+            "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                    "duration_ms": 120000,  # 2 minutes, ends at 10:02:00
+                    "tokens": 10000, "tool_uses": 5, "result": "success",
+                },
+                {
+                    "id": 2, "agent": "reviewer", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:07:01Z",  # 5m 1s = 301s gap
+                    "duration_ms": 60000,
+                    "tokens": 5000, "tool_uses": 3, "result": "success",
+                },
+            ],
+        }
+        note = cd.generate_gantt_note(state)
+        self.assertIsNotNone(note, "Gap of 301s should trigger a note (just above 300s threshold)")
+
+    def test_generate_gantt_return_type_still_str(self):
+        """generate_gantt() still returns str (not affected by gap annotation support)."""
+        result = cd.generate_gantt(_STATE_WITH_LARGE_GAP, mode="work")
+        self.assertIsInstance(result, str)
+
+
+class TestGanttNoteCLI(unittest.TestCase):
+    """Tests for gantt_note in CLI JSON output — E02-S02."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _run_cli(self, state, extra_args=None):
+        """Write state to temp file, run main() with --gantt, capture JSON output."""
+        import io
+        from unittest.mock import patch
+
+        state_file = _write_json(state)
+        try:
+            args = [
+                "--from-state", state_file,
+                "--gantt",
+                "--pricing", self.pricing_file,
+                "--config", self.config_file,
+            ]
+            if extra_args:
+                args.extend(extra_args)
+
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main(args)
+            return json.loads(captured.getvalue())
+        finally:
+            os.unlink(state_file)
+
+    def test_cli_gantt_note_present_when_gaps(self):
+        """CLI output includes 'gantt_note' when gaps > 5m exist (with --gantt flag)."""
+        result = self._run_cli(_STATE_WITH_LARGE_GAP)
+        self.assertIn("gantt_note", result, "gantt_note must be in CLI output when gaps > 5m")
+        self.assertIsInstance(result["gantt_note"], str)
+        self.assertGreater(len(result["gantt_note"]), 0)
+
+    def test_cli_gantt_note_absent_when_no_gaps(self):
+        """CLI output does not include 'gantt_note' when no gaps > 5m exist."""
+        result = self._run_cli(_STATE_NO_GAPS)
+        self.assertNotIn("gantt_note", result, "gantt_note must be absent when no gaps > 5m")
+
+    def test_cli_gantt_note_absent_without_gantt_flag(self):
+        """Without --gantt flag, gantt_note is not included in CLI output."""
+        import io
+        from unittest.mock import patch
+
+        state_file = _write_json(_STATE_WITH_LARGE_GAP)
+        try:
+            args = [
+                "--from-state", state_file,
+                "--pricing", self.pricing_file,
+                "--config", self.config_file,
+                # No --gantt flag
+            ]
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main(args)
+            result = json.loads(captured.getvalue())
+            self.assertNotIn("gantt_note", result, "gantt_note should not appear without --gantt flag")
+        finally:
+            os.unlink(state_file)
+
+    def test_cli_gantt_note_contains_gap_count(self):
+        """gantt_note in CLI output contains the gap count."""
+        result = self._run_cli(_STATE_WITH_LARGE_GAP)
+        note = result.get("gantt_note", "")
+        self.assertIn("1 gap", note, f"gantt_note should contain '1 gap': {note!r}")
+
+    def test_cli_other_fields_present(self):
+        """Other output fields are not removed by gantt_note presence."""
+        result = self._run_cli(_STATE_WITH_LARGE_GAP)
+        for field in ["breakdown", "summary", "cost", "duration_ms", "tokens", "wall_clock_ms", "gantt"]:
+            self.assertIn(field, result, f"Required field '{field}' missing from CLI output")
+
+
+class TestTemplateGanttNote(unittest.TestCase):
+    """Tests for GANTT_NOTE conditional block in telemetry.md — E02-S02."""
+
+    def setUp(self):
+        self.template_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "templates",
+            "telemetry.md",
+        )
+
+    def test_template_has_gantt_note_condition_start(self):
+        """Template includes <!-- IF_GANTT_NOTE --> conditional block start."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn("<!-- IF_GANTT_NOTE -->", content,
+                      "Template must have <!-- IF_GANTT_NOTE --> conditional block")
+
+    def test_template_has_gantt_note_condition_end(self):
+        """Template includes <!-- END_GANTT_NOTE --> to close the conditional block."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn("<!-- END_GANTT_NOTE -->", content,
+                      "Template must have <!-- END_GANTT_NOTE --> closing tag")
+
+    def test_template_gantt_note_block_after_end_gantt(self):
+        """GANTT_NOTE block appears after END_GANTT (below the Gantt chart)."""
+        with open(self.template_path) as f:
+            content = f.read()
+        end_gantt_idx = content.find("<!-- END_GANTT -->")
+        gantt_note_idx = content.find("<!-- IF_GANTT_NOTE -->")
+        self.assertGreater(end_gantt_idx, -1, "END_GANTT not found in template")
+        self.assertGreater(gantt_note_idx, -1, "IF_GANTT_NOTE not found in template")
+        self.assertGreater(
+            gantt_note_idx, end_gantt_idx,
+            "GANTT_NOTE block must appear after END_GANTT"
+        )
+
+    def test_template_gantt_note_variable_present(self):
+        """Template includes {{GANTT_NOTE}} variable inside the GANTT_NOTE block."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn("{{GANTT_NOTE}}", content,
+                      "Template must include {{GANTT_NOTE}} variable")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

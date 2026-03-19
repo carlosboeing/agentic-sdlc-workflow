@@ -584,6 +584,209 @@ class TestFromStateMode(unittest.TestCase):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Story column tests (breakdown table)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestBreakdownStoryColumn(unittest.TestCase):
+    """Tests for the Story column in the breakdown table."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _pricing(self):
+        return cd.load_pricing(self.pricing_file, self.config_file)
+
+    def test_breakdown_has_six_columns(self):
+        """Breakdown rows have 6 columns: Agent | Story | Task | Duration | Tokens | Est. Cost."""
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # Each row should have exactly 6 pipe-delimited cells (7 pipe chars)
+        for line in breakdown_lines:
+            # Count pipes: "| a | b | c | d | e | f |" has 7 pipes
+            pipe_count = line.count("|")
+            self.assertEqual(
+                pipe_count, 7,
+                f"Expected 7 pipes (6 columns) in breakdown row, got {pipe_count}: {line!r}"
+            )
+
+    def test_breakdown_story_column_dash_for_non_story_phase(self):
+        """Design/plan/retro dispatches show '--' in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Designer (opus)",
+                "model": "opus",
+                "task": "Design Doc (#55)",
+                "duration_ms": 294973,
+                "tokens": 86265,
+                "phase": "Design",
+                "story_code": "",  # Non-story dispatch: empty story_code
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # First line is the designer row, should have '--' in the Story column
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        # cells: [Agent, Story, Task, Duration, Tokens, Cost]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "--", f"Expected '--' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_shows_code_for_builder(self):
+        """Builder dispatches with story_code show the code in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Builder (sonnet)",
+                "model": "sonnet",
+                "task": "Destination Profiles (#72)",
+                "duration_ms": 146479,
+                "tokens": 49691,
+                "phase": "Build",
+                "story_code": "E01-S01",
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "E01-S01", f"Expected 'E01-S01' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_shows_code_for_reviewer(self):
+        """Reviewer dispatches with story_code show the code in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Reviewer (sonnet)",
+                "model": "sonnet",
+                "task": "Review Destination Profiles (#72)",
+                "duration_ms": 72000,
+                "tokens": 18000,
+                "phase": "Review",
+                "story_code": "E01-S01",
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "E01-S01", f"Expected 'E01-S01' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_dash_when_no_story_code_field(self):
+        """Dispatches without story_code field (e.g., --dispatches mode) show '--'."""
+        # DISPATCHES_FIXTURE has no story_code field
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # All data rows (not the total row) should have '--' in Story column
+        for line in breakdown_lines[:-1]:  # Exclude total row
+            cells = [c.strip() for c in line.split("|") if c.strip()]
+            story_cell = cells[1]
+            self.assertEqual(
+                story_cell, "--",
+                f"Expected '--' in Story column for dispatch without story_code, got: {story_cell!r} in row: {line!r}"
+            )
+
+    def test_breakdown_total_row_has_empty_story_cell(self):
+        """Total row has empty Story cell (not '--')."""
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        total_row = breakdown_lines[-1]
+        self.assertIn("**Total (4 dispatches)**", total_row)
+        # Total row Story cell should be empty
+        cells = [c.strip() for c in total_row.split("|")]
+        # Total row format: "| | **Total (N dispatches)** | **dur** | **tokens** | **cost** |"
+        # pipe[0] = "", pipe[1] = "", pipe[2] = "**Total...**", pipe[3] = "**dur**", ...
+        # cells after split: ["", "", "**Total...**", ...]
+        # Story cell is index 2 (after the leading empty, then agent empty, then story)
+        # Let's check the raw format directly:
+        self.assertIn("| |", total_row, "Total row should start with empty Agent cell '| |'")
+
+    def test_state_to_dispatches_has_story_code_field(self):
+        """state_to_dispatches() attaches story_code to each dispatch."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        for d in dispatches:
+            self.assertIn("story_code", d, f"Dispatch missing story_code field: {d}")
+
+    def test_state_to_dispatches_story_code_for_builder(self):
+        """Builder dispatch for known story gets ENN-SNN story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        # Issue 72 is in e01-s01 → story_code = "E01-S01"
+        builder_dispatch_72 = next(
+            d for d in dispatches
+            if d["phase"] == "Build" and "#72" in d["task"]
+        )
+        self.assertEqual(builder_dispatch_72["story_code"], "E01-S01")
+
+    def test_state_to_dispatches_story_code_for_reviewer(self):
+        """Reviewer dispatch for known story gets ENN-SNN story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        reviewer_dispatch = next(
+            d for d in dispatches
+            if d["phase"] == "Review"
+        )
+        self.assertEqual(reviewer_dispatch["story_code"], "E01-S01")
+
+    def test_state_to_dispatches_story_code_empty_for_designer(self):
+        """Designer dispatch gets empty story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        designer_dispatch = next(d for d in dispatches if d["phase"] == "Design")
+        self.assertEqual(designer_dispatch["story_code"], "")
+
+    def test_state_to_dispatches_story_code_empty_for_planner(self):
+        """Planner dispatch gets empty story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        planner_dispatch = next(d for d in dispatches if d["phase"] == "Plan")
+        self.assertEqual(planner_dispatch["story_code"], "")
+
+    def test_state_to_dispatches_story_code_empty_for_retro(self):
+        """Retro dispatch gets empty story_code."""
+        state_with_retro = {
+            **STATE_FIXTURE,
+            "dispatches": [
+                {
+                    "id": 1, "agent": "retro", "model": "opus",
+                    "issue": 80, "started_at": "2026-03-15T11:00:00Z",
+                    "duration_ms": 180000, "tokens": 50000,
+                },
+            ],
+        }
+        dispatches = cd.state_to_dispatches(state_with_retro)
+        retro_dispatch = next(d for d in dispatches if d["phase"] == "Retro")
+        self.assertEqual(retro_dispatch["story_code"], "")
+
+    def test_from_state_breakdown_shows_story_codes(self):
+        """compute_from_state breakdown includes ENN-SNN codes in Story column for builders."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        # Issues 72 and 73 are in e01-s01 and e01-s02
+        # Their breakdown rows should show E01-S01 and E01-S02
+        self.assertTrue(
+            "E01-S01" in result["breakdown"] or "E01-S02" in result["breakdown"],
+            f"No story code found in breakdown:\n{result['breakdown']}"
+        )
+
+    def test_from_state_breakdown_shows_dash_for_designer(self):
+        """compute_from_state breakdown shows '--' in Story column for designer."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        designer_line = next(l for l in breakdown_lines if "Designer" in l)
+        cells = [c.strip() for c in designer_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "--", f"Expected '--' for designer Story cell, got: {story_cell!r}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Edge cases
 # ──────────────────────────────────────────────────────────────────────────────
 

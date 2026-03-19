@@ -182,3 +182,19 @@ No changes were made to CLAUDE.md or agent files during this backlog item.
 3. **Add test file cleanup traps as a builder convention** -- Three separate reviewers flagged missing cleanup traps for temp files and mock symlinks in test files (W1 on #233, S3 on #236, W2/S1/S3 on #238). The pattern recurred across 4 of 6 stories. Add to builder.md: "Test files that create temp files or mock symlinks MUST use `trap cleanup EXIT` to ensure cleanup on early exit." Evidence: W1 on #233, S3 on #236, S1/S3 on #237, W2/S3 on #238.
 
 4. **Grep test files for hardcoded error messages when changing adapter stack** -- When the public API surface shifts from one adapter to another (e.g., GitHub -> local as primary), tests that hardcode the old adapter's error strings will break. Builders should `grep -rn` for quoted error strings in test files when changing which adapter surfaces the public API. Evidence: E02-S01 critical issue C1 (test-board-sh.sh "Unknown status" vs "invalid status").
+
+## Post-Retro Addendum (added by orchestrator)
+
+### Telemetry fixes applied in post-build session
+
+Three bugs were found and fixed in `compute-dispatches.py` during a post-build telemetry review:
+
+1. **Reviewer variants missing from `AGENT_TO_PHASE`** — `reviewer-sonnet` and `reviewer-opus` fell through to "Other" instead of "Review" in the summary table.
+2. **`is_reviewer` used exact match instead of `startswith`** — fix cycle detection in `compute_fix_cycles` didn't recognize reviewer variants, undercounting fix cycle cost by ~50%.
+3. **Breakdown labels used simple `(issue, agent_prefix)` counting** — a retried review (after API 529 error) was mislabeled as "Re-review". Replaced with builder-centric logic matching `compute_fix_cycles` semantics.
+
+All three fixes are on the `backlog/227-dual-write-pm` branch.
+
+### Gantt timeline distortion (unresolved)
+
+Gap compression was attempted (collapse idle gaps > 5 min to 30s spacers) but reverted — it interacted badly with E01-S01's anomalous 91m duration. The chart remains distorted by two compounding issues: (1) Agent tool `duration_ms` includes usage-limit wait time, not just compute time; (2) session gaps create dead space. See lesson file: `e00-setup/2026-03-19-s00-gantt-timeline-distortion.md`.

@@ -207,9 +207,11 @@ def compute_from_dispatches(dispatches, pricing_rates):
         agent_label = d.get("agent", model.capitalize())
         task_label = d.get("task", f"Issue #{d.get('issue', '?')}")
         phase = d.get("phase", "Other")
+        story_code = d.get("story_code", "")
+        story_cell = story_code if story_code else "--"
 
         breakdown_rows.append(
-            f"| {agent_label} | {task_label} | {fmt_duration(dur_ms)} | {fmt_tokens(tokens)} | {fmt_cost(cost)} |"
+            f"| {agent_label} | {story_cell} | {task_label} | {fmt_duration(dur_ms)} | {fmt_tokens(tokens)} | {fmt_cost(cost)} |"
         )
 
         if phase not in phase_agg:
@@ -223,9 +225,9 @@ def compute_from_dispatches(dispatches, pricing_rates):
             phase_agg[phase]["cost"] = None
         phase_agg[phase]["count"] += 1
 
-    # Build breakdown total row
+    # Build breakdown total row (empty Agent and Story cells)
     breakdown_rows.append(
-        f"| | **Total ({len(dispatches)} dispatches)** | **{fmt_duration(total_duration)}** "
+        f"| | | **Total ({len(dispatches)} dispatches)** | **{fmt_duration(total_duration)}** "
         f"| **{fmt_tokens(total_tokens)}** | **{fmt_cost(total_cost)}** |"
     )
 
@@ -413,6 +415,9 @@ def state_to_dispatches(state):
             label = branch.replace(f"{epic_key}-", "").replace("/", " ").replace("-", " ").title()
             issue_titles[int(issue_num)] = label
 
+    # Build story code map (issue → "E01-S01") for Story column
+    story_labels = _build_story_labels(state)
+
     dispatches = []
     raw_dispatches = state.get("dispatches", [])
 
@@ -486,6 +491,9 @@ def state_to_dispatches(state):
         else:
             task = agent
 
+        # Attach story_code: ENN-SNN for build/review dispatches; empty for others
+        story_code = story_labels.get(issue, "") if issue is not None else ""
+
         dispatches.append({
             "agent": agent_label,
             "model": model,
@@ -493,6 +501,7 @@ def state_to_dispatches(state):
             "duration_ms": d.get("duration_ms", 0),
             "tokens": d.get("tokens", 0),
             "phase": phase,
+            "story_code": story_code,
         })
 
     return dispatches
@@ -572,10 +581,10 @@ def _build_overhead_row(overhead_ms):
     Build the orchestrator overhead markdown table row.
 
     Format:
-      | Orchestrator | overhead (branch ops, merges, board mgmt) | Xm Ys | --- | --- |
+      | Orchestrator | -- | overhead (branch ops, merges, board mgmt) | Xm Ys | --- | --- |
     """
     dur = fmt_duration(overhead_ms)
-    return f"| Orchestrator | overhead (branch ops, merges, board mgmt) | {dur} | --- | --- |"
+    return f"| Orchestrator | -- | overhead (branch ops, merges, board mgmt) | {dur} | --- | --- |"
 
 
 def compute_from_state(state, pricing_rates):
@@ -801,22 +810,39 @@ def _group_dispatches_by_parallel_wave(sorted_dispatches):
     return waves
 
 
-def generate_gantt(state):
+def generate_gantt(state, mode="work"):
     """
     Generate a Mermaid Gantt chart body from an orchestrator state file dict.
 
-    Uses absolute HH:MM:SS offsets from session.started_at for each task
-    position. Dispatches within 5 seconds of each other are grouped into the
-    same parallel wave and share the wave's anchor offset.
+    Two display modes are supported:
 
-    No 'section' directives are emitted — task labels are self-explanatory.
+    - ``mode="work"`` (default): Cumulative active time. Each wave's Gantt
+      offset is the sum of prior waves' ``max(duration_ms)`` values. Wall-clock
+      gaps between waves are collapsed so the timeline shows only active work
+      time. The first wave always starts at ``00:00:00``.
+
+    - ``mode="wall-clock"``: Absolute timestamp offsets from
+      ``session.started_at``. Preserves the original behavior where each task's
+      X-position reflects real elapsed wall-clock time.
+
+    Dispatches within 5 seconds of each other are grouped into the same
+    parallel wave and share the wave's Gantt offset. No 'section' directives
+    are emitted — task labels are self-explanatory.
 
     Args:
         state: Parsed orchestrator state file dict.
+        mode: ``"work"`` (default) or ``"wall-clock"``.
 
     Returns:
         str: Complete Mermaid Gantt body (header lines + task lines).
+
+    Raises:
+        ValueError: If ``mode`` is not ``"work"`` or ``"wall-clock"``.
     """
+    _VALID_MODES = {"work", "wall-clock"}
+    if mode not in _VALID_MODES:
+        raise ValueError(f"Invalid gantt mode {mode!r}. Must be one of: {sorted(_VALID_MODES)}")
+
     session_started_at_str = state.get("session", {}).get("started_at", "1970-01-01T00:00:00Z")
     try:
         session_start = _parse_iso(session_started_at_str)
@@ -840,22 +866,29 @@ def generate_gantt(state):
 
     sorted_dispatches = sorted(raw_dispatches, key=_sort_key)
 
-    # Compute total run duration for tick interval selection.
-    # = max(offset_s + duration_ms/1000) across all dispatches.
-    total_duration_s = 0.0
-    for d in raw_dispatches:
-        try:
-            ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
-        except Exception:
-            ts = session_start_s
-        offset_s = ts - session_start_s
-        end_s = offset_s + d.get("duration_ms", 0) / 1000
-        total_duration_s = max(total_duration_s, end_s)
-
-    tick_interval = _select_tick_interval(total_duration_s)
-
     # Group into parallel waves using tolerance window
     waves = _group_dispatches_by_parallel_wave(sorted_dispatches)
+
+    # Compute total run duration for tick interval selection.
+    # In work mode: sum of per-wave max(duration_ms) = cumulative active time.
+    # In wall-clock mode: max(offset_s + duration_ms/1000) across all dispatches.
+    if mode == "work":
+        total_duration_s = 0.0
+        for _wave_anchor_s, wave_dispatches in waves:
+            wave_max_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
+            total_duration_s += wave_max_s
+    else:
+        total_duration_s = 0.0
+        for d in raw_dispatches:
+            try:
+                ts = _parse_iso(d.get("started_at", "1970-01-01T00:00:00Z")).timestamp()
+            except Exception:
+                ts = session_start_s
+            offset_s = ts - session_start_s
+            end_s = offset_s + d.get("duration_ms", 0) / 1000
+            total_duration_s = max(total_duration_s, end_s)
+
+    tick_interval = _select_tick_interval(total_duration_s)
 
     # Builder-centric fix cycle tracking (matches compute_fix_cycles semantics):
     # - A builder re-dispatch for an issue that already had a builder = fix cycle
@@ -878,8 +911,16 @@ def generate_gantt(state):
 
     task_id = 1
 
+    # Cumulative offset for work mode (seconds). Increases by max(duration_ms)/1000 per wave.
+    cumulative_offset_s = 0.0
+
     for wave_anchor_s, wave_dispatches in waves:
-        offset_s = wave_anchor_s - session_start_s
+        # Determine the offset for this wave
+        if mode == "work":
+            offset_s = cumulative_offset_s
+        else:
+            offset_s = wave_anchor_s - session_start_s
+
         offset_str = _fmt_offset(offset_s)
 
         for d in wave_dispatches:
@@ -913,6 +954,11 @@ def generate_gantt(state):
 
             lines.append(task_line)
             task_id += 1
+
+        # Advance cumulative offset by this wave's critical path (work mode only)
+        if mode == "work":
+            wave_max_s = max(d.get("duration_ms", 0) / 1000 for d in wave_dispatches)
+            cumulative_offset_s += wave_max_s
 
     return "\n".join(lines)
 
@@ -960,6 +1006,12 @@ def main(argv=None):
         help="Also generate Mermaid Gantt chart body (only valid with --from-state)",
     )
     parser.add_argument(
+        "--gantt-mode",
+        choices=["work", "wall-clock"],
+        default="work",
+        help="Gantt timeline mode: 'work' (cumulative active time, default) or 'wall-clock' (absolute timestamps)",
+    )
+    parser.add_argument(
         "--overhead",
         action="store_true",
         default=False,
@@ -988,7 +1040,7 @@ def main(argv=None):
             state = json.load(f)
         result = compute_from_state(state, pricing_rates)
         if args.gantt:
-            result["gantt"] = generate_gantt(state)
+            result["gantt"] = generate_gantt(state, mode=args.gantt_mode)
         if args.overhead:
             overhead = compute_overhead(state)
             result["overhead_ms"] = overhead["overhead_ms"]

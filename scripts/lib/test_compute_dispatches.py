@@ -584,6 +584,209 @@ class TestFromStateMode(unittest.TestCase):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Story column tests (breakdown table)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestBreakdownStoryColumn(unittest.TestCase):
+    """Tests for the Story column in the breakdown table."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _pricing(self):
+        return cd.load_pricing(self.pricing_file, self.config_file)
+
+    def test_breakdown_has_six_columns(self):
+        """Breakdown rows have 6 columns: Agent | Story | Task | Duration | Tokens | Est. Cost."""
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # Each row should have exactly 6 pipe-delimited cells (7 pipe chars)
+        for line in breakdown_lines:
+            # Count pipes: "| a | b | c | d | e | f |" has 7 pipes
+            pipe_count = line.count("|")
+            self.assertEqual(
+                pipe_count, 7,
+                f"Expected 7 pipes (6 columns) in breakdown row, got {pipe_count}: {line!r}"
+            )
+
+    def test_breakdown_story_column_dash_for_non_story_phase(self):
+        """Design/plan/retro dispatches show '--' in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Designer (opus)",
+                "model": "opus",
+                "task": "Design Doc (#55)",
+                "duration_ms": 294973,
+                "tokens": 86265,
+                "phase": "Design",
+                "story_code": "",  # Non-story dispatch: empty story_code
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # First line is the designer row, should have '--' in the Story column
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        # cells: [Agent, Story, Task, Duration, Tokens, Cost]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "--", f"Expected '--' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_shows_code_for_builder(self):
+        """Builder dispatches with story_code show the code in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Builder (sonnet)",
+                "model": "sonnet",
+                "task": "Destination Profiles (#72)",
+                "duration_ms": 146479,
+                "tokens": 49691,
+                "phase": "Build",
+                "story_code": "E01-S01",
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "E01-S01", f"Expected 'E01-S01' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_shows_code_for_reviewer(self):
+        """Reviewer dispatches with story_code show the code in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Reviewer (sonnet)",
+                "model": "sonnet",
+                "task": "Review Destination Profiles (#72)",
+                "duration_ms": 72000,
+                "tokens": 18000,
+                "phase": "Review",
+                "story_code": "E01-S01",
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "E01-S01", f"Expected 'E01-S01' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_dash_when_no_story_code_field(self):
+        """Dispatches without story_code field (e.g., --dispatches mode) show '--'."""
+        # DISPATCHES_FIXTURE has no story_code field
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # All data rows (not the total row) should have '--' in Story column
+        for line in breakdown_lines[:-1]:  # Exclude total row
+            cells = [c.strip() for c in line.split("|") if c.strip()]
+            story_cell = cells[1]
+            self.assertEqual(
+                story_cell, "--",
+                f"Expected '--' in Story column for dispatch without story_code, got: {story_cell!r} in row: {line!r}"
+            )
+
+    def test_breakdown_total_row_has_empty_story_cell(self):
+        """Total row has empty Story cell (not '--')."""
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        total_row = breakdown_lines[-1]
+        self.assertIn("**Total (4 dispatches)**", total_row)
+        # Total row Story cell should be empty
+        cells = [c.strip() for c in total_row.split("|")]
+        # Total row format: "| | **Total (N dispatches)** | **dur** | **tokens** | **cost** |"
+        # pipe[0] = "", pipe[1] = "", pipe[2] = "**Total...**", pipe[3] = "**dur**", ...
+        # cells after split: ["", "", "**Total...**", ...]
+        # Story cell is index 2 (after the leading empty, then agent empty, then story)
+        # Let's check the raw format directly:
+        self.assertIn("| |", total_row, "Total row should start with empty Agent cell '| |'")
+
+    def test_state_to_dispatches_has_story_code_field(self):
+        """state_to_dispatches() attaches story_code to each dispatch."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        for d in dispatches:
+            self.assertIn("story_code", d, f"Dispatch missing story_code field: {d}")
+
+    def test_state_to_dispatches_story_code_for_builder(self):
+        """Builder dispatch for known story gets ENN-SNN story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        # Issue 72 is in e01-s01 → story_code = "E01-S01"
+        builder_dispatch_72 = next(
+            d for d in dispatches
+            if d["phase"] == "Build" and "#72" in d["task"]
+        )
+        self.assertEqual(builder_dispatch_72["story_code"], "E01-S01")
+
+    def test_state_to_dispatches_story_code_for_reviewer(self):
+        """Reviewer dispatch for known story gets ENN-SNN story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        reviewer_dispatch = next(
+            d for d in dispatches
+            if d["phase"] == "Review"
+        )
+        self.assertEqual(reviewer_dispatch["story_code"], "E01-S01")
+
+    def test_state_to_dispatches_story_code_empty_for_designer(self):
+        """Designer dispatch gets empty story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        designer_dispatch = next(d for d in dispatches if d["phase"] == "Design")
+        self.assertEqual(designer_dispatch["story_code"], "")
+
+    def test_state_to_dispatches_story_code_empty_for_planner(self):
+        """Planner dispatch gets empty story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        planner_dispatch = next(d for d in dispatches if d["phase"] == "Plan")
+        self.assertEqual(planner_dispatch["story_code"], "")
+
+    def test_state_to_dispatches_story_code_empty_for_retro(self):
+        """Retro dispatch gets empty story_code."""
+        state_with_retro = {
+            **STATE_FIXTURE,
+            "dispatches": [
+                {
+                    "id": 1, "agent": "retro", "model": "opus",
+                    "issue": 80, "started_at": "2026-03-15T11:00:00Z",
+                    "duration_ms": 180000, "tokens": 50000,
+                },
+            ],
+        }
+        dispatches = cd.state_to_dispatches(state_with_retro)
+        retro_dispatch = next(d for d in dispatches if d["phase"] == "Retro")
+        self.assertEqual(retro_dispatch["story_code"], "")
+
+    def test_from_state_breakdown_shows_story_codes(self):
+        """compute_from_state breakdown includes ENN-SNN codes in Story column for builders."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        # Issues 72 and 73 are in e01-s01 and e01-s02
+        # Their breakdown rows should show E01-S01 and E01-S02
+        self.assertTrue(
+            "E01-S01" in result["breakdown"] or "E01-S02" in result["breakdown"],
+            f"No story code found in breakdown:\n{result['breakdown']}"
+        )
+
+    def test_from_state_breakdown_shows_dash_for_designer(self):
+        """compute_from_state breakdown shows '--' in Story column for designer."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        designer_line = next(l for l in breakdown_lines if "Designer" in l)
+        cells = [c.strip() for c in designer_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "--", f"Expected '--' for designer Story cell, got: {story_cell!r}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Edge cases
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -1225,11 +1428,15 @@ GANTT_STATE_FIXTURE = {
 class TestGanttGeneration(unittest.TestCase):
     """Tests for generate_gantt() function."""
 
-    def _generate(self, state=None):
-        """Helper: run generate_gantt on GANTT_STATE_FIXTURE (or given state)."""
+    def _generate(self, state=None, mode="wall-clock"):
+        """Helper: run generate_gantt on GANTT_STATE_FIXTURE (or given state).
+
+        Defaults to mode='wall-clock' so existing tests are unaffected by the
+        new work-timeline default.
+        """
         if state is None:
             state = GANTT_STATE_FIXTURE
-        return cd.generate_gantt(state)
+        return cd.generate_gantt(state, mode=mode)
 
     def test_returns_string(self):
         """generate_gantt returns a non-empty string."""
@@ -1478,7 +1685,8 @@ class TestGanttGeneration(unittest.TestCase):
                 },
             ],
         }
-        result = self._generate(state)
+        # Use wall-clock mode so offsets are absolute timestamps
+        result = self._generate(state, mode="wall-clock")
         # Both tasks should have the same starting offset (from id 1's timestamp)
         # 10:05:00 - 10:00:00 = 300s → 00:05:00
         # Both should have offset 00:05:00 (tolerance: id 2 is only 3s later)
@@ -1509,7 +1717,8 @@ class TestGanttGeneration(unittest.TestCase):
                 },
             ],
         }
-        result = self._generate(state)
+        # Use wall-clock mode so offsets reflect absolute timestamps
+        result = self._generate(state, mode="wall-clock")
         # t1 should use 00:05:00, t2 should use 00:05:10 (different offsets)
         t1_lines = [l for l in result.splitlines() if ":t1," in l]
         t2_lines = [l for l in result.splitlines() if ":t2," in l]
@@ -1918,6 +2127,667 @@ class TestOverheadCLI(unittest.TestCase):
                 )
         finally:
             os.unlink(state_file)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Work timeline mode tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _make_work_state(dispatches, session_start="2026-03-15T10:00:00Z"):
+    """Build a minimal state dict for work timeline tests."""
+    return {
+        **GANTT_STATE_FIXTURE,
+        "session": {**GANTT_STATE_FIXTURE["session"], "started_at": session_start},
+        "dispatches": dispatches,
+    }
+
+
+class TestWorkTimelineMode(unittest.TestCase):
+    """Tests for generate_gantt() work timeline mode (mode='work')."""
+
+    def _generate_work(self, state):
+        """Run generate_gantt in work mode."""
+        return cd.generate_gantt(state, mode="work")
+
+    def _generate_wall_clock(self, state):
+        """Run generate_gantt in wall-clock mode."""
+        return cd.generate_gantt(state, mode="wall-clock")
+
+    def test_gantt_mode_default_is_work(self):
+        """Default mode for generate_gantt() is 'work' (cumulative active time)."""
+        # Single sequential dispatch: no gap, so work == wall-clock by value
+        # But we can verify default matches explicitly-specified work mode
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 300000, "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ])
+        result_default = cd.generate_gantt(state)
+        result_work = cd.generate_gantt(state, mode="work")
+        self.assertEqual(result_default, result_work)
+
+    def test_gantt_mode_invalid_value_error(self):
+        """Passing an invalid mode value raises ValueError."""
+        state = _make_work_state([])
+        with self.assertRaises(ValueError):
+            cd.generate_gantt(state, mode="bogus")
+
+    def test_work_timeline_no_gaps(self):
+        """Sequential dispatches with no wall-clock gaps produce compact layout starting at 00:00:00."""
+        # Single dispatch — work offset is always 00:00:00 (no prior waves)
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 300000, "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ])
+        result = self._generate_work(state)
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1, f"Expected 1 task line, got: {t1_lines}")
+        # First wave offset is always 00:00:00 in work mode
+        self.assertIn("00:00:00", t1_lines[0], f"Expected 00:00:00 offset in: {t1_lines[0]}")
+
+    def test_work_timeline_single_gap(self):
+        """A 9-hour gap between waves is collapsed in work mode."""
+        # Designer finishes at T+5m, then builder starts 9 hours later (wall-clock gap)
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "designer", "model": "opus",
+                "issue": 71, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 300000,  # 5 minutes
+                "tokens": 50000, "tool_uses": 20, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T19:00:00Z",  # 9 hours later
+                "duration_ms": 120000,  # 2 minutes
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ])
+        result_work = self._generate_work(state)
+        result_wall = self._generate_wall_clock(state)
+
+        t2_work = [l for l in result_work.splitlines() if ":t2," in l]
+        t2_wall = [l for l in result_wall.splitlines() if ":t2," in l]
+        self.assertEqual(len(t2_work), 1, "Expected 1 t2 line in work mode")
+        self.assertEqual(len(t2_wall), 1, "Expected 1 t2 line in wall-clock mode")
+
+        # In work mode, wave 2 starts at cumulative = 300s (wave 1 duration)
+        # = 5 minutes = 00:05:00
+        self.assertIn("00:05:00", t2_work[0], f"Work mode t2 should start at 00:05:00, got: {t2_work[0]}")
+
+        # In wall-clock mode, t2 would start at 9 hours = 09:00:00
+        self.assertIn("09:00:00", t2_wall[0], f"Wall-clock mode t2 should start at 09:00:00, got: {t2_wall[0]}")
+
+    def test_work_timeline_multiple_gaps(self):
+        """Multiple inter-wave gaps are all collapsed in work mode."""
+        # Three sequential dispatches with large wall-clock gaps between them
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "designer", "model": "opus",
+                "issue": 71, "started_at": "2026-03-15T08:00:00Z",
+                "duration_ms": 120000,  # 2 minutes
+                "tokens": 50000, "tool_uses": 20, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",  # 2-hour gap
+                "duration_ms": 180000,  # 3 minutes
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+            {
+                "id": 3, "agent": "reviewer", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T15:00:00Z",  # 5-hour gap
+                "duration_ms": 60000,  # 1 minute
+                "tokens": 5000, "tool_uses": 3, "result": "success",
+            },
+        ], session_start="2026-03-15T08:00:00Z")
+        result = self._generate_work(state)
+
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        t2_lines = [l for l in result.splitlines() if ":t2," in l]
+        t3_lines = [l for l in result.splitlines() if ":t3," in l]
+
+        self.assertEqual(len(t1_lines), 1)
+        self.assertEqual(len(t2_lines), 1)
+        self.assertEqual(len(t3_lines), 1)
+
+        # Wave 1 offset: 00:00:00 (first wave always starts at 0)
+        self.assertIn("00:00:00", t1_lines[0], f"t1 should start at 00:00:00, got: {t1_lines[0]}")
+        # Wave 2 offset: 120s (wave 1 duration) = 00:02:00
+        self.assertIn("00:02:00", t2_lines[0], f"t2 should start at 00:02:00, got: {t2_lines[0]}")
+        # Wave 3 offset: 120 + 180 = 300s = 00:05:00
+        self.assertIn("00:05:00", t3_lines[0], f"t3 should start at 00:05:00, got: {t3_lines[0]}")
+
+    def test_work_timeline_parallel_wave_offset(self):
+        """Parallel dispatches within the same wave share the same cumulative offset."""
+        # Two parallel builders, then a sequential reviewer
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 120000,  # 2 minutes
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 73, "started_at": "2026-03-15T10:00:00Z",  # same wave
+                "duration_ms": 180000,  # 3 minutes
+                "tokens": 15000, "tool_uses": 6, "result": "success",
+            },
+            {
+                "id": 3, "agent": "reviewer", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:05:00Z",  # after both builders
+                "duration_ms": 60000,
+                "tokens": 5000, "tool_uses": 3, "result": "success",
+            },
+        ])
+        result = self._generate_work(state)
+
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        t2_lines = [l for l in result.splitlines() if ":t2," in l]
+        t3_lines = [l for l in result.splitlines() if ":t3," in l]
+
+        # Both parallel builders in wave 1 share offset 00:00:00
+        self.assertIn("00:00:00", t1_lines[0], f"t1 (parallel builder) should start at 00:00:00")
+        self.assertIn("00:00:00", t2_lines[0], f"t2 (parallel builder) should start at 00:00:00")
+
+        # Reviewer (wave 2) offset = max(120000, 180000)/1000 = 180s = 00:03:00
+        self.assertIn("00:03:00", t3_lines[0], f"t3 (reviewer) should start at 00:03:00, got: {t3_lines[0]}")
+
+    def test_work_timeline_critical_path(self):
+        """Each wave's contribution to cumulative offset is max(duration_ms) not sum."""
+        # Two parallel builders: 60s and 120s — next wave should start at 120s, not 180s
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 60000,  # 1 minute (shorter)
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 73, "started_at": "2026-03-15T10:00:00Z",  # same wave
+                "duration_ms": 120000,  # 2 minutes (critical path)
+                "tokens": 15000, "tool_uses": 6, "result": "success",
+            },
+            {
+                "id": 3, "agent": "reviewer", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:10:00Z",
+                "duration_ms": 30000,
+                "tokens": 5000, "tool_uses": 3, "result": "success",
+            },
+        ])
+        result = self._generate_work(state)
+        t3_lines = [l for l in result.splitlines() if ":t3," in l]
+        self.assertEqual(len(t3_lines), 1)
+        # Critical path = max(60000, 120000) / 1000 = 120s = 00:02:00 (not 00:03:00)
+        self.assertIn("00:02:00", t3_lines[0], f"t3 should start at 00:02:00 (critical path), got: {t3_lines[0]}")
+        self.assertNotIn("00:03:00", t3_lines[0], "t3 should NOT be at 00:03:00 (that would be sum, not max)")
+
+    def test_wall_clock_mode_unchanged(self):
+        """wall-clock mode produces the same output as before the mode parameter was added."""
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:05:00Z",
+                "duration_ms": 120000, "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ])
+        result = self._generate_wall_clock(state)
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1)
+        # wall-clock: session_start=10:00:00, dispatch started at 10:05:00
+        # offset = 300s = 00:05:00
+        self.assertIn("00:05:00", t1_lines[0], f"Wall-clock t1 should be at 00:05:00, got: {t1_lines[0]}")
+
+    def test_work_mode_gantt_returns_string(self):
+        """generate_gantt returns a string in work mode."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        self.assertIsInstance(result, str)
+        self.assertGreater(len(result), 0)
+
+    def test_work_mode_includes_header(self):
+        """Work mode Gantt includes standard header elements."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        self.assertIn("title Full Lifecycle Timeline", result)
+        self.assertIn("dateFormat HH:mm:ss", result)
+
+    def test_work_mode_no_section_directives(self):
+        """Work mode Gantt does not include 'section' directives."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        self.assertNotIn("section", result)
+
+    def test_work_mode_no_after_syntax(self):
+        """Work mode uses absolute offsets, not 'after' syntax."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        self.assertNotIn("after ", result)
+
+    def test_work_mode_tick_interval_uses_cumulative_time(self):
+        """Tick interval in work mode is based on cumulative active time, not wall-clock span."""
+        # Two dispatches each 10 minutes, with a 9-hour gap between them
+        # Work mode total = 10m + 10m = 20m → 2minute tick
+        # Wall-clock total = 9h10m → 10minute tick
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "designer", "model": "opus",
+                "issue": 71, "started_at": "2026-03-15T08:00:00Z",
+                "duration_ms": 600000,  # 10 minutes
+                "tokens": 50000, "tool_uses": 20, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T17:10:00Z",  # 9h10m later
+                "duration_ms": 600000,  # 10 minutes
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ], session_start="2026-03-15T08:00:00Z")
+        result_work = self._generate_work(state)
+        result_wall = self._generate_wall_clock(state)
+        # Work mode: total = 10 + 10 = 20m → 2minute tick
+        self.assertIn("tickInterval 2minute", result_work,
+                      f"Work mode with 20m cumulative should use 2minute tick, got:\n{result_work}")
+        # Wall-clock mode: total ≈ 9h20m → 10minute tick
+        self.assertIn("tickInterval 10minute", result_wall,
+                      f"Wall-clock mode with 9h20m should use 10minute tick, got:\n{result_wall}")
+
+    def test_work_mode_empty_dispatches(self):
+        """Empty dispatches list in work mode returns header only."""
+        state = _make_work_state([])
+        result = self._generate_work(state)
+        self.assertIn("title Full Lifecycle Timeline", result)
+        self.assertIn("dateFormat HH:mm:ss", result)
+        self.assertNotIn(":t1,", result)
+
+    def test_work_mode_gantt_fixture_first_wave_at_zero(self):
+        """In work mode with GANTT_STATE_FIXTURE, the first wave (designer) starts at 00:00:00."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1, "Expected exactly one t1 task")
+        self.assertIn("00:00:00", t1_lines[0], f"First task in work mode should be at 00:00:00, got: {t1_lines[0]}")
+
+
+class TestGanttModeCLI(unittest.TestCase):
+    """Tests for --gantt-mode flag in compute-dispatches.py CLI."""
+
+    def setUp(self):
+        self.state_file = _write_json(GANTT_STATE_FIXTURE)
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.state_file, self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _run_cli(self, extra_args=None):
+        """Run main() with --from-state --gantt and optional extra args, capture JSON output."""
+        import io
+        from unittest.mock import patch
+
+        args = [
+            "--from-state", self.state_file,
+            "--pricing", self.pricing_file,
+            "--config", self.config_file,
+            "--gantt",
+        ]
+        if extra_args:
+            args.extend(extra_args)
+
+        captured = io.StringIO()
+        with patch("sys.stdout", captured):
+            cd.main(args)
+
+        return json.loads(captured.getvalue())
+
+    def test_gantt_mode_work_flag(self):
+        """--gantt-mode work produces work timeline (first task at 00:00:00)."""
+        result = self._run_cli(["--gantt-mode", "work"])
+        gantt = result["gantt"]
+        # In work mode, the first task starts at 00:00:00
+        t1_lines = [l for l in gantt.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1)
+        self.assertIn("00:00:00", t1_lines[0],
+                      f"--gantt-mode work: first task should be at 00:00:00, got: {t1_lines[0]}")
+
+    def test_gantt_mode_wall_clock_flag(self):
+        """--gantt-mode wall-clock produces wall-clock offsets (designer at T+1m = 00:01:00)."""
+        result = self._run_cli(["--gantt-mode", "wall-clock"])
+        gantt = result["gantt"]
+        # In wall-clock mode, designer started at T+1m = 00:01:00
+        t1_lines = [l for l in gantt.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1)
+        self.assertIn("00:01:00", t1_lines[0],
+                      f"--gantt-mode wall-clock: designer should be at 00:01:00, got: {t1_lines[0]}")
+
+    def test_gantt_mode_default_is_work_in_cli(self):
+        """Without --gantt-mode, CLI defaults to work mode (first task at 00:00:00)."""
+        result = self._run_cli()
+        gantt = result["gantt"]
+        t1_lines = [l for l in gantt.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1)
+        # Default is work mode → first task at 00:00:00
+        self.assertIn("00:00:00", t1_lines[0],
+                      f"Default CLI mode should be work (00:00:00), got: {t1_lines[0]}")
+
+    def test_gantt_mode_invalid_rejected(self):
+        """--gantt-mode with an invalid value exits with error."""
+        import io
+        from unittest.mock import patch
+
+        args = [
+            "--from-state", self.state_file,
+            "--pricing", self.pricing_file,
+            "--config", self.config_file,
+            "--gantt",
+            "--gantt-mode", "invalid-mode",
+        ]
+        with self.assertRaises(SystemExit) as cm:
+            with patch("sys.stderr", io.StringIO()):
+                cd.main(args)
+        self.assertNotEqual(cm.exception.code, 0)
+
+    def test_gantt_mode_without_gantt_flag_is_ignored(self):
+        """--gantt-mode without --gantt flag does not crash (just ignored)."""
+        import io
+        from unittest.mock import patch
+
+        args = [
+            "--from-state", self.state_file,
+            "--pricing", self.pricing_file,
+            "--config", self.config_file,
+            "--gantt-mode", "work",
+            # No --gantt flag
+        ]
+        captured = io.StringIO()
+        with patch("sys.stdout", captured):
+            cd.main(args)  # Should not crash
+        result = json.loads(captured.getvalue())
+        # gantt field not present (since --gantt wasn't passed)
+        self.assertNotIn("gantt", result)
+
+    def test_gantt_mode_does_not_affect_non_gantt_output(self):
+        """--gantt-mode does not change breakdown/summary/cost/duration_ms fields."""
+        without_mode = self._run_cli()
+        with_mode = self._run_cli(["--gantt-mode", "wall-clock"])
+
+        for field in ["breakdown", "summary", "cost", "duration_ms", "tokens"]:
+            self.assertEqual(
+                without_mode[field], with_mode[field],
+                f"Field '{field}' should not differ with/without --gantt-mode"
+            )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# E01-S02: Fallback story code extraction, diagnostic logging, template header
+# ──────────────────────────────────────────────────────────────────────────────
+
+# State fixture with no branches on any story — triggers fallback and diagnostic warning.
+STATE_NO_BRANCHES = {
+    **STATE_FIXTURE,
+    "epics": {
+        "e01": {
+            "issue": 70,
+            "branch": "epic/e01-destination-profiles",
+            "stories": {
+                "72": {
+                    "status": "complete",
+                    # No "branch" field
+                },
+                "73": {
+                    "status": "complete",
+                    # No "branch" field
+                },
+            },
+        }
+    },
+}
+
+# State fixture with one story missing its branch field (partial missing)
+STATE_PARTIAL_BRANCH = {
+    **STATE_FIXTURE,
+    "epics": {
+        "e01": {
+            "issue": 70,
+            "branch": "epic/e01-destination-profiles",
+            "stories": {
+                "72": {
+                    "status": "complete",
+                    "branch": "e01-s01/destination-profiles",
+                },
+                "73": {
+                    "status": "complete",
+                    # No branch for story 73
+                },
+            },
+        }
+    },
+}
+
+
+class TestBuildStoryLabels(unittest.TestCase):
+    """Tests for _build_story_labels() — E01-S02 additions."""
+
+    def test_build_story_labels_empty_epics(self):
+        """When state.epics is empty, _build_story_labels returns empty dict."""
+        state = {**STATE_FIXTURE, "epics": {}}
+        result = cd._build_story_labels(state)
+        self.assertEqual(result, {})
+
+    def test_build_story_labels_missing_branch_no_crash(self):
+        """When a story has no 'branch' field, _build_story_labels does not crash."""
+        try:
+            cd._build_story_labels(STATE_NO_BRANCHES)
+        except Exception as e:
+            self.fail(f"_build_story_labels crashed on missing branch: {e}")
+
+    def test_build_story_labels_missing_branch_returns_empty(self):
+        """When no stories have a 'branch' field, _build_story_labels returns empty dict."""
+        result = cd._build_story_labels(STATE_NO_BRANCHES)
+        self.assertEqual(result, {})
+
+    def test_build_story_labels_partial_missing_branch_skips_gracefully(self):
+        """When only some stories are missing 'branch', those stories are skipped."""
+        result = cd._build_story_labels(STATE_PARTIAL_BRANCH)
+        # Story 72 has branch "e01-s01/..." -> should extract E01-S01
+        self.assertIn(72, result)
+        self.assertEqual(result[72], "E01-S01")
+        # Story 73 has no branch -> absent (not crash)
+        self.assertNotIn(73, result)
+
+    def test_build_story_labels_diagnostic_warning_when_epics_nonempty_but_no_labels(self):
+        """When state.epics is non-empty but no labels extracted, a warning is printed to stderr."""
+        import io
+        from unittest.mock import patch
+
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            result = cd._build_story_labels(STATE_NO_BRANCHES)
+
+        self.assertEqual(result, {})
+        warning_output = captured_stderr.getvalue()
+        self.assertGreater(
+            len(warning_output), 0,
+            "Expected a warning on stderr when epics non-empty but no labels extracted"
+        )
+        self.assertIn("Warning", warning_output)
+
+    def test_build_story_labels_no_warning_when_epics_empty(self):
+        """No stderr warning when state.epics is empty (expected empty result)."""
+        import io
+        from unittest.mock import patch
+
+        state = {**STATE_FIXTURE, "epics": {}}
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            cd._build_story_labels(state)
+
+        self.assertEqual(
+            captured_stderr.getvalue(), "",
+            f"Expected no warning when epics is empty, got: {captured_stderr.getvalue()!r}"
+        )
+
+    def test_build_story_labels_no_warning_when_labels_extracted(self):
+        """No story-label warning when labels are successfully extracted from branches."""
+        import io
+        from unittest.mock import patch
+
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            result = cd._build_story_labels(STATE_FIXTURE)
+
+        self.assertGreater(len(result), 0, "Expected some labels to be extracted")
+        # Only check for story-label-specific warnings, not general pricing warnings
+        story_label_warnings = [
+            line for line in captured_stderr.getvalue().splitlines()
+            if "no story labels" in line.lower() or "story label" in line.lower()
+        ]
+        self.assertEqual(story_label_warnings, [])
+
+
+class TestStoryCodeFallback(unittest.TestCase):
+    """Tests for the fallback story code extraction in state_to_dispatches()."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _make_state_no_branches(self, issues):
+        """Build a state with stories that have no branch field."""
+        stories = {str(issue_num): {"status": "complete"} for issue_num in issues}
+        return {
+            **STATE_FIXTURE,
+            "epics": {
+                "e01": {
+                    "issue": 70,
+                    "branch": "epic/e01-destination-profiles",
+                    "stories": stories,
+                }
+            },
+            "dispatches": [
+                {
+                    "id": i + 1,
+                    "agent": "builder-sonnet",
+                    "model": "sonnet",
+                    "issue": issue_num,
+                    "started_at": "2026-03-15T10:12:00Z",
+                    "duration_ms": 100000,
+                    "tokens": 10000,
+                }
+                for i, issue_num in enumerate(issues)
+            ],
+        }
+
+    def test_story_code_fallback_when_mapping_empty(self):
+        """When _build_story_labels() returns empty (no branches), fallback assigns story codes."""
+        state = self._make_state_no_branches([72, 73])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatches = [d for d in dispatches if d["phase"] == "Build"]
+        self.assertEqual(len(build_dispatches), 2)
+        # Both should have non-empty story_code from the fallback
+        for d in build_dispatches:
+            self.assertNotEqual(
+                d.get("story_code", ""), "",
+                f"Fallback should produce a non-empty story_code for issue in e01: {d}"
+            )
+
+    def test_story_code_fallback_produces_enn_snn_format(self):
+        """Fallback story code format matches ENN-SNN pattern."""
+        import re
+
+        state = self._make_state_no_branches([72])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatch = next(d for d in dispatches if d["phase"] == "Build")
+        story_code = build_dispatch.get("story_code", "")
+        if story_code:
+            self.assertRegex(
+                story_code, r"^E\d+-S\d+$",
+                f"Fallback story_code should match ENN-SNN format, got: {story_code!r}"
+            )
+
+    def test_story_code_fallback_multiple_stories_unique_codes(self):
+        """Fallback produces distinct story codes for distinct issues in the same epic."""
+        state = self._make_state_no_branches([72, 73])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatches = [d for d in dispatches if d["phase"] == "Build"]
+        codes = [d.get("story_code", "") for d in build_dispatches]
+        non_empty = [c for c in codes if c]
+        if len(non_empty) > 1:
+            self.assertEqual(len(set(non_empty)), len(non_empty), "Story codes should be unique")
+
+    def test_story_code_no_fallback_for_issue_not_in_epics(self):
+        """Issue not in any epic's stories gets empty story_code (no fallback)."""
+        state = {
+            **STATE_NO_BRANCHES,
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 999, "started_at": "2026-03-15T10:12:00Z",
+                    "duration_ms": 100000, "tokens": 10000,
+                },
+            ],
+        }
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatch = next(d for d in dispatches if d["phase"] == "Build")
+        # Issue 999 is not in any epic -> no fallback
+        self.assertEqual(build_dispatch.get("story_code", ""), "")
+
+
+class TestTemplateBreakdownHeader(unittest.TestCase):
+    """Tests for the breakdown header in telemetry.md template — E01-S02."""
+
+    def setUp(self):
+        self.template_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "templates",
+            "telemetry.md",
+        )
+
+    def test_template_breakdown_header_has_story_column(self):
+        """The telemetry template's breakdown header includes 'Story' column."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn(
+            "| Agent | Story | Task | Duration | Tokens | Est. Cost |",
+            content,
+            "Template breakdown header must include 'Story' column between Agent and Task"
+        )
+
+    def test_template_breakdown_separator_has_six_columns(self):
+        """The telemetry template's breakdown separator row has 6 column dashes."""
+        with open(self.template_path) as f:
+            content = f.read()
+        breakdown_idx = content.find("### Breakdown")
+        self.assertGreater(breakdown_idx, -1, "Could not find '### Breakdown' in template")
+        breakdown_section = content[breakdown_idx:]
+        lines = breakdown_section.splitlines()
+        separator_line = next(
+            (l for l in lines if l.startswith("|---") or l.startswith("| ---")),
+            None,
+        )
+        self.assertIsNotNone(separator_line, "Could not find separator row in Breakdown section")
+        # 6 columns = 7 pipe characters
+        pipe_count = separator_line.count("|")
+        self.assertEqual(
+            pipe_count, 7,
+            f"Expected 7 pipes (6 columns) in breakdown separator, got {pipe_count}: {separator_line!r}"
+        )
+
+    def test_template_old_breakdown_header_absent(self):
+        """The old 5-column breakdown header must NOT be present in the template."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertNotIn(
+            "| Agent | Task | Duration | Tokens | Est. Cost |",
+            content,
+            "Old 5-column breakdown header should be replaced by 6-column version"
+        )
 
 
 if __name__ == "__main__":

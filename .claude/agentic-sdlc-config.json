@@ -20,11 +20,6 @@
     "medium": "sonnet",
     "hard": "opus"
   },
-  "reviewerRouting": {
-    "easy": "sonnet",
-    "medium": "opus",
-    "hard": "opus"
-  },
   "pm": {
     "adapter": "github"
   },

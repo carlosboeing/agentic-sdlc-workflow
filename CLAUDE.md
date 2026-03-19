@@ -302,13 +302,6 @@ Map difficulty label to builder variant:
 - `difficulty/medium` → `builder-sonnet`
 - `difficulty/hard` → `builder-opus`
 
-Map difficulty label to reviewer variant (configured in `reviewerRouting`):
-
-- `difficulty/easy` → `reviewer-sonnet`
-- `difficulty/medium` → `reviewer-opus`
-- `difficulty/hard` → `reviewer-opus`
-- Backlog PR review (cross-epic) → `reviewer-opus` always
-
 #### In-session dispatch (primary)
 
 **Universal worktree isolation (autonomous mode):** In autonomous mode, **every** Agent tool dispatch MUST use `isolation: "worktree"` — not just parallel builders. This includes designers, planners, builders (parallel and sequential), reviewers, and retro agents. Without worktree isolation, agents share the main working directory and are affected by stale branches, leftover artifacts, and checkout collisions from other active backlog items. The only exception is interactive mode where a human is actively monitoring. Evidence: Run 15 (backlog #105) had repeated checkout collisions with `backlog/106-telemetry-accuracy` artifacts, including a commit landing on the wrong branch.
@@ -320,12 +313,12 @@ Use the Agent tool with `subagent_type: "builder-<model>"`:
 3. Builder runs `issue-start.sh` (posts comment + sets board to **In Progress**) → implements via TDD → runs `issue-review.sh` (posts comment + sets board to **In Review**)
 4. Post telemetry (orchestrator — see below)
 5. Update epic board status (see **Epic status sync** above)
-6. **Dispatch reviewer** on the story branch (mandatory, before merging): `subagent_type: "reviewer-sonnet"` (easy) or `subagent_type: "reviewer-opus"` (medium/hard)
+6. **Dispatch reviewer** on the story branch (mandatory, before merging): `subagent_type: "reviewer"`
 7. If reviewer finds issues: re-dispatch builder to fix, then re-review (max 2 cycles)
 8. Merge story branch into epic branch (only after review passes)
 9. After all stories complete: merge epic branches into integration branch, open backlog PR, post telemetry
 10. **Dispatch PR reviewer and retro in parallel** (both with `isolation: "worktree"`):
-    - PR reviewer (`reviewer-opus`): reviews frozen branch snapshot
+    - PR reviewer (`reviewer`): reviews frozen branch snapshot
     - Retro (`retro`): writes retro doc in worktree, does NOT push until PR review completes
     - This saves ~6 min/run. The retro does not modify files under review — it only adds docs.
 11. If reviewer finds issues: dispatch builder to fix on integration branch, then re-review (max 2 cycles). Retro results remain valid.
@@ -349,15 +342,6 @@ Three model-specific variants exist alongside `builder.md`:
 - `.claude/agents/builder-opus.md` — for `difficulty/hard` stories
 
 All variants share identical body content with `builder.md` (only the `model` frontmatter differs). **When updating `builder.md`, propagate changes to all three variants.**
-
-#### Reviewer variants
-
-Two model-specific variants exist alongside `reviewer.md`:
-
-- `.claude/agents/reviewer-sonnet.md` — for `difficulty/easy` stories
-- `.claude/agents/reviewer-opus.md` — for `difficulty/medium`, `difficulty/hard` stories, and all backlog PR reviews
-
-All variants share identical body content with `reviewer.md` (only the `name` and `model` frontmatter differ). **When updating `reviewer.md`, propagate changes to both variants.**
 
 **Telemetry is mandatory:** The orchestrator MUST post telemetry after each builder completes, before moving to the next story. The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` — pass all of them. **Capture telemetry even from failed or usage-limited dispatches** — they still consume tokens and time, and zeroing them out underreports actual costs. **When resuming an interrupted agent**, capture metrics from each invocation (interrupted + resumed) and sum them — it is unknown whether the resumed result reports cumulative or delta-only metrics:
 
@@ -700,14 +684,6 @@ grep -r "<old-pattern>" .claude/agents/
 ```bash
 for variant in haiku sonnet opus; do
   sed "s/^name: builder$/name: builder-$variant/;s/^model: inherit$/model: $variant/" .claude/agents/builder.md > .claude/agents/builder-$variant.md
-done
-```
-
-**Reviewer variant sync (CRITICAL):** `reviewer.md` has two model-routed variants (`reviewer-sonnet.md`, `reviewer-opus.md`). These files share identical body content — only the `name` and `model` fields in the YAML front matter differ. **Any change to `reviewer.md` body content must be propagated to both variants.** Use this to sync:
-
-```bash
-for variant in sonnet opus; do
-  sed "s/^name: reviewer$/name: reviewer-$variant/;s/^model: inherit$/model: $variant/" .claude/agents/reviewer.md > .claude/agents/reviewer-$variant.md
 done
 ```
 

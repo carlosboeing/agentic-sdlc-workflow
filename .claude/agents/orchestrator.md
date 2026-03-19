@@ -34,9 +34,8 @@ Use the Agent tool to dispatch builders and reviewers. Model routing via `subage
 Agent tool → subagent_type: "builder-sonnet"  # difficulty/easy or medium
 Agent tool → subagent_type: "builder-opus"    # difficulty/hard
 
-# Reviewer dispatch
-Agent tool → subagent_type: "reviewer-sonnet"  # difficulty/easy
-Agent tool → subagent_type: "reviewer-opus"    # difficulty/medium or hard
+# Reviewer dispatch (single agent, model inherited from session)
+Agent tool → subagent_type: "reviewer"
 ```
 
 The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` — capture all three for telemetry.
@@ -199,7 +198,7 @@ For each story (or wave of independent stories):
 
 **Reviewer dispatch is mandatory for every story.** No skip option.
 
-1. **Dispatch reviewer** with story issue and branch. Route by difficulty: `reviewer-sonnet` (easy), `reviewer-opus` (medium/hard).
+1. **Dispatch reviewer** with story issue and branch: `subagent_type: "reviewer"`.
 
 2. **Handle verdict:**
    - `APPROVE` or `COMMENT` -> proceed to merge
@@ -269,7 +268,7 @@ After all stories for an epic, merge epic into integration branch (`--no-ff`), p
 
    ```
    # Dispatch both simultaneously via parallel Agent tool calls:
-   Agent tool → subagent_type: "reviewer-opus", isolation: "worktree"
+   Agent tool → subagent_type: "reviewer", isolation: "worktree"
    Prompt: "Review PR #<pr-number>. Post your review findings on the PR (gh pr comment <pr-number>),
             NOT on the backlog issue. Check for cross-epic integration issues,
             convention violations, and security concerns."
@@ -346,11 +345,13 @@ After the human merges the backlog PR (`gh pr merge --squash`):
 
 ## Model Routing
 
-| Difficulty Label | Builder Variant | Reviewer Variant |
-|-----------------|----------------|-----------------|
-| `difficulty/easy` | `builder-sonnet` | `reviewer-sonnet` |
-| `difficulty/medium` | `builder-sonnet` | `reviewer-opus` |
-| `difficulty/hard` | `builder-opus` | `reviewer-opus` |
+| Difficulty Label | Builder Variant |
+|-----------------|----------------|
+| `difficulty/easy` | `builder-sonnet` |
+| `difficulty/medium` | `builder-sonnet` |
+| `difficulty/hard` | `builder-opus` |
+
+All reviews use `subagent_type: "reviewer"` (model inherited from session).
 
 Extract label: `gh issue view <N> --json labels -q '[.labels[].name | select(startswith("difficulty/"))] | first'`
 

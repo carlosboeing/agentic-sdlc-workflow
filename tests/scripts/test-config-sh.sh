@@ -94,9 +94,6 @@ bash --norc --noprofile -c "
   echo \"CFG_ROUTE_EASY=\$CFG_ROUTE_EASY\"
   echo \"CFG_ROUTE_MEDIUM=\$CFG_ROUTE_MEDIUM\"
   echo \"CFG_ROUTE_HARD=\$CFG_ROUTE_HARD\"
-  echo \"CFG_REVIEW_EASY=\$CFG_REVIEW_EASY\"
-  echo \"CFG_REVIEW_MEDIUM=\$CFG_REVIEW_MEDIUM\"
-  echo \"CFG_REVIEW_HARD=\$CFG_REVIEW_HARD\"
 " > "$TMPOUT" 2>&1
 
 get_val() { grep "^$1=" "$TMPOUT" | cut -d= -f2; }
@@ -111,10 +108,6 @@ assert_eq "CFG_STATUS_DONE_IsSet" "98236657" "$(get_val CFG_STATUS_DONE)"
 assert_eq "CFG_ROUTE_EASY_IsSet" "sonnet" "$(get_val CFG_ROUTE_EASY)"
 assert_eq "CFG_ROUTE_MEDIUM_IsSet" "sonnet" "$(get_val CFG_ROUTE_MEDIUM)"
 assert_eq "CFG_ROUTE_HARD_IsSet" "opus" "$(get_val CFG_ROUTE_HARD)"
-assert_eq "CFG_REVIEW_EASY_IsSet" "sonnet" "$(get_val CFG_REVIEW_EASY)"
-assert_eq "CFG_REVIEW_MEDIUM_IsSet" "opus" "$(get_val CFG_REVIEW_MEDIUM)"
-assert_eq "CFG_REVIEW_HARD_IsSet" "opus" "$(get_val CFG_REVIEW_HARD)"
-
 rm -f "$TMPOUT"
 
 echo ""

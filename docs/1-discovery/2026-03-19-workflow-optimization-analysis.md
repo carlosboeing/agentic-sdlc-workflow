@@ -821,48 +821,80 @@ compute-dispatches.py --from-state <file> --gantt --gantt-mode wall-clock
 
 | # | Action | Type | Token Impact | Duration Impact | Effort |
 |---|--------|------|-------------|-----------------|--------|
-| 1 | **Revert reviewer routing: all reviews → opus** | Config change | Save ~87K/run (fewer review tokens) | Save ~3m 30s/run | 1 minute |
-| 2 | **Fix R12 cost in CHANGELOG** ($4.77, not $12.55) | Doc fix | — | — | 5 minutes |
-| 3 | **Use `--skip-design` more aggressively** for well-specified items | Process change | Save ~55K/run | Save 4-8m/run | Already supported |
-| 4 | **Use `skipRetro: true` for test runs** | Config change | Save ~75K/run | Save 4-8m/run | Already supported |
+| 1 | **Revert reviewer routing: all reviews → opus** — Sonnet reviewers use 2x tokens (57K vs 28K), take 2x longer (2m 20s vs 1m 10s), identical quality (0 fix cycles in either model). See § 4.2. | Config change | Save ~87K/run | Save ~3m 30s/run | 1 minute |
+| 2 | **Fix R12 cost in CHANGELOG** — $12.55 → $4.77. The $30/M rate was a miscalculation; every other run uses the correct $10/M blended rate. See § 1. | Doc fix | — | — | 5 minutes |
 
-### 13.2 Short-Term Improvements (Low Risk, High Impact)
+> **Note:** The `--skip-design` and `skipRetro: true` flags are already supported and can save 4-8m each per run. These are per-run judgment calls, not implementation items: use `--skip-design` when the backlog issue has clear ACs, and `skipRetro: true` for test runs that don't need convention learning.
 
-| # | Action | Type | Token Impact | Duration Impact | Effort |
-|---|--------|------|-------------|-----------------|--------|
-| 5 | **Pipeline design→plan** (start plan from doc body, don't wait for PR merge) | Orchestrator change | None (same work, less wait) | Save 3-5m/run | Medium |
-| 6 | **Add compressed "Work Timeline" Gantt mode** | Code change (`compute-dispatches.py`) | — | — (visualization fix) | Medium |
-| 7 | **Builder self-validation step** (check AC before issue-review.sh) | Builder agent change | Save ~70K per prevented fix cycle | Save ~4m 30s per prevented cycle | Medium |
-| 8 | **Always use story codes in Gantt labels** | Code change | — | — (visualization fix) | Small |
-
-### 13.3 Medium-Term Experiments (Need Data)
-
-| # | Action | Type | Token Impact (if successful) | Duration Impact | Effort |
-|---|--------|------|------------------------------|-----------------|--------|
-| 9 | **A/B test sonnet on hard stories** | Experiment | Save ~10K/story | Save ~1m 53s/story | Low |
-| 10 | **A/B test sonnet for design/plan/retro** | Experiment | Unknown (may use more tokens) | Unknown | Low |
-| 11 | **Restore streaming reviews** — was working naturally in R8/R12/R13 (Agent tool returns parallel results one at a time; orchestrator reviewed each as it arrived). Lost when "after all complete" language was followed literally in R14+. Fix is a doc change to CLAUDE.md + orchestrator.md, not a code change. BL#105's "defer" decision was based on the assumption streaming needed new state transitions — but it was already working without them. | Orchestrator doc change | None (same reviews, less wait) | Save 1-2m/wave | Low |
-| 12 | **Tiered review strategy** (skip easy test, light medium, full hard) | Orchestrator + config | Save ~124K/test run | Save 5-7m/test run | Medium |
-
-### 13.4 Long-Term Architectural Changes
+### 13.2 Targeted Fixes (Low Risk)
 
 | # | Action | Type | Token Impact | Duration Impact | Effort |
 |---|--------|------|-------------|-----------------|--------|
-| 13 | **Express mode** (Plan→Build→PR review→Telemetry) | Config preset + orchestrator | Save ~200K/run | Save 12-15m/run (30-40%) | High |
-| 14 | **Flat mode** (no epic layer for ≤6 stories) | Orchestrator + branch strategy | Minimal | Save orchestrator overhead | High |
-| 15 | **Custom visualization dashboard** (beyond Mermaid) | New feature (BL#116) | — | — (visualization) | Very High |
+| 3 | **Fix Gantt story code regression** — Labels used to show `E01-S02 Build (9m 3s)`, now show generic `Build (9m 3s)`. The `_gantt_label_for_dispatch()` function supports story codes via `_build_story_labels()`, but the mapping stopped populating for some dispatches. Also restore story codes in the breakdown table. | Code investigation | — | — (readability) | 2-4h |
+| 4 | **Scripted builder AC validation** — Builder instructions exist at `builder.md` L120-125 but are conditional ("if...") and advisory. 8/18 fix cycles (66%) were format/word-count violations that should have been caught. Replace advisory text with a mandatory validation script that checks measurable ACs before `issue-review.sh`. See § 9.2. | Script + agent | Save ~70K/prevented cycle | Save ~4m 30s/prevented cycle | 4-6h |
 
-### 13.5 Projected Impact
+### 13.3 Structural Workflow Changes (Backlog Items)
 
-If all immediate + short-term recommendations were implemented for a typical test run:
+| # | Action | Type | Token Impact | Duration Impact | Effort |
+|---|--------|------|-------------|-----------------|--------|
+| 5 | **Phase restructuring + streaming reviews** — see details below | Orchestrator + agents | None (same work) | Save ~2m 20s/wave (39%) | 8-16h |
+| 6 | **Compressed Gantt ("Work Timeline" mode)** — see details below | Code (`compute-dispatches.py`) | — | — (readability) | 6-10h |
+| 7 | **Tiered review strategy** — Skip per-story review for easy test stories. PR review becomes sole gate. No easy story has triggered a fix cycle from a real quality issue across 40+ stories. Mitigated by item 4. Integrates with item 5. See § 11.4. | Orchestrator + config | Save ~84K/run | Save 5-7m/run | 2-4h |
+| 8 | **Pipeline design→plan (autonomous only)** — Start planner from design doc body before PR merge. Does not apply to interactive mode. Originally claimed 3-5m was overstated; actual savings are ~1-2m of orchestrator glue. | Orchestrator | None | Save ~1-2m/run | 2-4h |
+
+**Item 5 details — Phase restructuring + streaming reviews:**
+
+This is the highest-impact structural change in the analysis (§ 11.2). Currently, the orchestrator treats building and reviewing as separate sequential phases: dispatch all builders in a wave → wait for all to complete → dispatch reviewers one at a time. This forces wave time = `max(builds) + sum(reviews)`.
+
+The proposed model makes each story's full lifecycle (build → review → fix cycle) a single parallel unit within a wave. Wave time = `max(build + review per story)`. For a typical 3-story wave (2m 30s avg build, 1m 10s avg review): current = 6m 00s, proposed = 3m 40s. For a run with 3 waves, that's ~7 minutes saved.
+
+This subsumes the "streaming reviews" idea — streaming was a half-measure ("review each builder as it returns, but still sequentially"). Phase restructuring is the full version where build+review run in parallel per story.
+
+Three implementation approaches:
+- (a) Add reviewer dispatch instructions to the builder agent
+- (b) Create a "story-implementer" wrapper agent that sequences build → review → fix loop
+- (c) Orchestrator dispatches builder and reviewer as sequential tasks within each parallel slot
+
+Option (b) is cleanest — a thin wrapper agent returning only when the story is fully validated.
+
+How this interacts with tiered reviews (item 7): easy test stories skip per-story review (lifecycle = build → done); medium/hard stories retain build → review → (fix cycle) → done. PR review remains the cross-story quality gate regardless.
+
+**Item 6 details — Compressed Gantt ("Work Timeline" mode):**
+
+X-axis = cumulative active time (not wall-clock). Pauses and interruptions shown as indicator markers with a text note below the chart — not as empty gaps that destroy readability.
+
+This fixes the BL#227 problem where a 9h API 529 gap created 97% whitespace in the Gantt chart. A prior fix attempt (gap compression) was built and reverted (commits `4f51e4d` → `645be97`) because it interacted badly with stalled dispatches where `duration_ms` includes idle time (e.g., E01-S01 reported 91m wall-clock for ~5m of actual work at 15 tok/s). Both issues must be solved together. See § 12.
+
+The existing wall-clock mode should be retained as a diagnostic option (`--gantt-mode wall-clock`).
+
+### 13.4 Experiments (Need Data)
+
+| # | Action | Type | Token Impact | Duration Impact | Effort |
+|---|--------|------|-------------|-----------------|--------|
+| 9 | **A/B test sonnet on hard stories** — No data exists. Opus hard stories have 0% fix rate on test content. If sonnet fix rate on hard exceeds ~25%, savings are wiped. Route 2-3 hard stories to sonnet in the next test run. See § 3.4. | Experiment | Save ~10K/story | Save ~2m/story | 1 test run |
+| 10 | **A/B test sonnet for design/plan/retro** — Key unknown: does sonnet use 2x tokens for creative tasks (as for reviews, § 4.2) or comparable tokens (as for building, § 3.3)? If <1.67x, the 40% rate reduction is a net win. See § 6.3. | Experiment | Unknown | Unknown | Agent variants |
+
+### 13.5 Long-Term Architectural Changes
+
+| # | Action | Type | Token Impact | Duration Impact | Effort |
+|---|--------|------|-------------|-----------------|--------|
+| 11 | **Express mode** — Config preset: `Plan → Build → PR Review → Telemetry`. Combines skip-design + skip-per-story-review + skip-retro. Depends on items 5 and 7. See § 11.5. | Config + orchestrator | Save ~200K/run | Save 12-15m/run (30-40%) | 8-16h |
+| 12 | **Flat mode (no epic layer for ≤6 stories)** — Single-epic runs have the epic layer as pure overhead. Stories merge directly into integration branch. See § 11.3. | Orchestrator + branches | Minimal | Reduce orch. overhead | 8-16h |
+| 13 | **Reduce orchestrator overhead** — Batch git/board ops. Currently 25-37% of wall-clock. See § 7.3. | Scripts + orchestrator | Minimal | Save 5-15m (complex runs) | 8-16h |
+| 14 | **Visualization improvements** — Phase summary chart (2-3h, Mermaid), story lifecycle swimlanes (4-6h), custom dashboard (Very High, BL#116). See § 12.5. | Code | — | — (readability) | 2h-Very High |
+
+### 13.6 Projected Impact
+
+If items 1-2 (immediate) and 3-5 (targeted + phase restructuring) were implemented for a typical test run:
 
 | Metric | Current | Projected | Improvement |
 |--------|---------|-----------|-------------|
 | **Tokens** | ~1.18M | ~0.95M | **−20%** |
-| **Wall-clock** | ~30m | ~22m | **−27%** |
+| **Wall-clock** | ~30m | ~20m | **−33%** |
 | **Sequential duration** | ~38m | ~30m | **−21%** |
 | Fix cycles | ~0.8/run | ~0.3/run | −63% |
 | Review duration | ~8m | ~5m | −38% |
+| Wave duration | ~6m | ~3m 40s | −39% |
 | Gantt readability | Broken for interrupted runs | Readable always | Qualitative |
 
 ---

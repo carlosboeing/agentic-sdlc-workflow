@@ -148,7 +148,7 @@
 - All three difficulty levels tested: easy x2 sonnet, medium x2 sonnet, hard x1 opus
 - Zero fix cycles — all 5 stories passed review on first attempt
 - Lesson captured: backlog issue should be set to In Progress at design phase start, not at builder dispatch
-- Telemetry fix: corrected cost underreporting (was ~$4.77, correct ~$12.55) caused by using memorized $10/M Opus rate instead of config $30/M
+- Telemetry note: original cost of ~$4.77 was correct ($10/M blended Opus rate). The "correction" to $12.55 used an incorrect $30/M rate — see `docs/1-discovery/2026-03-19-workflow-optimization-analysis.md` § 1 for verification across all runs
 
 
 ## 2026-03-14

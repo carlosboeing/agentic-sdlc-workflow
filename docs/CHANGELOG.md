@@ -1,4 +1,17 @@
 # Changelog
+
+### Gantt Chart Readability: Story Code Regression and Work Timeline Mode (backlog #242, ~100m wall-clock)
+
+- **Story code regression fixed:** Breakdown table now includes a Story column (e.g., `E01-S02`) for builder/reviewer/fix dispatches, with `--` for design/plan/retro
+- **Fallback story code extraction:** When branch-based story labels fail, reverse-lookup via `state.epics.*.stories` keys derives codes automatically; diagnostic warning logged to stderr
+- **Work Timeline mode (default):** Gantt X-axis now shows cumulative active time instead of wall-clock; gaps between waves are collapsed. `--gantt-mode work` (default) vs `--gantt-mode wall-clock` (original behavior preserved)
+- **Gap annotations:** `gantt_note` generated below the chart when inter-wave gaps > 5 minutes are compressed, listing individual gap durations
+- **Stalled dispatch detection:** Dispatches with < 50 tok/s throughput annotated with `[stalled]` suffix in Gantt labels; count included in `gantt_note`
+- **Template update:** `scripts/templates/telemetry.md` breakdown header updated to 6-column format; `GANTT_NOTE` conditional block added
+- **CLI passthrough:** `issue-telemetry.sh --gantt-mode` flag passes through to `compute-dispatches.py`
+- 2 epics, 5 stories: E01 Story Code Regression (2 stories), E02 Work Timeline Mode (3 stories)
+- 252 Python tests + 44 shell integration tests, all passing
+- 2 fix cycles: E01-S01 (template scope creep), E02-S03 (stalled note inside Mermaid fence + None guard)
 ## 2026-03-19
 
 ### Dual-Write PM Layer (backlog #227)

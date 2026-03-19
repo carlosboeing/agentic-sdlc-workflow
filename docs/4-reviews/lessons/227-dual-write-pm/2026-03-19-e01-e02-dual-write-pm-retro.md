@@ -198,3 +198,7 @@ All three fixes are on the `backlog/227-dual-write-pm` branch.
 ### Gantt timeline distortion (unresolved)
 
 Gap compression was attempted (collapse idle gaps > 5 min to 30s spacers) but reverted — it interacted badly with E01-S01's anomalous 91m duration. The chart remains distorted by two compounding issues: (1) Agent tool `duration_ms` includes usage-limit wait time, not just compute time; (2) session gaps create dead space. See lesson file: `e00-setup/2026-03-19-s00-gantt-timeline-distortion.md`.
+
+### pm.sh idempotency guard is broken and over-engineered (unresolved)
+
+The guard (lines 29-41) tracks three variables to detect config changes between sourcing calls, but: (1) it never matches because `_PM_SH_COMPUTED_EXT` is captured before `config.sh` is sourced, (2) config never changes mid-session so the tracking is unnecessary — `[ -n "${_PM_SH_LOADED:-}" ]` would suffice, (3) `PM_ADAPTER`/`PM_ADAPTER_DIR`/`PM_EXTERNAL` are exported but no known subprocess reads them without sourcing pm.sh first. See lesson file: `e00-setup/2026-03-19-s00-gantt-timeline-distortion.md`.

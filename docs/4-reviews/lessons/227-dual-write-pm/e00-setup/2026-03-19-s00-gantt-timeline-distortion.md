@@ -34,3 +34,19 @@ The Gantt chart for BL227 was unreadable due to two compounding issues:
 
 - Future backlog item to address Gantt timeline accuracy (could be part of existing BL166 Telemetry Diagrams).
 - The state file schema could add an optional `active_duration_ms` field for dispatches where anomaly detection adjusts the value.
+
+## pm.sh idempotency guard (related, same file)
+
+The idempotency guard in pm.sh (lines 29-41) is broken and over-engineered:
+
+1. **Guard never matches.** `_PM_SH_COMPUTED_EXT` is computed at line 35 before `config.sh` is sourced (line 93), so it's always empty on the first call. The saved value at line 287 is also empty. On the second call, `CFG_PM_ADAPTER` is set (persists from first load), so `_PM_SH_COMPUTED_EXT="github"` but `_PM_SH_LOADED_EXTERNAL=""` — mismatch, guard fails, loader re-executes every time.
+
+2. **Over-engineered tracking.** The guard tracks three things (`_PM_SH_LOADED`, `_PM_SH_LOADED_DIR`, `_PM_SH_LOADED_EXTERNAL`) to detect config changes between calls. But config never changes mid-session — if it does, everything breaks anyway. The guard should just be `[ -n "${_PM_SH_LOADED:-}" ]`.
+
+3. **Unnecessary exports.** `PM_ADAPTER`, `PM_ADAPTER_DIR`, `PM_EXTERNAL` are exported (line 282) but every consumer sources pm.sh directly (same process). No known subprocess reads these without sourcing. The exports may be unnecessary but need an audit before removing — could have subtle downstream effects.
+
+### What to fix
+
+- Simplify guard to `[ -n "${_PM_SH_LOADED:-}" ]` — one variable, one check.
+- Audit whether `export PM_ADAPTER PM_ADAPTER_DIR PM_EXTERNAL` is needed by any subprocess.
+- Document the rationale for export vs shell variable choices in pm.sh.

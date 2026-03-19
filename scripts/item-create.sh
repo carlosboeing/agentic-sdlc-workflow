@@ -8,7 +8,7 @@ set -euo pipefail
 # GitHub (returns the ID), local adapter creates .workflow/items/<id>.md.
 #
 # Usage:
-#   ./scripts/item-create.sh <level> --title "..." [--body "..."] [--body-file <path>] [--label "..."] [--label "..."]
+#   ./scripts/item-create.sh <level> --title "..." [--body "..."] [--body-file <path>] [--label "..."] [--label "..."] [--created-by <agent>]
 #   ./scripts/item-create.sh backlog --title "..." --slug <slug> [--body "..."] [--body-file <path>]
 #
 # Where <level> is: backlog, epic, story, docs
@@ -50,6 +50,7 @@ BODY=""
 BODY_FILE=""
 SLUG=""
 LABELS=()
+CREATED_BY=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -58,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --body-file) BODY_FILE="$2";       shift 2 ;;
     --label)     LABELS+=("$2");       shift 2 ;;
     --slug)      SLUG="$2";           shift 2 ;;
+    --created-by) CREATED_BY="$2";     shift 2 ;;
     *)
       echo "Error: unknown option '$1'" >&2
       echo "Usage: $0 <level> --title <title> [--body <body>] [--body-file <path>] [--label <label>] ... [--slug <slug>]" >&2
@@ -97,6 +99,9 @@ elif [ -n "$BODY" ]; then
 fi
 if [ -n "$LABELS_CSV" ]; then
   CREATE_ARGS+=(--labels "$LABELS_CSV")
+fi
+if [ -n "$CREATED_BY" ]; then
+  CREATE_ARGS+=(--created-by "$CREATED_BY")
 fi
 
 if [ "$IS_BACKLOG_SETUP" = true ]; then

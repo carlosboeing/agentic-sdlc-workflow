@@ -90,9 +90,10 @@ _local_fm_write() {
   now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   _FM_FIELD="$field" _FM_VALUE="$value" _FM_TS="$now" \
   awk '
-    BEGIN { fld=ENVIRON["_FM_FIELD"]; val=ENVIRON["_FM_VALUE"]; ts=ENVIRON["_FM_TS"] }
-    $0 ~ ("^" fld ":") { print fld ": " val; next }
+    BEGIN { fld=ENVIRON["_FM_FIELD"]; val=ENVIRON["_FM_VALUE"]; ts=ENVIRON["_FM_TS"]; found=0 }
+    $0 ~ ("^" fld ":") { print fld ": " val; found=1; next }
     /^updated:/         { print "updated: " ts; next }
+    /^---$/ && NR > 1   { if (!found) print fld ": " val; print; next }
     { print }
   ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
 }

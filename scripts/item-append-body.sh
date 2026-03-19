@@ -8,10 +8,10 @@ set -euo pipefail
 # inserts before the Activity Log separator if it exists. In the GitHub
 # adapter, fetches the current body and appends via gh issue edit.
 #
-# Usage: ./scripts/item-append-body.sh <item-number> <content>
+# Usage: ./scripts/item-append-body.sh <item-number> <content> [--updated-by <agent>]
 
 if [ $# -lt 2 ]; then
-  echo "Usage: $0 <item-number> <content>" >&2
+  echo "Usage: $0 <item-number> <content> [--updated-by <agent>]" >&2
   exit 1
 fi
 

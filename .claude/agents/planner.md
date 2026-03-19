@@ -28,7 +28,8 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
    ```bash
    PLAN_ISSUE=$(./scripts/item-create.sh docs \
      --title "[#<backlog>] Write implementation plan for X" \
-     --label "type/docs" --label "backlog/<N>-<slug>")
+     --label "type/docs" --label "backlog/<N>-<slug>" \
+     --created-by "planner")
    ```
 
 3. Link the plan issue as a **sub-issue** of the backlog issue:
@@ -129,7 +130,8 @@ After writing a plan with epics and stories:
      --title "[#<backlog>/E01-S01] Add config property for feature X" \
      --label "hierarchy/story" --label "backlog/<issue>-<slug>" \
      --label "type/feature" --label "difficulty/easy" \
-     --body "..."
+     --body "..." \
+     --created-by "planner"
    ```
 
 3. **Create an epic tracking issue**:
@@ -140,7 +142,8 @@ After writing a plan with epics and stories:
    ./scripts/item-create.sh epic \
      --title "[#<backlog>/E01] Feature name" \
      --label "hierarchy/epic" --label "backlog/<issue>-<slug>" \
-     --body "## Stories\n- [ ] #N [E01-S01] Story 1\n- [ ] #N [E01-S02] Story 2"
+     --body "## Stories\n- [ ] #N [E01-S01] Story 1\n- [ ] #N [E01-S02] Story 2" \
+     --created-by "planner"
    ```
 
 ### GitHub Project Board (REQUIRED)
@@ -204,7 +207,7 @@ graph TD
 | Wave | Stories | Dispatch |
 |------|---------|----------|
 | **Wave 1** | E01-S01, E01-S02 | Parallel |
-| **Wave 2** | E02-S01 | Sequential (depends on E01-S02) |"
+| **Wave 2** | E02-S01 | Sequential (depends on E01-S02) |" --updated-by "planner"
 ```
 
 **On each epic issue** — append only the subset relevant to that epic's stories:
@@ -218,7 +221,7 @@ graph TD
     S02[\"E01-S02<br/>Story title<br/>(medium)\"]
 \`\`\`
 
-All stories in this epic are independent — parallel dispatch."
+All stories in this epic are independent — parallel dispatch." --updated-by "planner"
 ```
 
 Include the dispatch plan (wave assignments) in the backlog issue so the orchestrator and humans can see the execution strategy at a glance. For epics with sequential dependencies, note which stories depend on which.

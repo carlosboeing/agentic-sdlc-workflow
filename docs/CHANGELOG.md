@@ -2,6 +2,21 @@
 
 ## 2026-03-19
 
+### Phase Restructuring: Parallel Reviews, Tiered Review Strategy, and Phase Simplification (backlog #243)
+
+- **Orchestrator phase restructuring:** Collapsed 10+ phases into 7 (Phases 0-6: Setup, Design, Plan, Implementation, Open PR, Review + Retro, Telemetry + Cleanup)
+- **Parallel review dispatch:** Reviewers for a wave are now dispatched in parallel (multiple Agent tool calls) instead of sequentially. Parallel fix cycles also supported.
+- **Tiered review strategy:** Easy test stories skip per-story review when `reviewStrategy.skipPerStoryReview.enabled` is true in config. PR review remains the cross-story quality gate.
+- **Config:** Added `reviewStrategy` section to `agentic-sdlc-config.json` with `skipPerStoryReview.enabled`, `conditions.maxDifficulty`, and `conditions.requireLabel`
+- **config.sh:** Three new variables: `CFG_SKIP_REVIEW_ENABLED`, `CFG_SKIP_REVIEW_MAX_DIFFICULTY`, `CFG_SKIP_REVIEW_REQUIRE_LABEL`
+- **CLAUDE.md:** Updated Dispatch Protocol with parallel review dispatch, review tier logic, and new phase numbering
+- **Convention improvements:** Added mandatory Research & Feasibility Verification to designer agent; added "Do NOT over-constrain the designer" guidance to orchestrator; documented subagent nesting hard cap in Known Platform Limitations
+- 2 epics, 4 stories (all sequential due to config → library → agent → convention dependency chain)
+- 51 tests (35 existing + 16 new for review strategy config)
+
+
+## 2026-03-19
+
 ### Gantt Chart Readability: Story Code Regression and Work Timeline Mode (backlog #242, ~100m wall-clock)
 
 - **Story code regression fixed:** Breakdown table now includes a Story column (e.g., `E01-S02`) for builder/reviewer/fix dispatches, with `--` for design/plan/retro

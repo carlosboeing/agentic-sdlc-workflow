@@ -37,9 +37,9 @@ _local_hier_label() {
 }
 
 # _local_write_item — write frontmatter + body to items/<id>.md.
-# Usage: _local_write_item <id> <level> <hier_label> <title> <body> <body_file> <extra_labels>
+# Usage: _local_write_item <id> <level> <hier_label> <title> <body> <body_file> <extra_labels> [<created_by>]
 _local_write_item() {
-  local item_id="$1" level="$2" hier_label="$3" title="$4" body="$5" body_file="$6" extra_labels="$7"
+  local item_id="$1" level="$2" hier_label="$3" title="$4" body="$5" body_file="$6" extra_labels="$7" created_by="${8:-}"
   local item_path now
   item_path=$(_local_item_path "$item_id"); now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   { echo "---"; echo "id: $item_id"; printf 'title: "%s"\n' "$title"
@@ -52,6 +52,7 @@ _local_write_item() {
       done
     fi
     echo "parent: null"; echo "state: open"; echo "created: $now"; echo "updated: $now"
+    [ -n "$created_by" ] && echo "created_by: $created_by"
     echo "---"; echo ""
   } > "$item_path"
   if [ -n "$body_file" ]; then cat "$body_file" >> "$item_path"
@@ -64,17 +65,17 @@ pm_create_item() {
   local hier_label
   hier_label=$(_local_hier_label "$level") \
     || { echo "ERROR: pm_create_item: unknown level '$level'. Expected: backlog, epic, story, docs" >&2; return 1; }
-  local body="" body_file="" extra_labels=""
+  local body="" body_file="" extra_labels="" created_by=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --body) body="$2"; shift 2 ;; --body-file) body_file="$2"; shift 2 ;;
-      --labels) extra_labels="$2"; shift 2 ;;
+      --labels) extra_labels="$2"; shift 2 ;; --created-by) created_by="$2"; shift 2 ;;
       *) echo "ERROR: pm_create_item: unknown option '$1'" >&2; return 1 ;;
     esac
   done
   _local_ensure_dirs
   local item_id; item_id=$(_local_next_id)
-  _local_write_item "$item_id" "$level" "$hier_label" "$title" "$body" "$body_file" "$extra_labels"
+  _local_write_item "$item_id" "$level" "$hier_label" "$title" "$body" "$body_file" "$extra_labels" "$created_by"
   echo "$item_id"
 }
 
@@ -85,11 +86,11 @@ _local_pm_create_item_with_id() {
   local hier_label
   hier_label=$(_local_hier_label "$level") \
     || { echo "ERROR: _local_pm_create_item_with_id: unknown level '$level'." >&2; return 1; }
-  local body="" body_file="" extra_labels=""
+  local body="" body_file="" extra_labels="" created_by=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --body) body="$2"; shift 2 ;; --body-file) body_file="$2"; shift 2 ;;
-      --labels) extra_labels="$2"; shift 2 ;;
+      --labels) extra_labels="$2"; shift 2 ;; --created-by) created_by="$2"; shift 2 ;;
       *) echo "ERROR: _local_pm_create_item_with_id: unknown option '$1'" >&2; return 1 ;;
     esac
   done
@@ -98,7 +99,7 @@ _local_pm_create_item_with_id() {
   [ -f "$id_file" ] && current_next=$(cat "$id_file")
   local required_next=$(( item_id + 1 ))
   [ "$required_next" -gt "$current_next" ] && echo "$required_next" > "$id_file"
-  _local_write_item "$item_id" "$level" "$hier_label" "$title" "$body" "$body_file" "$extra_labels"
+  _local_write_item "$item_id" "$level" "$hier_label" "$title" "$body" "$body_file" "$extra_labels" "$created_by"
   echo "$item_id"
 }
 
@@ -156,28 +157,35 @@ pm_list_items() {
   done
 }
 
-# pm_update_item <id> [--title <t>] [--body <b>]
+# pm_update_item <id> [--title <t>] [--body <b>] [--updated-by <agent>]
 pm_update_item() {
   local item_id="$1"; shift
   local item_path; item_path=$(_local_item_path "$item_id")
   [ ! -f "$item_path" ] && { echo "ERROR: pm_update_item: item $item_id not found" >&2; return 1; }
-  local new_title="" new_body=""
+  local new_title="" new_body="" updated_by=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --title) new_title="$2"; shift 2 ;; --body) new_body="$2"; shift 2 ;;
+      --updated-by) updated_by="$2"; shift 2 ;;
       *) echo "ERROR: pm_update_item: unknown option '$1'" >&2; return 1 ;;
     esac
   done
   if [ -n "$new_title" ]; then _local_fm_write "$item_path" title "\"$new_title\""; fi
   if [ -n "$new_body" ]; then _local_write_body "$item_path" "$new_body"; fi
+  _local_fm_write "$item_path" updated "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  [ -n "$updated_by" ] && _local_fm_write "$item_path" updated_by "$updated_by"
 }
 
-# pm_append_body <item-id> <content>
+# pm_append_body <item-id> <content> [--updated-by <agent>]
 # Appends content to the body section of an item file.
 # If an Activity Log separator exists (─────────), inserts before it.
 # Otherwise appends to end of file.
 pm_append_body() {
-  local item_id="$1" content="$2"
+  local item_id="$1" content="$2"; shift 2
+  local updated_by=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in --updated-by) updated_by="$2"; shift 2 ;; *) shift ;; esac
+  done
   local item_path; item_path=$(_local_item_path "$item_id")
   [ ! -f "$item_path" ] && { echo "ERROR: pm_append_body: item $item_id not found" >&2; return 1; }
 
@@ -195,6 +203,8 @@ pm_append_body() {
     # No Activity Log — append to end of file
     printf '\n%s\n' "$content" >> "$item_path"
   fi
+  _local_fm_write "$item_path" updated "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  [ -n "$updated_by" ] && _local_fm_write "$item_path" updated_by "$updated_by"
 }
 
 # pm_close_item <id> — sets state to closed, calls pm_set_status done.

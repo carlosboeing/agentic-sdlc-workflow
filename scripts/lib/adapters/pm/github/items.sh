@@ -24,7 +24,7 @@ if declare -f "${_PM_FN_PREFIX}pm_create_item" > /dev/null 2>&1; then
 fi
 
 # --- pm_create_item ---
-# Usage: pm_create_item <level> <title> [--body <text>] [--body-file <path>] [--labels <csv>]
+# Usage: pm_create_item <level> <title> [--body <text>] [--body-file <path>] [--labels <csv>] [--created-by <agent>]
 # Prints the created issue number on stdout (just the number).
 eval "${_PM_FN_PREFIX}pm_create_item() {
   local level=\"\$1\"
@@ -50,6 +50,7 @@ eval "${_PM_FN_PREFIX}pm_create_item() {
       --body)       body=\"\$2\";        shift 2 ;;
       --body-file)  body_file=\"\$2\";   shift 2 ;;
       --labels)     extra_labels=\"\$2\"; shift 2 ;;
+      --created-by) created_by=\"\$2\"; shift 2 ;;
       *)
         echo \"ERROR: ${_PM_FN_PREFIX}pm_create_item: unknown option '\$1'\" >&2
         return 1
@@ -62,6 +63,21 @@ eval "${_PM_FN_PREFIX}pm_create_item() {
   if [ -n \"\$extra_labels\" ]; then
     # Convert CSV to comma-separated, appending to hierarchy label
     all_labels=\"\${hier_label},\${extra_labels}\"
+  fi
+
+  # Prepend agent metadata to body if created_by is set
+  if [ -n \"\$created_by\" ]; then
+    local meta_line=\"> 🤖 **Created by:** \$created_by · **Date:** \$(date -u +%Y-%m-%dT%H:%M:%SZ)\";
+    if [ -n \"\$body\" ]; then
+      body=\"\$(printf '%s\\n\\n%s' \"\$meta_line\" \"\$body\")\";
+    elif [ -n \"\$body_file\" ]; then
+      local tmp_body; tmp_body=\$(mktemp);
+      printf '%s\\n\\n' \"\$meta_line\" > \"\$tmp_body\";
+      cat \"\$body_file\" >> \"\$tmp_body\";
+      body_file=\"\$tmp_body\";
+    else
+      body=\"\$meta_line\";
+    fi
   fi
 
   local create_args=(gh issue create --repo \"\$CFG_REPO\" --title \"\$title\" --label \"\$all_labels\")
@@ -163,11 +179,31 @@ eval "${_PM_FN_PREFIX}pm_update_item() {
 }"
 
 # --- pm_append_body ---
-# Usage: pm_append_body <item-id> <content>
+# Usage: pm_append_body <item-id> <content> [--updated-by <agent>]
 # Appends content to the existing issue body via gh issue edit --body.
+# When --updated-by is provided, prepends an attribution line to the appended content.
 eval "${_PM_FN_PREFIX}pm_append_body() {
   local item_id=\"\$1\"
-  local content=\"\$2\"
+  local content=\"\$2\"; shift 2
+  local updated_by=\"\"
+  while [[ \$# -gt 0 ]]; do
+    case \"\$1\" in --updated-by) updated_by=\"\$2\"; shift 2 ;; *) shift ;; esac
+  done
+  if [ -n \"\$updated_by\" ]; then
+    local meta_line=\"> 🤖 **Updated by:** \$updated_by · **Date:** \$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+    # Insert attribution after the first heading (##), not before everything
+    if echo \"\$content\" | head -1 | grep -q '^##'; then
+      local first_line rest_lines
+      first_line=\$(echo \"\$content\" | head -1)
+      rest_lines=\$(echo \"\$content\" | tail -n +2)
+      content=\"\${first_line}
+\${meta_line}
+\${rest_lines}\"
+    else
+      content=\"\${meta_line}
+\${content}\"
+    fi
+  fi
 
   local current_body
   current_body=\$(gh issue view \"\$item_id\" --repo \"\$CFG_REPO\" --json body -q '.body // \"\"') || return 1

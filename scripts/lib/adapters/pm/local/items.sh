@@ -172,6 +172,31 @@ pm_update_item() {
   if [ -n "$new_body" ]; then _local_write_body "$item_path" "$new_body"; fi
 }
 
+# pm_append_body <item-id> <content>
+# Appends content to the body section of an item file.
+# If an Activity Log separator exists (─────────), inserts before it.
+# Otherwise appends to end of file.
+pm_append_body() {
+  local item_id="$1" content="$2"
+  local item_path; item_path=$(_local_item_path "$item_id")
+  [ ! -f "$item_path" ] && { echo "ERROR: pm_append_body: item $item_id not found" >&2; return 1; }
+
+  # Check if Activity Log separator exists
+  if grep -q '─────────' "$item_path"; then
+    # Insert content before the separator line
+    local sep_line
+    sep_line=$(grep -n '─────────' "$item_path" | head -1 | cut -d: -f1)
+    {
+      head -n "$((sep_line - 1))" "$item_path"
+      printf '\n%s\n' "$content"
+      tail -n +"$sep_line" "$item_path"
+    } > "${item_path}.tmp" && mv "${item_path}.tmp" "$item_path"
+  else
+    # No Activity Log — append to end of file
+    printf '\n%s\n' "$content" >> "$item_path"
+  fi
+}
+
 # pm_done <id> — sets state to closed, calls pm_set_status done.
 pm_done() {
   local item_id="$1"

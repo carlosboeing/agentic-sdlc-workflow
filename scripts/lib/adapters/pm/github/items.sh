@@ -162,6 +162,28 @@ eval "${_PM_FN_PREFIX}pm_update_item() {
   \"\${edit_args[@]}\" > /dev/null
 }"
 
+# --- pm_append_body ---
+# Usage: pm_append_body <item-id> <content>
+# Appends content to the existing issue body via gh issue edit --body.
+eval "${_PM_FN_PREFIX}pm_append_body() {
+  local item_id=\"\$1\"
+  local content=\"\$2\"
+
+  local current_body
+  current_body=\$(gh issue view \"\$item_id\" --repo \"\$CFG_REPO\" --json body -q '.body // \"\"') || return 1
+
+  local new_body
+  if [ -n \"\$current_body\" ]; then
+    new_body=\"\${current_body}
+
+\${content}\"
+  else
+    new_body=\"\$content\"
+  fi
+
+  gh issue edit \"\$item_id\" --repo \"\$CFG_REPO\" --body \"\$new_body\" > /dev/null
+}"
+
 # --- pm_done ---
 # Usage: pm_done <item-id>
 # Closes the GitHub issue (with --reason completed) and sets board status to Done.

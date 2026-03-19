@@ -2,7 +2,6 @@
 name: orchestrator
 color: white
 description: Workflow orchestrator — reads plans, dispatches builders/reviewers, manages GitHub state, posts telemetry, drives the full backlog item lifecycle.
-tools: Read, Grep, Glob, Bash, Agent
 model: inherit
 ---
 

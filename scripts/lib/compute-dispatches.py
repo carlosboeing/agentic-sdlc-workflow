@@ -207,9 +207,11 @@ def compute_from_dispatches(dispatches, pricing_rates):
         agent_label = d.get("agent", model.capitalize())
         task_label = d.get("task", f"Issue #{d.get('issue', '?')}")
         phase = d.get("phase", "Other")
+        story_code = d.get("story_code", "")
+        story_cell = story_code if story_code else "--"
 
         breakdown_rows.append(
-            f"| {agent_label} | {task_label} | {fmt_duration(dur_ms)} | {fmt_tokens(tokens)} | {fmt_cost(cost)} |"
+            f"| {agent_label} | {story_cell} | {task_label} | {fmt_duration(dur_ms)} | {fmt_tokens(tokens)} | {fmt_cost(cost)} |"
         )
 
         if phase not in phase_agg:
@@ -223,9 +225,9 @@ def compute_from_dispatches(dispatches, pricing_rates):
             phase_agg[phase]["cost"] = None
         phase_agg[phase]["count"] += 1
 
-    # Build breakdown total row
+    # Build breakdown total row (empty Agent and Story cells)
     breakdown_rows.append(
-        f"| | **Total ({len(dispatches)} dispatches)** | **{fmt_duration(total_duration)}** "
+        f"| | | **Total ({len(dispatches)} dispatches)** | **{fmt_duration(total_duration)}** "
         f"| **{fmt_tokens(total_tokens)}** | **{fmt_cost(total_cost)}** |"
     )
 
@@ -413,6 +415,9 @@ def state_to_dispatches(state):
             label = branch.replace(f"{epic_key}-", "").replace("/", " ").replace("-", " ").title()
             issue_titles[int(issue_num)] = label
 
+    # Build story code map (issue → "E01-S01") for Story column
+    story_labels = _build_story_labels(state)
+
     dispatches = []
     raw_dispatches = state.get("dispatches", [])
 
@@ -486,6 +491,9 @@ def state_to_dispatches(state):
         else:
             task = agent
 
+        # Attach story_code: ENN-SNN for build/review dispatches; empty for others
+        story_code = story_labels.get(issue, "") if issue is not None else ""
+
         dispatches.append({
             "agent": agent_label,
             "model": model,
@@ -493,6 +501,7 @@ def state_to_dispatches(state):
             "duration_ms": d.get("duration_ms", 0),
             "tokens": d.get("tokens", 0),
             "phase": phase,
+            "story_code": story_code,
         })
 
     return dispatches
@@ -572,10 +581,10 @@ def _build_overhead_row(overhead_ms):
     Build the orchestrator overhead markdown table row.
 
     Format:
-      | Orchestrator | overhead (branch ops, merges, board mgmt) | Xm Ys | --- | --- |
+      | Orchestrator | -- | overhead (branch ops, merges, board mgmt) | Xm Ys | --- | --- |
     """
     dur = fmt_duration(overhead_ms)
-    return f"| Orchestrator | overhead (branch ops, merges, board mgmt) | {dur} | --- | --- |"
+    return f"| Orchestrator | -- | overhead (branch ops, merges, board mgmt) | {dur} | --- | --- |"
 
 
 def compute_from_state(state, pricing_rates):

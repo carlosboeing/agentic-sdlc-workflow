@@ -157,28 +157,35 @@ pm_list_items() {
   done
 }
 
-# pm_update_item <id> [--title <t>] [--body <b>]
+# pm_update_item <id> [--title <t>] [--body <b>] [--updated-by <agent>]
 pm_update_item() {
   local item_id="$1"; shift
   local item_path; item_path=$(_local_item_path "$item_id")
   [ ! -f "$item_path" ] && { echo "ERROR: pm_update_item: item $item_id not found" >&2; return 1; }
-  local new_title="" new_body=""
+  local new_title="" new_body="" updated_by=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --title) new_title="$2"; shift 2 ;; --body) new_body="$2"; shift 2 ;;
+      --updated-by) updated_by="$2"; shift 2 ;;
       *) echo "ERROR: pm_update_item: unknown option '$1'" >&2; return 1 ;;
     esac
   done
   if [ -n "$new_title" ]; then _local_fm_write "$item_path" title "\"$new_title\""; fi
   if [ -n "$new_body" ]; then _local_write_body "$item_path" "$new_body"; fi
+  _local_fm_write "$item_path" updated "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  [ -n "$updated_by" ] && _local_fm_write "$item_path" updated_by "$updated_by"
 }
 
-# pm_append_body <item-id> <content>
+# pm_append_body <item-id> <content> [--updated-by <agent>]
 # Appends content to the body section of an item file.
 # If an Activity Log separator exists (─────────), inserts before it.
 # Otherwise appends to end of file.
 pm_append_body() {
-  local item_id="$1" content="$2"
+  local item_id="$1" content="$2"; shift 2
+  local updated_by=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in --updated-by) updated_by="$2"; shift 2 ;; *) shift ;; esac
+  done
   local item_path; item_path=$(_local_item_path "$item_id")
   [ ! -f "$item_path" ] && { echo "ERROR: pm_append_body: item $item_id not found" >&2; return 1; }
 
@@ -196,6 +203,8 @@ pm_append_body() {
     # No Activity Log — append to end of file
     printf '\n%s\n' "$content" >> "$item_path"
   fi
+  _local_fm_write "$item_path" updated "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  [ -n "$updated_by" ] && _local_fm_write "$item_path" updated_by "$updated_by"
 }
 
 # pm_close_item <id> — sets state to closed, calls pm_set_status done.

@@ -94,6 +94,10 @@ Execute these phases in order. Each phase has a verification step before proceed
 
 **Skip if:** design doc exists referencing this backlog item, OR prompt says "skip design".
 
+**Default to running design for complex work.** A detailed backlog issue is NOT a substitute for a design doc. Skip design only when the work is straightforward (simple config changes, mechanical refactors, well-understood patterns) AND the user explicitly says to skip. When in doubt, run the design phase — the designer's research and feasibility verification catches platform constraints and invalid assumptions that the backlog issue cannot.
+
+**Evidence:** Backlog #243 skipped design because the issue was detailed. The planner deviated from the agreed approach. A design doc was then written but validated an infeasible approach (subagent nesting) because the orchestrator over-constrained the designer. Two wasted dispatch cycles.
+
 **Before Phase 1** (or first non-skipped phase), set backlog board status to **In Progress** (`item-set-status.sh`).
 
 **Autonomous:**
@@ -104,6 +108,8 @@ Execute these phases in order. Each phase has a verification step before proceed
             Read the backlog issue on GitHub for full context.
             Integration branch: backlog/<N>-<slug>"
    ```
+   **Do NOT over-constrain the designer.** Provide context and requirements, but do NOT dictate the approach. Even if the user discussed a preferred approach, the designer must independently validate it. Replace "the approach has been decided, document it" with "this approach was discussed, validate feasibility and explore alternatives." The designer's value is the research and reasoning process — not transcription.
+
 2. Auto-merge the design doc PR into integration branch.
 3. Close the design issue (`item-close.sh`).
 

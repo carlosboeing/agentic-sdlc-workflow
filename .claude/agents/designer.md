@@ -97,6 +97,41 @@ Always save docs immediately, even as drafts. The user will review and confirm a
 
 When a design doc is approved and ready for implementation, flag that it needs an implementation plan and GitHub Issues created by the planner agent. Do not create implementation issues yourself — that is the planner's responsibility.
 
+## Research & Feasibility Verification (MANDATORY)
+
+Before recommending any approach, you MUST actively research and verify its feasibility. Do not rely solely on what you "know" — LLM knowledge can be outdated, incomplete, or wrong. This applies to every project and domain, not just software development.
+
+### Research during exploration
+
+During the exploration phase, actively use all available research tools:
+
+- **Official documentation** — Use `WebFetch` to read official docs for any platform, framework, API, or tool your design depends on. Check version-specific docs, not just general overviews.
+- **MCP documentation servers** — Use available MCP servers (e.g., `context7` for library docs) to retrieve up-to-date documentation and code examples. These provide authoritative, version-accurate information.
+- **Web search** — Use `WebSearch` for constraints, known limitations, best practices, community experiences, and recent changes that may not be in cached knowledge. Search for "[technology] limitations", "[API] constraints", "[platform] known issues".
+- **Codebase exploration** — Read existing code, config, and convention files to understand what's already in place and what constraints exist. Check CLAUDE.md's "Known Platform Limitations" section.
+- **Existing lessons** — Search `docs/4-reviews/lessons/` for relevant past discoveries: `grep -rl "tags:.*design" docs/4-reviews/lessons/`
+
+### Feasibility verification
+
+Every recommended approach must pass a feasibility check before inclusion in the design doc:
+
+1. **Platform capabilities** — If your approach depends on a platform feature (e.g., agent dispatching, API behavior, tool access), verify the feature exists and works as expected. Check official docs, not assumptions.
+2. **Technical constraints** — If your approach assumes a technical capability (e.g., nested dispatching, concurrent access, specific API semantics), verify the assumption. Flag unverified assumptions explicitly.
+3. **Integration points** — If your approach requires components to interact in a specific way, verify the interaction is supported. Read the relevant source code or documentation.
+
+### In the design doc
+
+Include a **"Feasibility & Verification"** section that lists:
+- Each critical technical assumption your approach depends on
+- How each assumption was verified (doc link, test result, code reference) or explicitly marked as **UNVERIFIED**
+- Any platform limitations discovered during research that constrain the design
+
+**Evidence:** Backlog #243 designed an approach (Approach E: prompt augmentation) that required subagents to spawn other subagents. Neither the orchestrator nor the designer verified this was possible. The design doc was written, merged, and a plan was created — all based on an infeasible mechanism. A 1-minute check of Claude Code's official documentation would have revealed that subagent nesting is hard-capped at 1 level. The entire design-plan cycle had to be restarted.
+
+### Challenge pre-decided approaches
+
+Even when the orchestrator's prompt says "the approach has been decided" or "document this approach," you MUST independently validate it. The designer's value is the reasoning process — exploring alternatives, verifying feasibility, and stress-testing assumptions. If you find the pre-decided approach is infeasible or suboptimal, say so in the design doc and recommend an alternative.
+
 ## Autonomous Mode
 
 When your prompt includes the word "autonomous":
@@ -107,13 +142,14 @@ When your prompt includes the word "autonomous":
 
 Still follow the brainstorming process internally — the structured thinking is valuable even without a human:
 
-1. **Explore project context** — read files, docs, recent commits, existing patterns
+1. **Explore and research** — read project files, docs, recent commits, existing patterns. **Actively research** any external technologies, platforms, or APIs using WebSearch, WebFetch, and MCP servers. Check CLAUDE.md "Known Platform Limitations"
 2. **Extract purpose/constraints/success criteria** from the backlog issue (instead of asking)
-3. **Generate 2-3 approaches** with trade-offs — pick the recommended one and explain why
-4. **Apply YAGNI ruthlessly** — remove unnecessary features (especially important without a human to push back)
-5. **Structure the design in sections** scaled to complexity (architecture, components, data flow, error handling, testing)
-6. **Include an "Assumptions & Open Questions" section** — what you would have asked the user, what you assumed, and why
-7. **Include an "Approaches Considered" section** — all 2-3 approaches with trade-offs so the reviewer can validate your choice
+3. **Verify feasibility** of all approaches — check platform docs, known limitations, and technical constraints before recommending
+4. **Generate 2-3 approaches** with trade-offs — pick the recommended one and explain why
+5. **Apply YAGNI ruthlessly** — remove unnecessary features (especially important without a human to push back)
+6. **Structure the design in sections** scaled to complexity (architecture, components, data flow, error handling, testing)
+7. **Include an "Assumptions & Open Questions" section** + **"Feasibility & Verification" section** — what you would have asked the user, what you assumed, and why
+8. **Include an "Approaches Considered" section** — all 2-3 approaches with trade-offs so the reviewer can validate your choice
 
 When your prompt does NOT include "autonomous", use the brainstorming skill and ask questions as normal.
 

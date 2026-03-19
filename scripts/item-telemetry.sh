@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# issue-telemetry.sh — Post telemetry metrics to a GitHub Issue and optionally a PR.
+# item-telemetry.sh — Post telemetry metrics to a work item and optionally a PR.
 # Renders from scripts/templates/telemetry.md — edit the template to change the output format.
 #
-# Usage: ./scripts/issue-telemetry.sh <issue-number> --model <model> --duration <ms> --commit <hash>
+# Usage: ./scripts/item-telemetry.sh <item-number> --model <model> --duration <ms> --commit <hash>
 #        [--tokens <total>] [--tool-uses <n>] [--rate <cents-per-M>] [--cost <dollars>]
 #        [--dispatches <json-file>] [--dispatches-from-state <state-file>]
 #        [--gantt-from-state <state-file>] [--gantt-mode <work|wall-clock>]

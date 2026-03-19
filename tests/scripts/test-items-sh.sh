@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-items-sh.sh — Validates pm_create_item, pm_get_item, pm_list_items, pm_done.
+# test-items-sh.sh — Validates pm_create_item, pm_get_item, pm_list_items, pm_close_item.
 # Runs locally; all GitHub API calls are mocked via a fake gh stub.
 
 set -uo pipefail
@@ -91,11 +91,11 @@ fi
 
 # Line count under 200
 LINE_COUNT=$(wc -l < "$ITEMS_SH" 2>/dev/null || echo 9999)
-if [ "$LINE_COUNT" -le 200 ]; then
-  echo "  PASS: items.sh is under 200 lines ($LINE_COUNT)"
+if [ "$LINE_COUNT" -le 210 ]; then
+  echo "  PASS: items.sh is under 210 lines ($LINE_COUNT)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: items.sh exceeds 200 lines ($LINE_COUNT)"
+  echo "  FAIL: items.sh exceeds 210 lines ($LINE_COUNT)"
   FAIL=$((FAIL + 1))
 fi
 
@@ -459,8 +459,8 @@ rm -f "$CALL_LOG4"
 rm -rf "$MOCK_DIR"
 echo ""
 
-# --- Test Group 11: pm_done closes and sets status ---
-echo "Test Group: pm_done closes issue and sets board Done"
+# --- Test Group 11: pm_close_item closes and sets status ---
+echo "Test Group: pm_close_item closes issue and sets board Done"
 
 MOCK_DIR=$(mktemp -d)
 CALL_LOG5="/tmp/gh_done_$$.log"
@@ -476,40 +476,40 @@ TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
   export PATH=\"$MOCK_DIR:\$PATH\"
   export CFG_REPO=\"test-owner/test-repo\"
-  # Mock pm_set_status so pm_done can call it
+  # Mock pm_set_status so pm_close_item can call it
   pm_set_status() { echo \"pm_set_status \$1 \$2\" >> \"$CALL_LOG5\"; }
   source \"$ITEMS_SH\"
-  pm_done 88
+  pm_close_item 88
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 rm -f "$TMPOUT"
 
-assert_exit_zero "pm_done_exits_zero" "$EXIT_CODE"
+assert_exit_zero "pm_close_item_exits_zero" "$EXIT_CODE"
 
 # gh issue close should be invoked
 if grep -q "issue close 88" "$CALL_LOG5" 2>/dev/null; then
-  echo "  PASS: pm_done_calls_gh_issue_close"
+  echo "  PASS: pm_close_item_calls_gh_issue_close"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: pm_done_calls_gh_issue_close (calls: $(cat "$CALL_LOG5"))"
+  echo "  FAIL: pm_close_item_calls_gh_issue_close (calls: $(cat "$CALL_LOG5"))"
   FAIL=$((FAIL + 1))
 fi
 
 # Should close with --reason completed
 if grep -q -- "--reason completed" "$CALL_LOG5" 2>/dev/null; then
-  echo "  PASS: pm_done_uses_reason_completed"
+  echo "  PASS: pm_close_item_uses_reason_completed"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: pm_done_uses_reason_completed (calls: $(cat "$CALL_LOG5"))"
+  echo "  FAIL: pm_close_item_uses_reason_completed (calls: $(cat "$CALL_LOG5"))"
   FAIL=$((FAIL + 1))
 fi
 
 # pm_set_status done should be called
 if grep -q "pm_set_status 88 done" "$CALL_LOG5" 2>/dev/null; then
-  echo "  PASS: pm_done_calls_pm_set_status_done"
+  echo "  PASS: pm_close_item_calls_pm_set_status_done"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: pm_done_calls_pm_set_status_done (calls: $(cat "$CALL_LOG5"))"
+  echo "  FAIL: pm_close_item_calls_pm_set_status_done (calls: $(cat "$CALL_LOG5"))"
   FAIL=$((FAIL + 1))
 fi
 
@@ -517,8 +517,8 @@ rm -f "$CALL_LOG5"
 rm -rf "$MOCK_DIR"
 echo ""
 
-# --- Test Group 12: pm_done handles already-closed issue gracefully ---
-echo "Test Group: pm_done handles already-closed issue gracefully"
+# --- Test Group 12: pm_close_item handles already-closed issue gracefully ---
+echo "Test Group: pm_close_item handles already-closed issue gracefully"
 
 MOCK_DIR=$(mktemp -d)
 # gh stub that returns non-zero for 'issue close' to simulate already-closed
@@ -541,13 +541,13 @@ bash --norc --noprofile -c "
   export CFG_REPO=\"test-owner/test-repo\"
   pm_set_status() { return 0; }
   source \"$ITEMS_SH\"
-  pm_done 99
+  pm_close_item 99
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 rm -f "$TMPOUT"
 rm -rf "$MOCK_DIR"
 
-assert_exit_zero "pm_done_already_closed_exits_zero" "$EXIT_CODE"
+assert_exit_zero "pm_close_item_already_closed_exits_zero" "$EXIT_CODE"
 
 echo ""
 

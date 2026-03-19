@@ -108,7 +108,7 @@ Usage:
 
 | Data source | What it provides | How it is read |
 |-------------|-----------------|----------------|
-| GitHub issue comments (telemetry) | Dispatch metrics: model, duration, tokens, cost per story | `gh issue view <N> --json comments` -- parse "Telemetry" comments posted by `issue-telemetry.sh` |
+| GitHub issue comments (telemetry) | Dispatch metrics: model, duration, tokens, cost per story | `gh issue view <N> --json comments` -- parse "Telemetry" comments posted by `item-telemetry.sh` |
 | GitHub issue comments (work markers) | Story completion status | Parse "Work Started" and "Ready for Review" comments |
 | GitHub issue state + board status | Phase progress, story/epic status | `gh issue list --label backlog/<N>-<slug>` + board status queries |
 | Git branch state | Which stories are merged, epic branch heads | `git branch --merged`, `git log --oneline` |
@@ -148,7 +148,7 @@ Extract the JSON schema example (currently 55 lines of markdown) into `scripts/s
 | Phase 10: lifecycle_duration_ms snippet | 22 | **Replace with script call** | `./scripts/state.sh lifecycle-duration` |
 | Phase 10: "When using manual --gantt (legacy)" | 3 | **Delete** | Legacy path removed. |
 | Cost Computation: jq commands + formula | 14 | **Delete** | `compute-dispatches.py` computes costs. The "never hardcode rates" rule (2 lines) stays. |
-| Epic-Level Telemetry: parameter list | 11 | **Condense to 3 lines** | "Post epic telemetry using `issue-telemetry.sh` with `--dispatches-from-state`. See the script's `--help` for all flags." |
+| Epic-Level Telemetry: parameter list | 11 | **Condense to 3 lines** | "Post epic telemetry using `item-telemetry.sh` with `--dispatches-from-state`. See the script's `--help` for all flags." |
 | State Schema: 55-line JSON example | 55 | **Replace with schema file reference** | `scripts/schemas/orchestrator-state.v1.json` |
 | State Schema: field table (19 rows) | 20 | **Condense to 5 lines** | Key fields (`started_at`, `base_sha`, `dispatches[]`) called out inline where they are used in the phase logic. |
 | State Lifecycle: Initialize (42-line bash) | 42 | **Replace with script call** | `./scripts/state.sh init <N> --mode autonomous --model opus` |
@@ -209,7 +209,7 @@ After this change:
 
 Post the full lifecycle telemetry summary using `--dispatches-from-state`:
 
-    ./scripts/issue-telemetry.sh <backlog-number> \
+    ./scripts/item-telemetry.sh <backlog-number> \
       --dispatches-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
       --gantt-from-state .agentic-workflow/runs/<backlog>/orchestrator.json \
       --model opus \
@@ -234,9 +234,9 @@ Token overhead is not measurable -- use "---" for tokens and cost columns.
 ```mermaid
 graph TD
     O[orchestrator.md<br/>~530 lines<br/>Decision logic only] -->|calls| ST[scripts/state.sh<br/>State CRUD + reconstruct]
-    O -->|calls| IT[scripts/issue-telemetry.sh<br/>Telemetry posting]
+    O -->|calls| IT[scripts/item-telemetry.sh<br/>Telemetry posting]
     O -->|calls| CD[scripts/lib/compute-dispatches.py<br/>Cost + Gantt + overhead]
-    O -->|calls| IS[scripts/issue-set-status.sh<br/>Board management]
+    O -->|calls| IS[scripts/item-set-status.sh<br/>Board management]
     O -->|calls| FP[scripts/fetch-pricing.sh<br/>Pricing data]
 
     ST -->|reads/writes| SF[.agentic-workflow/runs/N/orchestrator.json]
@@ -268,7 +268,7 @@ graph TD
 
 ### PM Abstraction Layer (#109)
 
-`state.sh` manages the orchestrator's internal state -- not PM operations. PM operations (`issue-set-status.sh`, `issue-start.sh`, etc.) are separate and will become `pm_set_status()`, `pm_create_item()` when the adapter is built. No conflict.
+`state.sh` manages the orchestrator's internal state -- not PM operations. PM operations (`item-set-status.sh`, `item-start.sh`, etc.) are separate and will become `pm_set_status()`, `pm_create_item()` when the adapter is built. No conflict.
 
 The subcommand pattern (`state.sh init`, `state.sh update`, `state.sh get`) establishes conventions the PM adapter will follow (`pm.sh create_item`, `pm.sh set_status`). Building `state.sh` now is a dry run for the adapter pattern.
 

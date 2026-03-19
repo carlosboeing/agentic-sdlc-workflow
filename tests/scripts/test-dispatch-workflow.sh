@@ -151,11 +151,11 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-if grep -q "issue-telemetry.sh" "$SCRIPT_UNDER_TEST"; then
-  echo "  PASS: Posts telemetry via issue-telemetry.sh"
+if grep -q "item-telemetry.sh" "$SCRIPT_UNDER_TEST"; then
+  echo "  PASS: Posts telemetry via item-telemetry.sh"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: Does not reference issue-telemetry.sh"
+  echo "  FAIL: Does not reference item-telemetry.sh"
   FAIL=$((FAIL + 1))
 fi
 

@@ -18,7 +18,7 @@ The telemetry pipeline produces inaccurate Gantt charts and requires significant
 
 2. **Imprecise timestamps.** The orchestrator records `started_at` as rounded estimates rather than capturing exact timestamps at the moment of dispatch. This degrades the accuracy of wall-clock computation in `--dispatches-from-state` mode, which groups dispatches by `started_at` to detect parallelism.
 
-3. **Monolithic telemetry script.** `issue-telemetry.sh` is 662 lines (3.3x the 200-line guideline) with ~230 lines of Python embedded in bash heredocs. The Python logic for dispatch computation is not independently testable.
+3. **Monolithic telemetry script.** `item-telemetry.sh` is 662 lines (3.3x the 200-line guideline) with ~230 lines of Python embedded in bash heredocs. The Python logic for dispatch computation is not independently testable.
 
 Additionally, two metrics are missing from the telemetry pipeline:
 
@@ -30,7 +30,7 @@ Additionally, two metrics are missing from the telemetry pipeline:
 
 - Gantt chart task positions reflect actual wall-clock start times, not logical dependencies
 - Dispatches in the state file include precise `started_at` and `finished_at` timestamps (ISO 8601, second-precision)
-- Dispatch computation Python logic lives in `scripts/lib/compute-dispatches.py` and is callable both from `issue-telemetry.sh` and independently for testing
+- Dispatch computation Python logic lives in `scripts/lib/compute-dispatches.py` and is callable both from `item-telemetry.sh` and independently for testing
 - Fix cycle count, duration, and cost are computed from the state file and included in backlog-level telemetry as structured rows
 - Lifecycle duration is included in the changelog entry for each run
 
@@ -107,7 +107,7 @@ Each dispatch entry in `dispatches[]` gains two fields:
 
 ### Component 2: Gantt Generation from State Data (`--gantt-from-state`)
 
-**New flag on `issue-telemetry.sh`:** `--gantt-from-state <state-file>`
+**New flag on `item-telemetry.sh`:** `--gantt-from-state <state-file>`
 
 When this flag is provided instead of `--gantt`, the script generates the Gantt body automatically from the state file's `dispatches[]` array. The `--gantt` flag becomes optional when `--gantt-from-state` is present.
 
@@ -161,7 +161,7 @@ The `tickInterval` is auto-selected based on total duration: `2minute` for runs 
 
 ### Component 3: Extract Python into `scripts/lib/compute-dispatches.py`
 
-**Current state:** `issue-telemetry.sh` contains two Python heredoc blocks:
+**Current state:** `item-telemetry.sh` contains two Python heredoc blocks:
 
 1. `_run_dispatches_computation()` (lines 117-261): Reads a dispatches JSON file, computes per-row costs, aggregates by phase, produces breakdown and summary table rows.
 2. State file conversion block (lines 281-371): Reads the orchestrator state file, maps agents to phases, generates task labels, computes wall-clock from `started_at` grouping.
@@ -205,7 +205,7 @@ Options:
 }
 ```
 
-**`issue-telemetry.sh` changes:**
+**`item-telemetry.sh` changes:**
 
 The two Python heredoc blocks are replaced with calls to the external script:
 
@@ -229,7 +229,7 @@ When `--gantt-from-state` is used, the script also passes `--gantt` to the Pytho
 GANTT=$(echo "$_dispatches_result" | jq -r '.gantt // empty')
 ```
 
-**Line count impact:** The extraction removes ~230 lines of Python from `issue-telemetry.sh` (bringing it to ~430 lines) and creates a ~250-line Python file that is independently testable.
+**Line count impact:** The extraction removes ~230 lines of Python from `item-telemetry.sh` (bringing it to ~430 lines) and creates a ~250-line Python file that is independently testable.
 
 **Testing:** The Python script can be tested independently:
 
@@ -251,7 +251,7 @@ echo '[{"agent":"Builder (sonnet)","model":"sonnet","task":"E01-S01","duration_m
 
 **Output location in telemetry:**
 
-The `fix_cycles` object in the `compute-dispatches.py` output is used by `issue-telemetry.sh` to:
+The `fix_cycles` object in the `compute-dispatches.py` output is used by `item-telemetry.sh` to:
 
 1. Add a row to the **Summary** table:
    ```
@@ -306,7 +306,7 @@ This table belongs in the retro recommendations tracker or a future dashboard, n
 graph LR
     O[Orchestrator] -->|"precise timestamps"| S[State File]
     S -->|"--from-state"| P["compute-dispatches.py"]
-    P -->|"JSON: breakdown, summary,<br>gantt, fix_cycles"| T["issue-telemetry.sh"]
+    P -->|"JSON: breakdown, summary,<br>gantt, fix_cycles"| T["item-telemetry.sh"]
     T -->|"rendered Mermaid"| GH[GitHub Issue/PR]
 
     C[Config/Pricing] -->|"rates"| P
@@ -324,7 +324,7 @@ graph LR
 | File | Change |
 |------|--------|
 | `scripts/lib/compute-dispatches.py` | **New.** Extracted Python logic for dispatch computation, Gantt generation, and fix cycle metrics. |
-| `scripts/issue-telemetry.sh` | **Modified.** Replace Python heredocs with calls to `compute-dispatches.py`. Add `--gantt-from-state` flag handling. Reduce from ~662 to ~430 lines. |
+| `scripts/item-telemetry.sh` | **Modified.** Replace Python heredocs with calls to `compute-dispatches.py`. Add `--gantt-from-state` flag handling. Reduce from ~662 to ~430 lines. |
 | `scripts/templates/telemetry.md` | **Modified.** Add `FIX_CYCLES` conditional block for fix cycle footer line. |
 | `.claude/agents/orchestrator.md` | **Modified.** Update timestamp recording convention, update telemetry posting to use `--gantt-from-state`, add changelog duration convention. |
 | `CLAUDE.md` | **Modified.** Update helper scripts table with new flags, update telemetry conventions. |

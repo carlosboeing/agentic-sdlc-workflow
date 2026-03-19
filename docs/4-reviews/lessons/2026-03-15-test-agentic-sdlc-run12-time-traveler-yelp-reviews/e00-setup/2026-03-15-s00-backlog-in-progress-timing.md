@@ -19,5 +19,5 @@ The orchestrator agent file (`orchestrator.md`) instructs setting the backlog to
 ## Prevention
 
 - The orchestrator should set the backlog issue to **In Progress** at the beginning of Phase 1 (Design), not Phase 5 (Build). Design and plan phases are part of the backlog item's lifecycle and represent active work.
-- Update `orchestrator.md` Phase 0 or Phase 1 to include: `./scripts/issue-set-status.sh <backlog-issue> in-progress`
+- Update `orchestrator.md` Phase 0 or Phase 1 to include: `./scripts/item-set-status.sh <backlog-issue> in-progress`
 - The convention in CLAUDE.md should clarify that "In Progress" for a backlog item starts when any phase of work begins (design, plan, or build), not just when builders are dispatched.

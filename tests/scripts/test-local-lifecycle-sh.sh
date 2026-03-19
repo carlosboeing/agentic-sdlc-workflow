@@ -3,6 +3,9 @@
 #
 # Tests follow the Arrange/Act/Assert pattern. All operations run against
 # temporary directories — no GitHub API calls, no mocking needed.
+#
+# Comments are now inlined into item files (Activity Log section), not
+# stored as separate files in .workflow/comments/.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -106,30 +109,22 @@ read_fm_field() {
   grep "^${field}:" "$file" | head -1 | sed "s/^${field}: *//"
 }
 
-# --- Test Group 1: pm_start_work creates comment with "Work Started" heading ---
-echo "Test Group: pm_start_work creates Work Started comment"
+# --- Test Group 1: pm_start_work appends Work Started comment to item file ---
+echo "Test Group: pm_start_work appends Work Started comment to item file"
 
 TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'My Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_start_work 1 --model sonnet --agent builder" > /dev/null
 
-COMMENT_DIR="$TMPDIR/.workflow/comments/1"
-if [ -d "$COMMENT_DIR" ]; then
-  echo "  PASS: pm_start_work_creates_comment_dir"
-  PASS=$((PASS + 1))
-else
-  echo "  FAIL: pm_start_work_creates_comment_dir (not found: $COMMENT_DIR)"
-  FAIL=$((FAIL + 1))
-fi
-
-COMMENT_FILE=$(ls "$COMMENT_DIR/" 2>/dev/null | head -1)
-assert_eq "pm_start_work_comment_filename" "001-work-started.md" "$COMMENT_FILE"
-
-if [ -f "$COMMENT_DIR/$COMMENT_FILE" ]; then
-  CONTENT=$(cat "$COMMENT_DIR/$COMMENT_FILE")
-  assert_contains "pm_start_work_comment_has_heading" "### " "$CONTENT"
+ITEM_FILE="$TMPDIR/.workflow/items/1.md"
+if [ -f "$ITEM_FILE" ]; then
+  CONTENT=$(cat "$ITEM_FILE")
+  assert_contains "pm_start_work_has_activity_log" "## Activity Log" "$CONTENT"
   assert_contains "pm_start_work_comment_has_work_started_text" "Work Started" "$CONTENT"
-  assert_contains "pm_start_work_comment_has_rocket_emoji" "### 🚀 Work Started" "$CONTENT"
+  assert_contains "pm_start_work_comment_has_rocket_emoji" "Work Started" "$CONTENT"
+else
+  echo "  FAIL: pm_start_work item file not found"
+  FAIL=$((FAIL + 1))
 fi
 
 rm -rf "$TMPDIR"
@@ -162,9 +157,7 @@ TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Fields Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_start_work 1 --model opus --agent reviewer" > /dev/null
 
-COMMENT_FILE=$(ls "$TMPDIR/.workflow/comments/1/" | head -1)
-CONTENT=$(cat "$TMPDIR/.workflow/comments/1/$COMMENT_FILE")
-
+CONTENT=$(cat "$TMPDIR/.workflow/items/1.md")
 assert_contains "pm_start_work_comment_has_agent_field" "**Agent**" "$CONTENT"
 assert_contains "pm_start_work_comment_has_model_field" "**Model**" "$CONTENT"
 assert_contains "pm_start_work_comment_has_started_field" "**Started**" "$CONTENT"
@@ -181,9 +174,7 @@ TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Default Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_start_work 1" > /dev/null
 
-COMMENT_FILE=$(ls "$TMPDIR/.workflow/comments/1/" | head -1)
-CONTENT=$(cat "$TMPDIR/.workflow/comments/1/$COMMENT_FILE")
-
+CONTENT=$(cat "$TMPDIR/.workflow/items/1.md")
 assert_contains "pm_start_work_default_agent_unknown" "unknown" "$CONTENT"
 
 rm -rf "$TMPDIR"
@@ -196,10 +187,7 @@ TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Format Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_start_work 1 --model haiku --agent designer" > /dev/null
 
-COMMENT_FILE=$(ls "$TMPDIR/.workflow/comments/1/" | head -1)
-CONTENT=$(cat "$TMPDIR/.workflow/comments/1/$COMMENT_FILE")
-
-# Must have Markdown table with correct headers
+CONTENT=$(cat "$TMPDIR/.workflow/items/1.md")
 assert_contains "pm_start_work_table_header_field" "| Field | Value |" "$CONTENT"
 assert_contains "pm_start_work_table_separator" "|-------|-------|" "$CONTENT"
 
@@ -213,45 +201,29 @@ TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Timestamp Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_start_work 1 --model sonnet --agent builder" > /dev/null
 
-COMMENT_FILE=$(ls "$TMPDIR/.workflow/comments/1/" | head -1)
-CONTENT=$(cat "$TMPDIR/.workflow/comments/1/$COMMENT_FILE")
-
+CONTENT=$(cat "$TMPDIR/.workflow/items/1.md")
 if echo "$CONTENT" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'; then
   echo "  PASS: pm_start_work_comment_has_iso_timestamp"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: pm_start_work_comment_has_iso_timestamp (content: $CONTENT)"
+  echo "  FAIL: pm_start_work_comment_has_iso_timestamp"
   FAIL=$((FAIL + 1))
 fi
 
 rm -rf "$TMPDIR"
 echo ""
 
-# --- Test Group 7: pm_complete_work creates comment with "Ready for Review" heading ---
-echo "Test Group: pm_complete_work creates Ready for Review comment"
+# --- Test Group 7: pm_complete_work appends Ready for Review comment ---
+echo "Test Group: pm_complete_work appends Ready for Review comment to item file"
 
 TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Review Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_complete_work 1 abc123def456" > /dev/null
 
-COMMENT_DIR="$TMPDIR/.workflow/comments/1"
-if [ -d "$COMMENT_DIR" ]; then
-  echo "  PASS: pm_complete_work_creates_comment_dir"
-  PASS=$((PASS + 1))
-else
-  echo "  FAIL: pm_complete_work_creates_comment_dir (not found: $COMMENT_DIR)"
-  FAIL=$((FAIL + 1))
-fi
-
-COMMENT_FILE=$(ls "$COMMENT_DIR/" 2>/dev/null | head -1)
-assert_eq "pm_complete_work_comment_filename" "001-ready-for-review.md" "$COMMENT_FILE"
-
-if [ -f "$COMMENT_DIR/$COMMENT_FILE" ]; then
-  CONTENT=$(cat "$COMMENT_DIR/$COMMENT_FILE")
-  assert_contains "pm_complete_work_comment_has_heading" "### " "$CONTENT"
-  assert_contains "pm_complete_work_comment_has_ready_for_review_text" "Ready for Review" "$CONTENT"
-  assert_contains "pm_complete_work_comment_has_eyes_emoji" "### 👀 Ready for Review" "$CONTENT"
-fi
+ITEM_FILE="$TMPDIR/.workflow/items/1.md"
+CONTENT=$(cat "$ITEM_FILE")
+assert_contains "pm_complete_work_has_ready_for_review_text" "Ready for Review" "$CONTENT"
+assert_contains "pm_complete_work_has_activity_log" "## Activity Log" "$CONTENT"
 
 rm -rf "$TMPDIR"
 echo ""
@@ -280,9 +252,7 @@ TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Commit Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_complete_work 1 cafebabe1234" > /dev/null
 
-COMMENT_FILE=$(ls "$TMPDIR/.workflow/comments/1/" | head -1)
-CONTENT=$(cat "$TMPDIR/.workflow/comments/1/$COMMENT_FILE")
-
+CONTENT=$(cat "$TMPDIR/.workflow/items/1.md")
 assert_contains "pm_complete_work_comment_has_commit_field" "**Commit**" "$CONTENT"
 assert_contains "pm_complete_work_comment_has_completed_field" "**Completed**" "$CONTENT"
 assert_contains "pm_complete_work_comment_has_commit_hash" "cafebabe1234" "$CONTENT"
@@ -297,9 +267,7 @@ TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Format Review Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_complete_work 1 0a1b2c3d" > /dev/null
 
-COMMENT_FILE=$(ls "$TMPDIR/.workflow/comments/1/" | head -1)
-CONTENT=$(cat "$TMPDIR/.workflow/comments/1/$COMMENT_FILE")
-
+CONTENT=$(cat "$TMPDIR/.workflow/items/1.md")
 assert_contains "pm_complete_work_table_header_field" "| Field | Value |" "$CONTENT"
 assert_contains "pm_complete_work_table_separator" "|-------|-------|" "$CONTENT"
 
@@ -313,34 +281,34 @@ TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Timestamp Review Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_complete_work 1 1234abcd" > /dev/null
 
-COMMENT_FILE=$(ls "$TMPDIR/.workflow/comments/1/" | head -1)
-CONTENT=$(cat "$TMPDIR/.workflow/comments/1/$COMMENT_FILE")
-
+CONTENT=$(cat "$TMPDIR/.workflow/items/1.md")
 if echo "$CONTENT" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'; then
   echo "  PASS: pm_complete_work_comment_has_iso_timestamp"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: pm_complete_work_comment_has_iso_timestamp (content: $CONTENT)"
+  echo "  FAIL: pm_complete_work_comment_has_iso_timestamp"
   FAIL=$((FAIL + 1))
 fi
 
 rm -rf "$TMPDIR"
 echo ""
 
-# --- Test Group 12: sequential calls create multiple comments ---
-echo "Test Group: sequential start then complete creates two comment files"
+# --- Test Group 12: sequential calls create multiple comments in item file ---
+echo "Test Group: sequential start then complete creates two comments in item file"
 
 TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Lifecycle Story'" > /dev/null
 run_snippet "$TMPDIR" "pm_start_work 1 --model sonnet --agent builder" > /dev/null
 run_snippet "$TMPDIR" "pm_complete_work 1 abc123" > /dev/null
 
-COUNT=$(ls "$TMPDIR/.workflow/comments/1/" | wc -l | tr -d ' ')
-assert_eq "pm_lifecycle_two_comments_created" "2" "$COUNT"
+CONTENT=$(cat "$TMPDIR/.workflow/items/1.md")
 
-FILES=$(ls "$TMPDIR/.workflow/comments/1/" | sort)
-assert_contains "pm_lifecycle_first_comment_work_started" "001-work-started.md" "$FILES"
-assert_contains "pm_lifecycle_second_comment_ready_for_review" "002-ready-for-review.md" "$FILES"
+# Count <!-- comment: --> markers — should be exactly 2
+COMMENT_COUNT=$(grep -c '<!-- comment:' "$TMPDIR/.workflow/items/1.md" || true)
+assert_eq "pm_lifecycle_two_comments_inline" "2" "$COMMENT_COUNT"
+
+assert_contains "pm_lifecycle_work_started_inline" "Work Started" "$CONTENT"
+assert_contains "pm_lifecycle_ready_for_review_inline" "Ready for Review" "$CONTENT"
 
 rm -rf "$TMPDIR"
 echo ""
@@ -349,14 +317,9 @@ echo ""
 echo "Test Group: warning printed if board status update fails (non-fatal)"
 
 TMPDIR=$(mktemp -d)
-# Do NOT create an item — pm_set_status will fail, but the function should
-# still exit 0 (non-fatal) and print a warning to stderr.
 run_snippet "$TMPDIR" "_local_ensure_dirs"
 
 OUT=$(run_snippet "$TMPDIR" "pm_start_work 999 --model sonnet --agent builder" 2>&1)
-# pm_add_comment will also fail since item 999 doesn't exist but workflow dir exists.
-# The key: the function itself should not hard-exit (set -e may propagate).
-# We verify that the output contains a warning about board status.
 if echo "$OUT" | grep -qi "warning\|error"; then
   echo "  PASS: pm_start_work_warning_on_board_failure"
   PASS=$((PASS + 1))
@@ -399,8 +362,6 @@ echo ""
 echo "Test Group: pm_start_work composes on pm_add_comment and pm_set_status"
 
 TMPDIR=$(mktemp -d)
-# Verify that pm_start_work doesn't write files directly — only via pm_add_comment.
-# Intercept pm_add_comment and pm_set_status to verify they're called.
 RESULT=$(bash --norc --noprofile -c "
   _LOCAL_COMMON_LOADED=''
   _LOCAL_ITEMS_LOADED=''
@@ -414,7 +375,6 @@ RESULT=$(bash --norc --noprofile -c "
   source '$COMMENTS_SH'
   source '$LIFECYCLE_SH'
 
-  # Override after sourcing to track calls
   _PM_ADD_COMMENT_CALLED=0
   _PM_SET_STATUS_CALLED=0
   pm_add_comment() { _PM_ADD_COMMENT_CALLED=1; echo 'pm_add_comment_called'; }

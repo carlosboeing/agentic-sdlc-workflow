@@ -120,7 +120,7 @@ No convention changes were made to CLAUDE.md or agent files during this epic. Th
 
 ## Recommendations
 
-1. **Move backlog In Progress transition to Phase 1 (Design)** — The board should reflect that work has started when any phase begins, not just when builders are dispatched. Update `orchestrator.md` Phase 0 or Phase 1 to call `issue-set-status.sh <backlog-issue> in-progress`. Evidence: lesson `e00-setup/2026-03-15-s00-backlog-in-progress-timing.md`. _(Proposed as convention change.)_
+1. **Move backlog In Progress transition to Phase 1 (Design)** — The board should reflect that work has started when any phase begins, not just when builders are dispatched. Update `orchestrator.md` Phase 0 or Phase 1 to call `item-set-status.sh <backlog-issue> in-progress`. Evidence: lesson `e00-setup/2026-03-15-s00-backlog-in-progress-timing.md`. _(Proposed as convention change.)_
 
 2. **Add Run 12 to the Test Run History table** — Update the CLAUDE.md Test Run History table to include Run 12. _(Proposed as convention change.)_
 

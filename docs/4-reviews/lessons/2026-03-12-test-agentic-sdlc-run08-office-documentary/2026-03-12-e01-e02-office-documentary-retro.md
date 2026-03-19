@@ -110,7 +110,7 @@ After worktree-dispatched builders completed, an untracked file was left in the 
 
 ### 3. GitHub API Rate Limit During E02-S02 Board Status Update
 
-During the E02-S02 dispatch, a GitHub API rate limit hit during the board status update (`issue-set-status.sh`). The orchestrator retried after a 30-second delay and succeeded. The `issue-set-status.sh` script does handle retries, but the rate limit itself is a recurring risk when many board transitions happen in quick succession (14 dispatches generate significant API traffic).
+During the E02-S02 dispatch, a GitHub API rate limit hit during the board status update (`item-set-status.sh`). The orchestrator retried after a 30-second delay and succeeded. The `item-set-status.sh` script does handle retries, but the rate limit itself is a recurring risk when many board transitions happen in quick succession (14 dispatches generate significant API traffic).
 
 ### 4. Haiku Token Consumption Disproportionately High
 
@@ -147,7 +147,7 @@ No CLAUDE.md or agent file changes were made during this backlog item. The conve
 1. **Add worktree cleanup step to orchestrator post-dispatch** — After all worktree-dispatched builders complete, the orchestrator should check for and remove stale files in the main working tree. (Proposed as convention change.)
 2. **Document builder remote-push requirement for worktree mode** — Builder agent instructions should explicitly state that the story branch must be pushed to remote, regardless of whether the builder is running in the main tree or a worktree. (Proposed as convention change.)
 3. **Reconsider haiku for content-creation tasks** — Haiku's token consumption on markdown writing tasks (100K-210K) versus sonnet (28K-30K) suggests that the cost advantage of haiku ($0.21 vs $0.18 per story) is marginal or negative when fix cycles are factored in. This is an observation for future model routing decisions, not a convention change — the routing is already based on difficulty labels, and the planner controls the labels.
-4. **GitHub API rate limit resilience** — The `issue-set-status.sh` script already retries, which handled the rate limit gracefully. No convention change needed, but the orchestrator should log rate limit events for telemetry tracking.
+4. **GitHub API rate limit resilience** — The `item-set-status.sh` script already retries, which handled the rate limit gracefully. No convention change needed, but the orchestrator should log rate limit events for telemetry tracking.
 
 ## Lesson Retention
 

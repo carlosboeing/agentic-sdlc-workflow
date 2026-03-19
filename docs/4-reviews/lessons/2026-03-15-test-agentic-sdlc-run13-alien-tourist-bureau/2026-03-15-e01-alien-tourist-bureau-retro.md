@@ -93,7 +93,7 @@ Evidence: All six story issues (#74-#79) have exactly 4 comments each: Work Star
 
 ### 4. Orchestrator State File as Single Source of Truth
 
-The `orchestrator.json` state file at `.agentic-workflow/runs/69/orchestrator.json` captured all 14 dispatches with complete telemetry (duration, tokens, tool uses, model, result). The `--dispatches-from-state` flag on `issue-telemetry.sh` computed the epic-level breakdown automatically, eliminating the manual cost computation that caused the Run 12 cost underreporting bug.
+The `orchestrator.json` state file at `.agentic-workflow/runs/69/orchestrator.json` captured all 14 dispatches with complete telemetry (duration, tokens, tool uses, model, result). The `--dispatches-from-state` flag on `item-telemetry.sh` computed the epic-level breakdown automatically, eliminating the manual cost computation that caused the Run 12 cost underreporting bug.
 
 Evidence: Epic telemetry on issue #73 matches the per-story telemetry on individual story issues, confirming automated aggregation worked correctly.
 
@@ -132,7 +132,7 @@ This is expected — Run 13 was a validation run for infrastructure changes made
 
 ### For the Orchestrator
 
-1. The `--dispatches-from-state` telemetry flow works end-to-end: state file captures dispatch data, `issue-telemetry.sh` reads it and computes costs from cached pricing. No manual cost strings needed.
+1. The `--dispatches-from-state` telemetry flow works end-to-end: state file captures dispatch data, `item-telemetry.sh` reads it and computes costs from cached pricing. No manual cost strings needed.
 2. Worktree cleanup after parallel waves remains necessary despite `isolation: "worktree"` — budget ~30s per wave for the cleanup step.
 
 ### For the Workflow

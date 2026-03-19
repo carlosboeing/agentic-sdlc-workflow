@@ -211,7 +211,7 @@ These are the primary test objectives from the backlog issue. The orchestrator s
 
 - [ ] Config-driven model routing: easy and medium stories dispatch `builder-sonnet`, hard dispatches `builder-opus`
 - [ ] Config-driven pricing: Opus telemetry shows ~$30/M blended rate
-- [ ] Config-driven board status: `issue-set-status.sh` reads option IDs from config
+- [ ] Config-driven board status: `item-set-status.sh` reads option IDs from config
 - [ ] Plan detection: Phase 3 uses YAML frontmatter grep (`^backlog: 56$`)
 - [ ] Worktree isolation: Wave 1 parallel builders use `isolation: "worktree"`
 - [ ] No workspace collision: each story branch contains only its own file

@@ -119,7 +119,7 @@ All 6 improvements are logically independent but share overlapping files (primar
 
 ### E01-S03: Batched Board Updates (medium)
 
-**Difficulty: medium** -- New bash script (`batch-set-status.sh`) plus orchestrator documentation updates. The script reuses patterns from `issue-set-status.sh` but adds batch-specific logic (parallel fetch, shared verification).
+**Difficulty: medium** -- New bash script (`batch-set-status.sh`) plus orchestrator documentation updates. The script reuses patterns from `item-set-status.sh` but adds batch-specific logic (parallel fetch, shared verification).
 
 **Deliverables:**
 - Create `scripts/batch-set-status.sh`
@@ -140,7 +140,7 @@ All 6 improvements are logically independent but share overlapping files (primar
 - [ ] Script fetches current status for all issues before applying mutations (skip already-correct)
 - [ ] Script applies mutations sequentially (GitHub Projects API constraint)
 - [ ] Script runs a single verification pass for all issues after mutations with a shared 1s sleep
-- [ ] Script logs to `.agentic-workflow/logs/board-status.log` (same log as `issue-set-status.sh`)
+- [ ] Script logs to `.agentic-workflow/logs/board-status.log` (same log as `item-set-status.sh`)
 - [ ] Script exits 0 on success, 1 on failure
 - [ ] Script handles edge cases: no arguments, invalid status names, issue not on board
 - [ ] `orchestrator.md` Phase 5 shows `batch-set-status.sh` usage before dispatch (all in-progress) and after wave (all in-review)
@@ -307,7 +307,7 @@ graph TD
 |------|-----------|--------|------------|
 | Merge conflicts in `orchestrator.md` between waves | Medium | Low | Wave sequencing prevents concurrent edits. Builder gets latest from epic branch before starting. |
 | Reviewer variant files drift from `reviewer.md` | Low | Medium | S01 adds sync convention + propagation script to CLAUDE.md (matching builder variant pattern). |
-| `batch-set-status.sh` GraphQL rate limits on parallel fetch | Low | Low | Script fetches sequentially by default with parallel as optimization. Inherits `issue-set-status.sh` retry logic. |
+| `batch-set-status.sh` GraphQL rate limits on parallel fetch | Low | Low | Script fetches sequentially by default with parallel as optimization. Inherits `item-set-status.sh` retry logic. |
 | Overhead heuristic accuracy | Medium | Low | Time-based heuristic is a known approximation. Token overhead noted as unmeasurable. The heuristic captures the primary metric (time). |
 
 ## Notes

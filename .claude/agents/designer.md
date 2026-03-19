@@ -20,23 +20,25 @@ Your job ends when the design doc **PR is created**. You MUST NOT:
 
 **Git workflow:**
 
-1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
-2. Create a GitHub Issue for the design work (title: "[#<backlog>] Write design doc for X", labels: `type/docs` + `backlog/<N>-<slug>`)
+1. Find the **backlog issue** for this feature (e.g., `./scripts/item-list.sh --state open`)
+2. Create a GitHub Issue for the design work using `item-create.sh` (ensures both GitHub and local PM items are created):
+
+   ```bash
+   DESIGN_ISSUE=$(./scripts/item-create.sh docs \
+     --title "[#<backlog>] Write design doc for X" \
+     --label "type/docs" --label "backlog/<N>-<slug>")
+   ```
+
 3. Link the design doc issue as a **sub-issue** of the backlog issue:
 
    ```bash
-   # Get the node IDs
-   PARENT_ID=$(gh issue view <backlog-number> --json id -q .id)
-   CHILD_ID=$(gh issue view <design-issue-number> --json id -q .id)
-   # Add as sub-issue
-   gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
+   ./scripts/item-link-child.sh <backlog-number> $DESIGN_ISSUE
    ```
 
-4. **Add the design doc issue to the project board and set status to In Progress:**
+4. **Set the design doc issue status to In Progress** (item-create.sh already adds it to the project board):
 
    ```bash
-   gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
-   ./scripts/issue-set-status.sh <design-issue-number> in-progress
+   ./scripts/item-set-status.sh <design-issue-number> in-progress
    ```
 
 5. Create a `docs/<slug>` branch off the integration branch (`backlog/<N>-<slug>`). If the integration branch doesn't exist yet, create it from `main`: `git checkout main && git pull && git checkout -b backlog/<N>-<slug> && git push -u origin backlog/<N>-<slug>`, then branch from it.
@@ -70,7 +72,7 @@ Before designing, read these files for context:
 
 Check GitHub Issues to understand current project state:
 ```bash
-gh issue list --state all --limit 100
+./scripts/item-list.sh --state all --limit 100
 ```
 
 ## Architecture Awareness

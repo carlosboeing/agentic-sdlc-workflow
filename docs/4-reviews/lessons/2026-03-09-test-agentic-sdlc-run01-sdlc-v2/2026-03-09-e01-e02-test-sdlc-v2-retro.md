@@ -104,7 +104,7 @@ Evidence: Commit `d33c03d` (fix) and `c25c50f` (lesson files) were committed dur
 
 ### 4. Consistent Issue Lifecycle
 
-Every story progressed through the full lifecycle: Todo -> In Progress (via `issue-start.sh`) -> In Review (via `issue-review.sh`) with telemetry posted. The helper scripts (`issue-start.sh`, `issue-review.sh`, `issue-telemetry.sh`) continue to be reliable workflow anchors.
+Every story progressed through the full lifecycle: Todo -> In Progress (via `item-start.sh`) -> In Review (via `item-review.sh`) with telemetry posted. The helper scripts (`item-start.sh`, `item-review.sh`, `item-telemetry.sh`) continue to be reliable workflow anchors.
 
 ### 5. Creative Writing as Workflow Test
 
@@ -132,11 +132,11 @@ The SDLC v2 dispatch protocol requires reviewer dispatch on each story branch (s
 
 ### 3. Epic Telemetry Shows Inflated Cost Estimate
 
-The epic telemetry posted on issues #58 and #59 (and PR #70) shows `~$3.18` estimated cost, but the per-story breakdown in the same comment totals to `~$1.20`. The discrepancy appears to be caused by the `issue-telemetry.sh` script computing cost from the `--model opus` flag (the highest-tier model in the epic) applied to all 106K tokens, rather than using the per-story model assignments.
+The epic telemetry posted on issues #58 and #59 (and PR #70) shows `~$3.18` estimated cost, but the per-story breakdown in the same comment totals to `~$1.20`. The discrepancy appears to be caused by the `item-telemetry.sh` script computing cost from the `--model opus` flag (the highest-tier model in the epic) applied to all 106K tokens, rather than using the per-story model assignments.
 
 **Evidence:** 106K tokens at opus rates (~$30/MTok) = ~$3.18. But actual cost was 27K haiku + 54K sonnet + 25K opus = ~$1.20. The breakdown table is correct; the summary cost is wrong.
 
-**Root cause:** `issue-telemetry.sh` takes a single `--model` flag for cost calculation. For epic-level telemetry with mixed models, this produces an incorrect total because it applies the single model's rate to all tokens.
+**Root cause:** `item-telemetry.sh` takes a single `--model` flag for cost calculation. For epic-level telemetry with mixed models, this produces an incorrect total because it applies the single model's rate to all tokens.
 
 ### 4. Issues Not Closed After PR Opened
 
@@ -168,19 +168,19 @@ This was the only convention/infrastructure change during the epic. No changes w
 ### For the Orchestrator
 
 1. **CLI dispatch is out-of-session only.** The `dispatch-story.sh` script cannot be invoked from within a Claude Code session due to nested session detection. The orchestrator must use the Agent tool with `subagent_type` for in-session dispatch. This is already documented in CLAUDE.md but the test confirmed it empirically.
-2. **Epic-level cost estimates with mixed models are inaccurate.** The `issue-telemetry.sh` script applies a single model rate to all tokens. For mixed-model epics, the per-story breakdown is accurate but the summary cost is inflated (in this case, $3.18 reported vs $1.20 actual — a 2.65x overestimate).
+2. **Epic-level cost estimates with mixed models are inaccurate.** The `item-telemetry.sh` script applies a single model rate to all tokens. For mixed-model epics, the per-story breakdown is accurate but the summary cost is inflated (in this case, $3.18 reported vs $1.20 actual — a 2.65x overestimate).
 3. **Story issues need explicit `Closes` references.** The PR body only references the epic and backlog issues. The 9 story issues will remain open unless manually closed or added to the PR body.
 
 ### For the Workflow
 
 1. **The Agent tool is the correct primary dispatch path.** CLI dispatch is a useful fallback for out-of-session test scenarios (standalone terminal invocation) but cannot support in-session parallel dispatch. Future orchestrator tests should verify Agent tool dispatch.
 2. **Reviewer dispatch should be explicitly required or explicitly skipped.** The protocol has no mechanism for the orchestrator to document why a step was skipped. A skip needs to be a deliberate, recorded decision — not a silent omission.
-3. **Telemetry scripts need mixed-model cost support.** The `issue-telemetry.sh` script should either accept per-story cost overrides or compute cost from the breakdown table rather than applying a single model rate.
+3. **Telemetry scripts need mixed-model cost support.** The `item-telemetry.sh` script should either accept per-story cost overrides or compute cost from the breakdown table rather than applying a single model rate.
 4. **The test validated 6 of 8 checklist items.** Parallel dispatch and reviewer dispatch were not tested. A follow-up test with Agent tool dispatch is needed to validate those two items.
 
 ## Recommendations
 
-1. **Add `--cost` override to `issue-telemetry.sh`** — Allow manual cost override for mixed-model epics where the single-model calculation is inaccurate. Evidence: epic telemetry on #58/#59/#70 shows $3.18 vs actual $1.20. (proposed)
+1. **Add `--cost` override to `item-telemetry.sh`** — Allow manual cost override for mixed-model epics where the single-model calculation is inaccurate. Evidence: epic telemetry on #58/#59/#70 shows $3.18 vs actual $1.20. (proposed)
 2. **Add "reviewer skip" convention** — When reviewer dispatch is intentionally skipped (e.g., non-code stories), the orchestrator must post a comment on the story issue explaining why. This prevents silent protocol violations. Evidence: all 9 stories in this epic have no reviewer dispatch and no explanation. (proposed)
 3. **Clarify CLI dispatch scope in CLAUDE.md** — Add an explicit note under the CLI dispatch section: "CLI dispatch (`dispatch-story.sh`) cannot be invoked from within a Claude Code session due to nested session detection. Use this only from a standalone terminal." Evidence: lesson file `2026-03-09-s00-nested-claude-sessions.md`. (proposed)
 4. **Add story issues to epic PR `Closes` list** — Convention should require that the epic PR body includes `Closes #NN` for all story issues, not just epic issues. Otherwise stories remain open after merge. Evidence: issues #60-#68 will not auto-close when PR #70 merges. (proposed)

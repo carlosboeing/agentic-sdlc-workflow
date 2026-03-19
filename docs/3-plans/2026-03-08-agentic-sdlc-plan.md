@@ -147,10 +147,10 @@ git commit -m "chore: add setup-labels.sh for GitHub SDLC labels"
 
 ---
 
-### Task 4: Create `issue-start.sh`
+### Task 4: Create `item-start.sh`
 
 **Files:**
-- Create: `scripts/issue-start.sh`
+- Create: `scripts/item-start.sh`
 
 **Step 1: Write the script**
 
@@ -158,8 +158,8 @@ git commit -m "chore: add setup-labels.sh for GitHub SDLC labels"
 #!/usr/bin/env bash
 set -euo pipefail
 
-# issue-start.sh — Mark a GitHub Issue as in-progress and post telemetry start.
-# Usage: ./scripts/issue-start.sh <issue-number> [--model <model>] [--agent <agent>]
+# item-start.sh — Mark a GitHub Issue as in-progress and post telemetry start.
+# Usage: ./scripts/item-start.sh <issue-number> [--model <model>] [--agent <agent>]
 
 REPO="carlosboeing/agentic-sdlc-workflow"
 
@@ -202,22 +202,22 @@ echo "Issue #$ISSUE_NUMBER marked as started (agent=$AGENT, model=$MODEL)"
 **Step 2: Make executable**
 
 ```bash
-chmod +x scripts/issue-start.sh
+chmod +x scripts/item-start.sh
 ```
 
 **Step 3: Commit**
 
 ```bash
-git add scripts/issue-start.sh
-git commit -m "chore: add issue-start.sh for telemetry tracking"
+git add scripts/item-start.sh
+git commit -m "chore: add item-start.sh for telemetry tracking"
 ```
 
 ---
 
-### Task 5: Create `issue-review.sh`
+### Task 5: Create `item-review.sh`
 
 **Files:**
-- Create: `scripts/issue-review.sh`
+- Create: `scripts/item-review.sh`
 
 **Step 1: Write the script**
 
@@ -225,8 +225,8 @@ git commit -m "chore: add issue-start.sh for telemetry tracking"
 #!/usr/bin/env bash
 set -euo pipefail
 
-# issue-review.sh — Mark a story as ready for review.
-# Usage: ./scripts/issue-review.sh <issue-number> <commit-hash>
+# item-review.sh — Mark a story as ready for review.
+# Usage: ./scripts/item-review.sh <issue-number> <commit-hash>
 
 REPO="carlosboeing/agentic-sdlc-workflow"
 
@@ -256,22 +256,22 @@ echo "Issue #$ISSUE_NUMBER moved to review (commit=$COMMIT_HASH)"
 **Step 2: Make executable**
 
 ```bash
-chmod +x scripts/issue-review.sh
+chmod +x scripts/item-review.sh
 ```
 
 **Step 3: Commit**
 
 ```bash
-git add scripts/issue-review.sh
-git commit -m "chore: add issue-review.sh for story completion tracking"
+git add scripts/item-review.sh
+git commit -m "chore: add item-review.sh for story completion tracking"
 ```
 
 ---
 
-### Task 6: Create `issue-telemetry.sh`
+### Task 6: Create `item-telemetry.sh`
 
 **Files:**
-- Create: `scripts/issue-telemetry.sh`
+- Create: `scripts/item-telemetry.sh`
 
 **Step 1: Write the script**
 
@@ -279,8 +279,8 @@ git commit -m "chore: add issue-review.sh for story completion tracking"
 #!/usr/bin/env bash
 set -euo pipefail
 
-# issue-telemetry.sh — Post telemetry metrics as a GitHub Issue comment.
-# Usage: ./scripts/issue-telemetry.sh <issue-number> --model <model> --duration <ms> --commit <hash>
+# item-telemetry.sh — Post telemetry metrics as a GitHub Issue comment.
+# Usage: ./scripts/item-telemetry.sh <issue-number> --model <model> --duration <ms> --commit <hash>
 
 REPO="carlosboeing/agentic-sdlc-workflow"
 
@@ -329,14 +329,14 @@ echo "Telemetry posted for issue #$ISSUE_NUMBER (model=$MODEL, duration=$DURATIO
 **Step 2: Make executable**
 
 ```bash
-chmod +x scripts/issue-telemetry.sh
+chmod +x scripts/item-telemetry.sh
 ```
 
 **Step 3: Commit**
 
 ```bash
-git add scripts/issue-telemetry.sh
-git commit -m "chore: add issue-telemetry.sh for agent metrics tracking"
+git add scripts/item-telemetry.sh
+git commit -m "chore: add item-telemetry.sh for agent metrics tracking"
 ```
 
 ---
@@ -661,13 +661,13 @@ You are a senior C# developer. Write production-grade code for NeuralNorris — 
 **Always use the helper scripts:**
 ```bash
 # When starting a story
-./scripts/issue-start.sh <number> --model <model> --agent builder
+./scripts/item-start.sh <number> --model <model> --agent builder
 
 # When completing a story
-./scripts/issue-review.sh <number> <commit-hash>
+./scripts/item-review.sh <number> <commit-hash>
 ```
 
-The orchestrator tells you which model you're running on in the dispatch prompt. **You MUST pass that value** to `issue-start.sh` via `--model`. If not specified, use `--model unknown`.
+The orchestrator tells you which model you're running on in the dispatch prompt. **You MUST pass that value** to `item-start.sh` via `--model`. If not specified, use `--model unknown`.
 
 Note: Issues are NOT closed at story completion — they move to Review. The orchestrator closes them with `issue-merged.sh` after the epic PR merges.
 
@@ -716,7 +716,7 @@ git branch --show-current  # MUST match expected branch
 1. Ensure all tests pass: `dotnet test NeuralNorris.slnx`
 2. Ensure build succeeds: `dotnet build NeuralNorris.slnx`
 3. Merge your story branch into the epic branch
-4. Run `./scripts/issue-review.sh <number> <commit-hash>`
+4. Run `./scripts/item-review.sh <number> <commit-hash>`
 5. **Do NOT create a PR to `main` or merge to `main`** — the orchestrator handles epic-to-main PRs
 
 ## TDD Approach (REQUIRED)
@@ -953,9 +953,9 @@ main
 
 | Script | Usage |
 |--------|-------|
-| `scripts/issue-start.sh <n> --model <m> --agent <a>` | Mark story as started |
-| `scripts/issue-review.sh <n> <commit>` | Mark story as ready for review |
-| `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash>` | Post telemetry |
+| `scripts/item-start.sh <n> --model <m> --agent <a>` | Mark story as started |
+| `scripts/item-review.sh <n> <commit>` | Mark story as ready for review |
+| `scripts/item-telemetry.sh <n> --model <m> --duration <ms> --commit <hash>` | Post telemetry |
 | `scripts/issue-merged.sh <n>` | Close issue after merge |
 | `scripts/setup-labels.sh` | Create all labels (idempotent) |
 
@@ -964,9 +964,9 @@ main
 1. Read difficulty label from GitHub Issue
 2. Map to model: `difficulty/easy` → Haiku, `difficulty/medium` → Sonnet, `difficulty/hard` → Opus
 3. Dispatch builder agent with the model parameter
-4. Builder runs `issue-start.sh` → implements via TDD → runs `issue-review.sh`
+4. Builder runs `item-start.sh` → implements via TDD → runs `item-review.sh`
 5. Review the PR (reviewer agent + Sentinel)
-6. Post telemetry via `issue-telemetry.sh`
+6. Post telemetry via `item-telemetry.sh`
 
 ### Documentation Conventions
 

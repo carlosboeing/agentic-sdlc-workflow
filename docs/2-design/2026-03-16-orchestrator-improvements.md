@@ -173,7 +173,7 @@ Include. Accumulate board transitions during wave dispatch and apply them at wav
 
 ### Reasoning
 
-- Each `issue-set-status.sh` call does a GraphQL query + mutation + verification = 3 API calls with a 1s verification sleep. For a 3-story wave, setting In Progress + In Review = 6 calls * 3 API round trips = ~18 API calls and ~6s of sleep.
+- Each `item-set-status.sh` call does a GraphQL query + mutation + verification = 3 API calls with a 1s verification sleep. For a 3-story wave, setting In Progress + In Review = 6 calls * 3 API round trips = ~18 API calls and ~6s of sleep.
 - Batching reduces this to a single pass at wave boundaries.
 - Reduces rate limit pressure (the pipeline has hit 5000 points/hour limits in Runs 6, 8, and 10).
 - Board state is for human visibility, not workflow correctness -- momentary staleness is acceptable.
@@ -199,7 +199,7 @@ The orchestrator calls this at two points per wave:
 
 ### Alternative Considered
 
-**Modify `issue-set-status.sh` to accept multiple arguments.** Rejected because the current single-issue interface is used by builders (`issue-start.sh`, `issue-review.sh`) and should remain simple. A new batch script composes with the existing infrastructure without modifying it.
+**Modify `item-set-status.sh` to accept multiple arguments.** Rejected because the current single-issue interface is used by builders (`item-start.sh`, `item-review.sh`) and should remain simple. A new batch script composes with the existing infrastructure without modifying it.
 
 ### Changes Required
 
@@ -212,7 +212,7 @@ The orchestrator calls this at two points per wave:
 
 ### Scope Risk
 
-Low. The batch script is a thin wrapper around existing `issue-set-status.sh` logic with shared verification. The main risk is that parallel GraphQL queries for fetching current status may hit rate limits in pathological cases -- mitigate with sequential fallback.
+Low. The batch script is a thin wrapper around existing `item-set-status.sh` logic with shared verification. The main risk is that parallel GraphQL queries for fetching current status may hit rate limits in pathological cases -- mitigate with sequential fallback.
 
 ---
 
@@ -231,7 +231,7 @@ Low. The batch script is a thin wrapper around existing `issue-set-status.sh` lo
 
 ### Alternative Worth Considering
 
-A lighter optimization: group the `gh project item-add` and `issue-set-status.sh` calls at the end (after all issues are created) rather than running them per-issue. This saves ~1 min without changing the issue creation flow.
+A lighter optimization: group the `gh project item-add` and `item-set-status.sh` calls at the end (after all issues are created) rather than running them per-issue. This saves ~1 min without changing the issue creation flow.
 
 ---
 
@@ -472,13 +472,13 @@ Include only improvements 6, 7, 8 (documentation/convention changes). Defer all 
 
 3. **`/cost` is not programmatically accessible.** The design defaults to a time-based heuristic for overhead. If `/cost` becomes accessible (e.g., via a Claude Code API), the token-based measurement is strictly better and should replace the heuristic.
 
-4. **Board update batching does not cause functional issues.** The board is for human visibility only. If the orchestrator crashes mid-wave, board state may be stale (some stories shown as "Ready" when they are actually "In Progress"). This is acceptable because `issue-set-status.sh` has "already-at-status" skip logic that handles recovery.
+4. **Board update batching does not cause functional issues.** The board is for human visibility only. If the orchestrator crashes mid-wave, board state may be stale (some stories shown as "Ready" when they are actually "In Progress"). This is acceptable because `item-set-status.sh` has "already-at-status" skip logic that handles recovery.
 
 ### Open Questions
 
 1. **Should `reviewerRouting` default to Opus for all levels (matching current behavior), or should it default to the optimized routing (Sonnet for easy)?** The backlog issue implies the optimized routing is the desired end state. I recommend defaulting to the optimized routing (`easy: sonnet, medium: opus, hard: opus`) since this is the whole point of the improvement.
 
-2. **Should the batch-set-status script retry failed mutations?** The current `issue-set-status.sh` retries once on "item not found" (race condition after `item-add`). The batch script should inherit this behavior but not add additional retry complexity.
+2. **Should the batch-set-status script retry failed mutations?** The current `item-set-status.sh` retries once on "item not found" (race condition after `item-add`). The batch script should inherit this behavior but not add additional retry complexity.
 
 ---
 
@@ -559,7 +559,7 @@ For a typical 6-story run costing ~$5-7, the cost savings represent a ~7-14% red
 | Risk | Mitigation |
 |------|-----------|
 | Sonnet reviewer misses issues on easy stories | Monitor first run. Easy-story reviews have historically found zero critical issues with Opus. If Sonnet misses something, revert to Opus for all and investigate. |
-| Batch board updates leave stale state on crash | `issue-set-status.sh` skip-if-correct handles recovery. The orchestrator's mandatory post-run verification sweep fixes any drift. |
+| Batch board updates leave stale state on crash | `item-set-status.sh` skip-if-correct handles recovery. The orchestrator's mandatory post-run verification sweep fixes any drift. |
 | Early branch creation creates branches for stories that never run | `cleanup-post-merge.sh` already handles stale branch cleanup. Harmless. |
 | `/cost` is not accessible for overhead metrics | Time-based heuristic is the fallback. Overhead = wall-clock - sum(subagent durations). Token overhead is noted as unmeasurable. |
 | Reviewer variant files drift from reviewer.md | Add sync convention to CLAUDE.md (same as builder variant sync) and a propagation script. |

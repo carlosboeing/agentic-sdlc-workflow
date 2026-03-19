@@ -48,7 +48,7 @@ severity: medium
 
 ### Config pricing vs. fetch-pricing divergence
 
-The `agentic-sdlc-config.json` has Opus at $15/$75 per M tokens (input/output), while `fetch-pricing.sh` returns $5/$25 (older rates). With the configured 75/25 input/output split, the config computes to ~$30/M blended. Run 12 validates that `issue-telemetry.sh` uses config pricing for accurate cost estimates.
+The `agentic-sdlc-config.json` has Opus at $15/$75 per M tokens (input/output), while `fetch-pricing.sh` returns $5/$25 (older rates). With the configured 75/25 input/output split, the config computes to ~$30/M blended. Run 12 validates that `item-telemetry.sh` uses config pricing for accurate cost estimates.
 
 ### Board drift is a persistent platform bug
 

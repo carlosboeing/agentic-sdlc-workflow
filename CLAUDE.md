@@ -28,7 +28,7 @@ This workflow turns something inherently non-deterministic (AI/LLM output) into 
 
 **Where determinism must prevail:** The workflow infrastructure — dispatch sequencing, board management, telemetry computation, branch operations, state tracking, cost estimation — must be deterministic. These are the rails that make the AI's output reliable at scale. When an agent makes a mistake in infrastructure (wrong branch, incorrect cost, missed status update), the workflow's credibility degrades even if the content is perfect.
 
-**Evidence:** Run 14 posted wall-clock = sequential duration (102m 43s instead of 74m 4s) because the orchestrator relied on `$SECONDS` tracking instead of computing the critical path from the state file's dispatch log. The state file already contained all the data — `started_at` timestamps naturally encode parallelism. The fix was to compute deterministically from what was already recorded, not to "try harder" to track `$SECONDS`. See `issue-telemetry.sh` wall-clock auto-computation.
+**Evidence:** Run 14 posted wall-clock = sequential duration (102m 43s instead of 74m 4s) because the orchestrator relied on `$SECONDS` tracking instead of computing the critical path from the state file's dispatch log. The state file already contained all the data — `started_at` timestamps naturally encode parallelism. The fix was to compute deterministically from what was already recorded, not to "try harder" to track `$SECONDS`. See `item-telemetry.sh` wall-clock auto-computation.
 
 ## Design Philosophy: Fault Tolerance
 
@@ -98,7 +98,7 @@ Six specialized agents in `.claude/agents/`:
 
 ### For All Agents
 
-- Always check GitHub Issues first (`gh issue list`) to understand project state
+- Always check GitHub Issues first (`./scripts/item-list.sh`) to understand project state
 - Never start work without a corresponding GitHub Issue
 - Use conventional commits: `<type>(<scope>): <description>`
 - **Never use `#N` in commit messages** unless intentionally referencing a GitHub issue. GitHub auto-links any `#N` pattern to issue N, so reviewer warning numbers, list indices, or other numbered references must use a format without `#` (e.g., `warning 4`, `W4`, `item 4`). The `Fixes #N` / `Closes #N` footer is the correct place for issue references.
@@ -186,15 +186,13 @@ Backlog item (#5)
     └── ...
 ```
 
-Link sub-issues using `addSubIssue`:
+Link sub-issues using `item-link-child.sh`:
 
 ```bash
-PARENT_ID=$(gh issue view <parent-number> --json id -q .id)
-CHILD_ID=$(gh issue view <child-number> --json id -q .id)
-gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
+./scripts/item-link-child.sh <parent-number> <child-number>
 ```
 
-**Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `gh issue edit --body` to append below the existing body. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
+**Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `./scripts/item-append-body.sh <N> "<content>"` to append below the existing body. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
 
 **GitHub Project board:** All issues live on the [Agentic SDLC Workflow Project](https://github.com/users/carlosboeing/projects/7) (project number 7, owner `carlosboeing`).
 
@@ -206,7 +204,7 @@ Status field values and their meanings:
 | **Ready**       | Has acceptance criteria, ready for dispatch       | Planner (on story creation)                        |
 | **In Progress** | Currently being worked on                         | Orchestrator (at design phase start for backlog; before dispatch for stories) |
 | **In Review**   | Implementation complete, awaiting backlog PR merge | Orchestrator (sequentially, after builder completes) |
-| **Done**        | Completed and merged to `main`                    | On issue close (`issue-close.sh`)                  |
+| **Done**        | Completed and merged to `main`                    | On issue close (`item-close.sh`)                  |
 
 **Epic status sync:** An epic's status must always reflect the aggregate of its stories:
 
@@ -221,18 +219,18 @@ Status field values and their meanings:
 2. **Before dispatching a builder:** Set the story to **In Progress** (sequentially, before dispatch -- not delegated to builder scripts)
 3. **After builder completes:** Set the story to **In Review** (sequentially, after completion -- not delegated to builder scripts)
 4. **After parallel wave completes:** Verify board status for all stories in the wave and fix any that didn't transition correctly
-5. **After parallel wave completes (comment verification):** Query each story in the wave for expected issue comments ("Work Started" from `issue-start.sh`, "Ready for Review" from `issue-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively. Evidence: Run 4 (issue #114 missing both comments), Run 11 (issues #47 and #48 missing comments in 3-way parallel wave).
+5. **After parallel wave completes (comment verification):** Query each story in the wave for expected issue comments ("Work Started" from `item-start.sh`, "Ready for Review" from `item-review.sh`). Parallel builders may fail to post comments due to concurrent GitHub API contention. Post any missing comments retroactively. Evidence: Run 4 (issue #114 missing both comments), Run 11 (issues #47 and #48 missing comments in 3-way parallel wave).
 
-Builder scripts (`issue-start.sh`, `issue-review.sh`) also update the board as defense-in-depth (they call `issue-set-status.sh` internally), but the orchestrator is the source of truth. All board updates must be serialized -- the GitHub Projects API does not handle concurrent `item-edit` calls reliably.
+Builder scripts (`item-start.sh`, `item-review.sh`) also update the board as defense-in-depth (they call `item-set-status.sh` internally), but the orchestrator is the source of truth. All board updates must be serialized -- the GitHub Projects API does not handle concurrent `item-edit` calls reliably.
 
-Adding an issue to the project and setting its status (**NOTE:** `gh project item-add` does NOT assign a default status -- the item appears with `status: null` and is invisible in status-filtered views. Always follow up with an explicit status set):
+Adding an issue to the project and setting its status: use `item-create.sh` (which calls `pm_add_to_board` internally). For pre-existing issues not yet on the board (**NOTE:** `gh project item-add` does NOT assign a default status -- the item appears with `status: null` and is invisible in status-filtered views. Always follow up with an explicit status set):
 
 ```bash
-# Add issue to project (does NOT set status — item will have status: null)
+# Add a pre-existing issue to project (does NOT set status — item will have status: null)
 gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
 
 # REQUIRED: Set status explicitly after adding
-./scripts/issue-set-status.sh <issue-number> in-progress
+./scripts/item-set-status.sh <issue-number> in-progress
 
 # Or manually (use the option ID from the project field):
 # NOTE: gh project item-list output contains control characters that break jq -- always pipe through tr -d
@@ -254,7 +252,7 @@ Status option IDs:
 
 **DANGER: Never use `updateProjectV2Field` to add/modify status options.** That mutation replaces the entire option set, generating new IDs and wiping all existing item statuses. To add a new status option, use the GitHub web UI (Project → Settings → Status field) and then update the option IDs in this file.
 
-**GitHub GraphQL API rate limit awareness:** The GraphQL API has a 5000 points/hour budget. Heavy commands like `gh project item-list` (fetches all items with all fields) consume many points per call — the planner's issue creation + board setup can use 50-60 calls, and `issue-set-status.sh` calls `item-list` twice per invocation (lookup + verification). When possible, prefer lightweight per-issue queries to look up board item IDs:
+**GitHub GraphQL API rate limit awareness:** The GraphQL API has a 5000 points/hour budget. Heavy commands like `gh project item-list` (fetches all items with all fields) consume many points per call — the planner's issue creation + board setup can use 50-60 calls, and `item-set-status.sh` calls `item-list` twice per invocation (lookup + verification). When possible, prefer lightweight per-issue queries to look up board item IDs:
 
 ```graphql
 query {
@@ -274,15 +272,20 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 
 | Script | Usage |
 |--------|-------|
-| `scripts/issue-create-backlog.sh --title <t> --slug <s> [--body <text> \| --body-file <path>]` | Create backlog item: issue + board + status + label |
-| `scripts/issue-set-status.sh <n> <status>` | Set project board status (backlog/ready/in-progress/in-review/done) |
+| `scripts/item-get.sh <N> [--json <fields>]` | Read a work item (replaces `gh issue view`) |
+| `scripts/item-list.sh [--label <l>] [--state <s>] [--limit <n>]` | List work items (replaces `gh issue list`) |
+| `scripts/item-link-child.sh <parent> <child>` | Link a child sub-issue to a parent (replaces `gh api graphql ... addSubIssue`) |
+| `scripts/item-comment.sh <N> <body>` | Post a comment on a work item (replaces `gh issue comment`) |
+| `scripts/item-create.sh <level> --title <t> [--body <text>] [--body-file <path>] [--label <l>] ... [--slug <s>]` | Create work item (backlog/epic/story/docs). For backlog with --slug: full Phase 0 setup (board + status + label) |
+| `scripts/item-set-status.sh <n> <status>` | Set project board status (backlog/ready/in-progress/in-review/done) |
 | `scripts/batch-set-status.sh <n>:<status> [<n>:<status> ...]` | Set board status for multiple issues: fetch-all, mutate-sequentially, verify-once |
-| `scripts/issue-start.sh <n> --model <m> --agent <a>` | Post "Work Started" comment + set board to In Progress |
-| `scripts/issue-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
-| `scripts/issue-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--gantt-from-state <state-file>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |
-| `scripts/lib/compute-dispatches.py --from-state <state-file> [--gantt] [--pricing <file>] [--config <file>]` | Compute dispatch metrics (breakdown, summary, Gantt, fix cycles) from state or dispatch JSON |
+| `scripts/item-start.sh <n> --model <m> --agent <a>` | Post "Work Started" comment + set board to In Progress |
+| `scripts/item-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
+| `scripts/item-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--gantt-from-state <state-file>] [--gantt-mode <work\|wall-clock>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |
+| `scripts/lib/compute-dispatches.py --from-state <state-file> [--gantt] [--gantt-mode <work\|wall-clock>] [--pricing <file>] [--config <file>]` | Compute dispatch metrics (breakdown, summary, Gantt, fix cycles) from state or dispatch JSON. `--gantt-mode work` (default) collapses gaps; `wall-clock` uses absolute timestamps. |
 | `scripts/state.sh <subcommand> [args]` | Orchestrator state CRUD: init, update, get, overhead, lifecycle-duration, reconstruct |
-| `scripts/issue-close.sh <n>` | Close issue + set board to Done |
+| `scripts/item-close.sh <n>` | Close item + set board to Done |
+| `scripts/item-append-body.sh <n> <content>` | Append content to item body via PM dual-write |
 | `scripts/cleanup-post-merge.sh [<backlog-number>]` | Post-merge cleanup: stale branches, worktrees, state dirs, remote refs |
 | `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
 | `scripts/reconcile-board.sh --from-state <state-file> [--epic-issues <json>] [--dry-run]` | Reconcile board statuses with state file (1 API query to read, 1 per fix) |
@@ -310,7 +313,7 @@ Use the Agent tool with `subagent_type: "builder-<model>"`:
 
 1. Read difficulty label from GitHub Issue
 2. Dispatch with `subagent_type: "builder-sonnet"` (or haiku/opus)
-3. Builder runs `issue-start.sh` (posts comment + sets board to **In Progress**) → implements via TDD → runs `issue-review.sh` (posts comment + sets board to **In Review**)
+3. Builder runs `item-start.sh` (posts comment + sets board to **In Progress**) → implements via TDD → runs `item-review.sh` (posts comment + sets board to **In Review**)
 4. Post telemetry (orchestrator — see below)
 5. Update epic board status (see **Epic status sync** above)
 6. **Dispatch reviewer** on the story branch (mandatory, before merging): `subagent_type: "reviewer"`
@@ -346,7 +349,7 @@ All variants share identical body content with `builder.md` (only the `model` fr
 **Telemetry is mandatory:** The orchestrator MUST post telemetry after each builder completes, before moving to the next story. The Agent tool result includes `duration_ms`, `total_tokens`, and `tool_uses` — pass all of them. **Capture telemetry even from failed or usage-limited dispatches** — they still consume tokens and time, and zeroing them out underreports actual costs. **When resuming an interrupted agent**, capture metrics from each invocation (interrupted + resumed) and sum them — it is unknown whether the resumed result reports cumulative or delta-only metrics:
 
 ```bash
-./scripts/issue-telemetry.sh <issue-number> \
+./scripts/item-telemetry.sh <issue-number> \
   --model <haiku|sonnet|opus> \
   --duration <duration_ms> \
   --commit <commit hash> \
@@ -354,9 +357,9 @@ All variants share identical body content with `builder.md` (only the `model` fr
   --tool-uses <tool_uses>
 ```
 
-The script computes speed (tokens/s) and estimated cost automatically from the model and token count. The commit hash can be obtained from the builder's `issue-review.sh` comment or by checking the story branch head.
+The script computes speed (tokens/s) and estimated cost automatically from the model and token count. The commit hash can be obtained from the builder's `item-review.sh` comment or by checking the story branch head.
 
-Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Every completed story must have all three comments on its issue: "Work Started" (`issue-start.sh`, by builder), "Ready for Review" (`issue-review.sh`, by builder), and "Telemetry" (`issue-telemetry.sh`, by orchestrator).
+Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Every completed story must have all three comments on its issue: "Work Started" (`item-start.sh`, by builder), "Ready for Review" (`item-review.sh`, by builder), and "Telemetry" (`item-telemetry.sh`, by orchestrator).
 
 **Parallel dispatch:** When multiple stories share no dependencies (check the plan's dependency graph), dispatch their builder agents **in parallel** using concurrent Agent tool calls. Each parallel builder works on its own story branch. After all complete, review and merge sequentially. All dispatches already use `isolation: "worktree"` per the universal rule above. After parallel dispatch completes, verify each story branch contains only its expected files before merging.
 
@@ -435,16 +438,16 @@ The script reads the state file, computes expected statuses deterministically, b
 
 **Cost computation for manual breakdown strings (CRITICAL):** When the orchestrator writes `--breakdown`, `--summary`, or `--cost` strings, it must compute cost estimates using rates from `.agentic-workflow/pricing.json` (cached by `fetch-pricing.sh`) — never from memory or hardcoded values. The preferred method is `--dispatches-from-state` which computes everything automatically from the orchestrator state file, including wall-clock duration. See `.claude/agents/orchestrator.md` § "Cost Computation" for the rule.
 
-**Wall-clock auto-computation:** When `--dispatches-from-state` or `--gantt-from-state` is used, `issue-telemetry.sh` automatically computes wall-clock duration from the `started_at` timestamps in the dispatch log. Dispatches with the same `started_at` ran in parallel (take `max(duration_ms)`); different timestamps ran sequentially (sum). The orchestrator does NOT need to pass `--wall-clock` when using either flag — it is computed deterministically. If `--wall-clock` is passed but equals `--duration` (which is always wrong when parallel dispatches exist), the script overrides with the computed value and warns. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when actual critical path was 74m 4s.
+**Wall-clock auto-computation:** When `--dispatches-from-state` or `--gantt-from-state` is used, `item-telemetry.sh` automatically computes wall-clock duration from the `started_at` timestamps in the dispatch log. Dispatches with the same `started_at` ran in parallel (take `max(duration_ms)`); different timestamps ran sequentially (sum). The orchestrator does NOT need to pass `--wall-clock` when using either flag — it is computed deterministically. If `--wall-clock` is passed but equals `--duration` (which is always wrong when parallel dispatches exist), the script overrides with the computed value and warns. Evidence: Run 14 posted wall-clock = sequential (102m 43s) when actual critical path was 74m 4s.
 
-**Per-epic telemetry:** When all stories in an epic are complete, the orchestrator MUST post telemetry on **the epic issue** (via `issue-telemetry.sh`). Pass `--duration` (sequential sum of story durations in that epic) and `--wall-clock` (actual elapsed time for that epic's waves). Include a `--breakdown` with only that epic's stories. Use the integration branch head for `--commit`.
+**Per-epic telemetry:** When all stories in an epic are complete, the orchestrator MUST post telemetry on **the epic issue** (via `item-telemetry.sh`). Pass `--duration` (sequential sum of story durations in that epic) and `--wall-clock` (actual elapsed time for that epic's waves). Include a `--breakdown` with only that epic's stories. Use the integration branch head for `--commit`.
 
 **Mixed-model epics:** When stories use different models, pass `--model 'mixed (model1, model2)'` and `--cost <dollars>` with the pre-computed aggregate cost (sum of per-story costs from the breakdown). For example: `--model 'mixed (haiku, sonnet)' --cost 0.67`. The `--cost` flag overrides the rate-based calculation, so the summary table shows the correct total instead of `—`.
 
-**Backlog-level telemetry:** After all stories are built, reviewed, and merged into the integration branch — and the retro is complete — the orchestrator MUST post a **full lifecycle telemetry summary** using `issue-telemetry.sh` with `--summary`:
+**Backlog-level telemetry:** After all stories are built, reviewed, and merged into the integration branch — and the retro is complete — the orchestrator MUST post a **full lifecycle telemetry summary** using `item-telemetry.sh` with `--summary`:
 
 ```bash
-./scripts/issue-telemetry.sh <backlog-number> \
+./scripts/item-telemetry.sh <backlog-number> \
   --model opus --duration <total_ms> \
   --commit <hash> --tokens <total_tokens> --cost <total_dollars> \
   --summary "<phase-summary-rows>" \
@@ -484,7 +487,7 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 **Orchestrator state persistence:** The orchestrator persists its full workflow state to `.agentic-workflow/runs/<backlog>/orchestrator.json` (gitignored). Schema defined in `scripts/schemas/orchestrator-state.v1.json`. Key fields:
 
 - **`session.orchestrator_model`** — the model the orchestrator is running, so inherited agents' models are known for accurate cost estimates.
-- **`pricing`** — token rates fetched live from Anthropic's pricing page at session start via `scripts/fetch-pricing.sh`. Cached in `.agentic-workflow/pricing.json`. Config `pricing` section is an optional override for custom/contract rates. Used by `issue-telemetry.sh` via the `--rate` flag.
+- **`pricing`** — token rates fetched live from Anthropic's pricing page at session start via `scripts/fetch-pricing.sh`. Cached in `.agentic-workflow/pricing.json`. Config `pricing` section is an optional override for custom/contract rates. Used by `item-telemetry.sh` via the `--rate` flag.
 - **`dispatches[]`** — append-only log of every agent dispatch with model, duration, tokens, tool uses, and result.
 
 **Initialize:** `./scripts/state.sh init <N> --mode autonomous --model <model>`
@@ -505,9 +508,9 @@ See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full l
 
 **Epic-scoped telemetry:** When posting epic-level telemetry on epic issues, include only stories that belong to that specific epic (check the epic's sub-issues). The backlog PR and backlog issue are the only places where cross-epic aggregate and full lifecycle telemetry belongs. Do not post the full breakdown on individual epic issues.
 
-**PR telemetry placement:** Full lifecycle telemetry goes in the **backlog PR description** (appended by `issue-telemetry.sh --pr`), not as a PR comment. The PR body is the single source of truth for the run.
+**PR telemetry placement:** Full lifecycle telemetry goes in the **backlog PR description** (appended by `item-telemetry.sh --pr`), not as a PR comment. The PR body is the single source of truth for the run.
 
-**Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `issue-telemetry.sh` script appends this automatically via the template. No manual disclaimer needed.
+**Cost disclaimer:** All telemetry posts must end with a cost disclaimer note. The `item-telemetry.sh` script appends this automatically via the template. No manual disclaimer needed.
 
 ### Documentation Conventions
 

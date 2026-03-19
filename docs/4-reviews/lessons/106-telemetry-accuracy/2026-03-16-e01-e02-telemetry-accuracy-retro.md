@@ -10,7 +10,7 @@ scope: "Telemetry Accuracy & Automation: extract Python module, Gantt from state
 
 ## Summary
 
-Backlog item 106 refactored the telemetry pipeline across 2 epics, 7 stories, and 4 dispatch waves. Epic E01 (Telemetry Pipeline Refactor) extracted ~230 lines of Python from bash heredocs into a standalone `compute-dispatches.py` module, added absolute-offset Gantt generation from state data, and implemented structured fix cycle metrics. Epic E02 (Conventions & Documentation) updated `orchestrator.md` and `CLAUDE.md` with precise timestamp conventions, the new `--gantt-from-state` flag, and a lifecycle duration baseline. The run produced 123 Python unit tests and 35 bash integration tests, reduced `issue-telemetry.sh` from 662 to 469 lines, and introduced the first infrastructure-refactoring backlog item in the workflow's history (all prior runs were content-creation test workloads). The run completed 21 dispatches over ~2h 3m wall clock, consuming ~1.7M tokens at an estimated cost of ~$13.92. One story fix cycle occurred (E01-S02 section directives in Gantt output), and the PR review caught a premature `if __name__` block that silently skipped 35 of 123 tests.
+Backlog item 106 refactored the telemetry pipeline across 2 epics, 7 stories, and 4 dispatch waves. Epic E01 (Telemetry Pipeline Refactor) extracted ~230 lines of Python from bash heredocs into a standalone `compute-dispatches.py` module, added absolute-offset Gantt generation from state data, and implemented structured fix cycle metrics. Epic E02 (Conventions & Documentation) updated `orchestrator.md` and `CLAUDE.md` with precise timestamp conventions, the new `--gantt-from-state` flag, and a lifecycle duration baseline. The run produced 123 Python unit tests and 35 bash integration tests, reduced `item-telemetry.sh` from 662 to 469 lines, and introduced the first infrastructure-refactoring backlog item in the workflow's history (all prior runs were content-creation test workloads). The run completed 21 dispatches over ~2h 3m wall clock, consuming ~1.7M tokens at an estimated cost of ~$13.92. One story fix cycle occurred (E01-S02 section directives in Gantt output), and the PR review caught a premature `if __name__` block that silently skipped 35 of 123 tests.
 
 ## Timeline
 
@@ -113,7 +113,7 @@ The PR reviewer identified that a premature `if __name__ == "__main__"` block at
 
 ### 4. Reviewer scope creep detection on E01-S03
 
-The reviewer on issue 129 correctly flagged that E01-S03 (Fix Cycle Metrics) had replaced the `--dispatches-from-state` heredoc in `issue-telemetry.sh` with a call to `compute-dispatches.py` -- work explicitly scoped to E01-S04 (issue 130). This was captured as W3 in the review, alerting the orchestrator that roughly half of E01-S04's acceptance criteria were pre-completed. The builder for E01-S04 was able to account for this and focus on the remaining work.
+The reviewer on issue 129 correctly flagged that E01-S03 (Fix Cycle Metrics) had replaced the `--dispatches-from-state` heredoc in `item-telemetry.sh` with a call to `compute-dispatches.py` -- work explicitly scoped to E01-S04 (issue 130). This was captured as W3 in the review, alerting the orchestrator that roughly half of E01-S04's acceptance criteria were pre-completed. The builder for E01-S04 was able to account for this and focus on the remaining work.
 
 ## What Didn't Work
 
@@ -125,7 +125,7 @@ This is a recurring pattern: when multiple backlog items are active concurrently
 
 ### 2. E01-S03 scope creep partially completed E01-S04's work
 
-The E01-S03 builder replaced the `--dispatches-from-state` Python heredoc in `issue-telemetry.sh` with a call to `compute-dispatches.py` (reviewer W3 on issue 129). This was explicitly E01-S04's scope. The consequence was that E01-S04's acceptance criteria were partially pre-met, and the builder had to navigate existing changes rather than working from a clean baseline. While the final result was correct, this demonstrates that builders working on adjacent code paths may inadvertently absorb sibling story scope when not given explicit boundary guardrails.
+The E01-S03 builder replaced the `--dispatches-from-state` Python heredoc in `item-telemetry.sh` with a call to `compute-dispatches.py` (reviewer W3 on issue 129). This was explicitly E01-S04's scope. The consequence was that E01-S04's acceptance criteria were partially pre-met, and the builder had to navigate existing changes rather than working from a clean baseline. While the final result was correct, this demonstrates that builders working on adjacent code paths may inadvertently absorb sibling story scope when not given explicit boundary guardrails.
 
 ### 3. Merge conflict when combining E01-S02 and E01-S03 test additions
 
@@ -133,7 +133,7 @@ Both E01-S02 (Gantt tests) and E01-S03 (fix cycle tests) added test classes to `
 
 ### 4. `compute-dispatches.py` reached 875 lines -- well above the 200-line guideline
 
-The module that was extracted to reduce `issue-telemetry.sh`'s line count itself grew to 875 lines, 4.4x the project's 200-line guideline. The PR reviewer noted this as W1. The Gantt generation functions alone account for ~250 lines. The original design accepted this trade-off (cohesion over file size), but the irony of a refactoring-for-readability story producing a file that violates the same guideline it was meant to address should inform future decomposition decisions.
+The module that was extracted to reduce `item-telemetry.sh`'s line count itself grew to 875 lines, 4.4x the project's 200-line guideline. The PR reviewer noted this as W1. The Gantt generation functions alone account for ~250 lines. The original design accepted this trade-off (cohesion over file size), but the irony of a refactoring-for-readability story producing a file that violates the same guideline it was meant to address should inform future decomposition decisions.
 
 ## Workflow Evolution During Epic
 
@@ -150,7 +150,7 @@ These are planned convention changes (E02 was explicitly a documentation epic), 
 ### For Builders
 
 1. **Verify branch base before writing any code.** E01-S01's branch was created from the wrong base, requiring a `-fresh` branch recovery. Always run `git log --oneline -3` after `git checkout -b` to confirm the parent commits are from the expected epic branch.
-2. **Do not modify files outside your story's `Files to modify` list.** E01-S03's scope creep into `issue-telemetry.sh` (which was E01-S04's scope) created downstream confusion. The `Files to modify` section in the story issue is a hard boundary.
+2. **Do not modify files outside your story's `Files to modify` list.** E01-S03's scope creep into `item-telemetry.sh` (which was E01-S04's scope) created downstream confusion. The `Files to modify` section in the story issue is a hard boundary.
 3. **Beware `git stash pop` after conflicts.** The lesson file (`2026-03-16-s04-stash-pop-branch-confusion.md`) documents how `git checkout --theirs` after a stash conflict resolves the index but does not switch HEAD. Always verify branch with `git branch --show-current` after any stash operation.
 4. **Test file structure matters for runner compatibility.** A single misplaced `if __name__ == "__main__"` block at line 1076 (before later test classes) caused 35 tests to be silently skipped when running with `python3` directly. Keep the `if __name__` guard at the very end of the file, after all test classes.
 
@@ -201,5 +201,5 @@ These are planned convention changes (E02 was explicitly a documentation epic), 
 | Recommendation | Source | Status in This Run |
 |----------------|--------|--------------------|
 | G. Track autonomous lifecycle duration baseline | Run 9 | Implemented: E02-S03 added `lifecycle_duration_ms` to state schema and changelog duration convention |
-| I. Extract dispatch computation from issue-telemetry.sh | Run 12 | Implemented: E01-S01 through E01-S04 extracted Python into `compute-dispatches.py` |
+| I. Extract dispatch computation from item-telemetry.sh | Run 12 | Implemented: E01-S01 through E01-S04 extracted Python into `compute-dispatches.py` |
 | L. Track fix cycle overhead as per-run metric | Run 14 | Implemented: E01-S03 added structured fix cycle metrics to `compute-dispatches.py` output |

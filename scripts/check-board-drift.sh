@@ -4,8 +4,8 @@ set -uo pipefail
 # check-board-drift.sh — Diagnostic script that sets a board status and re-verifies
 # at timed intervals (+10s, +30s) to detect delayed drift.
 #
-# Uses the lightweight per-issue GraphQL query pattern from issue-set-status.sh
-# for timed re-verifications. Calls issue-set-status.sh as a subprocess for the
+# Uses the lightweight per-issue GraphQL query pattern from item-set-status.sh
+# for timed re-verifications. Calls item-set-status.sh as a subprocess for the
 # initial set (does not reimplement the mutation).
 #
 # Usage: ./scripts/check-board-drift.sh <issue-number> <status>
@@ -38,7 +38,7 @@ fi
 ISSUE_NUMBER="$1"
 STATUS="$2"
 
-# Map status CLI argument to display name (same mapping as issue-set-status.sh)
+# Map status CLI argument to display name (same mapping as item-set-status.sh)
 case "$STATUS" in
   backlog)     STATUS_DISPLAY="Backlog" ;;
   ready)       STATUS_DISPLAY="Ready" ;;
@@ -51,7 +51,7 @@ case "$STATUS" in
     ;;
 esac
 
-# --- Lightweight per-issue GraphQL query (same pattern as issue-set-status.sh) ---
+# --- Lightweight per-issue GraphQL query (same pattern as item-set-status.sh) ---
 # Costs ~1 GraphQL point vs ~200+ for gh project item-list.
 fetch_item_status() {
   local result
@@ -113,14 +113,14 @@ print_header
 
 RUN_TIMESTAMP=$(ts_now)
 
-# --- Step 1: Call issue-set-status.sh for the initial status set ---
+# --- Step 1: Call item-set-status.sh for the initial status set ---
 echo "[$(ts_now)] Setting status to '$STATUS'..."
 
-SET_OUTPUT=$("$SCRIPT_DIR/issue-set-status.sh" "$ISSUE_NUMBER" "$STATUS" 2>&1)
+SET_OUTPUT=$("$SCRIPT_DIR/item-set-status.sh" "$ISSUE_NUMBER" "$STATUS" 2>&1)
 SET_EXIT=$?
 
 if [ "$SET_EXIT" -ne 0 ]; then
-  echo "[$(ts_now)] ERROR: issue-set-status.sh failed (exit $SET_EXIT): $SET_OUTPUT" >&2
+  echo "[$(ts_now)] ERROR: item-set-status.sh failed (exit $SET_EXIT): $SET_OUTPUT" >&2
   append_drift_log "$RUN_TIMESTAMP" "FAIL" "N/A" "N/A" "API_FAILURE"
   exit 2
 fi

@@ -10,11 +10,11 @@ severity: medium
 
 ## What happened
 
-The planner's 58 API calls (creating issues, adding to board, setting statuses) exhausted the GitHub GraphQL rate limit (5000 points/hour). After the planner completed, the orchestrator couldn't set stories to Todo because `issue-set-status.sh` uses `gh project item-list` which is a heavy query fetching all 200+ project items.
+The planner's 58 API calls (creating issues, adding to board, setting statuses) exhausted the GitHub GraphQL rate limit (5000 points/hour). After the planner completed, the orchestrator couldn't set stories to Todo because `item-set-status.sh` uses `gh project item-list` which is a heavy query fetching all 200+ project items.
 
 ## Root cause
 
-`gh project item-list` generates a complex GraphQL query that costs many points (fetches all items with all fields). The `issue-set-status.sh` script calls it twice per invocation (once for lookup, once for post-mutation verification). Combined with the planner's high API usage, this exhausted the budget.
+`gh project item-list` generates a complex GraphQL query that costs many points (fetches all items with all fields). The `item-set-status.sh` script calls it twice per invocation (once for lookup, once for post-mutation verification). Combined with the planner's high API usage, this exhausted the budget.
 
 ## Prevention
 
@@ -32,4 +32,4 @@ query {
 }
 ```
 
-This costs ~1 point vs potentially 200+ for `item-list`. Consider updating `issue-set-status.sh` to use this approach instead of `item-list`, or adding a `--item-id` flag to bypass the lookup entirely when the ID is already known.
+This costs ~1 point vs potentially 200+ for `item-list`. Consider updating `item-set-status.sh` to use this approach instead of `item-list`, or adding a `--item-id` flag to bypass the lookup entirely when the ID is already known.

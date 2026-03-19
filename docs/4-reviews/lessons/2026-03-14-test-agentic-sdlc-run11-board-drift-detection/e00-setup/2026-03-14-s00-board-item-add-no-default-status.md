@@ -14,12 +14,12 @@ During Phase 0 of backlog #41, the orchestrator added the issue to the project b
 
 ## Root cause
 
-`gh project item-add` adds the item to the project but does not assign a status value. The board's "Backlog" column requires an explicit `issue-set-status.sh <N> backlog` call after adding.
+`gh project item-add` adds the item to the project but does not assign a status value. The board's "Backlog" column requires an explicit `item-set-status.sh <N> backlog` call after adding.
 
 ## Prevention
 
 Phase 0 must always include both steps sequentially:
 1. `gh project item-add 7 --owner carlosboeing --url <url>`
-2. `./scripts/issue-set-status.sh <N> backlog`
+2. `./scripts/item-set-status.sh <N> backlog`
 
 Update the orchestrator agent's Phase 0 instructions to make the status-set call explicit after every `item-add`.

@@ -130,8 +130,8 @@ eval "${_PM_FN_PREFIX}pm_add_label() {
   echo \"CALL:${_PM_FN_PREFIX}pm_add_label:\$*\" >> \"\${_MOCK_CALL_LOG:-/dev/null}\"
 }"
 
-eval "${_PM_FN_PREFIX}pm_done() {
-  echo \"CALL:${_PM_FN_PREFIX}pm_done:\$*\" >> \"\${_MOCK_CALL_LOG:-/dev/null}\"
+eval "${_PM_FN_PREFIX}pm_close_item() {
+  echo \"CALL:${_PM_FN_PREFIX}pm_close_item:\$*\" >> \"\${_MOCK_CALL_LOG:-/dev/null}\"
 }"
 
 eval "${_PM_FN_PREFIX}pm_update_item() {
@@ -205,7 +205,7 @@ bash --norc --noprofile -c "
   fi
   local_status=\$(_local_pm_get_status 42)
   echo \"local_status=\$local_status\"
-  comment_count=\$(ls \"$MOCK_WORKFLOW/comments/42/\" 2>/dev/null | wc -l | tr -d ' ')
+  comment_count=\$(grep -c '<!-- comment:' \"$MOCK_WORKFLOW/items/42.md\" 2>/dev/null || echo 0)
   echo \"comment_count=\$comment_count\"
 " > "$TMPOUT" 2>"$TMPERR"
 EXIT_CODE=$?

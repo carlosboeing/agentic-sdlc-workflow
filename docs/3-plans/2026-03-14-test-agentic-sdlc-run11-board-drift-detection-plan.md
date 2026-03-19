@@ -23,7 +23,7 @@ Epic 1 must complete before Epic 2 begins so the drift detection infrastructure 
 
 **Why E02-S04 runs in Wave 4 (not Wave 3):** The design doc notes E02-S04 is the most structurally complex story (multi-layered scenario with cross-references to a fictional prior incident). Running it last in a separate wave avoids untested 4-way parallelism and gives the hard-difficulty builder focused attention on the most challenging content. The cross-reference to FT-HR-097 is fictional (no actual file needs to exist), so there is no data dependency -- this is purely a scheduling decision for reliability.
 
-**Why no ADR:** This run introduces no new architectural patterns. The drift detection script follows established script conventions (`issue-set-status.sh` patterns), and the content stories produce markdown files. No DI changes, no new abstractions, no configuration changes.
+**Why no ADR:** This run introduces no new architectural patterns. The drift detection script follows established script conventions (`item-set-status.sh` patterns), and the content stories produce markdown files. No DI changes, no new abstractions, no configuration changes.
 
 ## File Inventory
 
@@ -91,8 +91,8 @@ graph TD
 **Acceptance criteria:**
 - [ ] Script is executable (`chmod +x`) and runs without errors
 - [ ] Accepts two arguments: `<issue-number>` and `<status>`
-- [ ] Calls `issue-set-status.sh` for the initial status set (does not reimplement the mutation)
-- [ ] Re-verifies at +10s and +30s intervals using the lightweight per-issue GraphQL query pattern from `issue-set-status.sh` (the `fetch_item_info` function pattern)
+- [ ] Calls `item-set-status.sh` for the initial status set (does not reimplement the mutation)
+- [ ] Re-verifies at +10s and +30s intervals using the lightweight per-issue GraphQL query pattern from `item-set-status.sh` (the `fetch_item_info` function pattern)
 - [ ] Prints a human-readable timestamped report to stdout matching the format specified in the design doc
 - [ ] Appends structured log entries to `.claude/logs/board-drift.log`
 - [ ] Log format: `[ISO-timestamp] issue=N target=status set=OK verify_10s=OK|DRIFT(actual=X) verify_30s=OK|DRIFT(actual=X) result=NO_DRIFT|DRIFT`
@@ -101,18 +101,18 @@ graph TD
 - [ ] Pre-commit hook passes (`dotnet test` is unaffected by a new shell script)
 
 **Implementation notes:**
-- Reuse the `fetch_item_info` GraphQL query pattern from `issue-set-status.sh` (lines 67-85) for the timed re-verifications. Copy the function, do not source `issue-set-status.sh` (it exits on its own).
-- The script calls `issue-set-status.sh` as a subprocess for the initial set. Parse its exit code and stdout to determine if the set succeeded.
+- Reuse the `fetch_item_info` GraphQL query pattern from `item-set-status.sh` (lines 67-85) for the timed re-verifications. Copy the function, do not source `item-set-status.sh` (it exits on its own).
+- The script calls `item-set-status.sh` as a subprocess for the initial set. Parse its exit code and stdout to determine if the set succeeded.
 - Use `sleep 10` and then `sleep 20` (30s total from initial set, minus the ~10s already elapsed) for the timed waits.
 - The drift log file (`.claude/logs/board-drift.log`) is separate from `board-status.log` to keep diagnostic data isolated from operational logs.
 - The `.claude/logs/` directory is already gitignored (covered by `.claude/.gitignore` or parent `.gitignore`). Verify this during implementation.
-- Map the status CLI argument (e.g., `in-progress`) to the display name (e.g., `In Progress`) for comparison with GraphQL results, using the same case mapping as `issue-set-status.sh`.
+- Map the status CLI argument (e.g., `in-progress`) to the display name (e.g., `In Progress`) for comparison with GraphQL results, using the same case mapping as `item-set-status.sh`.
 
 **Difficulty classification:**
 - Touches 1 directory (`scripts/`)
 - No new abstractions, no DI changes, no EF migrations
-- Requires timed delays, multiple GraphQL queries, structured logging, and coordination with `issue-set-status.sh`
-- Follows an established pattern (`issue-set-status.sh`) but adds timing and multi-step verification logic
+- Requires timed delays, multiple GraphQL queries, structured logging, and coordination with `item-set-status.sh`
+- Follows an established pattern (`item-set-status.sh`) but adds timing and multi-step verification logic
 - **Verdict: medium**
 
 ---
@@ -365,7 +365,7 @@ backlog/41-board-drift-detection          (integration branch)
 
 | Risk | Likelihood | Mitigation |
 |------|-----------|------------|
-| Drift script GraphQL query fails (permissions, rate limit) | Low | Script reuses proven query pattern from `issue-set-status.sh`; run includes only 6 stories so API budget is ample |
+| Drift script GraphQL query fails (permissions, rate limit) | Low | Script reuses proven query pattern from `item-set-status.sh`; run includes only 6 stories so API budget is ample |
 | Wave 3 worktree contamination | Low | Proven pattern from Runs 8, 9, and 10; pre-create story branches from same base commit |
 | Content stories exceed 100-word limit | Medium | Design doc notes 55-110 is acceptable; reviewer should use a soft threshold |
 | E02-S03 cannot fit multi-part violation into word count | Medium | Allow the builder to use abbreviated enumeration (a), (b), (c) format to compress |

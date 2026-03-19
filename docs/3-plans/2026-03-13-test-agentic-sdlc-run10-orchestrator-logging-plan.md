@@ -108,7 +108,7 @@ graph TD
 - No new abstractions
 - No DI or EF changes
 - Requires parsing structured log formats and conditional formatting
-- Existing pattern: follows `scripts/issue-set-status.sh` script conventions
+- Existing pattern: follows `scripts/item-set-status.sh` script conventions
 - **Verdict: medium** (multi-section script with log parsing logic)
 
 ---

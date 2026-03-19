@@ -67,7 +67,7 @@ assert_eq "epic_parent_links_to_backlog" "1" "$EPIC_PARENT"
 assert_eq "story_parent_links_to_epic"   "2" "$STORY_PARENT"
 
 # Transition: ready -> start_work (in-progress) -> complete_work (in-review) -> done
-run_in_env "$T" "pm_set_status $SID ready; pm_start_work $SID --model sonnet --agent builder; pm_complete_work $SID abc123; pm_done $SID" >/dev/null
+run_in_env "$T" "pm_set_status $SID ready; pm_start_work $SID --model sonnet --agent builder; pm_complete_work $SID abc123; pm_close_item $SID" >/dev/null
 FINAL_STATUS=$(grep "^status:" "$T/.workflow/items/3.md"|sed 's/status: //')
 FINAL_STATE=$(grep  "^state:"  "$T/.workflow/items/3.md"|sed 's/state: //')
 assert_eq "story_final_status_done"   "done"   "$FINAL_STATUS"
@@ -75,8 +75,8 @@ assert_eq "story_final_state_closed"  "closed" "$FINAL_STATE"
 rm -rf "$T"
 echo ""
 
-# ─── Group 3: Comment structure ───────────────────────────────────────────────
-echo "Test Group: Comment files created with correct structure"
+# ─── Group 3: Comment structure (inline in item file) ────────────────────────
+echo "Test Group: Comments inlined in item file with correct structure"
 T=$(mktemp -d)
 run_in_env "$T" "
   pm_create_item story 'Comment Story' >/dev/null
@@ -84,16 +84,16 @@ run_in_env "$T" "
   pm_complete_work 1 deadbeef0000 >/dev/null
 " >/dev/null
 
-CDIR="$T/.workflow/comments/1"
-assert_eq "two_comment_files_created" "2" "$(ls "$CDIR/" | wc -l | tr -d ' ')"
-STARTED=$(cat "$CDIR/001-work-started.md")
-REVIEW=$(cat "$CDIR/002-ready-for-review.md")
-assert_contains "work_started_posted_header"  "<!-- posted:"        "$STARTED"
-assert_contains "work_started_emoji_heading"  "### 🚀 Work Started"  "$STARTED"
-assert_contains "work_started_model_field"    "**Model**"           "$STARTED"
-assert_contains "review_posted_header"        "<!-- posted:"        "$REVIEW"
-assert_contains "review_emoji_heading"        "### 👀 Ready for Review" "$REVIEW"
-assert_contains "review_commit_hash"          "deadbeef0000"        "$REVIEW"
+ITEM="$T/.workflow/items/1.md"
+ITEM_CONTENT=$(cat "$ITEM")
+COMMENT_COUNT=$(grep -c '<!-- comment:' "$ITEM" || true)
+assert_eq "two_comments_inline" "2" "$COMMENT_COUNT"
+assert_contains "work_started_comment_marker" "<!-- comment:"       "$ITEM_CONTENT"
+assert_contains "work_started_emoji_heading"  "Work Started"        "$ITEM_CONTENT"
+assert_contains "work_started_model_field"    "**Model**"           "$ITEM_CONTENT"
+assert_contains "review_emoji_heading"        "Ready for Review"    "$ITEM_CONTENT"
+assert_contains "review_commit_hash"          "deadbeef0000"        "$ITEM_CONTENT"
+assert_contains "activity_log_heading"        "## Activity Log"     "$ITEM_CONTENT"
 rm -rf "$T"
 echo ""
 
@@ -123,7 +123,7 @@ run_in_env "$T" "
   pm_create_item epic   'E' --labels 'backlog/111-test' >/dev/null
   pm_create_item story  'S' --labels 'backlog/111-test' >/dev/null
   pm_create_item story  'Done' --labels 'backlog/111-test' >/dev/null
-  pm_done 4 >/dev/null
+  pm_close_item 4 >/dev/null
 " >/dev/null
 
 assert_eq "list_label_open"   "3" "$(run_in_env "$T" "pm_list_items --label 'backlog/111-test' --state open"  | grep -c . || true)"

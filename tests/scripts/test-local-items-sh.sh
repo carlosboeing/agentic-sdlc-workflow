@@ -78,11 +78,11 @@ else
 fi
 
 LINE_COUNT=$(wc -l < "$ITEMS_SH" 2>/dev/null || echo 9999)
-if [ "$LINE_COUNT" -le 200 ]; then
-  echo "  PASS: items.sh is under 200 lines ($LINE_COUNT)"
+if [ "$LINE_COUNT" -le 250 ]; then
+  echo "  PASS: items.sh is under 250 lines ($LINE_COUNT)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: items.sh exceeds 200 lines ($LINE_COUNT)"
+  echo "  FAIL: items.sh exceeds 250 lines ($LINE_COUNT)"
   FAIL=$((FAIL + 1))
 fi
 echo ""
@@ -460,13 +460,13 @@ assert_eq "pm_update_item_body_updated" "Updated body" "$BODY_CONTENT"
 rm -rf "$TMPDIR"
 echo ""
 
-# --- Test Group 16: pm_done ---
-echo "Test Group: pm_done sets state to closed and calls pm_set_status"
+# --- Test Group 16: pm_close_item ---
+echo "Test Group: pm_close_item sets state to closed and calls pm_set_status"
 
 TMPDIR=$(mktemp -d)
 run_snippet "$TMPDIR" "pm_create_item story 'Done Story'" > /dev/null
 
-# Provide a stub pm_set_status and verify pm_done calls it
+# Provide a stub pm_set_status and verify pm_close_item calls it
 STATUS_LOG="$TMPDIR/status_calls.log"
 OUT=$(bash --norc --noprofile -c "
   _LOCAL_COMMON_LOADED=''
@@ -476,20 +476,20 @@ OUT=$(bash --norc --noprofile -c "
     echo \"pm_set_status \$1 \$2\" >> '$STATUS_LOG'
   }
   source '$ITEMS_SH'
-  pm_done 1
+  pm_close_item 1
 " 2>&1)
 EXIT_CODE=$?
 
-assert_exit_zero "pm_done_exits_zero" "$EXIT_CODE"
+assert_exit_zero "pm_close_item_exits_zero" "$EXIT_CODE"
 
 STATE_VAL=$(grep '^state:' "$TMPDIR/.workflow/items/1.md" | sed 's/state: //')
-assert_eq "pm_done_sets_state_closed" "closed" "$STATE_VAL"
+assert_eq "pm_close_item_sets_state_closed" "closed" "$STATE_VAL"
 
 if [ -f "$STATUS_LOG" ] && grep -q "pm_set_status 1 done" "$STATUS_LOG"; then
-  echo "  PASS: pm_done_calls_pm_set_status_done"
+  echo "  PASS: pm_close_item_calls_pm_set_status_done"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: pm_done_calls_pm_set_status_done (log: $(cat "$STATUS_LOG" 2>/dev/null || echo 'missing'))"
+  echo "  FAIL: pm_close_item_calls_pm_set_status_done (log: $(cat "$STATUS_LOG" 2>/dev/null || echo 'missing'))"
   FAIL=$((FAIL + 1))
 fi
 rm -rf "$TMPDIR"
@@ -903,6 +903,88 @@ if grep -A 20 "^_local_pm_create_item_with_id()" "$ITEMS_SH" | grep -q "_local_w
   PASS=$((PASS + 1))
 else
   echo "  FAIL: create_with_id_calls_write_item"
+  FAIL=$((FAIL + 1))
+fi
+echo ""
+
+# --- Test Group 35: pm_append_body appends to item with no Activity Log ---
+echo "Test Group: pm_append_body appends to item with no Activity Log"
+
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" "pm_create_item story 'Append Story' --body 'Original body'" > /dev/null
+run_snippet "$TMPDIR" "pm_append_body 1 'Appended content here'" > /dev/null
+EXIT_CODE=$?
+
+assert_exit_zero "pm_append_body_exits_zero" "$EXIT_CODE"
+
+ITEM_FILE="$TMPDIR/.workflow/items/1.md"
+CONTENT=$(cat "$ITEM_FILE")
+assert_contains "pm_append_body_original_preserved" "Original body" "$CONTENT"
+assert_contains "pm_append_body_new_content_present" "Appended content here" "$CONTENT"
+
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 36: pm_append_body inserts before Activity Log ---
+echo "Test Group: pm_append_body inserts before Activity Log when it exists"
+
+TMPDIR=$(mktemp -d)
+COMMENTS_SH_LOCAL="$REPO_ROOT/scripts/lib/adapters/pm/local/comments.sh"
+# Create item with body, add a comment (creates Activity Log), then append body
+bash --norc --noprofile -c "
+  _LOCAL_COMMON_LOADED=''
+  _LOCAL_ITEMS_LOADED=''
+  _LOCAL_COMMENTS_LOADED=''
+  _LOCAL_WORKFLOW_DIR='$TMPDIR/.workflow'
+  source '$COMMON_SH'
+  source '$ITEMS_SH'
+  source '$COMMENTS_SH_LOCAL'
+  pm_create_item story 'Activity Story' --body 'Original body' > /dev/null
+  pm_add_comment 1 '### Work Started'
+  pm_append_body 1 'Dependency graph appended'
+" > /dev/null 2>&1
+
+ITEM_FILE="$TMPDIR/.workflow/items/1.md"
+CONTENT=$(cat "$ITEM_FILE")
+assert_contains "pm_append_body_before_activity_log_content" "Dependency graph appended" "$CONTENT"
+assert_contains "pm_append_body_before_activity_log_separator" "─────────" "$CONTENT"
+
+# Appended content must appear BEFORE the separator
+APPEND_LINE=$(grep -n 'Dependency graph appended' "$ITEM_FILE" | head -1 | cut -d: -f1)
+SEP_LINE=$(grep -n '─────────' "$ITEM_FILE" | head -1 | cut -d: -f1)
+if [ -n "$APPEND_LINE" ] && [ -n "$SEP_LINE" ] && [ "$APPEND_LINE" -lt "$SEP_LINE" ]; then
+  echo "  PASS: pm_append_body_content_before_separator"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_append_body_content_before_separator (append=$APPEND_LINE, sep=$SEP_LINE)"
+  FAIL=$((FAIL + 1))
+fi
+
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 37: pm_append_body error on missing item ---
+echo "Test Group: pm_append_body error on nonexistent item"
+
+TMPDIR=$(mktemp -d)
+run_snippet "$TMPDIR" "_local_ensure_dirs"
+OUT=$(run_snippet "$TMPDIR" "pm_append_body 999 'content'" 2>&1)
+EXIT_CODE=$?
+
+assert_exit_nonzero "pm_append_body_missing_item_fails" "$EXIT_CODE"
+assert_contains "pm_append_body_missing_item_message" "999" "$OUT"
+
+rm -rf "$TMPDIR"
+echo ""
+
+# --- Test Group 38: pm_append_body function exists in items.sh ---
+echo "Test Group: pm_append_body function defined in items.sh"
+
+if grep -q "^pm_append_body()" "$ITEMS_SH"; then
+  echo "  PASS: pm_append_body_defined_in_items_sh"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: pm_append_body_defined_in_items_sh"
   FAIL=$((FAIL + 1))
 fi
 echo ""

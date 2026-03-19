@@ -6,11 +6,11 @@
 
 ## Context
 
-Core workflow scripts — board management (`issue-set-status.sh`, `batch-set-status.sh`, `reconcile-board.sh`), lifecycle tracking (`issue-start.sh`, `issue-review.sh`, `issue-close.sh`), and telemetry (`issue-telemetry.sh`) — are invoked by every agent in every run. They carry production traffic continuously: board status mutations, "Work Started" and "Ready for Review" comments, and telemetry posting all depend on these scripts being correct and available.
+Core workflow scripts — board management (`item-set-status.sh`, `batch-set-status.sh`, `reconcile-board.sh`), lifecycle tracking (`item-start.sh`, `item-review.sh`, `item-close.sh`), and telemetry (`item-telemetry.sh`) — are invoked by every agent in every run. They carry production traffic continuously: board status mutations, "Work Started" and "Ready for Review" comments, and telemetry posting all depend on these scripts being correct and available.
 
 Modifying these scripts in-place poses a real risk:
 
-1. **A bug introduced mid-refactor breaks the running workflow.** The orchestrator calls `issue-set-status.sh` before and after every dispatch. If a refactor introduces a regression, the board goes silent and story tracking breaks — in the middle of a live run.
+1. **A bug introduced mid-refactor breaks the running workflow.** The orchestrator calls `item-set-status.sh` before and after every dispatch. If a refactor introduces a regression, the board goes silent and story tracking breaks — in the middle of a live run.
 
 2. **Rollback of an in-place change is expensive.** If a modified script fails in production, `git revert` restores the script but any state mutations that already fired cannot be undone. A partial refactor leaves the codebase in an inconsistent state.
 
@@ -35,7 +35,7 @@ Create the new code in new files and folders. Do not touch existing scripts. The
 ```
 # New files created — existing files untouched
 scripts/lib/pm.sh                           # Adapter loader + public API
-scripts/lib/adapters/pm/github/items.sh     # pm_create_item, pm_get_item, pm_list_items, pm_done
+scripts/lib/adapters/pm/github/items.sh     # pm_create_item, pm_get_item, pm_list_items, pm_close_item
 scripts/lib/adapters/pm/github/board.sh     # pm_set_status, pm_batch_set_status, pm_reconcile
 scripts/lib/adapters/pm/github/comments.sh  # pm_add_comment, pm_post_telemetry
 scripts/lib/adapters/pm/github/hierarchy.sh # pm_link_child
@@ -51,7 +51,7 @@ Existing scripts call both the old and new paths, compare results. Discrepancies
 **Example (PM Abstraction):**
 
 ```bash
-# scripts/issue-set-status.sh — shadow mode
+# scripts/item-set-status.sh — shadow mode
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/pm.sh"
 
@@ -77,7 +77,7 @@ Existing scripts become thin wrappers that delegate to the new code. The old log
 **Example (PM Abstraction):**
 
 ```bash
-# scripts/issue-set-status.sh — after swap
+# scripts/item-set-status.sh — after swap
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -89,12 +89,12 @@ pm_set_status "$@"
 
 | Script | Delegates to |
 |--------|-------------|
-| `issue-set-status.sh` | `pm_set_status` |
+| `item-set-status.sh` | `pm_set_status` |
 | `batch-set-status.sh` | `pm_batch_set_status` |
-| `issue-start.sh` | `pm_start_work` |
-| `issue-review.sh` | `pm_complete_work` |
-| `issue-close.sh` | `pm_done` |
-| `issue-create-backlog.sh` | `pm_create_item` + `pm_add_to_board` + `pm_set_status` + `pm_add_label` |
+| `item-start.sh` | `pm_start_work` |
+| `item-review.sh` | `pm_complete_work` |
+| `item-close.sh` | `pm_close_item` |
+| `item-create.sh` | `pm_create_item` + `pm_add_to_board` + `pm_set_status` + `pm_add_label` |
 | `reconcile-board.sh` | `pm_reconcile` |
 | `setup-labels.sh` | `pm_add_label` (repeated calls) |
 
@@ -169,4 +169,4 @@ Replace all existing scripts with a clean implementation simultaneously. No tran
 
 **First application:** Backlog #109 — PM Abstraction Layer. The GitHub adapter (`scripts/lib/adapters/pm/github/`) was built alongside the existing scripts (Phase 1) across epics E01 and E02. Phase 2 (shadow verify) was designated a stretch goal. Phase 3 (swap) converts existing scripts to thin wrappers and is targeted for a subsequent story.
 
-**Future applications:** Any change that touches `issue-set-status.sh`, `issue-telemetry.sh`, `state.sh`, or `reconcile-board.sh` should follow this pattern. VCS abstraction (`vcs.sh`, if and when built) is the next expected application.
+**Future applications:** Any change that touches `item-set-status.sh`, `item-telemetry.sh`, `state.sh`, or `reconcile-board.sh` should follow this pattern. VCS abstraction (`vcs.sh`, if and when built) is the next expected application.

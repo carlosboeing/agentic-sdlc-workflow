@@ -19,7 +19,7 @@ _LIFECYCLE_SH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -z "${_LOCAL_COMMON_LOADED:-}" ] && source "$_LIFECYCLE_SH_DIR/_common.sh"
 
 # pm_start_work <item-id> [--model <m>] [--agent <a>]
-# Posts "Work Started" comment (byte-identical to issue-start.sh) and sets
+# Posts "Work Started" comment (byte-identical to item-start.sh) and sets
 # board status to in-progress.
 pm_start_work() {
   local item_id="$1"
@@ -53,7 +53,7 @@ EOF
 }
 
 # pm_complete_work <item-id> <commit-hash>
-# Posts "Ready for Review" comment (byte-identical to issue-review.sh) and
+# Posts "Ready for Review" comment (byte-identical to item-review.sh) and
 # sets board status to in-review.
 pm_complete_work() {
   local item_id="$1"

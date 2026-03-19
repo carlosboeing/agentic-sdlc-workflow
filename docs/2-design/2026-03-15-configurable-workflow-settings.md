@@ -14,7 +14,7 @@ The agentic workflow has **80+ hardcoded values** scattered across 8 shell scrip
 1. **Changing the repo name** requires editing 10 files (8 scripts + 2 agent files).
 2. **Changing model routing** (e.g., easy from haiku to sonnet) required editing 7 files (done manually in this session — CLAUDE.md, orchestrator.md x3, dispatch-workflow.sh, test file).
 3. **Using this workflow on a different project** is impossible without a manual find-and-replace across the entire codebase.
-4. **Board status option IDs** are duplicated in CLAUDE.md and `issue-set-status.sh` with no cross-reference — a maintenance risk.
+4. **Board status option IDs** are duplicated in CLAUDE.md and `item-set-status.sh` with no cross-reference — a maintenance risk.
 
 This design introduces a single configuration file that scripts and agents read at runtime, replacing hardcoded values with configurable settings.
 
@@ -138,9 +138,9 @@ These settings identify the GitHub repository and the GitHub Projects board used
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `repo` | string | Recommended | Auto-detected via `gh repo view` | The full `owner/name` identifier of the GitHub repository (e.g., `"carlosboeing/agentic-sdlc-workflow"`). Used by scripts that call `gh api repos/<repo>/...` directly. If omitted, scripts fall back to auto-detection from the current git remote, but explicit is safer — auto-detection can fail in worktrees or CI environments where the remote isn't obvious. |
-| `projectNumber` | integer | **Yes** | None | The GitHub Projects board number visible in the project URL (e.g., `https://github.com/users/carlosboeing/projects/7` → `7`). Used by `issue-create-backlog.sh` to add issues to the board and by `issue-set-status.sh` to look up board item IDs. There is no sensible default — every GitHub project has a unique number. |
+| `projectNumber` | integer | **Yes** | None | The GitHub Projects board number visible in the project URL (e.g., `https://github.com/users/carlosboeing/projects/7` → `7`). Used by `item-create.sh` to add issues to the board and by `item-set-status.sh` to look up board item IDs. There is no sensible default — every GitHub project has a unique number. |
 | `owner` | string | **Yes** | None | The GitHub username or organization that owns the project board (e.g., `"carlosboeing"`). This is the project board owner, which may differ from the repo owner in organization setups. Used in `gh project item-add`, `gh project item-list`, and GraphQL queries. |
-| `projectId` | string | Optional | Looked up at runtime | The internal GraphQL node ID of the project (e.g., `"PVT_kwHOADPMJc4BRg45"`). Used in `gh project item-edit` mutations. If omitted, `issue-set-status.sh` looks it up via `gh project item-list`, which works but costs an extra API call per status change. Providing it avoids that overhead. To find it: `gh project list --owner <owner> --format json \| jq '.projects[] \| select(.number == <N>) \| .id'`. |
+| `projectId` | string | Optional | Looked up at runtime | The internal GraphQL node ID of the project (e.g., `"PVT_kwHOADPMJc4BRg45"`). Used in `gh project item-edit` mutations. If omitted, `item-set-status.sh` looks it up via `gh project item-list`, which works but costs an extra API call per status change. Providing it avoids that overhead. To find it: `gh project list --owner <owner> --format json \| jq '.projects[] \| select(.number == <N>) \| .id'`. |
 | `statusFieldId` | string | Optional | Looked up at runtime | The internal GraphQL ID of the "Status" field on the project board (e.g., `"PVTSSF_lAHOADPMJc4BRg45zg_UfJc"`). Used in `gh project item-edit` to set an issue's board status. Same trade-off as `projectId` — providing it avoids a runtime lookup. To find it: `gh project field-list <N> --owner <owner> --format json \| jq '.fields[] \| select(.name == "Status") \| .id'`. |
 
 **How to find these values:**
@@ -159,12 +159,12 @@ The workflow uses six statuses to track work items through the lifecycle:
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `backlog` | `"17425ce6"` | **Backlog** — Unplanned work items. New backlog issues start here. Set by `issue-create-backlog.sh`. |
+| `backlog` | `"17425ce6"` | **Backlog** — Unplanned work items. New backlog issues start here. Set by `item-create.sh`. |
 | `planned` | `"cf183d2a"` | **Planned** — A plan exists but hasn't been approved yet (plan PR not merged). Set by the planner agent after creating issues. |
 | `todo` | `"f75ad846"` | **Todo** — Plan approved, ready for builder dispatch. Set by the orchestrator after the plan PR merges (autonomous mode) or by the human (interactive mode). |
-| `in-progress` | `"47fc9ee4"` | **In Progress** — Currently being worked on by a builder agent. Set by the orchestrator before dispatching a builder. Also set by `issue-start.sh` as defense-in-depth. |
-| `in-review` | `"9bb97c15"` | **In Review** — Implementation complete, awaiting review and backlog PR merge. Set by the orchestrator after a builder completes. Also set by `issue-review.sh` as defense-in-depth. |
-| `done` | `"98236657"` | **Done** — Completed and merged to `main`. Set by `issue-close.sh` when an issue is closed. |
+| `in-progress` | `"47fc9ee4"` | **In Progress** — Currently being worked on by a builder agent. Set by the orchestrator before dispatching a builder. Also set by `item-start.sh` as defense-in-depth. |
+| `in-review` | `"9bb97c15"` | **In Review** — Implementation complete, awaiting review and backlog PR merge. Set by the orchestrator after a builder completes. Also set by `item-review.sh` as defense-in-depth. |
+| `done` | `"98236657"` | **Done** — Completed and merged to `main`. Set by `item-close.sh` when an issue is closed. |
 
 **How to find these values for your project:**
 
@@ -210,7 +210,7 @@ Controls orchestrator behavior for optional workflow phases.
 
 ### `pricing` — Cost Estimation Parameters
 
-Controls how `issue-telemetry.sh` estimates API costs from token counts. These are **fallback values** — the orchestrator normally fetches live pricing from Anthropic's pricing page at session start via `scripts/fetch-pricing.sh` and passes it to telemetry via the `--rate` flag. The config values are only used when both the live fetch fails AND the `--rate` flag isn't provided.
+Controls how `item-telemetry.sh` estimates API costs from token counts. These are **fallback values** — the orchestrator normally fetches live pricing from Anthropic's pricing page at session start via `scripts/fetch-pricing.sh` and passes it to telemetry via the `--rate` flag. The config values are only used when both the live fetch fails AND the `--rate` flag isn't provided.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -257,12 +257,12 @@ fi
 
 | Script | Fields read from config |
 |--------|------------------------|
-| `issue-set-status.sh` | `github.projectId`, `github.statusFieldId`, `github.owner`, `github.repo`, all `boardStatus.*` |
-| `issue-telemetry.sh` | `github.repo`, all `pricing.*` |
-| `issue-create-backlog.sh` | `github.repo`, `github.projectNumber`, `github.owner` |
-| `issue-start.sh` | `github.repo` |
-| `issue-review.sh` | `github.repo` |
-| `issue-close.sh` | `github.repo` |
+| `item-set-status.sh` | `github.projectId`, `github.statusFieldId`, `github.owner`, `github.repo`, all `boardStatus.*` |
+| `item-telemetry.sh` | `github.repo`, all `pricing.*` |
+| `item-create.sh` | `github.repo`, `github.projectNumber`, `github.owner` |
+| `item-start.sh` | `github.repo` |
+| `item-review.sh` | `github.repo` |
+| `item-close.sh` | `github.repo` |
 | `setup-labels.sh` | `github.repo` |
 | `dispatch-story.sh` | `github.repo` |
 | `dispatch-workflow.sh` | `github.repo`, `modelRouting.*` |
@@ -317,11 +317,11 @@ Values that **break when the repo changes** — must be configurable.
 | Category | Example value | Files affected | Config field |
 |----------|--------------|----------------|-------------|
 | Repo name | `carlosboeing/agentic-sdlc-workflow` | 8 scripts, orchestrator.md, retro.md | `github.repo` |
-| Project number | `7` | CLAUDE.md, designer.md, planner.md, issue-create-backlog.sh | `github.projectNumber` |
-| Project owner | `carlosboeing` | CLAUDE.md, designer.md, planner.md, issue-set-status.sh, issue-create-backlog.sh, check-board-drift.sh | `github.owner` |
-| Project ID | `PVT_kwHOADPMJc4BRg45` | CLAUDE.md, issue-set-status.sh | `github.projectId` |
-| Status field ID | `PVTSSF_lAHOADPMJc4BRg45zg_UfJc` | CLAUDE.md, issue-set-status.sh | `github.statusFieldId` |
-| Board status IDs | 6 hex values | CLAUDE.md, issue-set-status.sh | `boardStatus.*` |
+| Project number | `7` | CLAUDE.md, designer.md, planner.md, item-create.sh | `github.projectNumber` |
+| Project owner | `carlosboeing` | CLAUDE.md, designer.md, planner.md, item-set-status.sh, item-create.sh, check-board-drift.sh | `github.owner` |
+| Project ID | `PVT_kwHOADPMJc4BRg45` | CLAUDE.md, item-set-status.sh | `github.projectId` |
+| Status field ID | `PVTSSF_lAHOADPMJc4BRg45zg_UfJc` | CLAUDE.md, item-set-status.sh | `github.statusFieldId` |
+| Board status IDs | 6 hex values | CLAUDE.md, item-set-status.sh | `boardStatus.*` |
 
 ### Tier 2: Workflow preferences (addressed by this design)
 
@@ -330,8 +330,8 @@ Values with **reasonable defaults** but that users may want to customize.
 | Category | Example value | Files affected | Config field |
 |----------|--------------|----------------|-------------|
 | Model routing | easy→sonnet, medium→sonnet, hard→opus | CLAUDE.md, orchestrator.md, dispatch-workflow.sh | `modelRouting.*` |
-| Pricing rates | opus $15/$75 per M tokens | fetch-pricing.sh, issue-telemetry.sh | `pricing.*` |
-| Token split | 75% input / 25% output | issue-telemetry.sh, fetch-pricing.sh | `pricing.tokenSplit.*` |
+| Pricing rates | opus $15/$75 per M tokens | fetch-pricing.sh, item-telemetry.sh | `pricing.*` |
+| Token split | 75% input / 25% output | item-telemetry.sh, fetch-pricing.sh | `pricing.tokenSplit.*` |
 
 ### Tier 3: Structural conventions (deferred)
 
@@ -355,7 +355,7 @@ Two bugs identified by the [Workflow Analysis](../1-discovery/2026-03-14-workflo
 
 1. **Phase 3 plan detection** (`orchestrator.md:224`): Changed `grep -rl "<backlog-issue-number>"` to `grep -rl "^backlog: <backlog-issue-number>$"` — matches the fix already applied to design doc detection, prevents false matches on short numbers.
 
-2. **Opus pricing fallback** (`issue-telemetry.sh:116-128`): Comment said `$5 in / $25 out → ~$10/M`, rate was `1000` cents/M. Corrected to `$15 in / $75 out → ~$30/M`, rate `3000` cents/M. Now consistent with `fetch-pricing.sh` fallback rates.
+2. **Opus pricing fallback** (`item-telemetry.sh:116-128`): Comment said `$5 in / $25 out → ~$10/M`, rate was `1000` cents/M. Corrected to `$15 in / $75 out → ~$30/M`, rate `3000` cents/M. Now consistent with `fetch-pricing.sh` fallback rates.
 
 3. **Model routing** (7 files): Changed `difficulty/easy → builder-haiku` to `difficulty/easy → builder-sonnet` across CLAUDE.md, orchestrator.md, dispatch-workflow.sh, and the test file. Based on telemetry evidence that Sonnet uses 3x fewer tokens at comparable cost.
 

@@ -317,7 +317,7 @@ bash --norc --noprofile -c "
   declare -f _local_pm_start_work > /dev/null && echo '_local_pm_start_work:exists'
   declare -f _local_pm_link_child > /dev/null && echo '_local_pm_link_child:exists'
   declare -f _local_pm_add_label > /dev/null && echo '_local_pm_add_label:exists'
-  declare -f _local_pm_done > /dev/null && echo '_local_pm_done:exists'
+  declare -f _local_pm_close_item > /dev/null && echo '_local_pm_close_item:exists'
   declare -f _local_pm_reconcile > /dev/null && echo '_local_pm_reconcile:exists'
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
@@ -332,7 +332,7 @@ assert_contains "_local_pm_get_item_exists" "_local_pm_get_item:exists" "$LOCAL_
 assert_contains "_local_pm_start_work_exists" "_local_pm_start_work:exists" "$LOCAL_OUTPUT"
 assert_contains "_local_pm_link_child_exists" "_local_pm_link_child:exists" "$LOCAL_OUTPUT"
 assert_contains "_local_pm_add_label_exists" "_local_pm_add_label:exists" "$LOCAL_OUTPUT"
-assert_contains "_local_pm_done_exists" "_local_pm_done:exists" "$LOCAL_OUTPUT"
+assert_contains "_local_pm_close_item_exists" "_local_pm_close_item:exists" "$LOCAL_OUTPUT"
 assert_contains "_local_pm_reconcile_exists" "_local_pm_reconcile:exists" "$LOCAL_OUTPUT"
 
 echo ""

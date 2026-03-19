@@ -32,7 +32,7 @@ CLI dispatch wrapper: reads a GitHub issue, writes a prompt file, invokes Claude
 - `scripts/dispatch-story.sh`
 - `.dispatch/.gitignore` (contains `*` + `!.gitignore`)
 
-**Pattern to follow:** `scripts/issue-start.sh` — `set -euo pipefail`, `REPO="carlosboeing/agentic-sdlc-workflow"`, named arg parsing via `while/case`.
+**Pattern to follow:** `scripts/item-start.sh` — `set -euo pipefail`, `REPO="carlosboeing/agentic-sdlc-workflow"`, named arg parsing via `while/case`.
 
 **Acceptance criteria:**
 
@@ -43,7 +43,7 @@ CLI dispatch wrapper: reads a GitHub issue, writes a prompt file, invokes Claude
 - Pre-flight check: verifies `claude` CLI is available and supports `--agent`, `--model`, `--output-format`, `--max-turns` flags (via `claude --help` or a dry-run). Prints a clear error with expected CC CLI version if any flag is missing.
 - Invokes Claude in headless mode with the prompt file, agent, model, and `--output-format json`
 - Captures exit code + wall-clock duration (`SECONDS` or `date` arithmetic)
-- On success: calls `./scripts/issue-telemetry.sh` with `--model`, `--duration`, `--commit`
+- On success: calls `./scripts/item-telemetry.sh` with `--model`, `--duration`, `--commit`
 - On failure: posts failure comment via `gh issue comment`
 - Script is executable
 
@@ -129,7 +129,7 @@ When an epic PR is merged (via CC agent or GitHub UI), all linked issues should 
 
 - `.github/workflows/auto-close-issues.yml` — triggers on PR merge to `main`, parses `Closes #N` from PR body, closes each issue via `gh issue close`
 
-**Pattern to follow:** `scripts/issue-telemetry.sh` for `gh project item-edit` commands; `.github/workflows/sentinel.yml` for workflow structure.
+**Pattern to follow:** `scripts/item-telemetry.sh` for `gh project item-edit` commands; `.github/workflows/sentinel.yml` for workflow structure.
 
 **Acceptance criteria:**
 
@@ -201,7 +201,7 @@ model: inherit
 3. **Workflow Phases** — read plan → read stories → build dependency graph → dispatch builders → post telemetry → dispatch reviewer (on story branch, before merge) → handle critical findings → merge story branches into epic → open epic PR → dispatch retro
 4. **Model Routing** — `difficulty/easy`→haiku, `medium`→sonnet, `hard`→opus with dispatch commands for both modes
 5. **GitHub State** — project board commands with exact option IDs, epic status sync rules
-6. **Telemetry** — per-story + epic-level via `issue-telemetry.sh`
+6. **Telemetry** — per-story + epic-level via `item-telemetry.sh`
 7. **Error Handling** — re-dispatch on review rejection, failure comment on dispatch failure
 8. **Capturing Lessons** + **Self-Documentation** (orchestrator-tagged)
 

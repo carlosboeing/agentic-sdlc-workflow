@@ -107,7 +107,7 @@ Infrastructure changes that prepare the codebase for dual-write: config schema, 
 - [ ] Idempotency guards check `declare -f "${_PM_FN_PREFIX}pm_<name>"` instead of bare `pm_<name>`
 - [ ] When `_PM_LOADING_EXTERNAL` is unset (normal mode), functions are defined as bare `pm_*` -- zero behavioral change
 - [ ] When `_PM_LOADING_EXTERNAL=1`, functions are defined as `_external_pm_*`
-- [ ] Internal cross-function calls within the external adapter (e.g., `pm_done` calling `pm_set_status`) resolve correctly via the prefix
+- [ ] Internal cross-function calls within the external adapter (e.g., `pm_close_item` calling `pm_set_status`) resolve correctly via the prefix
 - [ ] All private helpers (e.g., `_gh_status_to_option_id`, `_board_log`, `_gh_fetch_item_info`) remain unprefixed (they are internal)
 - [ ] Existing tests pass unchanged (normal sourcing mode)
 - [ ] New test verifies: sourcing with `_PM_LOADING_EXTERNAL=1` defines `_external_pm_*` functions
@@ -117,7 +117,7 @@ Infrastructure changes that prepare the codebase for dual-write: config schema, 
 - `board.sh` has 3 public functions, `items.sh` has 5, `comments.sh` has 2, `hierarchy.sh` has 1, `labels.sh` has 1, `lifecycle.sh` has 2, `reconcile.sh` has 1 -- total 15 function definitions to modify.
 - Private helpers (`_board_log`, `_gh_status_to_option_id`, `_gh_fetch_item_info`, `_gh_extract_item_info`, `_gh_mutate_status`, `_gh_verify_status`, `_gh_fetch_with_retry`) are NOT prefixed. They are adapter-internal utilities.
 - Cross-function calls within `lifecycle.sh` (e.g., `pm_start_work` calling `pm_add_comment` and `pm_set_status`) must also use the prefix: `${_PM_FN_PREFIX}pm_add_comment`. This ensures that when loaded as external, `_external_pm_start_work` calls `_external_pm_add_comment`, not the wrapper version (which would cause double-writes).
-- Cross-function calls within `items.sh` (`pm_done` calling `pm_set_status`) follow the same pattern.
+- Cross-function calls within `items.sh` (`pm_close_item` calling `pm_set_status`) follow the same pattern.
 
 **Test plan:**
 - New test `tests/scripts/test-github-prefix-injection.sh` that sources each module with `_PM_LOADING_EXTERNAL=1` and verifies `_external_pm_*` functions exist
@@ -192,7 +192,7 @@ The `pm.sh` refactoring, wrapper generation, function classification, and compre
 
 **Acceptance criteria:**
 - [ ] Function classification list defined in `pm.sh`:
-  - **Dual-write:** `pm_create_item`, `pm_set_status`, `pm_add_to_board`, `pm_batch_set_status`, `pm_add_comment`, `pm_link_child`, `pm_add_label`, `pm_done`, `pm_update_item`
+  - **Dual-write:** `pm_create_item`, `pm_set_status`, `pm_add_to_board`, `pm_batch_set_status`, `pm_add_comment`, `pm_link_child`, `pm_add_label`, `pm_close_item`, `pm_update_item`
   - **Local-only:** `pm_get_item`, `pm_list_items`, `pm_get_status`
   - **Composed:** `pm_start_work`, `pm_complete_work`, `pm_post_telemetry`, `pm_reconcile`
 - [ ] For dual-write functions: wrapper calls `_local_pm_*` synchronously, then `_external_pm_*` fire-and-forget (background `&` + `disown`) if the external function exists
@@ -260,14 +260,14 @@ This table is the authoritative reference for wrapper behavior. Builders for E02
 | `pm_add_comment` | Dual-write | Local sync, external fire-and-forget |
 | `pm_link_child` | Dual-write | Local sync, external fire-and-forget |
 | `pm_add_label` | Dual-write | Local sync, external fire-and-forget |
-| `pm_done` | Dual-write | Local sync, external fire-and-forget |
+| `pm_close_item` | Dual-write | Local sync, external fire-and-forget |
 | `pm_update_item` | Dual-write | Local sync, external fire-and-forget |
 | `pm_get_item` | Local-only | Always read from local |
 | `pm_list_items` | Local-only | Always read from local |
 | `pm_get_status` | Local-only | Always read from local |
 | `pm_start_work` | Composed | Local only (calls `pm_add_comment` + `pm_set_status` which are dual-write) |
 | `pm_complete_work` | Composed | Local only (calls `pm_add_comment` + `pm_set_status` which are dual-write) |
-| `pm_post_telemetry` | Composed | Local only (delegates to `issue-telemetry.sh` which calls `pm_add_comment`) |
+| `pm_post_telemetry` | Composed | Local only (delegates to `item-telemetry.sh` which calls `pm_add_comment`) |
 | `pm_reconcile` | Composed | Local only (`_external_pm_reconcile` available for explicit orchestrator use) |
 
 ## 6. Dependency Graph

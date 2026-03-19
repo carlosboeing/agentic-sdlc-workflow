@@ -24,7 +24,7 @@ In autonomous mode, the orchestrator acts in place of the human and must perform
 
 ### Failure 2: Parallel builder board updates silently failed
 
-Wave 1 dispatched 4 builders concurrently (3 haiku + 1 sonnet). Each builder ran `issue-start.sh` (→ In Progress) and `issue-review.sh` (→ In Review). The 3 haiku builders' board updates were silently lost — likely due to a GitHub Projects API race condition when 4 agents hit `gh project item-edit` simultaneously. The sonnet builder's updates succeeded, as did all Wave 2/3 builders (lower concurrency).
+Wave 1 dispatched 4 builders concurrently (3 haiku + 1 sonnet). Each builder ran `item-start.sh` (→ In Progress) and `item-review.sh` (→ In Review). The 3 haiku builders' board updates were silently lost — likely due to a GitHub Projects API race condition when 4 agents hit `gh project item-edit` simultaneously. The sonnet builder's updates succeeded, as did all Wave 2/3 builders (lower concurrency).
 
 The `issue-merged.sh` calls at the end (run sequentially by the orchestrator) worked correctly, masking the problem by jumping everything to Done.
 
@@ -32,7 +32,7 @@ The `issue-merged.sh` calls at the end (run sequentially by the orchestrator) wo
 
 1. **Todo transition was nobody's job in autonomous mode.** The CLAUDE.md says "Set by: Human (on plan PR merge)" but in autonomous mode there is no human. The orchestrator auto-merged the plan PR but didn't assume the human's responsibility for the Todo transition.
 
-2. **GitHub Projects API doesn't handle concurrent `item-edit` calls reliably.** The `issue-start.sh` and `issue-review.sh` scripts each do `gh project item-list` + `gh project item-edit`, and 4 concurrent instances likely saw stale data or hit rate limits without surfacing errors.
+2. **GitHub Projects API doesn't handle concurrent `item-edit` calls reliably.** The `item-start.sh` and `item-review.sh` scripts each do `gh project item-list` + `gh project item-edit`, and 4 concurrent instances likely saw stale data or hit rate limits without surfacing errors.
 
 ## Prevention
 

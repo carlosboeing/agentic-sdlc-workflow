@@ -22,14 +22,19 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
 
 **Git workflow:**
 
-1. Find the **backlog issue** for this feature (e.g., `gh issue list --state open`)
-2. Create a GitHub Issue for the plan work (title: "[#<backlog>] Write implementation plan for X", labels: `type/docs` + `backlog/<N>-<slug>`)
+1. Find the **backlog issue** for this feature (e.g., `./scripts/item-list.sh --state open`)
+2. Create a GitHub Issue for the plan work using `item-create.sh`:
+
+   ```bash
+   PLAN_ISSUE=$(./scripts/item-create.sh docs \
+     --title "[#<backlog>] Write implementation plan for X" \
+     --label "type/docs" --label "backlog/<N>-<slug>")
+   ```
+
 3. Link the plan issue as a **sub-issue** of the backlog issue:
 
    ```bash
-   PARENT_ID=$(gh issue view <backlog-number> --json id -q .id)
-   CHILD_ID=$(gh issue view <plan-issue-number> --json id -q .id)
-   gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$PARENT_ID\", subIssueId: \"$CHILD_ID\" }) { subIssue { id } } }"
+   ./scripts/item-link-child.sh <backlog-number> $PLAN_ISSUE
    ```
 
 4. **Set the plan issue to In Progress** on the project board (you are actively working on it)
@@ -39,12 +44,14 @@ Your deliverables are: implementation plans in `docs/3-plans/`, ADRs in `docs/6-
 8. **Link stories as sub-issues of their epic** (not the backlog — epics are the parent):
 
    ```bash
-   EPIC_ID=$(gh issue view <epic-number> --json id -q .id)
-   STORY_ID=$(gh issue view <story-number> --json id -q .id)
-   gh api graphql -f query="mutation { addSubIssue(input: { issueId: \"$EPIC_ID\", subIssueId: \"$STORY_ID\" }) { subIssue { id } } }"
+   ./scripts/item-link-child.sh <epic-number> <story-number>
    ```
 
-9. **Link epic issues as sub-issues of the backlog issue** (same `addSubIssue` pattern)
+9. **Link epic issues as sub-issues of the backlog issue** (same pattern):
+
+   ```bash
+   ./scripts/item-link-child.sh <backlog-number> <epic-number>
+   ```
 10. **Add all issues to the GitHub Project and set status to Ready** (see CLAUDE.md for project IDs and status option IDs)
 11. Open a PR **targeting the integration branch** (`backlog/<N>-<slug>`), not `main`. Add `type/docs` label, referencing the plan issue
 12. End with: _"Implementation plan PR created — awaiting human approval (merge) before stories can be started by the builder agent."_
@@ -87,7 +94,7 @@ Before planning, read these files for context:
 
 Check GitHub Issues to understand current project state:
 ```bash
-gh issue list --state all --limit 100
+./scripts/item-list.sh --state all --limit 100
 gh label list
 ```
 
@@ -100,7 +107,7 @@ Always save docs immediately, even as drafts.
 
 ## GitHub Issues & Projects (REQUIRED)
 
-When creating implementation plans, you MUST also create the corresponding GitHub Issues and labels. GitHub is the **single source of truth** for all work tracking.
+When creating implementation plans, you MUST also create the corresponding GitHub Issues and labels. **Always use `./scripts/item-create.sh`** (not `gh issue create`) to ensure both GitHub and local PM items are created. GitHub is the **single source of truth** for all work tracking.
 
 ### Creating Issues from Plans
 
@@ -118,8 +125,10 @@ After writing a plan with epics and stories:
    - **Blocked by line (REQUIRED):** Every story must include `**Blocked by:** none` or `**Blocked by:** #N, #N (description)` in the metadata block. This is machine-parsed by the orchestrator to validate dependencies before dispatch. Use `none` explicitly when there are no blockers — never omit the line.
    - Labels: `hierarchy/story` + the `backlog/<issue>-<slug>` label + type label + **difficulty label**
    ```bash
-   gh issue create --title "[#<backlog>/E01-S01] Add config property for feature X" \
-     --label "hierarchy/story,backlog/<issue>-<slug>,type/feature,difficulty/easy" \
+   ./scripts/item-create.sh story \
+     --title "[#<backlog>/E01-S01] Add config property for feature X" \
+     --label "hierarchy/story" --label "backlog/<issue>-<slug>" \
+     --label "type/feature" --label "difficulty/easy" \
      --body "..."
    ```
 
@@ -128,8 +137,9 @@ After writing a plan with epics and stories:
    - Body: checklist of all story issues
    - Labels: `hierarchy/epic` + the `backlog/<issue>-<slug>` label
    ```bash
-   gh issue create --title "[#<backlog>/E01] Feature name" \
-     --label "hierarchy/epic,backlog/<issue>-<slug>" \
+   ./scripts/item-create.sh epic \
+     --title "[#<backlog>/E01] Feature name" \
+     --label "hierarchy/epic" --label "backlog/<issue>-<slug>" \
      --body "## Stories\n- [ ] #N [E01-S01] Story 1\n- [ ] #N [E01-S02] Story 2"
    ```
 
@@ -137,24 +147,18 @@ After writing a plan with epics and stories:
 
 Every issue you create MUST be added to the project board with the correct status. See CLAUDE.md for project IDs and status option IDs.
 
-**After creating each issue:**
+**After creating each issue** (`item-create.sh` already adds items to the project board):
 
-1. **Add to project:**
+1. **Set status to Ready** (stories/epics from a not-yet-approved plan):
 
    ```bash
-   gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
+   ./scripts/item-set-status.sh <issue-number> ready
    ```
 
-2. **Set status to Ready** (stories/epics from a not-yet-approved plan):
+2. **Set the plan work issue to In Progress** (you are actively working on it):
 
    ```bash
-   ./scripts/issue-set-status.sh <issue-number> ready
-   ```
-
-3. **Set the plan work issue to In Progress** (you are actively working on it):
-
-   ```bash
-   ./scripts/issue-set-status.sh <plan-issue-number> in-progress
+   ./scripts/item-set-status.sh <plan-issue-number> in-progress
    ```
 
 ### Issue Hierarchy (REQUIRED)
@@ -180,15 +184,12 @@ Stories are children of their **epic**, not the backlog. Epics are children of t
 
 After creating all epic and story issues, **append** the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** and each **epic issue**. This keeps the dependency structure visible at the top of the issue page — not buried in comments.
 
-Use `gh issue edit --body` to append below the existing body (do NOT include a `---` horizontal rule — the heading provides sufficient visual separation).
+Use `item-append-body.sh` to append to both GitHub and local PM items. Do NOT include a `---` horizontal rule — the heading provides sufficient visual separation.
 
 **On the backlog issue** — append the full cross-epic dependency graph + dispatch plan table:
 
 ```bash
-CURRENT_BODY=$(gh issue view <backlog-number> --json body -q '.body')
-gh issue edit <backlog-number> --body "$CURRENT_BODY
-
-## 📊 Dependency Graph
+./scripts/item-append-body.sh <backlog-number> "## 📊 Dependency Graph
 
 \`\`\`mermaid
 graph TD
@@ -203,17 +204,13 @@ graph TD
 | Wave | Stories | Dispatch |
 |------|---------|----------|
 | **Wave 1** | E01-S01, E01-S02 | Parallel |
-| **Wave 2** | E02-S01 | Sequential (depends on E01-S02) |
-"
+| **Wave 2** | E02-S01 | Sequential (depends on E01-S02) |"
 ```
 
 **On each epic issue** — append only the subset relevant to that epic's stories:
 
 ```bash
-CURRENT_BODY=$(gh issue view <epic-number> --json body -q '.body')
-gh issue edit <epic-number> --body "$CURRENT_BODY
-
-## 📊 Epic Dependency Graph
+./scripts/item-append-body.sh <epic-number> "## 📊 Epic Dependency Graph
 
 \`\`\`mermaid
 graph TD
@@ -221,8 +218,7 @@ graph TD
     S02[\"E01-S02<br/>Story title<br/>(medium)\"]
 \`\`\`
 
-All stories in this epic are independent — parallel dispatch.
-"
+All stories in this epic are independent — parallel dispatch."
 ```
 
 Include the dispatch plan (wave assignments) in the backlog issue so the orchestrator and humans can see the execution strategy at a glance. For epics with sequential dependencies, note which stories depend on which.

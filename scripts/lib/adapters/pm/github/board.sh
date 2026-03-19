@@ -2,7 +2,7 @@
 # board.sh — GitHub adapter: board management functions.
 #
 # Provides pm_set_status, pm_add_to_board, pm_batch_set_status and internal
-# helpers for GitHub Projects v2. Ported from issue-set-status.sh and
+# helpers for GitHub Projects v2. Ported from item-set-status.sh and
 # batch-set-status.sh. Reconciliation (pm_reconcile) is in reconcile.sh.
 # All logging goes to .agentic-workflow/logs/board-status.log.
 #
@@ -113,7 +113,7 @@ _gh_fetch_with_retry() {
 }
 
 # pm_set_status <issue-number> <status> — Sets board status with retry,
-# verification, and logging. Full port of issue-set-status.sh.
+# verification, and logging. Full port of item-set-status.sh.
 eval "${_PM_FN_PREFIX}pm_set_status() {
   if [ \$# -lt 2 ]; then
     echo \"Usage: ${_PM_FN_PREFIX}pm_set_status <issue-number> <status>\" >&2

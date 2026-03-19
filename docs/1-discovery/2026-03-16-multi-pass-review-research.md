@@ -11,7 +11,7 @@ backlog-context: 106
 
 ## Context
 
-Backlog #106 refactored the telemetry pipeline: extracting ~230 lines of embedded Python from `issue-telemetry.sh` into a standalone `scripts/lib/compute-dispatches.py` module, adding Gantt generation from state data, and implementing fix cycle detection. The PR (#145) included 16 files, +4,390/-318 lines, 123 Python tests, and 35 bash integration tests.
+Backlog #106 refactored the telemetry pipeline: extracting ~230 lines of embedded Python from `item-telemetry.sh` into a standalone `scripts/lib/compute-dispatches.py` module, adding Gantt generation from state data, and implementing fix cycle detection. The PR (#145) included 16 files, +4,390/-318 lines, 123 Python tests, and 35 bash integration tests.
 
 The automated reviewer (opus model) performed the standard two-pass review (initial + re-review after fix). The human then asked the orchestrator for three additional analysis passes.
 
@@ -297,7 +297,7 @@ The inspector's checks should be **deterministic and scriptable** — not "revie
 
 ### Orchestrator Response 1 (Pass 1 — Summary)
 
-The orchestrator read the PR code (`compute-dispatches.py`, `issue-telemetry.sh`, `telemetry.md`), the reviewer's two comments on PR #145, and the retro doc. Key outputs:
+The orchestrator read the PR code (`compute-dispatches.py`, `item-telemetry.sh`, `telemetry.md`), the reviewer's two comments on PR #145, and the retro doc. Key outputs:
 
 - Confirmed all reviewer findings (C1 through S4) as valid
 - Identified epic telemetry per-row cost errors — claimed "the orchestrator used `78562 * 7.5/1M`" as root cause (fabricated)

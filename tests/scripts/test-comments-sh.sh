@@ -193,16 +193,16 @@ assert_eq "pm_post_telemetry_function_is_defined" "function_defined" "$OUTPUT"
 
 echo ""
 
-# --- Test Group 6: pm_post_telemetry delegates to issue-telemetry.sh ---
-echo "Test Group: pm_post_telemetry delegates to issue-telemetry.sh"
+# --- Test Group 6: pm_post_telemetry delegates to item-telemetry.sh ---
+echo "Test Group: pm_post_telemetry delegates to item-telemetry.sh"
 
-# Build a fake repo with a stub issue-telemetry.sh that logs to a file
+# Build a fake repo with a stub item-telemetry.sh that logs to a file
 TELEMETRY_LOG=$(mktemp)
 FAKE_REPO=$(mktemp -d)
 mkdir -p "$FAKE_REPO/scripts"
 # Write the stub with the log path baked in (using printf, not heredoc, for portability)
-printf '#!/usr/bin/env bash\necho "$@" >> "%s"\nexit 0\n' "$TELEMETRY_LOG" > "$FAKE_REPO/scripts/issue-telemetry.sh"
-chmod +x "$FAKE_REPO/scripts/issue-telemetry.sh"
+printf '#!/usr/bin/env bash\necho "$@" >> "%s"\nexit 0\n' "$TELEMETRY_LOG" > "$FAKE_REPO/scripts/item-telemetry.sh"
+chmod +x "$FAKE_REPO/scripts/item-telemetry.sh"
 
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "
@@ -231,8 +231,8 @@ echo "Test Group: pm_post_telemetry passes --pr flag through"
 TELEMETRY_LOG2=$(mktemp)
 FAKE_REPO2=$(mktemp -d)
 mkdir -p "$FAKE_REPO2/scripts"
-printf '#!/usr/bin/env bash\necho "$@" >> "%s"\nexit 0\n' "$TELEMETRY_LOG2" > "$FAKE_REPO2/scripts/issue-telemetry.sh"
-chmod +x "$FAKE_REPO2/scripts/issue-telemetry.sh"
+printf '#!/usr/bin/env bash\necho "$@" >> "%s"\nexit 0\n' "$TELEMETRY_LOG2" > "$FAKE_REPO2/scripts/item-telemetry.sh"
+chmod +x "$FAKE_REPO2/scripts/item-telemetry.sh"
 
 TMPOUT=$(mktemp)
 bash --norc --noprofile -c "

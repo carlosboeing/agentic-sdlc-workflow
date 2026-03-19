@@ -584,6 +584,209 @@ class TestFromStateMode(unittest.TestCase):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Story column tests (breakdown table)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestBreakdownStoryColumn(unittest.TestCase):
+    """Tests for the Story column in the breakdown table."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _pricing(self):
+        return cd.load_pricing(self.pricing_file, self.config_file)
+
+    def test_breakdown_has_six_columns(self):
+        """Breakdown rows have 6 columns: Agent | Story | Task | Duration | Tokens | Est. Cost."""
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # Each row should have exactly 6 pipe-delimited cells (7 pipe chars)
+        for line in breakdown_lines:
+            # Count pipes: "| a | b | c | d | e | f |" has 7 pipes
+            pipe_count = line.count("|")
+            self.assertEqual(
+                pipe_count, 7,
+                f"Expected 7 pipes (6 columns) in breakdown row, got {pipe_count}: {line!r}"
+            )
+
+    def test_breakdown_story_column_dash_for_non_story_phase(self):
+        """Design/plan/retro dispatches show '--' in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Designer (opus)",
+                "model": "opus",
+                "task": "Design Doc (#55)",
+                "duration_ms": 294973,
+                "tokens": 86265,
+                "phase": "Design",
+                "story_code": "",  # Non-story dispatch: empty story_code
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # First line is the designer row, should have '--' in the Story column
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        # cells: [Agent, Story, Task, Duration, Tokens, Cost]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "--", f"Expected '--' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_shows_code_for_builder(self):
+        """Builder dispatches with story_code show the code in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Builder (sonnet)",
+                "model": "sonnet",
+                "task": "Destination Profiles (#72)",
+                "duration_ms": 146479,
+                "tokens": 49691,
+                "phase": "Build",
+                "story_code": "E01-S01",
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "E01-S01", f"Expected 'E01-S01' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_shows_code_for_reviewer(self):
+        """Reviewer dispatches with story_code show the code in Story column."""
+        dispatches_with_story_code = [
+            {
+                "agent": "Reviewer (sonnet)",
+                "model": "sonnet",
+                "task": "Review Destination Profiles (#72)",
+                "duration_ms": 72000,
+                "tokens": 18000,
+                "phase": "Review",
+                "story_code": "E01-S01",
+            },
+        ]
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(dispatches_with_story_code, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        data_line = breakdown_lines[0]
+        cells = [c.strip() for c in data_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "E01-S01", f"Expected 'E01-S01' in Story column, got: {story_cell!r}")
+
+    def test_breakdown_story_column_dash_when_no_story_code_field(self):
+        """Dispatches without story_code field (e.g., --dispatches mode) show '--'."""
+        # DISPATCHES_FIXTURE has no story_code field
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        # All data rows (not the total row) should have '--' in Story column
+        for line in breakdown_lines[:-1]:  # Exclude total row
+            cells = [c.strip() for c in line.split("|") if c.strip()]
+            story_cell = cells[1]
+            self.assertEqual(
+                story_cell, "--",
+                f"Expected '--' in Story column for dispatch without story_code, got: {story_cell!r} in row: {line!r}"
+            )
+
+    def test_breakdown_total_row_has_empty_story_cell(self):
+        """Total row has empty Story cell (not '--')."""
+        pricing = self._pricing()
+        result = cd.compute_from_dispatches(DISPATCHES_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        total_row = breakdown_lines[-1]
+        self.assertIn("**Total (4 dispatches)**", total_row)
+        # Total row Story cell should be empty
+        cells = [c.strip() for c in total_row.split("|")]
+        # Total row format: "| | **Total (N dispatches)** | **dur** | **tokens** | **cost** |"
+        # pipe[0] = "", pipe[1] = "", pipe[2] = "**Total...**", pipe[3] = "**dur**", ...
+        # cells after split: ["", "", "**Total...**", ...]
+        # Story cell is index 2 (after the leading empty, then agent empty, then story)
+        # Let's check the raw format directly:
+        self.assertIn("| |", total_row, "Total row should start with empty Agent cell '| |'")
+
+    def test_state_to_dispatches_has_story_code_field(self):
+        """state_to_dispatches() attaches story_code to each dispatch."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        for d in dispatches:
+            self.assertIn("story_code", d, f"Dispatch missing story_code field: {d}")
+
+    def test_state_to_dispatches_story_code_for_builder(self):
+        """Builder dispatch for known story gets ENN-SNN story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        # Issue 72 is in e01-s01 → story_code = "E01-S01"
+        builder_dispatch_72 = next(
+            d for d in dispatches
+            if d["phase"] == "Build" and "#72" in d["task"]
+        )
+        self.assertEqual(builder_dispatch_72["story_code"], "E01-S01")
+
+    def test_state_to_dispatches_story_code_for_reviewer(self):
+        """Reviewer dispatch for known story gets ENN-SNN story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        reviewer_dispatch = next(
+            d for d in dispatches
+            if d["phase"] == "Review"
+        )
+        self.assertEqual(reviewer_dispatch["story_code"], "E01-S01")
+
+    def test_state_to_dispatches_story_code_empty_for_designer(self):
+        """Designer dispatch gets empty story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        designer_dispatch = next(d for d in dispatches if d["phase"] == "Design")
+        self.assertEqual(designer_dispatch["story_code"], "")
+
+    def test_state_to_dispatches_story_code_empty_for_planner(self):
+        """Planner dispatch gets empty story_code."""
+        dispatches = cd.state_to_dispatches(STATE_FIXTURE)
+        planner_dispatch = next(d for d in dispatches if d["phase"] == "Plan")
+        self.assertEqual(planner_dispatch["story_code"], "")
+
+    def test_state_to_dispatches_story_code_empty_for_retro(self):
+        """Retro dispatch gets empty story_code."""
+        state_with_retro = {
+            **STATE_FIXTURE,
+            "dispatches": [
+                {
+                    "id": 1, "agent": "retro", "model": "opus",
+                    "issue": 80, "started_at": "2026-03-15T11:00:00Z",
+                    "duration_ms": 180000, "tokens": 50000,
+                },
+            ],
+        }
+        dispatches = cd.state_to_dispatches(state_with_retro)
+        retro_dispatch = next(d for d in dispatches if d["phase"] == "Retro")
+        self.assertEqual(retro_dispatch["story_code"], "")
+
+    def test_from_state_breakdown_shows_story_codes(self):
+        """compute_from_state breakdown includes ENN-SNN codes in Story column for builders."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        # Issues 72 and 73 are in e01-s01 and e01-s02
+        # Their breakdown rows should show E01-S01 and E01-S02
+        self.assertTrue(
+            "E01-S01" in result["breakdown"] or "E01-S02" in result["breakdown"],
+            f"No story code found in breakdown:\n{result['breakdown']}"
+        )
+
+    def test_from_state_breakdown_shows_dash_for_designer(self):
+        """compute_from_state breakdown shows '--' in Story column for designer."""
+        pricing = self._pricing()
+        result = cd.compute_from_state(STATE_FIXTURE, pricing)
+        breakdown_lines = result["breakdown"].splitlines()
+        designer_line = next(l for l in breakdown_lines if "Designer" in l)
+        cells = [c.strip() for c in designer_line.split("|") if c.strip()]
+        story_cell = cells[1]
+        self.assertEqual(story_cell, "--", f"Expected '--' for designer Story cell, got: {story_cell!r}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Edge cases
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -1225,11 +1428,15 @@ GANTT_STATE_FIXTURE = {
 class TestGanttGeneration(unittest.TestCase):
     """Tests for generate_gantt() function."""
 
-    def _generate(self, state=None):
-        """Helper: run generate_gantt on GANTT_STATE_FIXTURE (or given state)."""
+    def _generate(self, state=None, mode="wall-clock"):
+        """Helper: run generate_gantt on GANTT_STATE_FIXTURE (or given state).
+
+        Defaults to mode='wall-clock' so existing tests are unaffected by the
+        new work-timeline default.
+        """
         if state is None:
             state = GANTT_STATE_FIXTURE
-        return cd.generate_gantt(state)
+        return cd.generate_gantt(state, mode=mode)
 
     def test_returns_string(self):
         """generate_gantt returns a non-empty string."""
@@ -1478,7 +1685,8 @@ class TestGanttGeneration(unittest.TestCase):
                 },
             ],
         }
-        result = self._generate(state)
+        # Use wall-clock mode so offsets are absolute timestamps
+        result = self._generate(state, mode="wall-clock")
         # Both tasks should have the same starting offset (from id 1's timestamp)
         # 10:05:00 - 10:00:00 = 300s → 00:05:00
         # Both should have offset 00:05:00 (tolerance: id 2 is only 3s later)
@@ -1509,7 +1717,8 @@ class TestGanttGeneration(unittest.TestCase):
                 },
             ],
         }
-        result = self._generate(state)
+        # Use wall-clock mode so offsets reflect absolute timestamps
+        result = self._generate(state, mode="wall-clock")
         # t1 should use 00:05:00, t2 should use 00:05:10 (different offsets)
         t1_lines = [l for l in result.splitlines() if ":t1," in l]
         t2_lines = [l for l in result.splitlines() if ":t2," in l]
@@ -1918,6 +2127,1373 @@ class TestOverheadCLI(unittest.TestCase):
                 )
         finally:
             os.unlink(state_file)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Work timeline mode tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _make_work_state(dispatches, session_start="2026-03-15T10:00:00Z"):
+    """Build a minimal state dict for work timeline tests."""
+    return {
+        **GANTT_STATE_FIXTURE,
+        "session": {**GANTT_STATE_FIXTURE["session"], "started_at": session_start},
+        "dispatches": dispatches,
+    }
+
+
+class TestWorkTimelineMode(unittest.TestCase):
+    """Tests for generate_gantt() work timeline mode (mode='work')."""
+
+    def _generate_work(self, state):
+        """Run generate_gantt in work mode."""
+        return cd.generate_gantt(state, mode="work")
+
+    def _generate_wall_clock(self, state):
+        """Run generate_gantt in wall-clock mode."""
+        return cd.generate_gantt(state, mode="wall-clock")
+
+    def test_gantt_mode_default_is_work(self):
+        """Default mode for generate_gantt() is 'work' (cumulative active time)."""
+        # Single sequential dispatch: no gap, so work == wall-clock by value
+        # But we can verify default matches explicitly-specified work mode
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 300000, "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ])
+        result_default = cd.generate_gantt(state)
+        result_work = cd.generate_gantt(state, mode="work")
+        self.assertEqual(result_default, result_work)
+
+    def test_gantt_mode_invalid_value_error(self):
+        """Passing an invalid mode value raises ValueError."""
+        state = _make_work_state([])
+        with self.assertRaises(ValueError):
+            cd.generate_gantt(state, mode="bogus")
+
+    def test_work_timeline_no_gaps(self):
+        """Sequential dispatches with no wall-clock gaps produce compact layout starting at 00:00:00."""
+        # Single dispatch — work offset is always 00:00:00 (no prior waves)
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 300000, "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ])
+        result = self._generate_work(state)
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1, f"Expected 1 task line, got: {t1_lines}")
+        # First wave offset is always 00:00:00 in work mode
+        self.assertIn("00:00:00", t1_lines[0], f"Expected 00:00:00 offset in: {t1_lines[0]}")
+
+    def test_work_timeline_single_gap(self):
+        """A 9-hour gap between waves is collapsed in work mode."""
+        # Designer finishes at T+5m, then builder starts 9 hours later (wall-clock gap)
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "designer", "model": "opus",
+                "issue": 71, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 300000,  # 5 minutes
+                "tokens": 50000, "tool_uses": 20, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T19:00:00Z",  # 9 hours later
+                "duration_ms": 120000,  # 2 minutes
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ])
+        result_work = self._generate_work(state)
+        result_wall = self._generate_wall_clock(state)
+
+        t2_work = [l for l in result_work.splitlines() if ":t2," in l]
+        t2_wall = [l for l in result_wall.splitlines() if ":t2," in l]
+        self.assertEqual(len(t2_work), 1, "Expected 1 t2 line in work mode")
+        self.assertEqual(len(t2_wall), 1, "Expected 1 t2 line in wall-clock mode")
+
+        # In work mode, wave 2 starts at cumulative = 300s (wave 1 duration)
+        # = 5 minutes = 00:05:00
+        self.assertIn("00:05:00", t2_work[0], f"Work mode t2 should start at 00:05:00, got: {t2_work[0]}")
+
+        # In wall-clock mode, t2 would start at 9 hours = 09:00:00
+        self.assertIn("09:00:00", t2_wall[0], f"Wall-clock mode t2 should start at 09:00:00, got: {t2_wall[0]}")
+
+    def test_work_timeline_multiple_gaps(self):
+        """Multiple inter-wave gaps are all collapsed in work mode."""
+        # Three sequential dispatches with large wall-clock gaps between them
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "designer", "model": "opus",
+                "issue": 71, "started_at": "2026-03-15T08:00:00Z",
+                "duration_ms": 120000,  # 2 minutes
+                "tokens": 50000, "tool_uses": 20, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",  # 2-hour gap
+                "duration_ms": 180000,  # 3 minutes
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+            {
+                "id": 3, "agent": "reviewer", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T15:00:00Z",  # 5-hour gap
+                "duration_ms": 60000,  # 1 minute
+                "tokens": 5000, "tool_uses": 3, "result": "success",
+            },
+        ], session_start="2026-03-15T08:00:00Z")
+        result = self._generate_work(state)
+
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        t2_lines = [l for l in result.splitlines() if ":t2," in l]
+        t3_lines = [l for l in result.splitlines() if ":t3," in l]
+
+        self.assertEqual(len(t1_lines), 1)
+        self.assertEqual(len(t2_lines), 1)
+        self.assertEqual(len(t3_lines), 1)
+
+        # Wave 1 offset: 00:00:00 (first wave always starts at 0)
+        self.assertIn("00:00:00", t1_lines[0], f"t1 should start at 00:00:00, got: {t1_lines[0]}")
+        # Wave 2 offset: 120s (wave 1 duration) = 00:02:00
+        self.assertIn("00:02:00", t2_lines[0], f"t2 should start at 00:02:00, got: {t2_lines[0]}")
+        # Wave 3 offset: 120 + 180 = 300s = 00:05:00
+        self.assertIn("00:05:00", t3_lines[0], f"t3 should start at 00:05:00, got: {t3_lines[0]}")
+
+    def test_work_timeline_parallel_wave_offset(self):
+        """Parallel dispatches within the same wave share the same cumulative offset."""
+        # Two parallel builders, then a sequential reviewer
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 120000,  # 2 minutes
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 73, "started_at": "2026-03-15T10:00:00Z",  # same wave
+                "duration_ms": 180000,  # 3 minutes
+                "tokens": 15000, "tool_uses": 6, "result": "success",
+            },
+            {
+                "id": 3, "agent": "reviewer", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:05:00Z",  # after both builders
+                "duration_ms": 60000,
+                "tokens": 5000, "tool_uses": 3, "result": "success",
+            },
+        ])
+        result = self._generate_work(state)
+
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        t2_lines = [l for l in result.splitlines() if ":t2," in l]
+        t3_lines = [l for l in result.splitlines() if ":t3," in l]
+
+        # Both parallel builders in wave 1 share offset 00:00:00
+        self.assertIn("00:00:00", t1_lines[0], f"t1 (parallel builder) should start at 00:00:00")
+        self.assertIn("00:00:00", t2_lines[0], f"t2 (parallel builder) should start at 00:00:00")
+
+        # Reviewer (wave 2) offset = max(120000, 180000)/1000 = 180s = 00:03:00
+        self.assertIn("00:03:00", t3_lines[0], f"t3 (reviewer) should start at 00:03:00, got: {t3_lines[0]}")
+
+    def test_work_timeline_critical_path(self):
+        """Each wave's contribution to cumulative offset is max(duration_ms) not sum."""
+        # Two parallel builders: 60s and 120s — next wave should start at 120s, not 180s
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                "duration_ms": 60000,  # 1 minute (shorter)
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 73, "started_at": "2026-03-15T10:00:00Z",  # same wave
+                "duration_ms": 120000,  # 2 minutes (critical path)
+                "tokens": 15000, "tool_uses": 6, "result": "success",
+            },
+            {
+                "id": 3, "agent": "reviewer", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:10:00Z",
+                "duration_ms": 30000,
+                "tokens": 5000, "tool_uses": 3, "result": "success",
+            },
+        ])
+        result = self._generate_work(state)
+        t3_lines = [l for l in result.splitlines() if ":t3," in l]
+        self.assertEqual(len(t3_lines), 1)
+        # Critical path = max(60000, 120000) / 1000 = 120s = 00:02:00 (not 00:03:00)
+        self.assertIn("00:02:00", t3_lines[0], f"t3 should start at 00:02:00 (critical path), got: {t3_lines[0]}")
+        self.assertNotIn("00:03:00", t3_lines[0], "t3 should NOT be at 00:03:00 (that would be sum, not max)")
+
+    def test_wall_clock_mode_unchanged(self):
+        """wall-clock mode produces the same output as before the mode parameter was added."""
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T10:05:00Z",
+                "duration_ms": 120000, "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ])
+        result = self._generate_wall_clock(state)
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1)
+        # wall-clock: session_start=10:00:00, dispatch started at 10:05:00
+        # offset = 300s = 00:05:00
+        self.assertIn("00:05:00", t1_lines[0], f"Wall-clock t1 should be at 00:05:00, got: {t1_lines[0]}")
+
+    def test_work_mode_gantt_returns_string(self):
+        """generate_gantt returns a string in work mode."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        self.assertIsInstance(result, str)
+        self.assertGreater(len(result), 0)
+
+    def test_work_mode_includes_header(self):
+        """Work mode Gantt includes standard header elements."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        self.assertIn("title Full Lifecycle Timeline", result)
+        self.assertIn("dateFormat HH:mm:ss", result)
+
+    def test_work_mode_no_section_directives(self):
+        """Work mode Gantt does not include 'section' directives."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        self.assertNotIn("section", result)
+
+    def test_work_mode_no_after_syntax(self):
+        """Work mode uses absolute offsets, not 'after' syntax."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        self.assertNotIn("after ", result)
+
+    def test_work_mode_tick_interval_uses_cumulative_time(self):
+        """Tick interval in work mode is based on cumulative active time, not wall-clock span."""
+        # Two dispatches each 10 minutes, with a 9-hour gap between them
+        # Work mode total = 10m + 10m = 20m → 2minute tick
+        # Wall-clock total = 9h10m → 10minute tick
+        state = _make_work_state([
+            {
+                "id": 1, "agent": "designer", "model": "opus",
+                "issue": 71, "started_at": "2026-03-15T08:00:00Z",
+                "duration_ms": 600000,  # 10 minutes
+                "tokens": 50000, "tool_uses": 20, "result": "success",
+            },
+            {
+                "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+                "issue": 72, "started_at": "2026-03-15T17:10:00Z",  # 9h10m later
+                "duration_ms": 600000,  # 10 minutes
+                "tokens": 10000, "tool_uses": 5, "result": "success",
+            },
+        ], session_start="2026-03-15T08:00:00Z")
+        result_work = self._generate_work(state)
+        result_wall = self._generate_wall_clock(state)
+        # Work mode: total = 10 + 10 = 20m → 2minute tick
+        self.assertIn("tickInterval 2minute", result_work,
+                      f"Work mode with 20m cumulative should use 2minute tick, got:\n{result_work}")
+        # Wall-clock mode: total ≈ 9h20m → 10minute tick
+        self.assertIn("tickInterval 10minute", result_wall,
+                      f"Wall-clock mode with 9h20m should use 10minute tick, got:\n{result_wall}")
+
+    def test_work_mode_empty_dispatches(self):
+        """Empty dispatches list in work mode returns header only."""
+        state = _make_work_state([])
+        result = self._generate_work(state)
+        self.assertIn("title Full Lifecycle Timeline", result)
+        self.assertIn("dateFormat HH:mm:ss", result)
+        self.assertNotIn(":t1,", result)
+
+    def test_work_mode_gantt_fixture_first_wave_at_zero(self):
+        """In work mode with GANTT_STATE_FIXTURE, the first wave (designer) starts at 00:00:00."""
+        result = cd.generate_gantt(GANTT_STATE_FIXTURE, mode="work")
+        t1_lines = [l for l in result.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1, "Expected exactly one t1 task")
+        self.assertIn("00:00:00", t1_lines[0], f"First task in work mode should be at 00:00:00, got: {t1_lines[0]}")
+
+
+class TestGanttModeCLI(unittest.TestCase):
+    """Tests for --gantt-mode flag in compute-dispatches.py CLI."""
+
+    def setUp(self):
+        self.state_file = _write_json(GANTT_STATE_FIXTURE)
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.state_file, self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _run_cli(self, extra_args=None):
+        """Run main() with --from-state --gantt and optional extra args, capture JSON output."""
+        import io
+        from unittest.mock import patch
+
+        args = [
+            "--from-state", self.state_file,
+            "--pricing", self.pricing_file,
+            "--config", self.config_file,
+            "--gantt",
+        ]
+        if extra_args:
+            args.extend(extra_args)
+
+        captured = io.StringIO()
+        with patch("sys.stdout", captured):
+            cd.main(args)
+
+        return json.loads(captured.getvalue())
+
+    def test_gantt_mode_work_flag(self):
+        """--gantt-mode work produces work timeline (first task at 00:00:00)."""
+        result = self._run_cli(["--gantt-mode", "work"])
+        gantt = result["gantt"]
+        # In work mode, the first task starts at 00:00:00
+        t1_lines = [l for l in gantt.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1)
+        self.assertIn("00:00:00", t1_lines[0],
+                      f"--gantt-mode work: first task should be at 00:00:00, got: {t1_lines[0]}")
+
+    def test_gantt_mode_wall_clock_flag(self):
+        """--gantt-mode wall-clock produces wall-clock offsets (designer at T+1m = 00:01:00)."""
+        result = self._run_cli(["--gantt-mode", "wall-clock"])
+        gantt = result["gantt"]
+        # In wall-clock mode, designer started at T+1m = 00:01:00
+        t1_lines = [l for l in gantt.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1)
+        self.assertIn("00:01:00", t1_lines[0],
+                      f"--gantt-mode wall-clock: designer should be at 00:01:00, got: {t1_lines[0]}")
+
+    def test_gantt_mode_default_is_work_in_cli(self):
+        """Without --gantt-mode, CLI defaults to work mode (first task at 00:00:00)."""
+        result = self._run_cli()
+        gantt = result["gantt"]
+        t1_lines = [l for l in gantt.splitlines() if ":t1," in l]
+        self.assertEqual(len(t1_lines), 1)
+        # Default is work mode → first task at 00:00:00
+        self.assertIn("00:00:00", t1_lines[0],
+                      f"Default CLI mode should be work (00:00:00), got: {t1_lines[0]}")
+
+    def test_gantt_mode_invalid_rejected(self):
+        """--gantt-mode with an invalid value exits with error."""
+        import io
+        from unittest.mock import patch
+
+        args = [
+            "--from-state", self.state_file,
+            "--pricing", self.pricing_file,
+            "--config", self.config_file,
+            "--gantt",
+            "--gantt-mode", "invalid-mode",
+        ]
+        with self.assertRaises(SystemExit) as cm:
+            with patch("sys.stderr", io.StringIO()):
+                cd.main(args)
+        self.assertNotEqual(cm.exception.code, 0)
+
+    def test_gantt_mode_without_gantt_flag_is_ignored(self):
+        """--gantt-mode without --gantt flag does not crash (just ignored)."""
+        import io
+        from unittest.mock import patch
+
+        args = [
+            "--from-state", self.state_file,
+            "--pricing", self.pricing_file,
+            "--config", self.config_file,
+            "--gantt-mode", "work",
+            # No --gantt flag
+        ]
+        captured = io.StringIO()
+        with patch("sys.stdout", captured):
+            cd.main(args)  # Should not crash
+        result = json.loads(captured.getvalue())
+        # gantt field not present (since --gantt wasn't passed)
+        self.assertNotIn("gantt", result)
+
+    def test_gantt_mode_does_not_affect_non_gantt_output(self):
+        """--gantt-mode does not change breakdown/summary/cost/duration_ms fields."""
+        without_mode = self._run_cli()
+        with_mode = self._run_cli(["--gantt-mode", "wall-clock"])
+
+        for field in ["breakdown", "summary", "cost", "duration_ms", "tokens"]:
+            self.assertEqual(
+                without_mode[field], with_mode[field],
+                f"Field '{field}' should not differ with/without --gantt-mode"
+            )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# E01-S02: Fallback story code extraction, diagnostic logging, template header
+# ──────────────────────────────────────────────────────────────────────────────
+
+# State fixture with no branches on any story — triggers fallback and diagnostic warning.
+STATE_NO_BRANCHES = {
+    **STATE_FIXTURE,
+    "epics": {
+        "e01": {
+            "issue": 70,
+            "branch": "epic/e01-destination-profiles",
+            "stories": {
+                "72": {
+                    "status": "complete",
+                    # No "branch" field
+                },
+                "73": {
+                    "status": "complete",
+                    # No "branch" field
+                },
+            },
+        }
+    },
+}
+
+# State fixture with one story missing its branch field (partial missing)
+STATE_PARTIAL_BRANCH = {
+    **STATE_FIXTURE,
+    "epics": {
+        "e01": {
+            "issue": 70,
+            "branch": "epic/e01-destination-profiles",
+            "stories": {
+                "72": {
+                    "status": "complete",
+                    "branch": "e01-s01/destination-profiles",
+                },
+                "73": {
+                    "status": "complete",
+                    # No branch for story 73
+                },
+            },
+        }
+    },
+}
+
+
+class TestBuildStoryLabels(unittest.TestCase):
+    """Tests for _build_story_labels() — E01-S02 additions."""
+
+    def test_build_story_labels_empty_epics(self):
+        """When state.epics is empty, _build_story_labels returns empty dict."""
+        state = {**STATE_FIXTURE, "epics": {}}
+        result = cd._build_story_labels(state)
+        self.assertEqual(result, {})
+
+    def test_build_story_labels_missing_branch_no_crash(self):
+        """When a story has no 'branch' field, _build_story_labels does not crash."""
+        try:
+            cd._build_story_labels(STATE_NO_BRANCHES)
+        except Exception as e:
+            self.fail(f"_build_story_labels crashed on missing branch: {e}")
+
+    def test_build_story_labels_missing_branch_returns_empty(self):
+        """When no stories have a 'branch' field, _build_story_labels returns empty dict."""
+        result = cd._build_story_labels(STATE_NO_BRANCHES)
+        self.assertEqual(result, {})
+
+    def test_build_story_labels_partial_missing_branch_skips_gracefully(self):
+        """When only some stories are missing 'branch', those stories are skipped."""
+        result = cd._build_story_labels(STATE_PARTIAL_BRANCH)
+        # Story 72 has branch "e01-s01/..." -> should extract E01-S01
+        self.assertIn(72, result)
+        self.assertEqual(result[72], "E01-S01")
+        # Story 73 has no branch -> absent (not crash)
+        self.assertNotIn(73, result)
+
+    def test_build_story_labels_diagnostic_warning_when_epics_nonempty_but_no_labels(self):
+        """When state.epics is non-empty but no labels extracted, a warning is printed to stderr."""
+        import io
+        from unittest.mock import patch
+
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            result = cd._build_story_labels(STATE_NO_BRANCHES)
+
+        self.assertEqual(result, {})
+        warning_output = captured_stderr.getvalue()
+        self.assertGreater(
+            len(warning_output), 0,
+            "Expected a warning on stderr when epics non-empty but no labels extracted"
+        )
+        self.assertIn("Warning", warning_output)
+
+    def test_build_story_labels_no_warning_when_epics_empty(self):
+        """No stderr warning when state.epics is empty (expected empty result)."""
+        import io
+        from unittest.mock import patch
+
+        state = {**STATE_FIXTURE, "epics": {}}
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            cd._build_story_labels(state)
+
+        self.assertEqual(
+            captured_stderr.getvalue(), "",
+            f"Expected no warning when epics is empty, got: {captured_stderr.getvalue()!r}"
+        )
+
+    def test_build_story_labels_no_warning_when_labels_extracted(self):
+        """No story-label warning when labels are successfully extracted from branches."""
+        import io
+        from unittest.mock import patch
+
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            result = cd._build_story_labels(STATE_FIXTURE)
+
+        self.assertGreater(len(result), 0, "Expected some labels to be extracted")
+        # Only check for story-label-specific warnings, not general pricing warnings
+        story_label_warnings = [
+            line for line in captured_stderr.getvalue().splitlines()
+            if "no story labels" in line.lower() or "story label" in line.lower()
+        ]
+        self.assertEqual(story_label_warnings, [])
+
+
+class TestStoryCodeFallback(unittest.TestCase):
+    """Tests for the fallback story code extraction in state_to_dispatches()."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _make_state_no_branches(self, issues):
+        """Build a state with stories that have no branch field."""
+        stories = {str(issue_num): {"status": "complete"} for issue_num in issues}
+        return {
+            **STATE_FIXTURE,
+            "epics": {
+                "e01": {
+                    "issue": 70,
+                    "branch": "epic/e01-destination-profiles",
+                    "stories": stories,
+                }
+            },
+            "dispatches": [
+                {
+                    "id": i + 1,
+                    "agent": "builder-sonnet",
+                    "model": "sonnet",
+                    "issue": issue_num,
+                    "started_at": "2026-03-15T10:12:00Z",
+                    "duration_ms": 100000,
+                    "tokens": 10000,
+                }
+                for i, issue_num in enumerate(issues)
+            ],
+        }
+
+    def test_story_code_fallback_when_mapping_empty(self):
+        """When _build_story_labels() returns empty (no branches), fallback assigns story codes."""
+        state = self._make_state_no_branches([72, 73])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatches = [d for d in dispatches if d["phase"] == "Build"]
+        self.assertEqual(len(build_dispatches), 2)
+        # Both should have non-empty story_code from the fallback
+        for d in build_dispatches:
+            self.assertNotEqual(
+                d.get("story_code", ""), "",
+                f"Fallback should produce a non-empty story_code for issue in e01: {d}"
+            )
+
+    def test_story_code_fallback_produces_enn_snn_format(self):
+        """Fallback story code format matches ENN-SNN pattern."""
+        import re
+
+        state = self._make_state_no_branches([72])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatch = next(d for d in dispatches if d["phase"] == "Build")
+        story_code = build_dispatch.get("story_code", "")
+        if story_code:
+            self.assertRegex(
+                story_code, r"^E\d+-S\d+$",
+                f"Fallback story_code should match ENN-SNN format, got: {story_code!r}"
+            )
+
+    def test_story_code_fallback_multiple_stories_unique_codes(self):
+        """Fallback produces distinct story codes for distinct issues in the same epic."""
+        state = self._make_state_no_branches([72, 73])
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatches = [d for d in dispatches if d["phase"] == "Build"]
+        codes = [d.get("story_code", "") for d in build_dispatches]
+        non_empty = [c for c in codes if c]
+        if len(non_empty) > 1:
+            self.assertEqual(len(set(non_empty)), len(non_empty), "Story codes should be unique")
+
+    def test_story_code_no_fallback_for_issue_not_in_epics(self):
+        """Issue not in any epic's stories gets empty story_code (no fallback)."""
+        state = {
+            **STATE_NO_BRANCHES,
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 999, "started_at": "2026-03-15T10:12:00Z",
+                    "duration_ms": 100000, "tokens": 10000,
+                },
+            ],
+        }
+        dispatches = cd.state_to_dispatches(state)
+        build_dispatch = next(d for d in dispatches if d["phase"] == "Build")
+        # Issue 999 is not in any epic -> no fallback
+        self.assertEqual(build_dispatch.get("story_code", ""), "")
+
+
+class TestTemplateBreakdownHeader(unittest.TestCase):
+    """Tests for the breakdown header in telemetry.md template — E01-S02."""
+
+    def setUp(self):
+        self.template_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "templates",
+            "telemetry.md",
+        )
+
+    def test_template_breakdown_header_has_story_column(self):
+        """The telemetry template's breakdown header includes 'Story' column."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn(
+            "| Agent | Story | Task | Duration | Tokens | Est. Cost |",
+            content,
+            "Template breakdown header must include 'Story' column between Agent and Task"
+        )
+
+    def test_template_breakdown_separator_has_six_columns(self):
+        """The telemetry template's breakdown separator row has 6 column dashes."""
+        with open(self.template_path) as f:
+            content = f.read()
+        breakdown_idx = content.find("### Breakdown")
+        self.assertGreater(breakdown_idx, -1, "Could not find '### Breakdown' in template")
+        breakdown_section = content[breakdown_idx:]
+        lines = breakdown_section.splitlines()
+        separator_line = next(
+            (l for l in lines if l.startswith("|---") or l.startswith("| ---")),
+            None,
+        )
+        self.assertIsNotNone(separator_line, "Could not find separator row in Breakdown section")
+        # 6 columns = 7 pipe characters
+        pipe_count = separator_line.count("|")
+        self.assertEqual(
+            pipe_count, 7,
+            f"Expected 7 pipes (6 columns) in breakdown separator, got {pipe_count}: {separator_line!r}"
+        )
+
+    def test_template_old_breakdown_header_absent(self):
+        """The old 5-column breakdown header must NOT be present in the template."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertNotIn(
+            "| Agent | Task | Duration | Tokens | Est. Cost |",
+            content,
+            "Old 5-column breakdown header should be replaced by 6-column version"
+        )
+
+
+class TestStalledDetection(unittest.TestCase):
+    """Tests for stalled dispatch detection in _gantt_label_for_dispatch() — E02-S03."""
+
+    # Helpers to build minimal dispatch dicts for _gantt_label_for_dispatch
+    def _make_dispatch(self, duration_ms, tokens, agent="builder-sonnet", issue=72):
+        return {
+            "agent": agent,
+            "model": "sonnet",
+            "issue": issue,
+            "duration_ms": duration_ms,
+            "tokens": tokens,
+            "started_at": "2026-03-15T10:12:00Z",
+        }
+
+    def _story_labels(self):
+        return {72: "E01-S01", 73: "E01-S02"}
+
+    # ── Threshold boundary ────────────────────────────────────────────────────
+
+    def test_stalled_detection_below_threshold(self):
+        """Dispatch with throughput < 50 tok/s is flagged as stalled."""
+        # 49 tok/s: 49 tokens in 1 second
+        d = self._make_dispatch(duration_ms=1000, tokens=49)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertIn("[stalled]", label)
+        self.assertTrue(stalled)
+
+    def test_stalled_detection_above_threshold(self):
+        """Dispatch with throughput >= 50 tok/s is NOT flagged as stalled."""
+        # 50 tok/s: 50 tokens in 1 second — exactly at threshold, not stalled
+        d = self._make_dispatch(duration_ms=1000, tokens=50)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
+
+    def test_stalled_detection_well_above_threshold(self):
+        """Dispatch with throughput >> 50 tok/s is not flagged."""
+        # 340 tok/s: typical fast dispatch
+        d = self._make_dispatch(duration_ms=146000, tokens=49691)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
+
+    # ── Label format ──────────────────────────────────────────────────────────
+
+    def test_stalled_label_suffix_in_gantt(self):
+        """[stalled] suffix appears after the duration in the Gantt label."""
+        # 30 tok/s — stalled
+        d = self._make_dispatch(duration_ms=10000, tokens=300)
+        label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        # Should contain the duration followed by [stalled]
+        self.assertIn("[stalled]", label)
+        # Space before bracket
+        self.assertIn(" [stalled]", label)
+
+    def test_stalled_label_suffix_at_end(self):
+        """[stalled] appears at the end of the label string."""
+        d = self._make_dispatch(duration_ms=10000, tokens=300)  # 30 tok/s
+        label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertTrue(label.endswith("[stalled]"), f"Label should end with [stalled]: {label!r}")
+
+    def test_stalled_label_format_builder(self):
+        """Stalled builder label: 'E01-S01 Build (10s) [stalled]'."""
+        d = self._make_dispatch(duration_ms=10000, tokens=300)  # 30 tok/s
+        label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertIn("Build", label)
+        self.assertIn("[stalled]", label)
+
+    def test_stalled_label_format_reviewer(self):
+        """Stalled reviewer label also gets [stalled] suffix."""
+        d = self._make_dispatch(duration_ms=10000, tokens=300, agent="reviewer")
+        label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertIn("[stalled]", label)
+
+    # ── Edge cases ────────────────────────────────────────────────────────────
+
+    def test_stalled_zero_duration_no_crash(self):
+        """Zero-duration dispatch does not raise ZeroDivisionError."""
+        d = self._make_dispatch(duration_ms=0, tokens=1000)
+        try:
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        except ZeroDivisionError:
+            self.fail("_gantt_label_for_dispatch raised ZeroDivisionError for zero-duration dispatch")
+
+    def test_stalled_zero_duration_not_flagged(self):
+        """Zero-duration dispatch is not flagged as stalled (no throughput data)."""
+        d = self._make_dispatch(duration_ms=0, tokens=1000)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
+
+    def test_stalled_zero_tokens_not_flagged(self):
+        """Zero-token dispatch (e.g., API error) is not flagged as stalled."""
+        d = self._make_dispatch(duration_ms=60000, tokens=0)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
+
+    def test_stalled_zero_tokens_zero_duration_no_crash(self):
+        """Zero tokens and zero duration does not crash."""
+        d = self._make_dispatch(duration_ms=0, tokens=0)
+        try:
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        except ZeroDivisionError:
+            self.fail("_gantt_label_for_dispatch raised ZeroDivisionError for zero tokens+duration")
+
+    # ── None value guards ────────────────────────────────────────────────────
+
+    def test_stalled_none_duration_no_crash(self):
+        """None duration_ms does not raise TypeError."""
+        d = self._make_dispatch(duration_ms=None, tokens=1000)
+        try:
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        except TypeError:
+            self.fail("_gantt_label_for_dispatch raised TypeError for None duration_ms")
+
+    def test_stalled_none_duration_not_flagged(self):
+        """None duration_ms is not flagged as stalled (treated as 0)."""
+        d = self._make_dispatch(duration_ms=None, tokens=1000)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
+
+    def test_stalled_none_tokens_no_crash(self):
+        """None tokens does not raise TypeError."""
+        d = self._make_dispatch(duration_ms=60000, tokens=None)
+        try:
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        except TypeError:
+            self.fail("_gantt_label_for_dispatch raised TypeError for None tokens")
+
+    def test_stalled_none_tokens_not_flagged(self):
+        """None tokens is not flagged as stalled (treated as 0)."""
+        d = self._make_dispatch(duration_ms=60000, tokens=None)
+        label, _, _, stalled = cd._gantt_label_for_dispatch(d, self._story_labels())
+        self.assertNotIn("[stalled]", label)
+        self.assertFalse(stalled)
+
+    def test_stalled_none_both_no_crash(self):
+        """None for both duration_ms and tokens does not crash."""
+        d = self._make_dispatch(duration_ms=None, tokens=None)
+        try:
+            label, _, _, _ = cd._gantt_label_for_dispatch(d, self._story_labels())
+        except (TypeError, ZeroDivisionError):
+            self.fail("_gantt_label_for_dispatch raised an error for None duration_ms and tokens")
+
+    def test_is_stalled_none_duration(self):
+        """_is_stalled returns False for None duration_ms (not stalled, no TypeError)."""
+        d = {"duration_ms": None, "tokens": 1000}
+        self.assertFalse(cd._is_stalled(d))
+
+    def test_is_stalled_none_tokens(self):
+        """_is_stalled returns False for None tokens (not stalled, no TypeError)."""
+        d = {"duration_ms": 60000, "tokens": None}
+        self.assertFalse(cd._is_stalled(d))
+
+    def test_is_stalled_none_both(self):
+        """_is_stalled returns False when both duration_ms and tokens are None."""
+        d = {"duration_ms": None, "tokens": None}
+        self.assertFalse(cd._is_stalled(d))
+
+    # ── Color tag not changed by stalled ────────────────────────────────────
+
+    def test_stalled_does_not_change_color_tag(self):
+        """Stalled detection does not change the color tag (informational only)."""
+        d_stalled = self._make_dispatch(duration_ms=10000, tokens=300)  # 30 tok/s
+        d_normal = self._make_dispatch(duration_ms=10000, tokens=10000)  # 1000 tok/s
+        _, tag_stalled, _, _ = cd._gantt_label_for_dispatch(d_stalled, self._story_labels())
+        _, tag_normal, _, _ = cd._gantt_label_for_dispatch(d_normal, self._story_labels())
+        self.assertEqual(tag_stalled, tag_normal, "Stalled detection must not change color tag")
+
+    def test_stalled_does_not_change_duration_s(self):
+        """Stalled detection does not change the returned duration_s value."""
+        d_stalled = self._make_dispatch(duration_ms=10000, tokens=300)  # 30 tok/s
+        d_normal = self._make_dispatch(duration_ms=10000, tokens=10000)  # 1000 tok/s
+        _, _, dur_stalled, _ = cd._gantt_label_for_dispatch(d_stalled, self._story_labels())
+        _, _, dur_normal, _ = cd._gantt_label_for_dispatch(d_normal, self._story_labels())
+        self.assertEqual(dur_stalled, dur_normal, "Stalled detection must not change duration_s")
+
+
+class TestStalledGanttNote(unittest.TestCase):
+    """Tests for stalled count in gantt_note output channel — E02-S03.
+
+    The stalled note is delivered via get_stalled_count() / _build_stalled_note()
+    and exposed as the 'gantt_note' JSON field in the CLI output. It is NOT
+    appended inside generate_gantt() (which would place it inside the Mermaid
+    code fence, producing invalid syntax).
+    """
+
+    def _make_state_with_stalled(self, n_stalled=1, n_normal=1):
+        """
+        Build a minimal state with stalled and normal dispatches.
+
+        Stalled: 30 tokens in 10s = 3 tok/s < 50 tok/s threshold.
+        Normal: 10000 tokens in 10s = 1000 tok/s >> 50 tok/s threshold.
+        """
+        base_time = "2026-03-15T10:00:00Z"
+        dispatches = []
+        dispatch_id = 1
+
+        for i in range(n_stalled):
+            dispatches.append({
+                "id": dispatch_id,
+                "agent": "builder-sonnet",
+                "model": "sonnet",
+                "issue": 70 + i,
+                "started_at": f"2026-03-15T10:0{dispatch_id}:00Z",
+                "duration_ms": 10000,   # 10 seconds
+                "tokens": 30,           # 30 tok / 10s = 3 tok/s → stalled
+                "tool_uses": 5,
+                "result": "success",
+            })
+            dispatch_id += 1
+
+        for i in range(n_normal):
+            dispatches.append({
+                "id": dispatch_id,
+                "agent": "builder-sonnet",
+                "model": "sonnet",
+                "issue": 80 + i,
+                "started_at": f"2026-03-15T10:1{dispatch_id}:00Z",
+                "duration_ms": 10000,   # 10 seconds
+                "tokens": 10000,        # 10000 tok / 10s = 1000 tok/s → normal
+                "tool_uses": 10,
+                "result": "success",
+            })
+            dispatch_id += 1
+
+        return {
+            "version": 1,
+            "session": {
+                "backlog": 69,
+                "mode": "autonomous",
+                "started_at": base_time,
+            },
+            "epics": {},
+            "dispatches": dispatches,
+        }
+
+    # ── Gantt body must NOT contain the stalled note ───────────────────────────
+    # The note lives outside the Mermaid fence in {{GANTT_NOTE}} — not in the
+    # gantt body string returned by generate_gantt().
+
+    def test_stalled_note_not_in_gantt_body_singular(self):
+        """Stalled note is NOT inside generate_gantt() body (would corrupt Mermaid)."""
+        state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
+        gantt_body = cd.generate_gantt(state, mode="work")
+        self.assertNotIn("stalled dispatch detected", gantt_body)
+
+    def test_stalled_note_not_in_gantt_body_plural(self):
+        """Stalled note text is absent from generate_gantt() even with multiple stalled."""
+        state = self._make_state_with_stalled(n_stalled=3, n_normal=1)
+        gantt_body = cd.generate_gantt(state, mode="work")
+        self.assertNotIn("stalled dispatch detected", gantt_body)
+
+    def test_stalled_label_in_task_line(self):
+        """Gantt task lines still include [stalled] label suffix (per-task marker)."""
+        state = self._make_state_with_stalled(n_stalled=1, n_normal=0)
+        gantt_body = cd.generate_gantt(state, mode="work")
+        # The [stalled] suffix on task lines is valid Mermaid label text
+        self.assertIn("[stalled]", gantt_body)
+
+    def test_no_stalled_label_when_all_normal(self):
+        """No [stalled] label appears in Gantt body when all dispatches are normal."""
+        state = self._make_state_with_stalled(n_stalled=0, n_normal=2)
+        gantt_body = cd.generate_gantt(state, mode="work")
+        self.assertNotIn("[stalled]", gantt_body)
+        self.assertNotIn("stalled dispatch", gantt_body)
+
+    # ── get_stalled_count() ───────────────────────────────────────────────────
+
+    def test_stalled_note_singular(self):
+        """get_stalled_count returns 1 when exactly 1 dispatch is stalled."""
+        state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
+        self.assertEqual(cd.get_stalled_count(state), 1)
+
+    def test_stalled_note_plural(self):
+        """get_stalled_count returns correct count for multiple stalled dispatches."""
+        state = self._make_state_with_stalled(n_stalled=2, n_normal=1)
+        self.assertEqual(cd.get_stalled_count(state), 2)
+
+    def test_get_stalled_count_zero_when_all_normal(self):
+        """get_stalled_count returns 0 when no dispatches are stalled."""
+        state = self._make_state_with_stalled(n_stalled=0, n_normal=2)
+        self.assertEqual(cd.get_stalled_count(state), 0)
+
+    def test_get_stalled_count_none_fields_no_crash(self):
+        """get_stalled_count does not crash when dispatch has None duration_ms or tokens."""
+        state = {
+            "dispatches": [
+                {"agent": "builder-sonnet", "model": "sonnet", "issue": 1,
+                 "started_at": "2026-03-15T10:01:00Z", "duration_ms": None, "tokens": None},
+                {"agent": "builder-sonnet", "model": "sonnet", "issue": 2,
+                 "started_at": "2026-03-15T10:02:00Z", "duration_ms": 10000, "tokens": 30},
+            ],
+            "session": {"backlog": 1, "started_at": "2026-03-15T10:00:00Z"},
+            "epics": {},
+        }
+        count = cd.get_stalled_count(state)
+        # Only the second dispatch (30 tok/10s = 3 tok/s) is stalled; None dispatch is not
+        self.assertEqual(count, 1)
+
+    # ── _build_stalled_note() ─────────────────────────────────────────────────
+
+    def test_stalled_note_threshold_message(self):
+        """_build_stalled_note contains the threshold description."""
+        note = cd._build_stalled_note(1)
+        self.assertIn("< 50 tok/s throughput", note)
+
+    def test_stalled_note_api_throttling_message(self):
+        """_build_stalled_note contains the explanation about usage limit waits."""
+        note = cd._build_stalled_note(1)
+        self.assertIn("usage limit waits or API throttling", note)
+
+    def test_stalled_note_exact_format_singular(self):
+        """Stalled note matches exact format contract for singular."""
+        note = cd._build_stalled_note(1)
+        expected = (
+            "*1 stalled dispatch detected (< 50 tok/s throughput). "
+            "Duration may include usage limit waits or API throttling.*"
+        )
+        self.assertEqual(note, expected)
+
+    def test_stalled_note_exact_format_plural(self):
+        """Stalled note matches exact format contract for plural."""
+        note = cd._build_stalled_note(3)
+        expected = (
+            "*3 stalled dispatches detected (< 50 tok/s throughput). "
+            "Duration may include usage limit waits or API throttling.*"
+        )
+        self.assertEqual(note, expected)
+
+    def test_build_stalled_note_returns_none_when_zero(self):
+        """_build_stalled_note returns None when stalled_count is 0."""
+        self.assertIsNone(cd._build_stalled_note(0))
+
+    def test_stalled_note_in_work_mode(self):
+        """get_stalled_count works correctly regardless of which gantt mode was used."""
+        state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
+        cd.generate_gantt(state, mode="work")
+        self.assertEqual(cd.get_stalled_count(state), 1)
+
+    def test_stalled_note_in_wall_clock_mode(self):
+        """get_stalled_count works correctly with wall-clock mode gantt."""
+        state = self._make_state_with_stalled(n_stalled=1, n_normal=1)
+        cd.generate_gantt(state, mode="wall-clock")
+        self.assertEqual(cd.get_stalled_count(state), 1)
+
+    def test_stalled_note_constant_value(self):
+        """_STALLED_THRESHOLD_TOKS constant equals 50."""
+        self.assertEqual(cd._STALLED_THRESHOLD_TOKS, 50)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# E02-S02: Gap Annotation Generation
+# ──────────────────────────────────────────────────────────────────────────────
+
+# State fixture with a large gap between waves (9-hour gap → well above 300s threshold)
+_STATE_WITH_LARGE_GAP = {
+    **GANTT_STATE_FIXTURE,
+    "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+    "dispatches": [
+        {
+            "id": 1, "agent": "designer", "model": "opus",
+            "issue": 71, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 300000,  # 5 minutes
+            "tokens": 50000, "tool_uses": 20, "result": "success",
+        },
+        {
+            "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T19:00:00Z",  # 9-hour gap (32400s)
+            "duration_ms": 120000,  # 2 minutes
+            "tokens": 10000, "tool_uses": 5, "result": "success",
+        },
+    ],
+}
+
+# State fixture with two large gaps (> 5 minutes each)
+_STATE_WITH_TWO_LARGE_GAPS = {
+    **GANTT_STATE_FIXTURE,
+    "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T08:00:00Z"},
+    "dispatches": [
+        {
+            "id": 1, "agent": "designer", "model": "opus",
+            "issue": 71, "started_at": "2026-03-15T08:00:00Z",
+            "duration_ms": 120000,  # 2 minutes, ends at 08:02:00
+            "tokens": 50000, "tool_uses": 20, "result": "success",
+        },
+        {
+            "id": 2, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",  # 2-hour gap (7200s)
+            "duration_ms": 180000,  # 3 minutes, ends at 10:03:00
+            "tokens": 10000, "tool_uses": 5, "result": "success",
+        },
+        {
+            "id": 3, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:48:00Z",  # 45-minute gap (2700s)
+            "duration_ms": 60000,  # 1 minute
+            "tokens": 5000, "tool_uses": 3, "result": "success",
+        },
+    ],
+}
+
+# State fixture with a small gap (< 5 minutes = below threshold, 240s)
+_STATE_WITH_SMALL_GAP = {
+    **GANTT_STATE_FIXTURE,
+    "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+    "dispatches": [
+        {
+            "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 120000,  # 2 minutes, ends at 10:02:00
+            "tokens": 10000, "tool_uses": 5, "result": "success",
+        },
+        {
+            "id": 2, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:06:00Z",  # 4-min gap (240s < 300s)
+            "duration_ms": 60000,
+            "tokens": 5000, "tool_uses": 3, "result": "success",
+        },
+    ],
+}
+
+# State fixture with no gaps (perfectly sequential)
+_STATE_NO_GAPS = {
+    **GANTT_STATE_FIXTURE,
+    "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+    "dispatches": [
+        {
+            "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+            "duration_ms": 120000,  # 2 minutes, ends at 10:02:00
+            "tokens": 10000, "tool_uses": 5, "result": "success",
+        },
+        {
+            "id": 2, "agent": "reviewer", "model": "sonnet",
+            "issue": 72, "started_at": "2026-03-15T10:02:00Z",  # starts exactly when prior ends
+            "duration_ms": 60000,
+            "tokens": 5000, "tool_uses": 3, "result": "success",
+        },
+    ],
+}
+
+
+class TestGenerateGanttNote(unittest.TestCase):
+    """Tests for generate_gantt_note() function — E02-S02."""
+
+    def test_gap_threshold_constant_is_300(self):
+        """_GAP_THRESHOLD_S constant is 300 (5 minutes)."""
+        self.assertEqual(cd._GAP_THRESHOLD_S, 300)
+
+    def test_gantt_note_present_when_large_gap(self):
+        """gantt_note is returned when a gap > 5 minutes exists between waves."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note, "Expected gantt_note when gap > 5m exists")
+        self.assertIsInstance(note, str)
+        self.assertGreater(len(note), 0)
+
+    def test_gantt_note_absent_when_no_gaps(self):
+        """gantt_note is None when no inter-wave gaps > 5 minutes exist."""
+        note = cd.generate_gantt_note(_STATE_NO_GAPS)
+        self.assertIsNone(note, "Expected None gantt_note when no gaps > 5m")
+
+    def test_gantt_note_absent_when_gap_below_threshold(self):
+        """gantt_note is None when gaps are below the 5-minute threshold (240s < 300s)."""
+        note = cd.generate_gantt_note(_STATE_WITH_SMALL_GAP)
+        self.assertIsNone(note, "Expected None gantt_note when gap < 300s")
+
+    def test_gantt_note_absent_when_empty_dispatches(self):
+        """gantt_note is None when there are no dispatches."""
+        state = {**GANTT_STATE_FIXTURE, "dispatches": []}
+        note = cd.generate_gantt_note(state)
+        self.assertIsNone(note)
+
+    def test_gantt_note_absent_when_single_dispatch(self):
+        """gantt_note is None with a single dispatch (no inter-wave gaps possible)."""
+        state = {
+            **GANTT_STATE_FIXTURE,
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                    "duration_ms": 120000, "tokens": 10000, "tool_uses": 5, "result": "success",
+                },
+            ],
+        }
+        note = cd.generate_gantt_note(state)
+        self.assertIsNone(note)
+
+    def test_gantt_note_format_is_italic(self):
+        """gantt_note is italic markdown (starts with '*' and ends with '.*')."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note)
+        self.assertTrue(note.startswith("*"), f"Note must start with '*': {note!r}")
+        self.assertTrue(note.endswith(".*"), f"Note must end with '.*': {note!r}")
+
+    def test_gantt_note_single_gap_singular(self):
+        """When exactly 1 gap, the note says '1 gap' (not '1 gaps')."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note)
+        self.assertIn("1 gap", note, f"Expected singular '1 gap' in: {note!r}")
+        self.assertNotIn("1 gaps", note, f"Must not use '1 gaps': {note!r}")
+
+    def test_gantt_note_two_gaps_plural(self):
+        """When 2 gaps, the note says '2 gaps' (plural)."""
+        note = cd.generate_gantt_note(_STATE_WITH_TWO_LARGE_GAPS)
+        self.assertIsNotNone(note)
+        self.assertIn("2 gaps", note, f"Expected '2 gaps' (plural) in: {note!r}")
+
+    def test_gantt_note_contains_timeline_compressed(self):
+        """gantt_note contains 'Timeline compressed'."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note)
+        self.assertIn("Timeline compressed", note, f"Note must say 'Timeline compressed': {note!r}")
+
+    def test_gantt_note_contains_xaxis_explanation(self):
+        """gantt_note contains X-axis explanation about agent running time."""
+        note = cd.generate_gantt_note(_STATE_WITH_LARGE_GAP)
+        self.assertIsNotNone(note)
+        self.assertIn("X-axis", note, f"Note must mention X-axis: {note!r}")
+        self.assertIn("agent running time", note, f"Note must mention 'agent running time': {note!r}")
+
+    def test_gantt_note_lists_gap_durations_in_parens(self):
+        """gantt_note lists individual gap durations in parentheses."""
+        note = cd.generate_gantt_note(_STATE_WITH_TWO_LARGE_GAPS)
+        self.assertIsNotNone(note)
+        self.assertIn("(", note, "Note should list gap durations in parentheses")
+        self.assertIn("idle", note, "Note should use 'idle' to describe gaps")
+
+    def test_gantt_note_exact_threshold_excluded(self):
+        """A gap of exactly 300 seconds is NOT included (must be strictly > 300s)."""
+        state = {
+            **GANTT_STATE_FIXTURE,
+            "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                    "duration_ms": 120000,  # 2 minutes, ends at 10:02:00
+                    "tokens": 10000, "tool_uses": 5, "result": "success",
+                },
+                {
+                    "id": 2, "agent": "reviewer", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:07:00Z",  # 5m gap = 300s exactly
+                    "duration_ms": 60000,
+                    "tokens": 5000, "tool_uses": 3, "result": "success",
+                },
+            ],
+        }
+        note = cd.generate_gantt_note(state)
+        self.assertIsNone(note, "Gap of exactly 300s should NOT trigger note (must be > 300s)")
+
+    def test_gantt_note_gap_above_threshold_included(self):
+        """A gap of 301 seconds (just above the threshold) IS included."""
+        state = {
+            **GANTT_STATE_FIXTURE,
+            "session": {**GANTT_STATE_FIXTURE["session"], "started_at": "2026-03-15T10:00:00Z"},
+            "dispatches": [
+                {
+                    "id": 1, "agent": "builder-sonnet", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:00:00Z",
+                    "duration_ms": 120000,  # 2 minutes, ends at 10:02:00
+                    "tokens": 10000, "tool_uses": 5, "result": "success",
+                },
+                {
+                    "id": 2, "agent": "reviewer", "model": "sonnet",
+                    "issue": 72, "started_at": "2026-03-15T10:07:01Z",  # 5m 1s = 301s gap
+                    "duration_ms": 60000,
+                    "tokens": 5000, "tool_uses": 3, "result": "success",
+                },
+            ],
+        }
+        note = cd.generate_gantt_note(state)
+        self.assertIsNotNone(note, "Gap of 301s should trigger a note (just above 300s threshold)")
+
+    def test_generate_gantt_return_type_still_str(self):
+        """generate_gantt() still returns str (not affected by gap annotation support)."""
+        result = cd.generate_gantt(_STATE_WITH_LARGE_GAP, mode="work")
+        self.assertIsInstance(result, str)
+
+
+class TestGanttNoteCLI(unittest.TestCase):
+    """Tests for gantt_note in CLI JSON output — E02-S02."""
+
+    def setUp(self):
+        self.pricing_file = _write_json(PRICING_FIXTURE)
+        self.config_file = _write_json({})
+
+    def tearDown(self):
+        for f in [self.pricing_file, self.config_file]:
+            os.unlink(f)
+
+    def _run_cli(self, state, extra_args=None):
+        """Write state to temp file, run main() with --gantt, capture JSON output."""
+        import io
+        from unittest.mock import patch
+
+        state_file = _write_json(state)
+        try:
+            args = [
+                "--from-state", state_file,
+                "--gantt",
+                "--pricing", self.pricing_file,
+                "--config", self.config_file,
+            ]
+            if extra_args:
+                args.extend(extra_args)
+
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main(args)
+            return json.loads(captured.getvalue())
+        finally:
+            os.unlink(state_file)
+
+    def test_cli_gantt_note_present_when_gaps(self):
+        """CLI output includes 'gantt_note' when gaps > 5m exist (with --gantt flag)."""
+        result = self._run_cli(_STATE_WITH_LARGE_GAP)
+        self.assertIn("gantt_note", result, "gantt_note must be in CLI output when gaps > 5m")
+        self.assertIsInstance(result["gantt_note"], str)
+        self.assertGreater(len(result["gantt_note"]), 0)
+
+    def test_cli_gantt_note_absent_when_no_gaps(self):
+        """CLI output does not include 'gantt_note' when no gaps > 5m exist."""
+        result = self._run_cli(_STATE_NO_GAPS)
+        self.assertNotIn("gantt_note", result, "gantt_note must be absent when no gaps > 5m")
+
+    def test_cli_gantt_note_absent_without_gantt_flag(self):
+        """Without --gantt flag, gantt_note is not included in CLI output."""
+        import io
+        from unittest.mock import patch
+
+        state_file = _write_json(_STATE_WITH_LARGE_GAP)
+        try:
+            args = [
+                "--from-state", state_file,
+                "--pricing", self.pricing_file,
+                "--config", self.config_file,
+                # No --gantt flag
+            ]
+            captured = io.StringIO()
+            with patch("sys.stdout", captured):
+                cd.main(args)
+            result = json.loads(captured.getvalue())
+            self.assertNotIn("gantt_note", result, "gantt_note should not appear without --gantt flag")
+        finally:
+            os.unlink(state_file)
+
+    def test_cli_gantt_note_contains_gap_count(self):
+        """gantt_note in CLI output contains the gap count."""
+        result = self._run_cli(_STATE_WITH_LARGE_GAP)
+        note = result.get("gantt_note", "")
+        self.assertIn("1 gap", note, f"gantt_note should contain '1 gap': {note!r}")
+
+    def test_cli_other_fields_present(self):
+        """Other output fields are not removed by gantt_note presence."""
+        result = self._run_cli(_STATE_WITH_LARGE_GAP)
+        for field in ["breakdown", "summary", "cost", "duration_ms", "tokens", "wall_clock_ms", "gantt"]:
+            self.assertIn(field, result, f"Required field '{field}' missing from CLI output")
+
+
+class TestTemplateGanttNote(unittest.TestCase):
+    """Tests for GANTT_NOTE conditional block in telemetry.md — E02-S02."""
+
+    def setUp(self):
+        self.template_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "templates",
+            "telemetry.md",
+        )
+
+    def test_template_has_gantt_note_condition_start(self):
+        """Template includes <!-- IF_GANTT_NOTE --> conditional block start."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn("<!-- IF_GANTT_NOTE -->", content,
+                      "Template must have <!-- IF_GANTT_NOTE --> conditional block")
+
+    def test_template_has_gantt_note_condition_end(self):
+        """Template includes <!-- END_GANTT_NOTE --> to close the conditional block."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn("<!-- END_GANTT_NOTE -->", content,
+                      "Template must have <!-- END_GANTT_NOTE --> closing tag")
+
+    def test_template_gantt_note_block_after_end_gantt(self):
+        """GANTT_NOTE block appears after END_GANTT (below the Gantt chart)."""
+        with open(self.template_path) as f:
+            content = f.read()
+        end_gantt_idx = content.find("<!-- END_GANTT -->")
+        gantt_note_idx = content.find("<!-- IF_GANTT_NOTE -->")
+        self.assertGreater(end_gantt_idx, -1, "END_GANTT not found in template")
+        self.assertGreater(gantt_note_idx, -1, "IF_GANTT_NOTE not found in template")
+        self.assertGreater(
+            gantt_note_idx, end_gantt_idx,
+            "GANTT_NOTE block must appear after END_GANTT"
+        )
+
+    def test_template_gantt_note_variable_present(self):
+        """Template includes {{GANTT_NOTE}} variable inside the GANTT_NOTE block."""
+        with open(self.template_path) as f:
+            content = f.read()
+        self.assertIn("{{GANTT_NOTE}}", content,
+                      "Template must include {{GANTT_NOTE}} variable")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ backlog: 41
 
 ## Overview
 
-Eleventh end-to-end test of the Agentic SDLC pipeline. Primary test objective: **investigate the board status persistence bug** discovered in Runs 9-10, where `issue-set-status.sh` mutations succeed and post-mutation verification passes (`VERIFY_OK`), but statuses revert to a previous value hours later.
+Eleventh end-to-end test of the Agentic SDLC pipeline. Primary test objective: **investigate the board status persistence bug** discovered in Runs 9-10, where `item-set-status.sh` mutations succeed and post-mutation verification passes (`VERIFY_OK`), but statuses revert to a previous value hours later.
 
 Two workstreams:
 
@@ -22,12 +22,12 @@ Two workstreams:
 
 The GitHub Projects board status persistence bug has been observed across Runs 9 and 10. The symptoms are consistent:
 
-1. `issue-set-status.sh` sends a GraphQL `updateProjectV2ItemFieldValue` mutation
+1. `item-set-status.sh` sends a GraphQL `updateProjectV2ItemFieldValue` mutation
 2. The mutation returns success (exit code 0)
 3. A post-mutation verification query (1 second later) confirms the new status (`VERIFY_OK`)
 4. Hours later, the status has reverted to its previous value
 
-The existing `issue-set-status.sh` script can detect *immediate* mismatches (within 1 second of mutation), but it cannot detect delayed drift. The `check-board-drift.sh` script will fill this gap by adding timed re-verification at 10s and 30s intervals, producing evidence of whether the reversion happens within seconds/minutes or over longer periods.
+The existing `item-set-status.sh` script can detect *immediate* mismatches (within 1 second of mutation), but it cannot detect delayed drift. The `check-board-drift.sh` script will fill this gap by adding timed re-verification at 10s and 30s intervals, producing evidence of whether the reversion happens within seconds/minutes or over longer periods.
 
 ## Goals
 
@@ -55,7 +55,7 @@ This epic creates a standalone diagnostic script and extends the existing valida
 
 | Component | Current State | Relevance |
 |-----------|---------------|-----------|
-| `scripts/issue-set-status.sh` | Fully functional: mutation + 1s post-mutation verify | Baseline -- drift checker wraps this |
+| `scripts/item-set-status.sh` | Fully functional: mutation + 1s post-mutation verify | Baseline -- drift checker wraps this |
 | `scripts/validate-logs.sh` | Reports board-status.log event counts | Could report drift events if logged |
 | `.claude/logs/board-status.log` | Captures START, MUTATION, VERIFY_OK/MISMATCH, SKIP | Drift checker should log to this same file for unified diagnostics |
 
@@ -66,8 +66,8 @@ Create `scripts/check-board-drift.sh` -- a diagnostic script that exercises and 
 **What the script does:**
 
 1. Accept an issue number and target status as arguments
-2. Call `issue-set-status.sh` to set the status (reuses existing mutation + immediate verify logic)
-3. Wait 10 seconds, then query the current status via the same lightweight GraphQL query used by `issue-set-status.sh`
+2. Call `item-set-status.sh` to set the status (reuses existing mutation + immediate verify logic)
+3. Wait 10 seconds, then query the current status via the same lightweight GraphQL query used by `item-set-status.sh`
 4. Wait 30 seconds (from initial set), then query again
 5. Compare each re-verification result against the expected status
 6. Print a timestamped report to stdout and append structured entries to `.claude/logs/board-drift.log`
@@ -88,7 +88,7 @@ Create `scripts/check-board-drift.sh` -- a diagnostic script that exercises and 
 === Board Drift Check ===
 Issue:     #42
 Target:    In Progress
-Set:       OK (via issue-set-status.sh)
+Set:       OK (via item-set-status.sh)
 +10s:      OK (In Progress)
 +30s:      OK (In Progress)
 Result:    NO DRIFT DETECTED
@@ -101,7 +101,7 @@ Or, if drift is detected:
 === Board Drift Check ===
 Issue:     #42
 Target:    In Progress
-Set:       OK (via issue-set-status.sh)
+Set:       OK (via item-set-status.sh)
 +10s:      OK (In Progress)
 +30s:      DRIFT DETECTED (actual: Todo)
 Result:    DRIFT DETECTED at +30s
@@ -117,18 +117,18 @@ Result:    DRIFT DETECTED at +30s
 
 **Implementation notes:**
 
-- Reuse the `fetch_item_info` GraphQL query pattern from `issue-set-status.sh` (lightweight per-issue query, ~1 GraphQL point)
-- The script should be self-contained -- it calls `issue-set-status.sh` for the initial set, then handles its own timed re-verifications
+- Reuse the `fetch_item_info` GraphQL query pattern from `item-set-status.sh` (lightweight per-issue query, ~1 GraphQL point)
+- The script should be self-contained -- it calls `item-set-status.sh` for the initial set, then handles its own timed re-verifications
 - Log file is separate from `board-status.log` to keep drift diagnostics isolated from normal operational logs
 - Exit code: 0 = no drift, 1 = drift detected, 2 = error (API failure, missing args)
 - The ~40 second total runtime (10s wait + 20s wait) is acceptable for a diagnostic tool
 
-**Why medium:** Requires timed delays, multiple GraphQL queries, structured logging, and coordinating with `issue-set-status.sh`. More complex than a simple wrapper, but follows an established pattern.
+**Why medium:** Requires timed delays, multiple GraphQL queries, structured logging, and coordinating with `item-set-status.sh`. More complex than a simple wrapper, but follows an established pattern.
 
 **Acceptance criteria:**
 
 - [ ] Script is executable and runs without errors
-- [ ] Calls `issue-set-status.sh` for the initial set (not reimplementing the mutation)
+- [ ] Calls `item-set-status.sh` for the initial set (not reimplementing the mutation)
 - [ ] Re-verifies at +10s and +30s intervals using lightweight GraphQL queries
 - [ ] Logs structured entries to `.claude/logs/board-drift.log`
 - [ ] Prints human-readable report to stdout
@@ -379,21 +379,21 @@ Total: ~8 min agent time, ~8 min wall-clock (Wave 3 parallelism offsets Wave 1-2
 
 ### Approach A: Dedicated drift detection script + validate-logs integration (recommended)
 
-Create `check-board-drift.sh` as a standalone diagnostic tool that delegates initial status-setting to `issue-set-status.sh`, then independently re-verifies at timed intervals. Extend `validate-logs.sh` to report on the drift log. Keep the drift log separate from `board-status.log`.
+Create `check-board-drift.sh` as a standalone diagnostic tool that delegates initial status-setting to `item-set-status.sh`, then independently re-verifies at timed intervals. Extend `validate-logs.sh` to report on the drift log. Keep the drift log separate from `board-status.log`.
 
 **Pros:**
-- Clean separation of concerns: `issue-set-status.sh` remains the mutation script, `check-board-drift.sh` is purely diagnostic
+- Clean separation of concerns: `item-set-status.sh` remains the mutation script, `check-board-drift.sh` is purely diagnostic
 - Separate drift log file prevents pollution of operational board-status logs
-- The orchestrator can invoke the drift checker after critical status transitions without modifying `issue-set-status.sh`
+- The orchestrator can invoke the drift checker after critical status transitions without modifying `item-set-status.sh`
 - Follows the established pattern where scripts are composable (drift checker wraps status setter)
 
 **Cons:**
 - Two scripts means a second GraphQL query pattern to maintain
 - Separate log file means `validate-logs.sh` must check three files instead of two
 
-### Approach B: Add timed re-verification directly to `issue-set-status.sh`
+### Approach B: Add timed re-verification directly to `item-set-status.sh`
 
-Instead of a separate script, add `--verify-drift` flag to `issue-set-status.sh` that enables the 10s/30s re-checks when passed.
+Instead of a separate script, add `--verify-drift` flag to `item-set-status.sh` that enables the 10s/30s re-checks when passed.
 
 **Pros:**
 - Single script to maintain
@@ -404,7 +404,7 @@ Instead of a separate script, add `--verify-drift` flag to `issue-set-status.sh`
 - Adds 40 seconds to every status transition when enabled, slowing the pipeline significantly
 - Mixes diagnostic tooling with operational tooling -- the flag would rarely be used in production but adds code complexity permanently
 - Harder to test: you cannot invoke the drift check without also performing a mutation
-- Violates single-responsibility: `issue-set-status.sh` sets status; a separate script investigates drift
+- Violates single-responsibility: `item-set-status.sh` sets status; a separate script investigates drift
 
 ### Approach C: Inline drift checks in the orchestrator agent
 
@@ -422,7 +422,7 @@ Instead of a script, add instructions to the orchestrator agent to perform manua
 
 ### Decision
 
-**Approach A.** The standalone script is the right abstraction. It is reusable (humans can run it manually), composable (wraps `issue-set-status.sh`), and keeps diagnostic concerns separate from operational concerns. The separate drift log file is a minor cost that pays for itself in clarity -- when investigating drift, you look at `board-drift.log`; when investigating operational issues, you look at `board-status.log`.
+**Approach A.** The standalone script is the right abstraction. It is reusable (humans can run it manually), composable (wraps `item-set-status.sh`), and keeps diagnostic concerns separate from operational concerns. The separate drift log file is a minor cost that pays for itself in clarity -- when investigating drift, you look at `board-drift.log`; when investigating operational issues, you look at `board-status.log`.
 
 ## Assumptions and Open Questions
 

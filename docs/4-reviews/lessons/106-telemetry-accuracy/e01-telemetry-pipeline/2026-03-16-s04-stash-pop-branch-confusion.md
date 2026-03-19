@@ -1,7 +1,7 @@
 ---
 date: 2026-03-16
 author: builder
-story: "E01-S04 (#130) — Wire External Python Module in issue-telemetry.sh"
+story: "E01-S04 (#130) — Wire External Python Module in item-telemetry.sh"
 tags: [builder, git, branch]
 severity: medium
 ---
@@ -18,7 +18,7 @@ writing files. When I discovered the branch problem and tried to use `git stash`
 merge conflict. Using `git checkout --theirs` to resolve the conflict appeared to
 succeed, but subsequent edits were silently written back to the original branch instead.
 
-The result: the refactored `issue-telemetry.sh` and new test files were written on
+The result: the refactored `item-telemetry.sh` and new test files were written on
 `backlog/105-orchestrator-improvements` rather than the story branch. Running tests
 from the wrong branch also meant `compute-dispatches.py` was absent (it only exists
 on the telemetry epic branch).

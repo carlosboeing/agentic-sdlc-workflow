@@ -87,7 +87,7 @@ The run exercised all three model tiers: haiku for 3 easy stories (#46, #47, #48
 
 ### 4. Reduced Orchestrator Overhead
 
-Orchestrator overhead was ~13 minutes of the 45-minute total (~29%), compared to ~31 minutes of 61 minutes (~51%) in Run 10. The primary improvement came from the `issue-set-status.sh` per-issue GraphQL fix (commit `9fe34b5`, implemented between Runs 10 and 11), which eliminated the rate limit exhaustion that added ~6 minutes of workaround time in Run 10. Evidence: no rate limit errors appear in the Run 11 dispatch log.
+Orchestrator overhead was ~13 minutes of the 45-minute total (~29%), compared to ~31 minutes of 61 minutes (~51%) in Run 10. The primary improvement came from the `item-set-status.sh` per-issue GraphQL fix (commit `9fe34b5`, implemented between Runs 10 and 11), which eliminated the rate limit exhaustion that added ~6 minutes of workaround time in Run 10. Evidence: no rate limit errors appear in the Run 11 dispatch log.
 
 ### 5. Content Quality Across All Models
 
@@ -97,7 +97,7 @@ All four incident reports maintained consistent template structure (23 lines eac
 
 ### 1. Missing Issue Comments on Parallel Haiku Builders
 
-Two of the three Wave 3 parallel builders failed to post expected issue comments. Story #47 (haiku) is missing both "Work Started" and "Ready for Review" comments. Story #48 (haiku) is missing the "Work Started" comment. Story #49 (sonnet, same wave) has all three expected comments. This matches the pattern first observed in Run 4 (recommendation D in the retro tracker), where parallel builders failed to post comments due to API contention. Root cause: the haiku builder scripts (`issue-start.sh`, `issue-review.sh`) call the GitHub API, and concurrent API calls from parallel worktree builders can fail silently. The orchestrator posted telemetry on all stories, so the gap is limited to issue-start/issue-review comments. Evidence: `gh issue view 47 --json comments` shows only Telemetry and Review comments; `gh issue view 48` shows Ready for Review, Telemetry, and Review but no Work Started.
+Two of the three Wave 3 parallel builders failed to post expected issue comments. Story #47 (haiku) is missing both "Work Started" and "Ready for Review" comments. Story #48 (haiku) is missing the "Work Started" comment. Story #49 (sonnet, same wave) has all three expected comments. This matches the pattern first observed in Run 4 (recommendation D in the retro tracker), where parallel builders failed to post comments due to API contention. Root cause: the haiku builder scripts (`item-start.sh`, `item-review.sh`) call the GitHub API, and concurrent API calls from parallel worktree builders can fail silently. The orchestrator posted telemetry on all stories, so the gap is limited to issue-start/issue-review comments. Evidence: `gh issue view 47 --json comments` shows only Telemetry and Review comments; `gh issue view 48` shows Ready for Review, Telemetry, and Review but no Work Started.
 
 ### 2. Haiku Token Consumption Remains 3-4x Higher Than Sonnet
 
@@ -111,9 +111,9 @@ The reviewer on story #45 (drift detection script) found that the stdout output 
 
 | Commit | Change | Trigger |
 |--------|--------|---------|
-| `9fe34b5` (pre-Run 11) | Replaced `item-list` with per-issue GraphQL in `issue-set-status.sh` | Run 10 rate limit exhaustion |
-| `8df7de5` (pre-Run 11) | Fixed self-referential placeholders in `issue-create-backlog.sh` | Run 10 lesson |
-| `e6ee36a` (pre-Run 11) | Created `issue-create-backlog.sh` for consolidated backlog setup | Run 10 lesson |
+| `9fe34b5` (pre-Run 11) | Replaced `item-list` with per-issue GraphQL in `item-set-status.sh` | Run 10 rate limit exhaustion |
+| `8df7de5` (pre-Run 11) | Fixed self-referential placeholders in `item-create.sh` | Run 10 lesson |
+| `e6ee36a` (pre-Run 11) | Created `item-create.sh` for consolidated backlog setup | Run 10 lesson |
 
 No CLAUDE.md or agent file changes were committed during Run 11 itself. Three infrastructure improvements were committed between Runs 10 and 11, all addressing Run 10 findings. The per-issue GraphQL change (`9fe34b5`) directly resolved the rate limit exhaustion that added 6 minutes of overhead in Run 10.
 
@@ -121,17 +121,17 @@ No CLAUDE.md or agent file changes were committed during Run 11 itself. Three in
 
 ### For Builders
 
-1. When parallel builders run in worktree isolation, the `issue-start.sh` and `issue-review.sh` scripts may fail to post issue comments due to concurrent GitHub API calls. This does not affect the build itself -- only the audit trail on the issue. The orchestrator compensates by posting telemetry afterward. Evidence: stories #47 and #48 missing comments in Wave 3.
+1. When parallel builders run in worktree isolation, the `item-start.sh` and `item-review.sh` scripts may fail to post issue comments due to concurrent GitHub API calls. This does not affect the build itself -- only the audit trail on the issue. The orchestrator compensates by posting telemetry afterward. Evidence: stories #47 and #48 missing comments in Wave 3.
 
 2. The design doc stdout format should be treated as prescriptive unless explicitly marked as "suggested." Story #45's builder deviated from the specified stdout format (while matching the log format exactly), prompting reviewer warning W1. When in doubt, match the spec exactly and propose improvements in a follow-up.
 
 ### For the Orchestrator
 
-1. The `issue-set-status.sh` per-issue GraphQL fix (`9fe34b5`) successfully eliminated rate limit exhaustion. Orchestrator overhead dropped from 51% (Run 10) to 29% (Run 11) of wall-clock time. The remaining 13 minutes of overhead is primarily branch management, merge operations, and board transitions -- likely irreducible.
+1. The `item-set-status.sh` per-issue GraphQL fix (`9fe34b5`) successfully eliminated rate limit exhaustion. Orchestrator overhead dropped from 51% (Run 10) to 29% (Run 11) of wall-clock time. The remaining 13 minutes of overhead is primarily branch management, merge operations, and board transitions -- likely irreducible.
 
 2. Post-wave comment verification (recommendation D in the retro tracker) remains unimplemented. Wave 3 lost 3 issue comments across 2 stories. The orchestrator should verify expected comments exist after parallel waves and post missing ones retroactively.
 
-3. The `gh project item-add` command does not set a default status. The orchestrator must always follow up with `issue-set-status.sh <N> backlog` after adding an item to the project. Evidence: lesson `e00-setup/2026-03-14-s00-board-item-add-no-default-status.md`.
+3. The `gh project item-add` command does not set a default status. The orchestrator must always follow up with `item-set-status.sh <N> backlog` after adding an item to the project. Evidence: lesson `e00-setup/2026-03-14-s00-board-item-add-no-default-status.md`.
 
 ### For the Workflow
 
@@ -147,7 +147,7 @@ No CLAUDE.md or agent file changes were committed during Run 11 itself. Three in
 
 1. **Implement post-wave comment verification** -- After each parallel wave completes, the orchestrator should query all stories in the wave for expected comments ("Work Started", "Ready for Review") and post missing ones retroactively. This has now been observed in Run 4 (#114) and Run 11 (#47, #48) -- two independent occurrences across 8 runs. Evidence: lesson from Run 4 (rec D), Run 11 stories #47 and #48 missing comments. (Proposed as convention change to `orchestrator.md`.)
 
-2. **Add `gh project item-add` status follow-up convention** -- Document in CLAUDE.md that `gh project item-add` does not set a default status. The pattern `item-add` + `issue-set-status.sh <N> backlog` must always be used together. Evidence: lesson `e00-setup/2026-03-14-s00-board-item-add-no-default-status.md`. (Proposed as convention change.)
+2. **Add `gh project item-add` status follow-up convention** -- Document in CLAUDE.md that `gh project item-add` does not set a default status. The pattern `item-add` + `item-set-status.sh <N> backlog` must always be used together. Evidence: lesson `e00-setup/2026-03-14-s00-board-item-add-no-default-status.md`. (Proposed as convention change.)
 
 3. **Continue tracking autonomous lifecycle duration** -- Run 11 completed in ~45 minutes (design through last review), down from ~61 minutes in Run 10. Current baseline: Run 5 ~30m, Run 6 ~28m, Run 8 ~40m, Run 9 ~29m, Run 10 ~61m (rate limit overhead), Run 11 ~45m. This aligns with outstanding recommendation G.
 

@@ -1,7 +1,7 @@
 ---
 date: 2026-03-18
 author: builder
-story: "E03-S03 (#222) — issue-telemetry.sh Adapter Refactor"
+story: "E03-S03 (#222) — item-telemetry.sh Adapter Refactor"
 tags: [builder, worktree, git, platform, pathing]
 severity: high
 ---
@@ -33,7 +33,7 @@ uncommitted edits silently.
 1. Read/Edit tools use the ABSOLUTE path given. If the absolute path points
    to the main repo root, the tool operates on the main working tree.
 2. Bash CWD is the WORKTREE (`.claude/worktrees/agent-a535f706`), so
-   relative paths (`scripts/issue-telemetry.sh`) refer to worktree files.
+   relative paths (`scripts/item-telemetry.sh`) refer to worktree files.
 3. When the orchestrator switches the main working tree to another branch
    mid-session, any uncommitted edits in the main working tree are lost.
 
@@ -42,8 +42,8 @@ uncommitted edits silently.
 - ALWAYS use absolute paths rooted in the worktree, not the main repo root:
   ```
   WORKTREE_PATH=$(pwd)
-  # Use: $WORKTREE_PATH/scripts/issue-telemetry.sh
-  # Not: /path/to/repo/scripts/issue-telemetry.sh
+  # Use: $WORKTREE_PATH/scripts/item-telemetry.sh
+  # Not: /path/to/repo/scripts/item-telemetry.sh
   ```
 - Verify the path prefix before every Read/Edit call when in a worktree:
   the path MUST start with `$(pwd)/` (the worktree root), not the main

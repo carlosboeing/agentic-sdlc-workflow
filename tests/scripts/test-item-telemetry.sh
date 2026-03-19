@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# test-issue-telemetry.sh — Validates issue-telemetry.sh refactoring (S04).
+# test-item-telemetry.sh — Validates item-telemetry.sh refactoring (S04).
 # Tests that the Python heredoc has been replaced with compute-dispatches.py calls,
 # and that --gantt-from-state flag works correctly.
 #
@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/issue-telemetry.sh"
+SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/item-telemetry.sh"
 FIXTURE_DIR="$REPO_ROOT/tests/fixtures/telemetry"
 PY_MODULE="$REPO_ROOT/scripts/lib/compute-dispatches.py"
 
@@ -69,9 +69,9 @@ assert_exit_code() {
   fi
 }
 
-# Run issue-telemetry.sh with a mocked gh that captures the rendered body.
+# Run item-telemetry.sh with a mocked gh that captures the rendered body.
 # Returns the rendered markdown body via stdout.
-# Sets LAST_EXIT_CODE to the exit code of issue-telemetry.sh.
+# Sets LAST_EXIT_CODE to the exit code of item-telemetry.sh.
 LAST_EXIT_CODE=0
 LAST_STDERR=""
 
@@ -124,7 +124,7 @@ GHEOF
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
 echo "========================================"
-echo "Testing issue-telemetry.sh (S04 wire external module)"
+echo "Testing item-telemetry.sh (S04 wire external module)"
 echo "========================================"
 echo ""
 
@@ -259,7 +259,7 @@ OUTPUT=$(run_telemetry 1 \
   --commit abc1234 \
   --dispatches "$DISPATCHES_FIXTURE")
 
-assert_contains "--dispatches produces breakdown header" "| Agent | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
+assert_contains "--dispatches produces breakdown header" "| Agent | Story | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
 assert_contains "--dispatches includes E01-S01 task" "E01-S01" "$OUTPUT"
 assert_contains "--dispatches includes total row" "Total" "$OUTPUT"
 
@@ -275,7 +275,7 @@ OUTPUT=$(run_telemetry 1 \
   --commit abc1234 \
   --dispatches-from-state "$STATE_FIXTURE")
 
-assert_contains "--dispatches-from-state produces breakdown" "| Agent | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
+assert_contains "--dispatches-from-state produces breakdown" "| Agent | Story | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
 assert_contains "--dispatches-from-state includes designer phase" "Design" "$OUTPUT"
 assert_contains "--dispatches-from-state includes build phase" "Build" "$OUTPUT"
 
@@ -293,7 +293,7 @@ OUTPUT=$(run_telemetry 1 \
 assert_contains "--gantt-from-state produces timeline heading" "### Timeline" "$OUTPUT"
 assert_contains "--gantt-from-state produces mermaid fence" '```mermaid' "$OUTPUT"
 assert_contains "--gantt-from-state includes gantt keyword" "gantt" "$OUTPUT"
-assert_contains "--gantt-from-state produces breakdown" "| Agent | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
+assert_contains "--gantt-from-state produces breakdown" "| Agent | Story | Task | Duration | Tokens | Est. Cost |" "$OUTPUT"
 
 echo ""
 
@@ -440,10 +440,10 @@ echo ""
 echo "Test Group: pm.sh sourcing"
 
 if grep -qE 'source[[:space:]].*pm\.sh|source[[:space:]].*"\$SCRIPT_DIR/lib/pm\.sh"|\.[[:space:]].*pm\.sh' "$SCRIPT_UNDER_TEST"; then
-  echo "  PASS: issue-telemetry.sh sources pm.sh"
+  echo "  PASS: item-telemetry.sh sources pm.sh"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: issue-telemetry.sh does not source pm.sh"
+  echo "  FAIL: item-telemetry.sh does not source pm.sh"
   FAIL=$((FAIL + 1))
 fi
 
@@ -476,7 +476,7 @@ fi
 
 echo ""
 
-# --- Test 17: Local adapter writes comment file ---
+# --- Test 17: Local adapter writes comment inline to item file ---
 echo "Test Group: Local adapter comment file creation"
 
 LOCAL_ADAPTER_DIR="$REPO_ROOT/scripts/lib/adapters/pm/local"
@@ -488,8 +488,28 @@ else
   LOCAL_WORKFLOW_DIR=$(mktemp -d)
   trap 'rm -rf "$LOCAL_WORKFLOW_DIR"' EXIT
 
+  # Create required directory structure and a minimal item file for issue 42
+  # pm_add_comment silently skips when the item file does not exist
+  mkdir -p "$LOCAL_WORKFLOW_DIR/items"
+  cat > "$LOCAL_WORKFLOW_DIR/items/42.md" <<'ITEM_EOF'
+---
+id: 42
+title: "Test Issue"
+type: story
+status: backlog
+labels:
+  - hierarchy/story
+parent: null
+state: open
+created: 2026-01-01T00:00:00Z
+updated: 2026-01-01T00:00:00Z
+---
+
+Test issue body.
+ITEM_EOF
+
   # Run telemetry with local adapter injected via _PM_TEST_ADAPTER_DIR
-  # _LOCAL_WORKFLOW_DIR controls where comment files are written
+  # _LOCAL_WORKFLOW_DIR controls where the item file lives
   STDERR_FILE=$(mktemp)
   LOCAL_EXIT=0
   LOCAL_OUTPUT=$(
@@ -513,53 +533,41 @@ else
     FAIL=$((FAIL + 1))
   fi
 
-  # Verify comment directory for issue 42 was created
-  COMMENT_DIR="$LOCAL_WORKFLOW_DIR/comments/42"
-  if [ -d "$COMMENT_DIR" ]; then
-    echo "  PASS: Comment directory created for issue 42"
+  # Verify item file exists and contains rendered telemetry content
+  ITEM_FILE="$LOCAL_WORKFLOW_DIR/items/42.md"
+  if [ -f "$ITEM_FILE" ] && grep -q 'Telemetry\|sonnet\|abc1234' "$ITEM_FILE" 2>/dev/null; then
+    echo "  PASS: Item file contains rendered telemetry content"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: Comment directory not found at $COMMENT_DIR"
+    echo "  FAIL: Item file missing or lacks telemetry content"
+    [ -f "$ITEM_FILE" ] && echo "    File: $ITEM_FILE" && head -10 "$ITEM_FILE"
     FAIL=$((FAIL + 1))
   fi
 
-  # Verify at least one comment file was created
-  COMMENT_COUNT=$(find "$COMMENT_DIR" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$COMMENT_COUNT" -gt 0 ]; then
-    echo "  PASS: Comment file created ($COMMENT_COUNT file(s))"
+  # Verify comment has the <!-- comment: ... --> timestamp marker
+  if grep -q '^<!-- comment:' "$ITEM_FILE" 2>/dev/null; then
+    echo "  PASS: Item file has <!-- comment: ... --> timestamp marker"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: No comment files found in $COMMENT_DIR"
+    echo "  FAIL: Item file missing <!-- comment: ... --> timestamp marker"
     FAIL=$((FAIL + 1))
   fi
 
-  # Verify comment file contains telemetry content (rendered markdown)
-  COMMENT_FILE=$(find "$COMMENT_DIR" -maxdepth 1 -name "*.md" | head -1)
-  if [ -n "$COMMENT_FILE" ] && grep -q 'Telemetry\|sonnet\|abc1234' "$COMMENT_FILE" 2>/dev/null; then
-    echo "  PASS: Comment file contains rendered telemetry content"
+  # Verify Activity Log separator was appended (─────────)
+  if grep -q '─────────' "$ITEM_FILE" 2>/dev/null; then
+    echo "  PASS: Item file has Activity Log separator"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: Comment file missing or lacks telemetry content"
-    [ -n "$COMMENT_FILE" ] && echo "    File: $COMMENT_FILE" && head -5 "$COMMENT_FILE"
+    echo "  FAIL: Item file missing Activity Log separator"
     FAIL=$((FAIL + 1))
   fi
 
-  # Verify comment file has the expected <!-- posted: ... --> header
-  if [ -n "$COMMENT_FILE" ] && grep -q '^<!-- posted:' "$COMMENT_FILE" 2>/dev/null; then
-    echo "  PASS: Comment file has <!-- posted: ... --> timestamp header"
+  # Verify Activity Log heading exists
+  if grep -q '^## Activity Log' "$ITEM_FILE" 2>/dev/null; then
+    echo "  PASS: Item file has Activity Log heading"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: Comment file missing <!-- posted: ... --> timestamp header"
-    FAIL=$((FAIL + 1))
-  fi
-
-  # Verify slug: telemetry heading -> slug should be "telemetry"
-  COMMENT_FILENAME=$(basename "$COMMENT_FILE" 2>/dev/null || echo "")
-  if echo "$COMMENT_FILENAME" | grep -q 'telemetry'; then
-    echo "  PASS: Comment filename includes 'telemetry' slug ($COMMENT_FILENAME)"
-    PASS=$((PASS + 1))
-  else
-    echo "  FAIL: Comment filename does not include 'telemetry' slug ($COMMENT_FILENAME)"
+    echo "  FAIL: Item file missing ## Activity Log heading"
     FAIL=$((FAIL + 1))
   fi
 fi

@@ -106,8 +106,8 @@ eval "${_PM_FN_PREFIX}pm_add_label() {
   echo \"CALL:${_PM_FN_PREFIX}pm_add_label:\$*\" >> \"\${_MOCK_CALL_LOG}\"
 }"
 
-eval "${_PM_FN_PREFIX}pm_done() {
-  echo \"CALL:${_PM_FN_PREFIX}pm_done:\$*\" >> \"\${_MOCK_CALL_LOG}\"
+eval "${_PM_FN_PREFIX}pm_close_item() {
+  echo \"CALL:${_PM_FN_PREFIX}pm_close_item:\$*\" >> \"\${_MOCK_CALL_LOG}\"
 }"
 
 eval "${_PM_FN_PREFIX}pm_update_item() {
@@ -239,8 +239,8 @@ bash --norc --noprofile -c "
 
   sleep 0.3
 
-  # Check local comment was created
-  if ls \"$MOCK_WORKFLOW/comments/1/\"*.md >/dev/null 2>&1; then
+  # Check local comment was inlined in item file
+  if grep -q '<!-- comment:' \"$MOCK_WORKFLOW/items/1.md\" 2>/dev/null; then
     echo 'local_comment:created'
   fi
 " > "$TMPOUT" 2>&1

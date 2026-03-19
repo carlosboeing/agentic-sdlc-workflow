@@ -71,7 +71,7 @@ difficulty_to_model() {
 set_board_status() {
   local issue_number="$1"
   local status_name="$2"
-  if "$SCRIPT_DIR/issue-set-status.sh" "$issue_number" "$status_name"; then
+  if "$SCRIPT_DIR/item-set-status.sh" "$issue_number" "$status_name"; then
     log_step "Board status updated for issue #$issue_number → $status_name"
   else
     log_step "Warning: Board status update failed for issue #$issue_number"
@@ -559,7 +559,7 @@ if [ -n "$EPIC_ISSUE" ] && [ "$TOTAL_DURATION_MS" -gt 0 ]; then
   fi
 
   log_step "Posting epic telemetry..."
-  "$SCRIPT_DIR/issue-telemetry.sh" "${TELEMETRY_ARGS[@]}" || log_step "Warning: Epic telemetry post failed"
+  "$SCRIPT_DIR/item-telemetry.sh" "${TELEMETRY_ARGS[@]}" || log_step "Warning: Epic telemetry post failed"
 fi
 
 # Update epic board status to In Review

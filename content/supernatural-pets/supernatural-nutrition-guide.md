@@ -58,21 +58,21 @@ Fire-elemental pets process mineral-dense, high-temperature food. Never serve be
 
 ## Common Dietary Mistakes
 
-**Do NOT** serve fire-elemental food below 200°C. Cold food causes flame suppression in phoenixes and metabolic slowdown in salamanders.
+- **Do NOT** serve fire-elemental food below 200°C. Cold food causes flame suppression in phoenixes and metabolic slowdown in salamanders.
 
-**Do NOT** offer Spark solid food. Ember sprites are obligate flame-feeders; solid food is not metabolized.
+- **Do NOT** offer Spark solid food. Ember sprites are obligate flame-feeders; solid food is not metabolized.
 
-**Do NOT** use previously frozen fish for Marina. Selkies detect protein degradation with high sensitivity.
+- **Do NOT** use previously frozen fish for Marina. Selkies detect protein degradation with high sensitivity.
 
-**Do NOT** add moonlight-infused water during a lunar eclipse. The inverted photonic profile reverses its therapeutic benefit and may cause temporary form instability in selkies.
+- **Do NOT** add moonlight-infused water during a lunar eclipse. The inverted photonic profile reverses its therapeutic benefit and may cause temporary form instability in selkies.
 
-**Do NOT** store void essence in standard glass, plastic, or metal containers. Sealed amber glass only.
+- **Do NOT** store void essence in standard glass, plastic, or metal containers. Sealed amber glass only.
 
-**Do NOT** microwave void essence. Microwave radiation causes phase-shift and localized dimensional instability.
+- **Do NOT** microwave void essence. Microwave radiation causes phase-shift and localized dimensional instability.
 
-**Do NOT** feed Abby with the lights on. Abyssal-adapted photoreceptors mean any light during feeding causes appetite suppression.
+- **Do NOT** feed Abby with the lights on. Abyssal-adapted photoreceptors mean any light during feeding causes appetite suppression.
 
-**Do NOT** substitute off-brand bioluminescent plankton for partner vendor product. The spectral signature differs and will not support Puddles' tentacle development.
+- **Do NOT** substitute off-brand bioluminescent plankton for partner vendor product. The spectral signature differs and will not support Puddles' tentacle development.
 
 ---
 

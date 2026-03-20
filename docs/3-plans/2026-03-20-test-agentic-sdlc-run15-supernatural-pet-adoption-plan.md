@@ -14,6 +14,20 @@ This plan decomposes the approved design for Run 15 (Supernatural Pet Adoption A
 
 All stories produce markdown content files under `content/supernatural-pets/`. No code, no tests, no infrastructure changes.
 
+## Issue Mapping
+
+| Item | Issue | Type | Difficulty |
+|------|-------|------|------------|
+| Backlog | #290 | backlog | -- |
+| Plan | #293 | docs | -- |
+| E01: Adoption Listings | #292 | epic | -- |
+| E01-S01: Fire-Elemental Adoption Listings | #295 | story | easy |
+| E01-S02: Aquatic-Supernatural Adoption Listings | #296 | story | easy |
+| E02: Care Guides | #294 | epic | -- |
+| E02-S01: Phoenix Care Guide | #297 | story | easy |
+| E02-S02: Interdimensional Pet-Proofing Guide | #298 | story | easy |
+| E02-S03: Supernatural Pet Nutrition Guide | #299 | story | medium |
+
 ## Structural Decisions
 
 **Two epics matching the design doc's domain split.** E01 (Adoption Listings, 2 stories) handles short-form adoption profiles for supernatural pets. E02 (Care Guides, 3 stories) handles longer-form reference documents for new owners. This maps directly to the design doc's proposed structure with no additional decomposition needed.

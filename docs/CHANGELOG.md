@@ -2,7 +2,7 @@
 
 ## 2026-03-20
 
-### Test Run 15: Supernatural Pet Adoption Agency (backlog #290)
+### Run 15 -- Supernatural Pet Adoption Agency (backlog #290, 49m wall-clock)
 
 - **First production test of tiered review strategy:** 4 easy stories successfully bypassed per-story review (`review_tier = SKIP`), 1 medium story received full per-story review (`review_tier = REVIEW`) with 1 fix cycle (formatting issue)
 - **Parallel dispatch validated:** 4 builders dispatched simultaneously in Wave 1, all completed successfully

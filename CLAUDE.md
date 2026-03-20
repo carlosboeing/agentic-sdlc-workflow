@@ -128,6 +128,7 @@ Six specialized agents in `.claude/agents/`:
 - **Never use `#N` in commit messages** unless intentionally referencing a GitHub issue. GitHub auto-links any `#N` pattern to issue N, so reviewer warning numbers, list indices, or other numbered references must use a format without `#` (e.g., `warning 4`, `W4`, `item 4`). The `Fixes #N` / `Closes #N` footer is the correct place for issue references.
 - Reference `docs/5-guides/PROJECT.md` for architecture context
 - Write lesson files when encountering bugs, unexpected behavior, or missing conventions (see Lesson Conventions below)
+- **Local PM items must be committed.** All scripts that create or modify work items (`item-create.sh`, `item-set-status.sh`, `item-start.sh`, `item-review.sh`, `item-close.sh`, `item-comment.sh`, `item-append-body.sh`, `item-telemetry.sh`) write to `.workflow/items/`. These files must be included in your commits (`git add .workflow/items/`). The integration branch (`backlog/<N>-<slug>`) is the source of truth for local PM state — all agent branches merge into it, keeping PM items in sync across agents.
 
 ### Branch Conventions
 

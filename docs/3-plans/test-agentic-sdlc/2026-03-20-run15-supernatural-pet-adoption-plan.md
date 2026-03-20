@@ -3,7 +3,7 @@ date: 2026-03-20
 author: planner
 status: draft
 backlog: 290
-design: docs/2-design/2026-03-20-test-agentic-sdlc-run15-supernatural-pet-adoption.md
+design: docs/2-design/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption.md
 ---
 
 # Implementation Plan: Run 15 -- Supernatural Pet Adoption Agency

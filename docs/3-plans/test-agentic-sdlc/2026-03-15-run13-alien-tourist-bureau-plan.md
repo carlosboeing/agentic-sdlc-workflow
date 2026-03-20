@@ -3,7 +3,7 @@ date: 2026-03-15
 author: planner
 status: draft
 backlog: 69
-design: docs/2-design/2026-03-15-test-agentic-sdlc-run13-alien-tourist-bureau.md
+design: docs/2-design/test-agentic-sdlc/2026-03-15-run13-alien-tourist-bureau.md
 ---
 
 # Implementation Plan: Run 13 — Alien Tourist Bureau

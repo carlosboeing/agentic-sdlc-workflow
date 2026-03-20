@@ -21,13 +21,13 @@ All stories produce markdown content files under `test-output/test-agentic-sdlc-
 | Backlog | #303 | backlog | -- |
 | Design doc | #305 | docs | -- |
 | Plan | #292 | docs | -- |
-| E01: News and Weather | TBD | epic | -- |
-| E01-S01: Weather and Disaster Forecasts | TBD | story | easy |
-| E01-S02: Front Page Headlines and Breaking News | TBD | story | easy |
-| E02: Community and Lifestyle | TBD | epic | -- |
-| E02-S01: Classified Ads | TBD | story | easy |
-| E02-S02: Letters to the Editor | TBD | story | easy |
-| E02-S03: Guest Editorial and Obituaries | TBD | story | medium |
+| E01: News and Weather | #306 | epic | -- |
+| E01-S01: Weather and Disaster Forecasts | #308 | story | easy |
+| E01-S02: Front Page Headlines and Breaking News | #309 | story | easy |
+| E02: Community and Lifestyle | #307 | epic | -- |
+| E02-S01: Classified Ads | #310 | story | easy |
+| E02-S02: Letters to the Editor | #311 | story | easy |
+| E02-S03: Guest Editorial and Obituaries | #312 | story | medium |
 
 ## Structural Decisions
 

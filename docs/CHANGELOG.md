@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-20
+
+### Test Run 15: Supernatural Pet Adoption Agency (backlog #290)
+
+- **First production test of tiered review strategy:** 4 easy stories successfully bypassed per-story review (`review_tier = SKIP`), 1 medium story received full per-story review (`review_tier = REVIEW`) with 1 fix cycle (formatting issue)
+- **Parallel dispatch validated:** 4 builders dispatched simultaneously in Wave 1, all completed successfully
+- **Content:** 5 creative content files for "Eternally Yours Supernatural Pet Adoption Agency" — 3 adoption listing files (fire-elemental, aquatic-supernatural) and 3 care guides (phoenix care, pet-proofing, nutrition)
+- **Cross-reference validation:** E02-S03 nutrition guide correctly cross-referenced all 6 pets from E01 by name with consistent dietary details
+- **Agent attribution:** All issues created with `--created-by` metadata
+- 2 epics, 5 stories (4 easy, 1 medium), 1 fix cycle
+
 ## 2026-03-19
 
 ### Phase Restructuring: Parallel Reviews, Tiered Review Strategy, and Phase Simplification (backlog #243)

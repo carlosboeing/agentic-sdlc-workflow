@@ -11,7 +11,7 @@
 *Sun-1 Position: Azimuth 142°, Elevation 38° | Sun-2: Sub-horizon, Azimuth 271° | Sun-3: Sub-horizon, Azimuth 089°*
 *Advisory Level: WATCH | Dehydration Index: LOW*
 
-Conditions are mild and stable. Sun-1 dominates at 38° elevation, producing surface temperatures between 18°C and 24°C across Districts 3 through 9. Wind from the northeast at 12 km/h. No gravitational anomalies detected. Citizens in Sector 7-North and the Plains of Vega-Crossing may resume rehydration of stored family members at their discretion. Rehydration centers at Coordinates 44.7N, 112.3E and 41.2N, 108.8E are operating at full capacity. Citizens who complete rehydration should register with local Bureau offices within 6 stellar hours. Extended Stable Era probability: 73%. Enjoy the sun.
+Conditions are mild and stable. Sun-1 dominates at 38° elevation, producing surface temperatures between 18°C and 24°C across Districts 3 through 9. Wind from the northeast at 12 km/h. No gravitational anomalies detected. Citizens in Sector 7-North and the Plains of Vega-Crossing may resume rehydration of stored family members at their discretion. Rehydration centers at Coordinates 44.7N, 112.3E and 41.2N, 108.8E are operating at full capacity. Citizens who complete rehydration should register with local Bureau offices within 6 stellar hours. Extended Stable Era probability: 73%. Enjoy the light.
 
 ---
 

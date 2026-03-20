@@ -2,7 +2,7 @@
 
 ## 2026-03-20
 
-### Run 17 -- Three-Body Survival Gazette (backlog #303)
+### Run 17 -- Three-Body Survival Gazette (backlog #303, 52m wall-clock)
 
 - **Full e2e pipeline validated:** Design → plan → build → review → retro with no skipped phases
 - **Tiered review strategy:** 4 easy stories (SKIP tier) bypassed per-story review, 1 medium story (REVIEW tier) received per-story review with APPROVE verdict

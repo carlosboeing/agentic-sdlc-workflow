@@ -3,7 +3,7 @@ date: 2026-03-17
 author: planner
 status: draft
 backlog: 167
-design: docs/2-design/2026-03-17-test-agentic-sdlc-debugging-musical.md
+design: docs/2-design/test-agentic-sdlc/2026-03-17-debugging-musical.md
 ---
 
 # Implementation Plan: Run 16 -- The Debugging: A Silicon Valley Musical

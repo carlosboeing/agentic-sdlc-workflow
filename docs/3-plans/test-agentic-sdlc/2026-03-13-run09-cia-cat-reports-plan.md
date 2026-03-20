@@ -3,7 +3,7 @@ date: 2026-03-13
 author: planner
 status: draft
 backlog: 14
-design: docs/2-design/2026-03-13-test-agentic-sdlc-run09-cia-cat-reports.md
+design: docs/2-design/test-agentic-sdlc/2026-03-13-run09-cia-cat-reports.md
 ---
 
 # Implementation Plan: Pet Cats — Declassified CIA Field Reports (Run 9)

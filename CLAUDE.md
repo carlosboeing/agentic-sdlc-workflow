@@ -128,6 +128,7 @@ Six specialized agents in `.claude/agents/`:
 - **Never use `#N` in commit messages** unless intentionally referencing a GitHub issue. GitHub auto-links any `#N` pattern to issue N, so reviewer warning numbers, list indices, or other numbered references must use a format without `#` (e.g., `warning 4`, `W4`, `item 4`). The `Fixes #N` / `Closes #N` footer is the correct place for issue references.
 - Reference `docs/5-guides/PROJECT.md` for architecture context
 - Write lesson files when encountering bugs, unexpected behavior, or missing conventions (see Lesson Conventions below)
+- **Local PM items must be committed.** All scripts that create or modify work items (`item-create.sh`, `item-set-status.sh`, `item-start.sh`, `item-review.sh`, `item-close.sh`, `item-comment.sh`, `item-append-body.sh`, `item-telemetry.sh`) write to `.workflow/items/`. These files must be included in your commits (`git add .workflow/items/`). The integration branch (`backlog/<N>-<slug>`) is the source of truth for local PM state — all agent branches merge into it, keeping PM items in sync across agents.
 
 ### Branch Conventions
 
@@ -772,10 +773,23 @@ Runs 1-7 were executed in the original NeuralNorris repo (gavinkilbride/NeuralNo
 When creating a new test run backlog item, include the following in the **issue body** so all downstream agents (designer, planner, builder) inherit the conventions:
 
 1. **Title format:** `Test SDLC v2 Workflow (Run N) — <Topic>`
-2. **Labels:** Apply `test-agentic-sdlc` to the backlog issue. Instruct the planner to apply `test-agentic-sdlc` to all child issues (epics, stories, doc issues).
-3. **File naming:** Instruct the designer and planner to prefix doc filenames with `test-agentic-sdlc-` (e.g., `2026-03-15-test-agentic-sdlc-<topic>.md`).
-4. **Content guidelines:** Specify the creative theme, difficulty distribution (easy/medium/hard), word count ranges, and any cross-reference requirements.
-5. **What to validate:** State what workflow capability this run is testing (e.g., "validate configurable model routing from `.claude/agentic-sdlc-config.json`").
+2. **Labels:** Apply `test-agentic-sdlc` to the backlog issue. Instruct the planner to apply `test-agentic-sdlc` to **all** child issues — epics, stories, **and** doc issues (design doc, plan, retro).
+3. **Content guidelines:** Specify the creative theme, difficulty distribution (easy/medium/hard), word count ranges, and any cross-reference requirements.
+4. **What to validate:** State what workflow capability this run is testing (e.g., "validate configurable model routing from `.claude/agentic-sdlc-config.json`").
 
 The workflow agents are generic — they don't know they're running a test. They follow whatever the backlog item specifies.
+
+### Test Run Asset Conventions
+
+All test run assets are grouped under `test-agentic-sdlc/` subfolders within the standard docs directories. This keeps real feature docs uncluttered while test runs follow the exact same workflow path (designers write to `docs/2-design/`, planners write to `docs/3-plans/`, etc.). The `test-agentic-sdlc` prefix moves from the filename to the folder path.
+
+| Asset | Convention | Example |
+|-------|-----------|---------|
+| **Design doc** | `docs/2-design/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>.md` | `docs/2-design/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption.md` |
+| **Plan doc** | `docs/3-plans/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>-plan.md` | `docs/3-plans/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption-plan.md` |
+| **Content output** | `test-output/test-agentic-sdlc-<slug>/` | `test-output/test-agentic-sdlc-supernatural-pet-adoption/` |
+| **Lesson folder** | `docs/4-reviews/lessons/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>/` | `docs/4-reviews/lessons/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption/` |
+| **Labels** | `test-agentic-sdlc` on **all** issues (backlog, epics, stories, design, plan, retro) | — |
+
+Content files inside `test-output/test-agentic-sdlc-<slug>/` use descriptive names without prefix (e.g., `fire-elemental-adoptions.md`).
 

@@ -3,7 +3,7 @@ date: 2026-03-14
 author: planner
 status: draft
 backlog: 41
-design: docs/2-design/2026-03-14-test-agentic-sdlc-run11-board-drift-detection.md
+design: docs/2-design/test-agentic-sdlc/2026-03-14-run11-board-drift-detection.md
 ---
 
 # Implementation Plan: Run 11 -- Board Drift Detection + Incident Reports from Fairy Tale HR

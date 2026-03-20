@@ -3,7 +3,7 @@ date: 2026-03-10
 author: planner
 status: draft
 backlog: 162
-design: docs/2-design/2026-03-10-test-agentic-sdlc-run06-cat-performance-review.md
+design: docs/2-design/test-agentic-sdlc/2026-03-10-run06-cat-performance-review.md
 ---
 
 # Implementation Plan: The Cat's Employee Performance Review (Run 6)

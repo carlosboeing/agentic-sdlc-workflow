@@ -3,7 +3,7 @@ date: 2026-03-15
 author: planner
 status: draft
 backlog: 83
-design: docs/2-design/2026-03-15-test-agentic-sdlc-run14-interdimensional-health-inspections.md
+design: docs/2-design/test-agentic-sdlc/2026-03-15-run14-interdimensional-health-inspections.md
 ---
 
 # Implementation Plan: Run 14 -- Interdimensional Restaurant Health Inspections

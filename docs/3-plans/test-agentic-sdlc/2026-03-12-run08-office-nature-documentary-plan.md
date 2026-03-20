@@ -3,7 +3,7 @@ date: 2026-03-12
 author: planner
 status: draft
 backlog: 1
-design: docs/2-design/2026-03-12-test-agentic-sdlc-run08-office-nature-documentary.md
+design: docs/2-design/test-agentic-sdlc/2026-03-12-run08-office-nature-documentary.md
 ---
 
 # Implementation Plan: The Office Worker — A Nature Documentary (Run 8)

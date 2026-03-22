@@ -389,7 +389,7 @@ bash --norc --noprofile -c "
   item_id=\$(pm_create_item story 'Fallback Test Item')
   echo \"item_id=\$item_id\"
   # Verify item file exists
-  if [ -f '$MOCK_WORKFLOW_DIR/items/\${item_id}.md' ]; then
+  if [ -f \"$MOCK_WORKFLOW_DIR/items/\${item_id}.md\" ]; then
     echo 'item_file:created'
   fi
 " > "$TMPOUT" 2>"$TMPERR"

@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated:** 2026-03-20 (post BL#243)
+> **Last updated:** 2026-03-22 (post BL#316)
 > **Work tracking:** [Project Board](https://github.com/users/carlosboeing/projects/7)
 > **Analysis & research:** [docs/1-discovery/2026-03-15-roadmap.md](1-discovery/2026-03-15-roadmap.md)
 
@@ -34,6 +34,7 @@ graph TD
     149["#149 Universal Worktree<br/>Isolation (M)"]
     150["#150 Split<br/>orchestrator.md ✅"]
     166["#166 Telemetry<br/>Diagrams (S)"]
+    316["#316 Briefing<br/>Skill (S)"]
 
     105 --> 108
     106 --> 108
@@ -84,6 +85,7 @@ graph TD
     style 282 fill:#059669,color:#fff
     style 283 fill:#059669,color:#fff
     style 289 fill:#059669,color:#fff
+    style 316 fill:#059669,color:#fff
 ```
 
 ✅ Done · 🟢 Active (ready now) · 🟣 Plugin track · ⚫ Future ideas
@@ -108,6 +110,7 @@ graph TD
 | — | [#283](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/283) | Scale Local PM Storage | M | — | Active |
 | — | [#289](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/289) | CLI Scripts Redesign | M | — | Active |
 | — | [#166](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/166) | Telemetry Diagrams | S | — | Quick win |
+| — | [#316](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/316) | Briefing Skill | S | — | Active |
 | — | [#149](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/149) | Universal Worktree Isolation | M | — | Quick win |
 | 6 | [#112](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/112) | Plugin Packaging | XL | 109, 110, 111, 207 | Plugin |
 | 7 | [#107](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/107) | Retro Agent Rework | M | — | Active |
@@ -165,6 +168,9 @@ Ensure every agent — including the orchestrator itself — operates in an isol
 
 **[#148 Adversarial Deliberation Agent](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/148)** — `size/M`
 Add a configurable deliberation capability where a second agent challenges the first agent's output at key decision points. Triages reviewer findings (filtering false positives before fix cycles), challenges design/plan assumptions, and improves merge/no-merge decisions.
+
+**[#316 Briefing Skill](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/316)** — `size/S`
+A Claude Code skill (`/briefing`) providing context-aware project orientation. Adapts output based on project state: briefing mode (between cycles — roadmap, status, next action) or debrief mode (PR open — findings, merge readiness, what needs attention). Pure AI-driven with three-tier data source discovery and configurable depth. Design doc approved.
 
 **[#108 Run on Real Software](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/108)** — `size/L`
 First real-software test — use the workflow to build one of its own improvements. 16 runs validated creative content; zero runs on actual code. Validates genericized agents work for real development. Blocked by #107 (retro agent rework). #105, #106, #109 dependencies are now complete.

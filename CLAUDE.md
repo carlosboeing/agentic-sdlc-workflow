@@ -178,7 +178,13 @@ main
 | Hierarchy | `hierarchy/backlog`, `hierarchy/epic`, `hierarchy/story` | Identifies issue level for board filtering |
 | Backlog | `backlog/<issue>-<slug>` | Groups **all** issues under a backlog item -- including design doc and plan issues, not just epics/stories (color: `#5319E7`) |
 | Type | `type/feature`, `type/bug`, `type/refactor`, `type/test`, `type/docs` | Categorises work |
-| Difficulty | `difficulty/easy`, `difficulty/medium`, `difficulty/hard` | Routes to model |
+| Difficulty | `difficulty/easy`, `difficulty/medium`, `difficulty/hard` | Stories only — routes to builder model variant |
+| Size | `size/S`, `size/M`, `size/L`, `size/XL` | Backlog items only — t-shirt sizing for prioritization |
+
+**Difficulty and Size are separate concerns applied at different levels:**
+
+- **Difficulty** (stories only): Assigned by the planner. Routes to the builder model variant (`easy`/`medium` → sonnet, `hard` → opus). This is an internal dispatch routing concern — it determines which model builds the story.
+- **Size** (backlog items only): T-shirt sizing for effort estimation and roadmap prioritization. **When creating a backlog item, always assign a `size/*` label** — assess the scope from the description and apply `S`, `M`, `L`, or `XL`. This applies whether running as the orchestrator agent or in a standard CC session. Currently used for human visibility on the roadmap. May eventually be used by the orchestrator to adjust workflow behavior (e.g., extra verification steps for XL items).
 
 ### Work Item Hierarchy
 

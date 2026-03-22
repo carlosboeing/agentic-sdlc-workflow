@@ -341,15 +341,11 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
 
 1. **Verify all stories complete** (no open story issues remaining).
 
-2. **Update changelog** (`docs/CHANGELOG.md`) with the new entry for this run.
+2. **Mechanical doc updates** — these are deterministic (the orchestrator knows what shipped without reading code):
+   - **`docs/CHANGELOG.md`**: Add entry for this run
+   - **`docs/ROADMAP.md`**: Mark the backlog item as Done (✅) with updated title and description. Mark any absorbed/superseded issues. Update dependency graph styling (completed items use grey `#9ca3af`). Update priority table rows.
 
-3. **Update roadmap** (`docs/ROADMAP.md`):
-   - Mark the backlog item as Done (✅) with updated title and description
-   - Mark any absorbed issues as Done with a note (e.g., "#283 absorbed by #116")
-   - Update dependency graph styling (completed items use grey `#9ca3af`)
-   - Update priority table rows
-
-4. **Open ONE backlog PR:**
+3. **Open ONE backlog PR:**
    ```bash
    gh pr create --base main --head backlog/<N>-<slug> \
      --title "<Backlog item title>" \
@@ -364,7 +360,7 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
    The `Closes` list MUST include all **open** issues: backlog, ALL epics, ALL stories. Already-closed issues (design, plan) must NOT use `Closes` — list them as `Related (already closed): #24, #25`. Using `Closes` on already-closed issues triggers board status reversions (evidence: Runs 3-16, observation iv).
 
-5. **Wait 5 seconds after opening PR, then run board reconciliation** (PR link triggers GitHub automations that may revert statuses):
+4. **Wait 5 seconds after opening PR, then run board reconciliation** (PR link triggers GitHub automations that may revert statuses):
    ```bash
    sleep 5
    ./scripts/reconcile-board.sh --from-state .agentic-workflow/runs/<N>/orchestrator.json \

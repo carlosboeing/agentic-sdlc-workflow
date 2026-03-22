@@ -74,6 +74,66 @@ export const CreateLabelBodySchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Board routes
+// ---------------------------------------------------------------------------
+
+/** Body for POST /api/items/:id/status */
+export const SetStatusBodySchema = z.object({
+  status: BoardStatusSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Lifecycle routes
+// ---------------------------------------------------------------------------
+
+/** Body for POST /api/items/:id/start */
+export const StartWorkBodySchema = z.object({
+  agent: z.string().min(1, "agent is required"),
+  model: z.string().min(1, "model is required"),
+});
+
+/** Body for POST /api/items/:id/complete */
+export const CompleteWorkBodySchema = z.object({
+  commitHash: z.string().min(1, "commitHash is required"),
+});
+
+// ---------------------------------------------------------------------------
+// Comment routes
+// ---------------------------------------------------------------------------
+
+/** Body for POST /api/items/:id/comments */
+export const AddCommentBodySchema = z.object({
+  body: z.string().min(1, "body is required"),
+  author: z.string().min(1, "author is required"),
+});
+
+// ---------------------------------------------------------------------------
+// Hierarchy routes
+// ---------------------------------------------------------------------------
+
+/** Body for POST /api/items/:id/children */
+export const LinkChildBodySchema = z.object({
+  childId: z.number().int().positive("childId must be a positive integer"),
+});
+
+// ---------------------------------------------------------------------------
+// Telemetry routes
+// ---------------------------------------------------------------------------
+
+export const TelemetryModelSchema = z.enum(["haiku", "sonnet", "opus", "mixed"]);
+
+/** Body for POST /api/items/:id/telemetry */
+export const PostTelemetryBodySchema = z.object({
+  model: TelemetryModelSchema,
+  durationMs: z.number().int().nonnegative("durationMs must be non-negative"),
+  tokens: z.number().int().nonnegative("tokens must be non-negative"),
+  toolUses: z.number().int().nonnegative().optional(),
+  costEstimate: z.number().nonnegative().optional(),
+  commitHash: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Error format helpers
 // ---------------------------------------------------------------------------
 

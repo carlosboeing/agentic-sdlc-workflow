@@ -123,6 +123,14 @@ export class GitHubAdapter implements ExternalPmAdapter {
       args.push("--body", payload.changes.body);
     }
 
+    if (payload.changes.addLabels && payload.changes.addLabels.length > 0) {
+      args.push("--add-label", payload.changes.addLabels.join(","));
+    }
+
+    if (payload.changes.removeLabels && payload.changes.removeLabels.length > 0) {
+      args.push("--remove-label", payload.changes.removeLabels.join(","));
+    }
+
     const result = await this._runGh(args);
 
     if (result.exitCode !== 0) {
@@ -154,20 +162,28 @@ export class GitHubAdapter implements ExternalPmAdapter {
 
   async setStatus(payload: SyncSetStatusPayload): Promise<void> {
     // Step 1: Fetch the project item node ID via lightweight GraphQL query.
+    // Use GraphQL variables (-F flags) instead of string interpolation to avoid
+    // injection if any value contains GraphQL special characters.
     const [repoOwner, repoName] = this.config.repo.split("/");
     const queryArgs = [
       "api",
       "graphql",
       "-f",
-      `query=query {
-  repository(owner: "${repoOwner}", name: "${repoName}") {
-    issue(number: ${payload.externalId}) {
+      `query=query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
       projectItems(first: 1) {
         nodes { id }
       }
     }
   }
 }`,
+      "-f",
+      `owner=${repoOwner}`,
+      "-f",
+      `name=${repoName}`,
+      "-F",
+      `number=${payload.externalId}`,
     ];
 
     const queryResult = await this._runGh(queryArgs);
@@ -262,16 +278,21 @@ export class GitHubAdapter implements ExternalPmAdapter {
     // Step 2: Fetch child issue node ID.
     const childNodeId = await this._fetchIssueNodeId(payload.childExternalId);
 
-    // Step 3: Call addSubIssue GraphQL mutation.
+    // Step 3: Call addSubIssue GraphQL mutation using parameterized variables to
+    // avoid injection if node IDs contain GraphQL special characters.
     const mutationArgs = [
       "api",
       "graphql",
       "-f",
-      `query=mutation {
-  addSubIssue(input: { issueId: "${parentNodeId}", subIssueId: "${childNodeId}" }) {
+      `query=mutation($issueId: ID!, $subIssueId: ID!) {
+  addSubIssue(input: { issueId: $issueId, subIssueId: $subIssueId }) {
     subIssue { id }
   }
 }`,
+      "-f",
+      `issueId=${parentNodeId}`,
+      "-f",
+      `subIssueId=${childNodeId}`,
     ];
 
     const mutationResult = await this._runGh(mutationArgs);

@@ -3,7 +3,7 @@
  *
  * Columns: Backlog, Ready, In Progress, In Review, Done.
  * Uses @dnd-kit/core for drag-and-drop between columns.
- * Fetches items via the useItems hook and updates status on drop.
+ * Accepts data/callbacks as props (from Dashboard) or fetches via useItems.
  */
 
 import { useState, useCallback } from "react";
@@ -21,13 +21,28 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import type { WorkItem, BoardStatus } from "../lib/types";
-import { KANBAN_COLUMNS } from "../lib/kanban-utils";
+import { KANBAN_COLUMNS, type GroupedItems } from "../lib/kanban-utils";
 import { useItems } from "../hooks/useItems";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
 
-export function KanbanBoard() {
-  const { grouped, loading, error, moveItem } = useItems();
+export interface KanbanBoardProps {
+  /** Pre-fetched grouped items. When provided, the board does not call useItems. */
+  grouped?: GroupedItems;
+  loading?: boolean;
+  error?: string | null;
+  moveItem?: (itemId: number, newStatus: BoardStatus) => Promise<void>;
+}
+
+export function KanbanBoard(props: KanbanBoardProps = {}) {
+  // Use data from props when provided (e.g., when Dashboard owns the state).
+  // Fall back to internal useItems when rendered standalone (e.g., in tests).
+  const internal = useItems();
+  const grouped = props.grouped ?? internal.grouped;
+  const loading = props.loading !== undefined ? props.loading : internal.loading;
+  const error = props.error !== undefined ? props.error : internal.error;
+  const moveItem = props.moveItem ?? internal.moveItem;
+
   const [activeItem, setActiveItem] = useState<WorkItem | null>(null);
 
   const sensors = useSensors(

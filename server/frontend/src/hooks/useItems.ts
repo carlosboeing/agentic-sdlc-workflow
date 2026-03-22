@@ -6,12 +6,14 @@
  * - Optimistic UI: updates local state immediately on drag-and-drop
  * - Reverts on API error
  * - Refetch after successful status change
+ * - WebSocket cache updates: apply status:changed events without a full refetch
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../lib/api";
 import type { WorkItem, BoardStatus } from "../lib/types";
 import { groupItemsByStatus, type GroupedItems } from "../lib/kanban-utils";
+import type { ActivityMessage } from "./useWebSocket";
 
 interface UseItemsResult {
   /** Items grouped by board status. */
@@ -26,6 +28,12 @@ interface UseItemsResult {
   moveItem: (itemId: number, newStatus: BoardStatus) => Promise<void>;
   /** Refetch all items from the server. */
   refetch: () => Promise<void>;
+  /**
+   * Apply a WebSocket message to the local cache.
+   * Pass this to useWebSocket's onMessage to keep the board in sync
+   * without polling.
+   */
+  applyWsMessage: (msg: ActivityMessage) => void;
 }
 
 export function useItems(): UseItemsResult {
@@ -83,6 +91,32 @@ export function useItems(): UseItemsResult {
     [items, fetchItems]
   );
 
+  /**
+   * Apply a WebSocket message to the local cache.
+   * - status:changed: update the affected item's status in place (no refetch)
+   * - item:created, item:closed: trigger a refetch to get the full item
+   */
+  const applyWsMessage = useCallback(
+    (msg: ActivityMessage) => {
+      if (msg.type === "status:changed") {
+        const data = msg.data as { itemId?: number; to?: BoardStatus };
+        if (data.itemId && data.to) {
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === data.itemId ? { ...item, status: data.to! } : item
+            )
+          );
+        }
+      } else if (msg.type === "item:created" || msg.type === "item:closed") {
+        // Trigger a background refetch so the new/closed item appears
+        fetchItems().catch(() => {
+          // Non-fatal: next polling cycle will catch it
+        });
+      }
+    },
+    [fetchItems]
+  );
+
   const grouped = groupItemsByStatus(items);
 
   return {
@@ -92,5 +126,6 @@ export function useItems(): UseItemsResult {
     error,
     moveItem,
     refetch: fetchItems,
+    applyWsMessage,
   };
 }

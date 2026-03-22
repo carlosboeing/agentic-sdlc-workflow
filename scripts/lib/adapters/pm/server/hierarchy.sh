@@ -11,6 +11,10 @@ _PM_FN_PREFIX="${_PM_LOADING_EXTERNAL:+_external_}"
 
 # pm_link_child <parent-id> <child-id>
 eval "${_PM_FN_PREFIX}pm_link_child() {
+  if [ \$# -lt 2 ]; then
+    echo \"Usage: pm_link_child <parent-id> <child-id>\" >&2
+    return 1
+  fi
   local parent_id=\"\$1\"
   local child_id=\"\$2\"
 

@@ -33,6 +33,10 @@ eval "${_PM_FN_PREFIX}pm_start_work() {
 
 # pm_complete_work <item-id> <commit-hash>
 eval "${_PM_FN_PREFIX}pm_complete_work() {
+  if [ \$# -lt 2 ]; then
+    echo \"Usage: pm_complete_work <item-id> <commit-hash>\" >&2
+    return 1
+  fi
   local item_id=\"\$1\"
   local commit_hash=\"\$2\"
 

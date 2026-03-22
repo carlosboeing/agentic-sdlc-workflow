@@ -4,12 +4,9 @@
 # Calls the HTTP API via curl using helpers from _common.sh.
 # Supports prefix injection (_PM_LOADING_EXTERNAL) for dual-write mode.
 #
-# NOTE: The server API currently adds labels to items at creation time
-# (POST /api/items with labels[] in body). There is no dedicated
-# POST /api/items/:id/labels endpoint yet. This adapter creates labels
-# via POST /api/labels (ensuring they exist) and relies on item creation
-# to attach them. A future API enhancement could add label-to-item
-# association for existing items.
+# The adapter calls POST /api/items/:id/labels to associate a label with an
+# item. The server's LabelService.addLabelToItem() handles upsert semantics:
+# creates the label if it does not exist and idempotently associates it.
 
 _SERVER_LABELS_SH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -z "${_SERVER_COMMON_LOADED:-}" ] && source "$_SERVER_LABELS_SH_DIR/_common.sh"
@@ -18,6 +15,10 @@ _PM_FN_PREFIX="${_PM_LOADING_EXTERNAL:+_external_}"
 
 # pm_add_label <id> <label> [--create-if-missing] [--color <hex>] [--description <text>]
 eval "${_PM_FN_PREFIX}pm_add_label() {
+  if [ \$# -lt 2 ]; then
+    echo \"Usage: pm_add_label <item-id> <label> [--create-if-missing] [--color <hex>] [--description <text>]\" >&2
+    return 1
+  fi
   local item_id=\"\$1\"
   local label=\"\$2\"
   shift 2
@@ -34,14 +35,11 @@ eval "${_PM_FN_PREFIX}pm_add_label() {
     shift
   done
 
-  # Ensure the label exists on the server (idempotent)
+  # Associate the label with the item via the server API.
+  # POST /api/items/:id/labels handles upsert: creates the label if it does
+  # not exist, then creates the item-label association (idempotent).
   local escaped_label
   escaped_label=\$(_server_escape_json \"\$label\")
-  local label_json=\"{\\\"name\\\":\\\"\$escaped_label\\\"\"
-  [ -n \"\$color\" ] && label_json=\"\${label_json},\\\"color\\\":\\\"\$color\\\"\"
-  [ -n \"\$description\" ] && label_json=\"\${label_json},\\\"description\\\":\\\"\$description\\\"\"
-  label_json=\"\${label_json}}\"
-
-  # Create label (may fail with duplicate -- that is fine)
-  _server_pm_curl_post \"/api/labels\" \"\$label_json\" > /dev/null 2>&1 || true
+  _server_pm_curl_post \"/api/items/\$item_id/labels\" \
+    \"{\\\"name\\\":\\\"\$escaped_label\\\"}\" > /dev/null 2>&1 || true
 }"

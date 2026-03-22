@@ -196,6 +196,39 @@ export function createItemsRouter(
   });
 
   // ---------------------------------------------------------------------------
+  // POST /api/items/:id/labels — Add label to item
+  // ---------------------------------------------------------------------------
+
+  router.post("/items/:id/labels", async (c) => {
+    const idStr = c.req.param("id");
+    const id = Number(idStr);
+
+    if (!Number.isInteger(id) || id <= 0 || isNaN(id)) {
+      return c.json({ error: "Invalid item id — must be a positive integer", details: [] }, 400);
+    }
+
+    const item = await itemService.get(id);
+    if (!item) {
+      return c.json({ error: `Item ${id} not found`, details: [] }, 404);
+    }
+
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON body", details: [] }, 400);
+    }
+
+    const parseResult = CreateLabelBodySchema.safeParse(raw);
+    if (!parseResult.success) {
+      return c.json(formatZodError(parseResult.error), 400);
+    }
+
+    const assoc = await labelService.addLabelToItem(id, parseResult.data.name);
+    return c.json(assoc, 201);
+  });
+
+  // ---------------------------------------------------------------------------
   // GET /api/labels — List all labels
   // ---------------------------------------------------------------------------
 

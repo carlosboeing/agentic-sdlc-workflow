@@ -11,6 +11,10 @@ _PM_FN_PREFIX="${_PM_LOADING_EXTERNAL:+_external_}"
 
 # pm_add_comment <item-id> <body>
 eval "${_PM_FN_PREFIX}pm_add_comment() {
+  if [ \$# -lt 2 ]; then
+    echo \"Usage: pm_add_comment <item-id> <body>\" >&2
+    return 1
+  fi
   local item_id=\"\$1\"
   local body=\"\$2\"
 

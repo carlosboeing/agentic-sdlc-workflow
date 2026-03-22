@@ -21,7 +21,7 @@
     "hard": "opus"
   },
   "pm": {
-    "adapter": "github"
+    "adapter": "server"
   },
   "server": {
     "port": 0,

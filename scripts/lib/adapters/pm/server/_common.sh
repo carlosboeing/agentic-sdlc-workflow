@@ -215,6 +215,8 @@ _server_pm_curl_delete() {
 # ---------------------------------------------------------------------------
 
 # _server_escape_json <string> -- Escape a string for safe JSON embedding.
+# Handles all JSON control characters per RFC 8259: backslash, double-quote,
+# newline, tab, carriage return, backspace, and form feed.
 _server_escape_json() {
-  printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g' | awk '{printf "%s%s",(NR>1?"\\n":""),$0}'
+  printf '%s' "$1" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read())[1:-1], end='')"
 }

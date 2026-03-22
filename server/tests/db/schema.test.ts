@@ -1,3 +1,4 @@
+import { resolve, dirname } from "node:path";
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
@@ -5,6 +6,12 @@ import { sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import * as schema from "../../src/db/schema";
 import { createDatabase, closeDatabase } from "../../src/db/connection";
+
+/** Resolve migration folder relative to this file, works from any cwd. */
+const MIGRATIONS_FOLDER = resolve(
+  dirname(new URL(import.meta.url).pathname),
+  "../../src/db/migrations"
+);
 
 describe("Database Schema", () => {
   let sqlite: Database;
@@ -14,7 +21,7 @@ describe("Database Schema", () => {
     sqlite = new Database(":memory:");
     db = drizzle(sqlite, { schema });
     migrate(db, {
-      migrationsFolder: "./server/src/db/migrations",
+      migrationsFolder: MIGRATIONS_FOLDER,
     });
   });
 
@@ -607,7 +614,7 @@ describe("Database Connection", () => {
 
     // Run migrations
     migrate(db, {
-      migrationsFolder: "./server/src/db/migrations",
+      migrationsFolder: MIGRATIONS_FOLDER,
     });
 
     // Verify tables exist
@@ -631,7 +638,7 @@ describe("Database Connection", () => {
     // Create and populate
     const conn1 = createDatabase(dbPath);
     migrate(conn1.db, {
-      migrationsFolder: "./server/src/db/migrations",
+      migrationsFolder: MIGRATIONS_FOLDER,
     });
 
     const now = new Date().toISOString();
@@ -669,9 +676,15 @@ describe("Migration runner", () => {
     const tmpDir = mkdtempSync(join(require("os").tmpdir(), "migrate-test-"));
     const dbPath = join(tmpDir, "test.db");
 
+    // Resolve migrate.ts relative to this file so it works from any cwd
+    const migrateScript = resolve(
+      dirname(new URL(import.meta.url).pathname),
+      "../../src/db/migrate.ts"
+    );
+
     // Run the migration script with the test DB path
     const proc = Bun.spawn(
-      ["bun", "run", "./server/src/db/migrate.ts"],
+      ["bun", "run", migrateScript],
       {
         env: {
           ...process.env,

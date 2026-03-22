@@ -1,17 +1,24 @@
+import { resolve, dirname } from "node:path";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { createDatabase, closeDatabase } from "./connection";
+
+/** Resolve migration folder relative to this file, works from any cwd. */
+const MIGRATIONS_FOLDER = resolve(
+  dirname(new URL(import.meta.url).pathname),
+  "./migrations"
+);
 
 const dbPath =
   process.env.WORKFLOW_DB_PATH ?? ".agentic-workflow/workflow.db";
 
 console.error(`[migrate] Database path: ${dbPath}`);
-console.error(`[migrate] Migrations folder: ./server/src/db/migrations`);
+console.error(`[migrate] Migrations folder: ${MIGRATIONS_FOLDER}`);
 
 const { db, sqlite } = createDatabase(dbPath);
 
 try {
   migrate(db, {
-    migrationsFolder: "./server/src/db/migrations",
+    migrationsFolder: MIGRATIONS_FOLDER,
   });
   console.error("[migrate] Migrations applied successfully");
 } catch (error) {

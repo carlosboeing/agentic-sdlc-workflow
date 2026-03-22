@@ -2,12 +2,19 @@
  * Entry point for the Workflow Runtime Service.
  *
  * Usage:
- *   bun run src/index.ts start   — Start the daemon (idempotent)
+ *   bun run src/index.ts start   — Start the daemon (returns immediately to caller)
  *   bun run src/index.ts stop    — Stop a running daemon
  *   bun run src/index.ts status  — Print running status
  *   bun run src/index.ts mcp     — Start as MCP server (stdio transport)
  *
  * All log output goes to stderr.  stdout is reserved for MCP JSON-RPC messages.
+ *
+ * Daemon model (start command):
+ *   The `start` command daemonizes by spawning a child process that runs the
+ *   HTTP server in the foreground.  The parent waits for the child to become
+ *   healthy (via a health-check poll), then exits — giving the caller back
+ *   control immediately.  This means `bun run server/src/index.ts start`
+ *   returns immediately to the caller once the server is up.
  */
 
 import { resolve, join } from "node:path";
@@ -33,9 +40,10 @@ import { startServer } from "./server";
 
 /**
  * Resolve the repo root and work directory.
- * The server lives at `server/src/index.ts`; the repo root is two levels up.
+ * The server lives at `server/src/index.ts`; the repo root is 3 levels up:
+ *   server/src/index.ts -> server/src/ -> server/ -> <repo-root>
  */
-const REPO_ROOT = resolve(new URL(import.meta.url).pathname, "../../../..");
+const REPO_ROOT = resolve(new URL(import.meta.url).pathname, "../../..");
 const WORK_DIR = join(REPO_ROOT, ".agentic-workflow");
 
 // ---------------------------------------------------------------------------
@@ -43,10 +51,17 @@ const WORK_DIR = join(REPO_ROOT, ".agentic-workflow");
 // ---------------------------------------------------------------------------
 
 const command = process.argv[2] ?? "start";
+const isForegrounded = process.argv.includes("--foreground");
 
 switch (command) {
   case "start":
-    await commandStart();
+    if (isForegrounded) {
+      // Running as the daemonized child — serve in foreground
+      await commandStartForeground();
+    } else {
+      // Running as the parent launcher — spawn child and return to caller
+      await commandStart();
+    }
     break;
   case "stop":
     await commandStop();
@@ -66,13 +81,16 @@ switch (command) {
 }
 
 // ---------------------------------------------------------------------------
-// start command
+// start command — daemonizes and returns to caller immediately
+//
+// `bun run server/src/index.ts start` returns immediately to the caller once
+// the server child process is confirmed healthy via a health-check poll.
 // ---------------------------------------------------------------------------
 
 async function commandStart(): Promise<void> {
   ensureWorkDir();
 
-  // Check if already running
+  // Check if already running — idempotent no-op
   const existingPid = readPidFile(WORK_DIR);
   if (existingPid !== null && isProcessAlive(existingPid)) {
     const port = readPortFile(WORK_DIR);
@@ -91,6 +109,70 @@ async function commandStart(): Promise<void> {
     removePortFile(WORK_DIR);
   }
 
+  // Spawn the server child process in the background.
+  // The child runs with --foreground so it does not re-daemonize.
+  // stderr is inherited so log output is visible to the caller.
+  // stdout is ignored per the MCP stdio rule (stdout reserved for JSON-RPC).
+  const scriptPath = new URL(import.meta.url).pathname;
+  const child = Bun.spawn(["bun", "run", scriptPath, "start", "--foreground"], {
+    stdio: ["ignore", "ignore", "inherit"], // stdin: none, stdout: ignore, stderr: inherit
+    env: process.env,
+    // detached: true makes the child independent of the parent's process group
+    // so it continues running after the parent exits
+  });
+
+  // Unref the child so the parent process can exit without waiting for it
+  child.unref();
+
+  process.stderr.write(
+    `Spawned server daemon (PID ${child.pid}). Waiting for health check...\n`
+  );
+
+  // Poll for the server to become ready.
+  // The child writes server.port after Bun.serve() succeeds (W1 fix).
+  // We poll the port file, then confirm via health endpoint.
+  const deadline = Date.now() + 15_000; // 15s timeout for startup
+  let port: number | null = null;
+
+  while (Date.now() < deadline) {
+    await Bun.sleep(200);
+
+    // Phase 1: wait for port file (child writes it after server starts)
+    port = readPortFile(WORK_DIR);
+    if (port === null) continue;
+
+    // Phase 2: health check via HTTP
+    try {
+      const resp = await fetch(`http://127.0.0.1:${port}/health`, {
+        signal: AbortSignal.timeout(1000),
+      });
+      if (resp.ok) {
+        process.stderr.write(
+          `Server is up on port ${port} (PID ${child.pid}).\n`
+        );
+        return; // Return control to caller — server is running
+      }
+    } catch {
+      // Server not yet ready — keep polling
+    }
+  }
+
+  process.stderr.write(
+    `Server did not become healthy within 15 seconds. Check server logs.\n`
+  );
+  process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// start --foreground (internal) — runs the server in foreground
+//
+// Called by the child process spawned by commandStart(). Not intended for
+// direct use by callers — use `start` (without --foreground) instead.
+// ---------------------------------------------------------------------------
+
+async function commandStartForeground(): Promise<void> {
+  ensureWorkDir();
+
   // Read configuration
   const config = readServerConfig(REPO_ROOT);
 
@@ -102,10 +184,6 @@ async function commandStart(): Promise<void> {
     );
     process.exit(1);
   }
-
-  // Write PID and port files before starting the server
-  writePidFile(WORK_DIR, process.pid);
-  writePortFile(WORK_DIR, port);
 
   const startTimeMs = Date.now();
 
@@ -124,6 +202,11 @@ async function commandStart(): Promise<void> {
   // Start the HTTP server
   const server = startServer({ port, startTimeMs, idleTracker });
 
+  // Write PID and port files AFTER the server starts successfully (W1 fix).
+  // If Bun.serve() throws, these files are never written — no stale files left.
+  writePidFile(WORK_DIR, process.pid);
+  writePortFile(WORK_DIR, port);
+
   // Register graceful shutdown handlers
   async function handleShutdown(
     srv: ReturnType<typeof Bun.serve>
@@ -131,6 +214,7 @@ async function commandStart(): Promise<void> {
     process.stderr.write("Shutting down server...\n");
     idleTracker?.stop();
     srv.stop(true); // Wait for in-flight requests
+    // TODO(E02): wire checkpointFn when database is integrated with server startup
     await gracefulShutdown(WORK_DIR);
     process.stderr.write("Server stopped.\n");
     process.exit(0);
@@ -227,22 +311,25 @@ async function commandMcp(): Promise<void> {
     process.exit(1);
   }
 
-  writePidFile(WORK_DIR, process.pid);
-  writePortFile(WORK_DIR, port);
-
   const startTimeMs = Date.now();
   const idleTimeoutMs = config.idleTimeoutMinutes * 60 * 1000;
   const idleTracker =
     idleTimeoutMs > 0
       ? new IdleTimeoutTracker(idleTimeoutMs, async () => {
           process.stderr.write("Idle timeout in MCP mode. Shutting down.\n");
+          idleTracker?.stop();
           server.stop(true);
+          // TODO(E02): wire checkpointFn when database is integrated with server startup
           await gracefulShutdown(WORK_DIR);
           process.exit(0);
         })
       : undefined;
 
   const server = startServer({ port, startTimeMs, idleTracker });
+
+  // Write PID and port files AFTER the server starts successfully (W1 fix).
+  writePidFile(WORK_DIR, process.pid);
+  writePortFile(WORK_DIR, port);
 
   // MCP stdio transport will be connected by E03 (MCP Server epic).
   // For now, keep the HTTP server alive until stdin closes.
@@ -251,6 +338,7 @@ async function commandMcp(): Promise<void> {
     process.stderr.write("MCP stdin closed. Shutting down.\n");
     idleTracker?.stop();
     server.stop(true);
+    // TODO(E02): wire checkpointFn when database is integrated with server startup
     await gracefulShutdown(WORK_DIR);
     process.exit(0);
   });

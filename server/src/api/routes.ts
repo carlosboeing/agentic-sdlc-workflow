@@ -41,7 +41,7 @@ export function registerRoutes(app: Hono, db: Db, eventService?: EventService): 
   const boardService = new BoardService(db, effectiveEventService);
   const commentService = new CommentService(db, effectiveEventService);
   const hierarchyService = new HierarchyService(db);
-  const lifecycleService = new LifecycleService(db);
+  const lifecycleService = new LifecycleService(db, effectiveEventService);
 
   // Item CRUD + label management (E02-S01)
   app.route("/api", createItemsRouter(itemService, labelService, db));

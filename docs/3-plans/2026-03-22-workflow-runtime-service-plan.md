@@ -10,6 +10,35 @@ design: docs/2-design/2026-03-22-workflow-runtime-service-design.md
 
 # Implementation Plan: Workflow Runtime Service
 
+## Issue Reference
+
+| Code | GitHub Issue | Title | Difficulty |
+|------|-------------|-------|-----------|
+| E01 | #328 | Server Foundation | -- |
+| E01-S01 | #334 | Bun Project Setup and Database Schema | hard |
+| E01-S02 | #335 | PM Service Layer | hard |
+| E01-S03 | #336 | Server Lifecycle and Health Endpoint | medium |
+| E02 | #329 | HTTP API and Shell Adapter | -- |
+| E02-S01 | #337 | Item CRUD and Query Routes | medium |
+| E02-S02 | #338 | Board, Lifecycle, Comment, and Hierarchy Routes | medium |
+| E02-S03 | #339 | Server PM Shell Adapter and Config Migration | hard |
+| E03 | #330 | MCP Server | -- |
+| E03-S01 | #340 | MCP Transport and Core Tool Registration | hard |
+| E03-S02 | #341 | MCP Registration and Dual-Mode Startup | medium |
+| E04 | #331 | Sync Engine | -- |
+| E04-S01 | #342 | Sync Queue and Worker | hard |
+| E04-S02 | #343 | GitHub External Adapter | medium |
+| E04-S03 | #344 | Data Migration Script | medium |
+| E05 | #332 | Dashboard UI | -- |
+| E05-S01 | #345 | React SPA Scaffolding and Static Serving | medium |
+| E05-S02 | #346 | Kanban Board | hard |
+| E05-S03 | #347 | Item Detail and Telemetry Summary | medium |
+| E05-S04 | #348 | WebSocket Integration and Activity Feed | medium |
+| E06 | #333 | Document Viewer | -- |
+| E06-S01 | #349 | Document API Routes and Markdown Viewer | medium |
+| E06-S02 | #350 | Comment Threads and Paragraph Anchoring | hard |
+| E06-S03 | #351 | Document Comment Agent Integration | easy |
+
 ## 1. Overview
 
 This plan decomposes the Workflow Runtime Service design (backlog #116) into six epics and nineteen stories. The server is a persistent Bun daemon that replaces the file-system PM adapter with a SQLite-backed database, serves a React dashboard, provides a document viewer with inline comments, and exposes PM operations as MCP tools for agent consumption.

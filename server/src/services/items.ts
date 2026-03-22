@@ -69,7 +69,24 @@ export class ItemService {
       .returning()
       .all();
 
-    return rows[0];
+    const item = rows[0];
+
+    // Log item:created activity
+    this.db
+      .insert(schema.activityLog)
+      .values({
+        itemId: item.id,
+        eventType: "item:created",
+        payload: JSON.stringify({
+          title: input.title,
+          type: input.type,
+          createdBy: input.createdBy ?? null,
+        }),
+        createdAt: now,
+      })
+      .run();
+
+    return item;
   }
 
   /** Get a single item by ID. Returns null if not found. */
@@ -151,7 +168,7 @@ export class ItemService {
     if (!existing) return null;
 
     const now = new Date().toISOString();
-    const values: Record<string, unknown> = { updatedAt: now };
+    const values: Partial<typeof schema.items.$inferInsert> = { updatedAt: now };
 
     if (input.title !== undefined) values.title = input.title;
     if (input.body !== undefined) values.body = input.body;
@@ -165,7 +182,26 @@ export class ItemService {
       .returning()
       .all();
 
-    return rows.length > 0 ? rows[0] : null;
+    if (rows.length === 0) return null;
+
+    // Log item:updated activity
+    const changes: Record<string, string | null> = {};
+    if (input.title !== undefined) changes.title = input.title;
+    if (input.body !== undefined) changes.body = input.body ?? null;
+    if (input.externalId !== undefined) changes.externalId = input.externalId ?? null;
+    if (input.externalUrl !== undefined) changes.externalUrl = input.externalUrl ?? null;
+
+    this.db
+      .insert(schema.activityLog)
+      .values({
+        itemId: id,
+        eventType: "item:updated",
+        payload: JSON.stringify({ changes }),
+        createdAt: now,
+      })
+      .run();
+
+    return rows[0];
   }
 
   /** Close an item (set state to "closed"). Returns null if not found. */
@@ -173,6 +209,7 @@ export class ItemService {
     const existing = await this.get(id);
     if (!existing) return null;
 
+    const previousState = existing.state;
     const now = new Date().toISOString();
     const rows = this.db
       .update(schema.items)
@@ -181,6 +218,19 @@ export class ItemService {
       .returning()
       .all();
 
-    return rows.length > 0 ? rows[0] : null;
+    if (rows.length === 0) return null;
+
+    // Log item:closed activity
+    this.db
+      .insert(schema.activityLog)
+      .values({
+        itemId: id,
+        eventType: "item:closed",
+        payload: JSON.stringify({ previousState }),
+        createdAt: now,
+      })
+      .run();
+
+    return rows[0];
   }
 }

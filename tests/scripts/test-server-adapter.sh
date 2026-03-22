@@ -542,6 +542,198 @@ assert_exit_nonzero "Health_check_fails_for_unreachable" "$EXIT_CODE"
 
 echo ""
 
+# =========================================================================
+# Test Group 16: _server_escape_json handles control characters
+# =========================================================================
+echo "Test Group 16: _server_escape_json handles control characters"
+
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+
+  # Test tab escaping
+  result=\$(_server_escape_json \$'hello\tworld')
+  echo \"tab_result=\$result\"
+
+  # Test carriage return escaping
+  result=\$(_server_escape_json \$'line1\rline2')
+  echo \"cr_result=\$result\"
+
+  # Test backspace escaping
+  result=\$(_server_escape_json \$'back\bspace')
+  echo \"bs_result=\$result\"
+
+  # Test form feed escaping
+  result=\$(_server_escape_json \$'form\ffeed')
+  echo \"ff_result=\$result\"
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+ESCAPE_OUTPUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+
+assert_exit_zero "Escape_json_control_chars_ok" "$EXIT_CODE"
+assert_contains "Tab_escaped" "tab_result=hello\\tworld" "$ESCAPE_OUTPUT"
+assert_contains "CR_escaped" "cr_result=line1\\rline2" "$ESCAPE_OUTPUT"
+assert_contains "BS_escaped" "bs_result=back\\bspace" "$ESCAPE_OUTPUT"
+assert_contains "FF_escaped" "ff_result=form\\ffeed" "$ESCAPE_OUTPUT"
+
+echo ""
+
+# =========================================================================
+# Test Group 17: pm_add_comment validates argument count
+# =========================================================================
+echo "Test Group 17: pm_add_comment validates argument count"
+
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/comments.sh'
+  pm_add_comment 2>&1
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+COMMENT_STDERR=$(cat "$TMPERR")
+COMMENT_STDOUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_nonzero "pm_add_comment_no_args_fails" "$EXIT_CODE"
+assert_contains "pm_add_comment_usage_message" "Usage:" "$COMMENT_STDERR$COMMENT_STDOUT"
+
+# One argument should also fail
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/comments.sh'
+  pm_add_comment 42 2>&1
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_nonzero "pm_add_comment_one_arg_fails" "$EXIT_CODE"
+
+echo ""
+
+# =========================================================================
+# Test Group 18: pm_link_child validates argument count
+# =========================================================================
+echo "Test Group 18: pm_link_child validates argument count"
+
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/hierarchy.sh'
+  pm_link_child 2>&1
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+LINK_STDERR=$(cat "$TMPERR")
+LINK_STDOUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_nonzero "pm_link_child_no_args_fails" "$EXIT_CODE"
+assert_contains "pm_link_child_usage_message" "Usage:" "$LINK_STDERR$LINK_STDOUT"
+
+# One argument should also fail
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/hierarchy.sh'
+  pm_link_child 42 2>&1
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_nonzero "pm_link_child_one_arg_fails" "$EXIT_CODE"
+
+echo ""
+
+# =========================================================================
+# Test Group 19: pm_complete_work validates argument count
+# =========================================================================
+echo "Test Group 19: pm_complete_work validates argument count"
+
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/lifecycle.sh'
+  pm_complete_work 2>&1
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+COMPLETE_STDERR=$(cat "$TMPERR")
+COMPLETE_STDOUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_nonzero "pm_complete_work_no_args_fails" "$EXIT_CODE"
+assert_contains "pm_complete_work_usage_message" "Usage:" "$COMPLETE_STDERR$COMPLETE_STDOUT"
+
+# One argument should also fail
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/lifecycle.sh'
+  pm_complete_work 42 2>&1
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_nonzero "pm_complete_work_one_arg_fails" "$EXIT_CODE"
+
+echo ""
+
+# =========================================================================
+# Test Group 20: pm_add_label calls item label association endpoint
+# =========================================================================
+echo "Test Group 20: pm_add_label calls item label association endpoint"
+
+# Verify that pm_add_label function body includes the /api/items/$item_id/labels path
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/labels.sh'
+  fn_body=\$(declare -f pm_add_label)
+  echo \"\$fn_body\"
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+LABEL_FN_BODY=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+
+assert_exit_zero "pm_add_label_sources_ok" "$EXIT_CODE"
+assert_contains "pm_add_label_calls_item_label_endpoint" "/api/items/" "$LABEL_FN_BODY"
+assert_contains "pm_add_label_calls_labels_subpath" "/labels" "$LABEL_FN_BODY"
+
+echo ""
+
+# =========================================================================
+# Test Group 21: Config sets pm.adapter to server
+# =========================================================================
+echo "Test Group 21: Config pm.adapter value"
+
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  source '$CONFIG_SH'
+  echo \"CFG_PM_ADAPTER=\$CFG_PM_ADAPTER\"
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+CFG_OUTPUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+
+assert_exit_zero "Config_loads_ok" "$EXIT_CODE"
+assert_contains "PM_adapter_is_server" "CFG_PM_ADAPTER=server" "$CFG_OUTPUT"
+
+echo ""
+
 # --- Cleanup ---
 rm -rf "$MOCK_CONFIG_DIR" 2>/dev/null || true
 

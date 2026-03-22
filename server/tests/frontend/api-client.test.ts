@@ -172,4 +172,41 @@ describe("ApiClient", () => {
       }
     });
   });
+
+  describe("204 No Content handling", () => {
+    test("del() resolves without throwing when server returns 204 No Content", async () => {
+      // DELETE endpoints following REST conventions may return 204 No Content.
+      // del() must not attempt to parse JSON on an empty body.
+      const fetchMock = mock(async (_url: string | URL | Request, _init?: RequestInit) => {
+        return new Response(null, { status: 204 });
+      });
+      const client = createApiClient();
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      try {
+        const result = await client.closeItem(42);
+        // 204 with no body → result should be undefined (or null), not thrown
+        expect(result).toBeUndefined();
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("post() resolves without throwing when server returns 204 No Content", async () => {
+      const fetchMock = mock(async (_url: string | URL | Request, _init?: RequestInit) => {
+        return new Response(null, { status: 204 });
+      });
+      const client = createApiClient();
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      try {
+        const result = await client.linkChild(1, 2);
+        expect(result).toBeUndefined();
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  });
 });

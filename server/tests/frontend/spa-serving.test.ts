@@ -13,7 +13,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createAppWithStatic } from "../../src/server";
+import { createAppWithStatic, startServer } from "../../src/server";
 
 describe("SPA static file serving", () => {
   let distDir: string;
@@ -117,5 +117,68 @@ describe("SPA static file serving", () => {
     const cacheControl = res.headers.get("cache-control") ?? "";
     // index.html should not be cached aggressively so deploys take effect
     expect(cacheControl).toContain("no-cache");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Startup wiring: startServer() must use createAppWithStatic
+// ---------------------------------------------------------------------------
+
+describe("startServer production wiring", () => {
+  let distDir: string;
+  let cleanup: () => void;
+
+  beforeAll(() => {
+    distDir = join(tmpdir(), `spa-wiring-test-${Date.now()}`);
+    mkdirSync(join(distDir, "assets"), { recursive: true });
+    writeFileSync(
+      join(distDir, "index.html"),
+      `<!DOCTYPE html><html><body><div id="root"></div></body></html>`
+    );
+    writeFileSync(
+      join(distDir, "assets", "main.js"),
+      `console.log("wiring test");`
+    );
+    cleanup = () => rmSync(distDir, { recursive: true, force: true });
+  });
+
+  afterAll(() => cleanup?.());
+
+  test("startServer serves the SPA index.html at the root path", async () => {
+    // startServer() must use createAppWithStatic() so the production startup
+    // path actually serves the React SPA (C1 fix verification).
+    const server = startServer({ port: 0, distDir });
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/`);
+      expect(res.status).toBe(200);
+      const body = await res.text();
+      expect(body).toContain("<!DOCTYPE html>");
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test("startServer serves static assets from distDir", async () => {
+    const server = startServer({ port: 0, distDir });
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/assets/main.js`);
+      expect(res.status).toBe(200);
+      const contentType = res.headers.get("content-type") ?? "";
+      expect(contentType).toContain("javascript");
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test("startServer still serves the API health endpoint", async () => {
+    const server = startServer({ port: 0, distDir });
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/api/health`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { status: string };
+      expect(body.status).toBe("ok");
+    } finally {
+      server.stop(true);
+    }
   });
 });

@@ -210,5 +210,84 @@ describe("ItemService", () => {
       const result = await service.close(999);
       expect(result).toBeNull();
     });
+
+    test("logs item:closed event in activity_log", async () => {
+      await service.create({ id: 1, title: "Closeable Item", type: "story" });
+      await service.close(1);
+
+      const logs = sqlite
+        .query(
+          "SELECT * FROM activity_log WHERE item_id = 1 AND event_type = 'item:closed'"
+        )
+        .all() as { payload: string }[];
+
+      expect(logs).toHaveLength(1);
+      const payload = JSON.parse(logs[0].payload);
+      expect(payload.previousState).toBe("open");
+    });
+  });
+
+  describe("activity log", () => {
+    test("create() logs item:created event", async () => {
+      await service.create({
+        id: 10,
+        title: "Logged Item",
+        type: "story",
+        createdBy: "builder",
+      });
+
+      const logs = sqlite
+        .query(
+          "SELECT * FROM activity_log WHERE item_id = 10 AND event_type = 'item:created'"
+        )
+        .all() as { payload: string }[];
+
+      expect(logs).toHaveLength(1);
+      const payload = JSON.parse(logs[0].payload);
+      expect(payload.title).toBe("Logged Item");
+      expect(payload.type).toBe("story");
+      expect(payload.createdBy).toBe("builder");
+    });
+
+    test("update() logs item:updated event", async () => {
+      await service.create({ id: 20, title: "Original", type: "story" });
+      await service.update(20, { title: "Updated", body: "New body" });
+
+      const logs = sqlite
+        .query(
+          "SELECT * FROM activity_log WHERE item_id = 20 AND event_type = 'item:updated'"
+        )
+        .all() as { payload: string }[];
+
+      expect(logs).toHaveLength(1);
+      const payload = JSON.parse(logs[0].payload);
+      expect(payload.changes).toBeDefined();
+      expect(payload.changes.title).toBe("Updated");
+      expect(payload.changes.body).toBe("New body");
+    });
+
+    test("update() does not log when item not found", async () => {
+      await service.update(999, { title: "Ghost" });
+
+      const logs = sqlite
+        .query(
+          "SELECT * FROM activity_log WHERE event_type = 'item:updated'"
+        )
+        .all();
+
+      expect(logs).toHaveLength(0);
+    });
+
+    test("close() does not log when item not found", async () => {
+      await service.close(999);
+
+      const logs = sqlite
+        .query(
+          "SELECT * FROM activity_log WHERE event_type = 'item:closed'"
+        )
+        .all();
+
+      expect(logs).toHaveLength(0);
+    });
   });
 });

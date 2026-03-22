@@ -134,4 +134,40 @@ describe("CommentService", () => {
       expect(comments).toHaveLength(0);
     });
   });
+
+  describe("listDocumentComments", () => {
+    test("returns comments for a specific document path", async () => {
+      await commentService.addComment({
+        body: "Design looks good",
+        author: "reviewer",
+        documentPath: "docs/2-design/feature.md",
+        anchor: "overview",
+      });
+      await commentService.addComment({
+        body: "Missing section",
+        author: "reviewer",
+        documentPath: "docs/2-design/feature.md",
+        anchor: "api",
+      });
+      await commentService.addComment({
+        body: "Unrelated doc comment",
+        author: "reviewer",
+        documentPath: "docs/3-plans/plan.md",
+      });
+
+      const comments = await commentService.listDocumentComments(
+        "docs/2-design/feature.md"
+      );
+      expect(comments).toHaveLength(2);
+      expect(comments[0].body).toBe("Design looks good");
+      expect(comments[1].body).toBe("Missing section");
+    });
+
+    test("returns empty array for document with no comments", async () => {
+      const comments = await commentService.listDocumentComments(
+        "docs/nonexistent.md"
+      );
+      expect(comments).toHaveLength(0);
+    });
+  });
 });

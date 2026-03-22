@@ -284,10 +284,18 @@ describe("SyncService", () => {
     });
 
     test("dead-letters after 5 retries", async () => {
+      // Use a time provider that always returns far-future to bypass backoff
+      let fakeNow = Date.now() + 999_999_000;
       const alwaysFailAdapter = createMockAdapter({
         createItem: mock(() => Promise.reject(new Error("Persistent failure"))),
       });
-      const failService = new SyncService(db, alwaysFailAdapter, { maxRetries: 5 });
+      const failService = new SyncService(db, alwaysFailAdapter, {
+        maxRetries: 5,
+        nowMs: () => {
+          fakeNow += 120_000; // advance 2 min each call to bypass backoff
+          return fakeNow;
+        },
+      });
 
       await failService.enqueue(
         "create",
@@ -295,7 +303,7 @@ describe("SyncService", () => {
         { itemId: 42 }
       );
 
-      // Process 5 times to exhaust retries
+      // Process 5 times to exhaust retries (each call bypasses backoff via fakeNow)
       for (let i = 0; i < 5; i++) {
         await failService.processQueue();
       }
@@ -306,10 +314,17 @@ describe("SyncService", () => {
     });
 
     test("does not process dead-lettered operations", async () => {
+      let fakeNow = Date.now() + 999_999_000;
       const alwaysFailAdapter = createMockAdapter({
         createItem: mock(() => Promise.reject(new Error("Persistent failure"))),
       });
-      const failService = new SyncService(db, alwaysFailAdapter, { maxRetries: 5 });
+      const failService = new SyncService(db, alwaysFailAdapter, {
+        maxRetries: 5,
+        nowMs: () => {
+          fakeNow += 120_000;
+          return fakeNow;
+        },
+      });
 
       await failService.enqueue(
         "create",

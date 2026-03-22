@@ -18,3 +18,8 @@ export type {
   CompleteWorkInput,
   PostTelemetryInput,
 } from "./lifecycle";
+
+export { SyncService } from "./sync";
+export type { SyncQueueRow, EnqueueOptions, SyncServiceOptions, QueueStatus } from "./sync";
+
+export { SyncWorker } from "./sync-worker";

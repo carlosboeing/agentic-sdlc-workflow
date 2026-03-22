@@ -1,8 +1,9 @@
 ---
 date: 2026-03-16
-author: designer
+author: carlosboeing
+agent: designer
 backlog: 106
-status: Draft
+status: draft
 scope: Telemetry pipeline accuracy — Gantt from state data, precise timestamps, Python extraction, fix cycle metrics, lifecycle baseline
 ---
 

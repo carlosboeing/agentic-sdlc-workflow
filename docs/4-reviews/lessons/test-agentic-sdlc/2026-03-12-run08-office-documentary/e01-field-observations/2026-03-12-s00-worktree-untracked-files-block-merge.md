@@ -1,6 +1,7 @@
 ---
 date: 2026-03-12
-author: retro
+author: carlosboeing
+agent: retro
 story: "E01 Wave 1 — Parallel worktree dispatch"
 tags: [orchestrator, worktree, git, parallel-dispatch]
 severity: medium

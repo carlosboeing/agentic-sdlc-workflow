@@ -1,6 +1,7 @@
 ---
 date: 2026-03-09
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 epic: sdlc-v2
 ---

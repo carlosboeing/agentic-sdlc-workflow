@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 106
 epic-pr: 118, 119
 scope: SDLC v2 Run 4 validation -- 5 stories, 2 epics, board transition fixes, scoped telemetry, tight word counts

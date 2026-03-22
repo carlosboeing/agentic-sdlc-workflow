@@ -1,6 +1,7 @@
 ---
 date: 2026-03-20
-author: retro
+author: carlosboeing
+agent: retro
 story: "E00 Setup -- Planner worktree dispatch"
 tags: [planner, orchestrator, worktree, local-pm, convention]
 severity: high

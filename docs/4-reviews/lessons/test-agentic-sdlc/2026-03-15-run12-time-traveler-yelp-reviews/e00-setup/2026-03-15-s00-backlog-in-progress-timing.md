@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "E00-Setup — Phase 0 backlog status transition"
 tags: [orchestrator, board-management, status-transition]
 severity: medium

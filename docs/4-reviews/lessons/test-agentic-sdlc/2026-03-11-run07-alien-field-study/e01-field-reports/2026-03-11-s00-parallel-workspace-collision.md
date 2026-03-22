@@ -1,6 +1,7 @@
 ---
 date: 2026-03-11
-author: retro
+author: carlosboeing
+agent: retro
 story: "E01-S01/S02/S03 (#209, #210, #211) -- Wave 1 parallel dispatch"
 tags: [orchestrator, parallel-dispatch, worktree, git, workspace-collision]
 severity: critical

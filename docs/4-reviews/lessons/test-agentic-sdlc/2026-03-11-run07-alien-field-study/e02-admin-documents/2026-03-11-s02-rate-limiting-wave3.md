@@ -1,6 +1,7 @@
 ---
 date: 2026-03-11
-author: retro
+author: carlosboeing
+agent: retro
 story: "E02-S02 (#213) -- Council Recommendation"
 tags: [orchestrator, github-api, rate-limiting, telemetry]
 severity: high

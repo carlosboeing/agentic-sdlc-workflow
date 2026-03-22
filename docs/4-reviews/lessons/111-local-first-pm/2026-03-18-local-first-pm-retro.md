@@ -1,6 +1,7 @@
 ---
 date: 2026-03-18
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 111
 backlog-pr: 225
 scope: Local-First PM System -- file-based PM adapter implementing all 15 pm_* functions against .workflow/ files

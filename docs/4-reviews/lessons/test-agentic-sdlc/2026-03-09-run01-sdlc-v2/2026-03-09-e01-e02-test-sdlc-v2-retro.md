@@ -1,6 +1,7 @@
 ---
 date: 2026-03-09
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 57
 epic-pr: 70
 scope: End-to-end test of Agentic SDLC v2 — 9 stories, 2 epics, creative writing tasks

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-19
-author: designer
+author: carlosboeing
+agent: designer
 story: "E00-Setup — Backlog #243 Phase Restructuring (Revision 2)"
 tags: [design, architecture, platform-constraint, claude-code]
 severity: critical

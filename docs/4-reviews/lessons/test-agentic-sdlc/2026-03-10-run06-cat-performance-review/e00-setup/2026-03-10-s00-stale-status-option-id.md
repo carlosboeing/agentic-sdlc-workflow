@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: planner
+author: carlosboeing
+agent: planner
 story: "E00-S00 — Plan creation for #162"
 tags: [architecture, github-api, board-management]
 severity: medium

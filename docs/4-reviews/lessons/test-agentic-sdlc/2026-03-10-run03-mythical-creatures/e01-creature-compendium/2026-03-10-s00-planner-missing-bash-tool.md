@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "Pre-dispatch — planner agent setup"
 tags: [orchestrator, architecture, dispatch, agent-config]
 severity: medium

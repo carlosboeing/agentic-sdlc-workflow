@@ -1,6 +1,8 @@
 ---
 date: 2026-03-11
-status: draft — pending team review
+author: carlosboeing
+agent: general
+status: draft
 recommendations:
   - Architecture: configurable 3-level hierarchy with role-based internal model
   - Default taxonomy: leaning toward Epic → Story → Task based on market familiarity; configurable via presets

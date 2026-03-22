@@ -1,7 +1,10 @@
-## date: 2026-03-13
-author: orchestrator
+---
+date: 2026-03-13
+author: carlosboeing
+agent: orchestrator
 status: implemented
 backlog: 14
+---
 
 # Design: Orchestrator & Board Status Diagnostic Logging
 

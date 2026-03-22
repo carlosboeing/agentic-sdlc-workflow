@@ -1,6 +1,7 @@
 ---
 date: 2026-03-13
-author: builder
+author: carlosboeing
+agent: builder
 story: "E01-S01 (#33) — Logging Validation Script"
 tags: [builder, testing, shell, posix]
 severity: medium

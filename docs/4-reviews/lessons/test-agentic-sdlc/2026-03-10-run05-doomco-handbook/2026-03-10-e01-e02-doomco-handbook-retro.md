@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 146
 epic-prs: [158, 159]
 scope: "Full autonomous SDLC v2 pipeline test (Run 5) -- 2 epics, 5 stories, 3 dispatch waves"

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-12
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 1
 design: docs/2-design/test-agentic-sdlc/2026-03-12-run08-office-nature-documentary.md

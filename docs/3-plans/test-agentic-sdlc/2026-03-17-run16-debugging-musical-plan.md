@@ -1,6 +1,7 @@
 ---
 date: 2026-03-17
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 167
 design: docs/2-design/test-agentic-sdlc/2026-03-17-debugging-musical.md

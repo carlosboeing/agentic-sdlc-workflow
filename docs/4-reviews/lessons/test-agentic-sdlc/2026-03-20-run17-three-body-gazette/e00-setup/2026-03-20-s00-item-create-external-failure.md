@@ -1,6 +1,7 @@
 ---
 date: 2026-03-20
-author: designer
+author: carlosboeing
+agent: designer
 story: "E00 Setup -- Designer phase (backlog #303)"
 tags: [designer, issue-tracking, design, pm-scripts]
 severity: medium

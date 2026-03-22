@@ -1,6 +1,7 @@
 ---
 date: 2026-03-16
-author: builder
+author: carlosboeing
+agent: builder
 story: "E01-S04 (#130) — Wire External Python Module in item-telemetry.sh"
 tags: [builder, git, branch]
 severity: medium

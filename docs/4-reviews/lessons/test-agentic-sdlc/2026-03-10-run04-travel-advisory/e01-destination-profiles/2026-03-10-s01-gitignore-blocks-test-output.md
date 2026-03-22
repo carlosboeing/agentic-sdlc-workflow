@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: retro
+author: carlosboeing
+agent: retro
 story: "E01-S01 (#112) -- Kepler-442b -- The Resort World"
 tags: [builder, gitignore, staging, empty-commit, orchestrator]
 severity: high

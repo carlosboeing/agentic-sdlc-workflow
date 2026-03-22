@@ -1,6 +1,7 @@
 ---
 date: 2026-03-13
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "Phase 0/2 — Board status updates after planner"
 tags: [orchestrator, github-api, rate-limit, performance]
 severity: medium

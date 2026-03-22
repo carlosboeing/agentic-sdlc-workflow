@@ -1,6 +1,7 @@
 ---
 date: 2026-03-18
-author: builder
+author: carlosboeing
+agent: builder
 story: "E01-S02 (#216) — Local Items Module (items.sh)"
 tags: [builder, shell, exit-code, testing]
 severity: medium

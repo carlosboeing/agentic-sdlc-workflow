@@ -1,6 +1,7 @@
 ---
 date: 2026-03-13
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 27
 backlog-pr: pending
 scope: Run 10 — validate two-layer diagnostic logging + Nature Documentary Season 2 content — 2 epics, 6 stories, 4 dispatch waves

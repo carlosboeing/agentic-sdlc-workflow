@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 69
 backlog-pr: 82
 scope: Validate runtime data consolidation (.agentic-workflow/), live pricing (fetch-pricing.sh), and dispatches-from-state telemetry

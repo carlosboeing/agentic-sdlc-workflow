@@ -1,6 +1,7 @@
 ---
 date: 2026-03-20
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 303
 design: docs/2-design/test-agentic-sdlc/2026-03-20-run17-three-body-gazette.md

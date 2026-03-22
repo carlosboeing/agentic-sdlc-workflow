@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "Epic telemetry — #94, #95"
 tags: [orchestrator, telemetry, combined-pr]
 severity: medium

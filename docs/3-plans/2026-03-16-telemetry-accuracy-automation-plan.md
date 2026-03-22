@@ -1,6 +1,7 @@
 ---
 date: 2026-03-16
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 106
 design: docs/2-design/2026-03-16-telemetry-accuracy-automation.md

@@ -1,3 +1,10 @@
+---
+date: 2026-03-10
+author: carlosboeing
+agent: general
+status: approved
+---
+
 # GitHub Issue Categorization Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: retro
+author: carlosboeing
+agent: retro
 story: "E01 (#110), E02 (#111) -- Epic PR reviews"
 tags: [reviewer, epic-pr, usage-limits, review-gap]
 severity: medium

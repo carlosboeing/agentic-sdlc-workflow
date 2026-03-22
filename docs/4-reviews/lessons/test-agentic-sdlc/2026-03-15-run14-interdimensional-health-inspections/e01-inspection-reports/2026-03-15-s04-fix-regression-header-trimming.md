@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: retro
+author: carlosboeing
+agent: retro
 story: "E01-S04 (#92) -- Special Event Inspection: The Probability Cafe"
 tags: [builder, fix-cycle, regression, word-count, content]
 severity: medium

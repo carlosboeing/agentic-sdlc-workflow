@@ -1,6 +1,7 @@
 ---
 date: 2026-03-17
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 150
 backlog-pr: 163
 scope: "Split orchestrator.md: extract inline scripts into state.sh, extend compute-dispatches.py with --overhead, rewrite orchestrator.md from 1323 to 503 lines, add Fault Tolerance principle"

@@ -626,7 +626,8 @@ The date-prefixed directory groups lessons by feature, with epic subfolders bene
 ```markdown
 ---
 date: 2026-03-09
-author: reviewer
+author: carlosboeing
+agent: reviewer
 story: "E03-S01 (#34) — CalendarToolPlugin with list and get functions"
 tags: [builder, di, testing, runtime-failure, review]
 severity: critical
@@ -647,7 +648,7 @@ Unit tests mock the DI layer, so missing registrations pass all tests.
 - Reviewer MUST check DI wiring for any new service class.
 ```
 
-**YAML frontmatter fields:** `date` (ISO), `author` (agent role), `story` (issue ref + title), `tags[]` (freeform — common values: `builder`, `reviewer`, `orchestrator`, `design`, `architecture`, `testing`, `di`, `telemetry`, `github-api`), `severity` (`critical`, `high`, `medium`, `low`).
+**YAML frontmatter fields:** `date` (ISO), `author` (GitHub username of the human collaborator), `agent` (agent role that produced the doc: `designer`, `planner`, `builder`, `reviewer`, `orchestrator`, `retro`, or `general`), `story` (issue ref + title), `tags[]` (freeform — common values: `builder`, `reviewer`, `orchestrator`, `design`, `architecture`, `testing`, `di`, `telemetry`, `github-api`), `severity` (`critical`, `high`, `medium`, `low`). Use lowercase for `status` values (`draft`, `approved`, `implemented`).
 
 #### Tag discovery
 

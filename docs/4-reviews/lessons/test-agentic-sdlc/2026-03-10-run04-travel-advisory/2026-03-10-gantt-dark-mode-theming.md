@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "Telemetry gantt chart theming (post-retro refinement)"
 tags: [orchestrator, telemetry, mermaid, github, dark-mode, theming]
 severity: high

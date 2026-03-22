@@ -1,7 +1,9 @@
 ---
 title: Local-First PM System Implementation Plan
 date: 2026-03-18
-author: planner
+author: carlosboeing
+agent: planner
+status: approved
 backlog: 111
 design: docs/2-design/2026-03-18-local-first-pm.md
 ---

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-13
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "Phase 0 — Artifact detection for design/plan skip"
 tags: [orchestrator, design, artifact-matching, convention-gap]
 severity: high

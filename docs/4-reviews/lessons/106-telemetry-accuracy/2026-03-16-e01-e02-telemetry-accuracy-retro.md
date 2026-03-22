@@ -1,6 +1,7 @@
 ---
 date: 2026-03-16
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 106
 backlog-pr: 145
 scope: "Telemetry Accuracy & Automation: extract Python module, Gantt from state data, fix cycle metrics, convention updates"

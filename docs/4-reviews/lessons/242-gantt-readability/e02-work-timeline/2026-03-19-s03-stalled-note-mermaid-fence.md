@@ -1,6 +1,7 @@
 ---
 date: 2026-03-19
-author: retro
+author: carlosboeing
+agent: retro
 story: "E02-S03 (#253) -- Stalled Dispatch Detection"
 tags: [builder, reviewer, mermaid, template, rendering]
 severity: critical

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "E00-Setup — Telemetry cost underreporting in aggregate breakdowns"
 tags: [orchestrator, telemetry, pricing, config]
 severity: critical

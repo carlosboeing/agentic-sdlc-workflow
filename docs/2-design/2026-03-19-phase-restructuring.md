@@ -1,9 +1,10 @@
 ---
 title: "Phase Restructuring: Parallel Story Lifecycles and Tiered Reviews"
 date: 2026-03-19
-author: designer
+author: carlosboeing
+agent: designer
 backlog: 243
-status: Approved
+status: approved
 revision: 2
 revision_date: 2026-03-19
 revision_reason: "Approach E (prompt augmentation) is infeasible due to subagent nesting hard cap. All approaches requiring builder-dispatches-reviewer are invalid. Revised to recommend Approach H (background dispatch with orchestrator polling)."

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-13
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 14
 backlog-pr: pending
 scope: Run 9 full autonomous lifecycle validation — 2 epics, 5 stories, markdown-only content

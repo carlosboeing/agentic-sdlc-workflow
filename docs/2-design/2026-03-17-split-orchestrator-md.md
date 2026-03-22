@@ -1,7 +1,8 @@
 ---
 date: 2026-03-17
-author: designer
-status: Draft
+author: carlosboeing
+agent: designer
+status: draft
 backlog: 150
 scope: Extract inline scripts from orchestrator.md into real scripts, delete redundant documentation, reduce agent file from 1323 to ~530 lines
 ---

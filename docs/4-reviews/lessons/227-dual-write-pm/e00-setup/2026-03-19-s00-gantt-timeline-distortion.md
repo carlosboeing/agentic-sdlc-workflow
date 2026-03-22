@@ -1,6 +1,7 @@
 ---
 date: 2026-03-19
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "E00 — Orchestrator telemetry (post-build session)"
 tags: [orchestrator, telemetry, gantt, duration, agent-tool]
 severity: medium

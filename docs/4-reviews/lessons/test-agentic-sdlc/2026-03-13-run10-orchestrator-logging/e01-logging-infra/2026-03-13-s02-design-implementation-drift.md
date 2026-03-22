@@ -1,6 +1,7 @@
 ---
 date: 2026-03-13
-author: builder
+author: carlosboeing
+agent: builder
 story: "E01-S02 (#34) — Design Doc Reconciliation"
 tags: [builder, design, implementation-drift, documentation]
 severity: medium

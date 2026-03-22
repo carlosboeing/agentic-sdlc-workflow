@@ -1,6 +1,7 @@
 ---
 date: 2026-03-19
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 227
 backlog-pr: 240
 scope: Dual-Write PM Layer -- pm.sh refactored from single-adapter to always-local + optional-external with fire-and-forget sync

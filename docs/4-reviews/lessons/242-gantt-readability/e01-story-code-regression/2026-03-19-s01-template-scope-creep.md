@@ -1,6 +1,7 @@
 ---
 date: 2026-03-19
-author: retro
+author: carlosboeing
+agent: retro
 story: "E01-S01 (#249) -- Story Code in Breakdown Table and Gantt Labels"
 tags: [builder, reviewer, scope-creep, template, telemetry]
 severity: medium

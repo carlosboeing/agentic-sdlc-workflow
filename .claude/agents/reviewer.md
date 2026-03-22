@@ -152,7 +152,7 @@ When you encounter a bug, unexpected behavior, missing convention, or anything w
 
 1. Create a file in `docs/4-reviews/lessons/<backlog-issue>-<feature-slug>/eNN-<epic-slug>/`
 2. Use the naming convention: `YYYY-MM-DD-sNN-<slug>.md`
-3. Add YAML frontmatter with: date, author, story, tags, severity
+3. Add YAML frontmatter with: date, author (GitHub username), agent (your role: `reviewer`), story, tags, severity
 4. Write sections: What happened, Root cause, Prevention
 5. Commit the lesson alongside your implementation work
 

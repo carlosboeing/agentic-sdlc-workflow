@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 56
 backlog-pr: 68
 scope: "Run 12 — Validate configurable workflow settings (PR 55) via Time Traveler's Yelp Reviews content workload"

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 69
 design: docs/2-design/test-agentic-sdlc/2026-03-15-run13-alien-tourist-bureau.md

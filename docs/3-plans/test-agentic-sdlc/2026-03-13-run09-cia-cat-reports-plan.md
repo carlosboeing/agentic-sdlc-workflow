@@ -1,6 +1,7 @@
 ---
 date: 2026-03-13
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 14
 design: docs/2-design/test-agentic-sdlc/2026-03-13-run09-cia-cat-reports.md

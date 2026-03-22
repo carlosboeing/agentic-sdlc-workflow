@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "N/A — design, plan, and orchestrator-setup phases"
 tags: [orchestrator, designer, planner, github-api, labels, board-management]
 severity: high

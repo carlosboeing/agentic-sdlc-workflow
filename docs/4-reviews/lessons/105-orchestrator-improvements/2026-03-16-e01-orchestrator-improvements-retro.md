@@ -1,6 +1,7 @@
 ---
 date: 2026-03-16
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 105
 backlog-pr: 143
 scope: 6 orchestrator improvements — reviewer routing, early branch creation, batched board updates, format templates, override pattern, overhead metrics

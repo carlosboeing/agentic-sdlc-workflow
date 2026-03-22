@@ -1,6 +1,7 @@
 ---
 date: 2026-03-20
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 290
 backlog-pr: 301
 scope: "Run 15 -- Supernatural Pet Adoption Agency: first production test of tiered review strategy, 5 stories, 2 epics, 2 waves"

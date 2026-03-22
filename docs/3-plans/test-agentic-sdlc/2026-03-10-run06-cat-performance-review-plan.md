@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 162
 design: docs/2-design/test-agentic-sdlc/2026-03-10-run06-cat-performance-review.md

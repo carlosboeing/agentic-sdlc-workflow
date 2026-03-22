@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: retro
+author: carlosboeing
+agent: retro
 story: "E02-S01 (#115), E02-S02 (#116) -- Advisory Supplements"
 tags: [builder, orchestrator, merge-convention, workflow]
 severity: medium

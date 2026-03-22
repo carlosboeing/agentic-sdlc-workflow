@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "Backlog-level telemetry (#83)"
 tags: [orchestrator, telemetry, wall-clock, parallelism]
 severity: high

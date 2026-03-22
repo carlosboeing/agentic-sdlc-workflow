@@ -1,9 +1,10 @@
 ---
 date: 2026-03-17
-author: planner
+author: carlosboeing
+agent: planner
 backlog: 150
 design: docs/2-design/2026-03-17-split-orchestrator-md.md
-status: Draft
+status: draft
 ---
 
 # Implementation Plan: Split orchestrator.md into Core Instructions and Scripts

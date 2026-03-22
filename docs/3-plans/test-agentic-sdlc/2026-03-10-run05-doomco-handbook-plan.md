@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 146
 epic: doomco-handbook

@@ -1,8 +1,9 @@
 ---
 date: 2026-03-19
-author: planner
+author: carlosboeing
+agent: planner
 backlog: 243
-status: Draft
+status: draft
 title: "Phase Restructuring: Parallel Story Lifecycles and Tiered Reviews"
 ---
 

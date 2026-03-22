@@ -1,7 +1,8 @@
 ---
 title: Dual-Write PM Layer — Local Always-On + Optional External Sync
 date: 2026-03-18
-author: designer
+author: carlosboeing
+agent: designer
 status: draft
 backlog: 227
 related:

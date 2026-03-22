@@ -1,6 +1,7 @@
 ---
 date: 2026-03-11
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 205
 design: docs/2-design/test-agentic-sdlc/2026-03-11-run07-alien-field-study.md

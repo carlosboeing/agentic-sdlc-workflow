@@ -1,6 +1,7 @@
 ---
 date: 2026-03-18
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 109
 backlog-pr: 206
 scope: PM Abstraction Layer -- adapter boundary between workflow process logic and external PM platforms

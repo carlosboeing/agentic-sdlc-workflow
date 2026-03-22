@@ -1,7 +1,11 @@
-# GitHub Issue Categorization Improvements
+---
+date: 2026-03-10
+author: carlosboeing
+agent: general
+status: approved
+---
 
-**Date:** 2026-03-10
-**Status:** Approved
+# GitHub Issue Categorization Improvements
 
 ## Problem
 

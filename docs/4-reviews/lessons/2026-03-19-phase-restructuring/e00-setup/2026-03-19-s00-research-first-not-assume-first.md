@@ -1,6 +1,7 @@
 ---
 date: 2026-03-19
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "E00-Setup — Backlog #243 Phase Restructuring"
 tags: [orchestrator, designer, process, research, systemic]
 severity: critical

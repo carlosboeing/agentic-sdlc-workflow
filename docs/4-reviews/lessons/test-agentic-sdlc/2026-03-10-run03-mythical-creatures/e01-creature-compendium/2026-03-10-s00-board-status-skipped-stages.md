@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "All Wave 1 stories (#96, #97, #98, #100)"
 tags: [orchestrator, github-api, board-status, parallel-dispatch]
 severity: critical

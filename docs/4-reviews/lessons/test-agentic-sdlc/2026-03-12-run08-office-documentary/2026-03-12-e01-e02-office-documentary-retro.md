@@ -1,6 +1,7 @@
 ---
 date: 2026-03-12
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 1
 backlog-pr: pending
 scope: Run 8 worktree isolation validation — 2 epics, 5 stories, markdown-only content

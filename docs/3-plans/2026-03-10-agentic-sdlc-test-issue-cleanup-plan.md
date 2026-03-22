@@ -1,9 +1,10 @@
 ---
-
-## date: 2026-03-10
-author: orchestrator
+date: 2026-03-10
+author: carlosboeing
+agent: orchestrator
 status: draft
 purpose: housekeeping
+---
 
 # Test Issue Cleanup Plan
 

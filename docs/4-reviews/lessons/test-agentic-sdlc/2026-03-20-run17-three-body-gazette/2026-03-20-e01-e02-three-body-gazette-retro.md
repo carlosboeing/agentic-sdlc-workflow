@@ -1,6 +1,7 @@
 ---
 date: 2026-03-20
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 303
 backlog-pr: 314
 scope: Full e2e pipeline test with tiered review, parallel dispatch, cross-reference validation, and planted bug detection

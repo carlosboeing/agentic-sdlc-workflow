@@ -1,6 +1,7 @@
 ---
 date: 2026-03-14
-author: analysis
+author: carlosboeing
+agent: general
 scope: Critical workflow analysis of the agentic SDLC pipeline — system-level audit across correctness, robustness, innovation, and work item taxonomy
 ---
 

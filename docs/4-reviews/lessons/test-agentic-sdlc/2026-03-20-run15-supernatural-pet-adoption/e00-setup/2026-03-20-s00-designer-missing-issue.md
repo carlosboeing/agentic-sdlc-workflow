@@ -1,6 +1,7 @@
 ---
 date: 2026-03-20
-author: retro
+author: carlosboeing
+agent: retro
 story: "E00 Setup -- Designer phase (PR #291)"
 tags: [designer, orchestrator, convention, issue-tracking]
 severity: medium

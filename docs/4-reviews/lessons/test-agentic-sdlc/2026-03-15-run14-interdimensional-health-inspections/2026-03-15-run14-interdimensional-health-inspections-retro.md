@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 83
 backlog-pr: 104
 scope: "Run 14 — Interdimensional Restaurant Health Inspections: fix cycle validation, 12 stories, 2 epics, 5 waves"

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-17
-author: reviewer
+author: carlosboeing
+agent: reviewer
 story: "E01-S01 (#157) -- state.sh Core CRUD Subcommands"
 tags: [builder, reviewer, security, bash, heredoc, injection]
 severity: critical

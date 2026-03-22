@@ -1,8 +1,11 @@
-# Agentic SDLC Workflow for NeuralNorris
+---
+date: 2026-03-08
+author: carlosboeing
+agent: general
+status: approved
+---
 
-**Status:** Approved
-**Date:** 2026-03-08
-**Author:** Carlos + Claude
+# Agentic SDLC Workflow for NeuralNorris
 
 ## Overview
 

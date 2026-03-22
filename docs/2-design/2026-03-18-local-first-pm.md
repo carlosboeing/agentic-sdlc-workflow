@@ -1,7 +1,8 @@
 ---
 title: Local-First PM System
 date: 2026-03-18
-author: designer
+author: carlosboeing
+agent: designer
 status: draft
 backlog: 111
 related:

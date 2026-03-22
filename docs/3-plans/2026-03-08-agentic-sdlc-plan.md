@@ -1,3 +1,10 @@
+---
+date: 2026-03-08
+author: carlosboeing
+agent: general
+status: approved
+---
+
 # Agentic SDLC Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.

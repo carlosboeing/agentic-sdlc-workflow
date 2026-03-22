@@ -1,6 +1,7 @@
 ---
 date: 2026-03-14
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "Phase 0 — Board item initialization"
 tags: [orchestrator, github-api, board, convention-gap]
 severity: medium

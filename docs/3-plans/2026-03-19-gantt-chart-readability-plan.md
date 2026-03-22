@@ -1,8 +1,9 @@
 ---
 date: 2026-03-19
-author: planner
+author: carlosboeing
+agent: planner
 backlog: 242
-status: Approved
+status: approved
 title: "Gantt Chart Readability: Story Code Regression and Work Timeline Mode"
 ---
 

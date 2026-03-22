@@ -1,7 +1,8 @@
 ---
 title: PM Abstraction Layer Implementation Plan
 date: 2026-03-18
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 109
 design: docs/2-design/2026-03-18-pm-abstraction-layer.md

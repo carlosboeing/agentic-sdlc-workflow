@@ -1,6 +1,7 @@
 ---
 date: 2026-03-16
-author: builder
+author: carlosboeing
+agent: builder
 story: "E01-S02 (#136) — Early Story Branch Creation"
 tags: [builder, worktree, edit-tool, platform-limitation]
 severity: high

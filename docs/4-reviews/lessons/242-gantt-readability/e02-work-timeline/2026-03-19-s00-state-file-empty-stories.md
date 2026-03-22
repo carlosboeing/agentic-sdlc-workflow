@@ -1,6 +1,7 @@
 ---
 date: 2026-03-19
-author: retro
+author: carlosboeing
+agent: retro
 story: "E00 -- Retro analysis of backlog 242 telemetry"
 tags: [orchestrator, telemetry, state-file, story-code]
 severity: medium

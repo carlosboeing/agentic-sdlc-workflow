@@ -1,6 +1,7 @@
 ---
 date: 2026-03-14
-author: analysis
+author: carlosboeing
+agent: general
 scope: Comprehensive telemetry metrics analysis across 11 test runs of the agentic SDLC pipeline
 sources: GitHub issue telemetry comments (gavinkilbride/NeuralNorris issues 57-205, carlosboeing/agentic-sdlc-workflow issues 1-41)
 ---

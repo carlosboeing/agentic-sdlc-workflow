@@ -587,7 +587,7 @@ When you encounter a bug, unexpected behavior, or missing convention, create a l
 
 **When:** dispatch failures, unexpected API behavior, merge workarounds, incorrect dependency graphs.
 
-**How:** Create in `docs/4-reviews/lessons/<backlog>-<slug>/eNN-<epic>/YYYY-MM-DD-sNN-<slug>.md` with frontmatter (date, author: `orchestrator`, story, tags, severity) and sections (What happened, Root cause, Prevention).
+**How:** Create in `docs/4-reviews/lessons/<backlog>-<slug>/eNN-<epic>/YYYY-MM-DD-sNN-<slug>.md` with frontmatter (date, author: GitHub username, agent: `orchestrator`, story, tags, severity) and sections (What happened, Root cause, Prevention).
 
 **Discovery:** `grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/`
 

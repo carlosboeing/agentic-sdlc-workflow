@@ -1,6 +1,7 @@
 ---
 date: 2026-03-17
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 167
 backlog-pr: 185
 scope: "Run 16 -- The Debugging: A Silicon Valley Musical: first state.sh run, 9 stories, 3 epics, 5 waves, maxParallelBuilders enforcement"

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-14
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "Run 11 backlog telemetry (#41)"
 tags: [orchestrator, telemetry, gantt, convention-gap]
 severity: medium

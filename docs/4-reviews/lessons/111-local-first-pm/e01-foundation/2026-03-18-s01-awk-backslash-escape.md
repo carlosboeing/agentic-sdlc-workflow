@@ -1,6 +1,7 @@
 ---
 date: 2026-03-18
-author: builder
+author: carlosboeing
+agent: builder
 story: "E01-S01 (#215) — Config Extension and Shared Utilities (_common.sh)"
 tags: [builder, shell, awk, testing]
 severity: high

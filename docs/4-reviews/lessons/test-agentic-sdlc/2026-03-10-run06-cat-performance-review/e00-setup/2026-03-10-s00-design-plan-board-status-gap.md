@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "E00-Setup — Design/Plan phase board management"
 tags: [orchestrator, board-management, design, plan, github-api]
 severity: medium

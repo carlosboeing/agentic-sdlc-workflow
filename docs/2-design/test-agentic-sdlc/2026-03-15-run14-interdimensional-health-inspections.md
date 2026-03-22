@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: designer
+author: carlosboeing
+agent: designer
 status: draft
 backlog: 83
 ---

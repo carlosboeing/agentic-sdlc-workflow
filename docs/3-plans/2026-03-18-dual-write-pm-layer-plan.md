@@ -1,7 +1,8 @@
 ---
 title: "Implementation Plan: Dual-Write PM Layer"
 date: 2026-03-18
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 227
 design: docs/2-design/2026-03-18-dual-write-pm-layer.md

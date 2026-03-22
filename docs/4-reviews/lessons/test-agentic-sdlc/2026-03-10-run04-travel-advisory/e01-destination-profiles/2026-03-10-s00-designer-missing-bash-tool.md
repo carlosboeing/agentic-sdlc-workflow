@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: retro
+author: carlosboeing
+agent: retro
 story: "Design phase -- Intergalactic Travel Advisory"
 tags: [designer, orchestrator, agent-tools, bash, workflow]
 severity: medium

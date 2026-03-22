@@ -1,6 +1,7 @@
 ---
 date: 2026-03-12
-author: retro
+author: carlosboeing
+agent: retro
 story: "E01-S02 (#8) — The Open-Plan Migration"
 tags: [builder, orchestrator, worktree, git, remote-push]
 severity: medium

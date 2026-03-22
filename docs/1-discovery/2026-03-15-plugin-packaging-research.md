@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: analysis
+author: carlosboeing
+agent: general
 scope: Research and brainstorming for packaging the agentic SDLC workflow as a Claude Code plugin
 ---
 

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-14
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 41
 backlog-pr: pending
 scope: Run 11 -- board drift detection infrastructure + Incident Reports from Fairy Tale HR -- 2 epics, 6 stories, 4 dispatch waves

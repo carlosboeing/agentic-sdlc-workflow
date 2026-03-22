@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: planner
+author: carlosboeing
+agent: planner
 status: draft
 backlog: 56
 design: docs/2-design/test-agentic-sdlc/2026-03-15-run12-time-traveler-yelp-reviews.md

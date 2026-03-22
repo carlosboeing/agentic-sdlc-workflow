@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 89
 epic-pr: 104
 scope: Full autonomous SDLC lifecycle test -- 7 stories, 2 epics, parallel dispatch, reviewer integration, model routing

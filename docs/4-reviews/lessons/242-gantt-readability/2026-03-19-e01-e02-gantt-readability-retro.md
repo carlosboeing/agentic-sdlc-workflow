@@ -1,6 +1,7 @@
 ---
 date: 2026-03-19
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 242
 backlog-pr: 255
 scope: Fix Gantt chart story code regression and add work timeline mode with gap annotations and stalled dispatch detection

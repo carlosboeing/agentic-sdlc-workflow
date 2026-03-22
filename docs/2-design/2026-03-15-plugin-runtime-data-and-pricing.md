@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: orchestrator + human
+author: carlosboeing
+agent: orchestrator
 status: approved
 backlog: 56
 scope: Design the runtime data directory structure and pricing architecture for the agentic workflow plugin

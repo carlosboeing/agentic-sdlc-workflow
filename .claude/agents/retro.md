@@ -109,7 +109,8 @@ Use this exact structure (based on `docs/4-reviews/lessons/5-calendar-tool/2026-
 ```markdown
 ---
 date: YYYY-MM-DD
-author: retro
+author: <github-username>
+agent: retro
 backlog-issue: <number>
 backlog-pr: <number>
 scope: <one-line scope description>
@@ -255,7 +256,7 @@ When you encounter a bug, unexpected behavior, missing convention, or anything w
 **How to write a lesson:**
 1. Create a file in `docs/4-reviews/lessons/<backlog-issue>-<feature-slug>/eNN-<epic-slug>/`
 2. Use the naming convention: `YYYY-MM-DD-sNN-<slug>.md` (use `s00` for retro-phase lessons)
-3. Add YAML frontmatter with: date, author, story, tags, severity
+3. Add YAML frontmatter with: date, author (GitHub username), agent (your role: `retro`), story, tags, severity
 4. Write sections: What happened, Root cause, Prevention
 5. Commit the lesson file on the integration branch
 

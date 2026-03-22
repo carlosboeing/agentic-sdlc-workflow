@@ -1,9 +1,10 @@
 ---
 date: 2026-03-16
-author: planner
+author: carlosboeing
+agent: planner
 backlog: 105
 scope: 6 orchestrator improvements — reviewer routing, early branch creation, batched board updates, format templates, override pattern, overhead metrics
-status: Draft
+status: draft
 ---
 
 # Implementation Plan: Orchestrator Improvements

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-11
-author: retro
+author: carlosboeing
+agent: retro
 backlog-issue: 205
 backlog-pr: pending
 scope: "Run 7 SDLC v2 test -- 2 epics, 5 stories, markdown-only content with parallel dispatch and workspace collision"

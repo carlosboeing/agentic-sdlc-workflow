@@ -1,6 +1,7 @@
 ---
 date: 2026-03-10
-author: designer
+author: carlosboeing
+agent: designer
 status: draft
 parent: 2026-03-09-agentic-sdlc-v2-design.md
 ---

@@ -1,6 +1,7 @@
 ---
 date: 2026-03-15
-author: orchestrator
+author: carlosboeing
+agent: orchestrator
 story: "E00-Setup — PR review findings and insights from Run 12"
 tags: [orchestrator, reviewer, content-consistency, board-management, convention-propagation]
 severity: medium

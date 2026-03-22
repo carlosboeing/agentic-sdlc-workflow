@@ -1,6 +1,7 @@
 ---
 date: 2026-03-18
-author: builder
+author: carlosboeing
+agent: builder
 story: "E03-S03 (#222) — item-telemetry.sh Adapter Refactor"
 tags: [builder, worktree, git, platform, pathing]
 severity: high

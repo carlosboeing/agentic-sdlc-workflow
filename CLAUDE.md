@@ -513,7 +513,7 @@ sleep 5  # allow automations to fire
 
 The script reads the state file, computes expected statuses deterministically, batch-queries actual statuses (1 API point), and fixes discrepancies. Call at every phase boundary and as a final step before workflow completion.
 
-**Update changelog:** The integration branch MUST include a `docs/CHANGELOG.md` entry before the PR is opened. Add the entry under the current date, following the existing format (feature summary + bullet points). For test run entries, include the wall-clock duration in the heading: `**Run N -- <Topic>** (backlog #NNN, 25m wall-clock)`. Read `session.lifecycle_duration_ms` from the orchestrator state file to get the exact duration — do not estimate.
+**Update changelog:** The integration branch MUST include a `docs/CHANGELOG.md` entry. Added during Phase 5 documentation propagation (after all fix cycles and retro are complete, when the code is final). Add the entry under the current date, following the existing format (feature summary + bullet points). For test run entries, include the wall-clock duration in the heading: `**Run N -- <Topic>** (backlog #NNN, 25m wall-clock)`. Read `session.lifecycle_duration_ms` from the orchestrator state file to get the exact duration — do not estimate.
 
 **Internal merges (epic → integration branch):** Epic branches merge into the integration branch using `--no-ff` merge (not squash). This is an internal merge — only the final PR to `main` uses squash. Design/plan PRs targeting the integration branch also use regular merge (`--merge`).
 
@@ -752,9 +752,7 @@ Changes to the SDLC workflow (scripts, board management, dispatch, telemetry, ag
 - Created or closed a backlog item but didn't update `docs/ROADMAP.md`
 - Shipped a feature that replaces a core system but didn't update README.md's architecture diagram or agent file references
 
-**Orchestrator enforcement (defense-in-depth):** Individual agents should propagate changes as they work, but the orchestrator provides two safety nets:
-1. **Phase 4:** Mechanically update `docs/ROADMAP.md` (mark backlog done, mark absorbed issues) and `docs/CHANGELOG.md`.
-2. **Phase 5 (after retro):** Grep for stale references to concepts changed by the backlog item across `README.md`, `CLAUDE.md`, agent files, and design docs. Fix or dispatch a builder to fix. This catches propagation failures that individual agents missed — especially cross-cutting changes like replacing a core subsystem (e.g., file-based PM → server-backed PM).
+**Orchestrator enforcement:** Individual agents should propagate changes as they work, but the orchestrator provides a safety net in **Phase 5 (after all fix cycles and retro are complete)**: update `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `README.md`, `CLAUDE.md`, agent files, and historical design docs in a single pass when the code is final. This catches propagation failures that individual agents missed — especially cross-cutting changes like replacing a core subsystem. Documentation is not written earlier because PR review fix cycles and retro convention changes can invalidate it.
 
 Evidence: BL#116 shipped a complete server replacing the file-based PM, but README.md, ROADMAP.md, CLAUDE.md, and 6 agent files still referenced the old system. All discovered post-merge by the human.
 

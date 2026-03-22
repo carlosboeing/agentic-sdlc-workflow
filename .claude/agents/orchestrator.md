@@ -341,11 +341,7 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
 
 1. **Verify all stories complete** (no open story issues remaining).
 
-2. **Mechanical doc updates** — these are deterministic (the orchestrator knows what shipped without reading code):
-   - **`docs/CHANGELOG.md`**: Add entry for this run
-   - **`docs/ROADMAP.md`**: Mark the backlog item as Done (✅) with updated title and description. Mark any absorbed/superseded issues. Update dependency graph styling (completed items use grey `#9ca3af`). Update priority table rows.
-
-3. **Open ONE backlog PR:**
+2. **Open ONE backlog PR:**
    ```bash
    gh pr create --base main --head backlog/<N>-<slug> \
      --title "<Backlog item title>" \
@@ -360,7 +356,7 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
    The `Closes` list MUST include all **open** issues: backlog, ALL epics, ALL stories. Already-closed issues (design, plan) must NOT use `Closes` — list them as `Related (already closed): #24, #25`. Using `Closes` on already-closed issues triggers board status reversions (evidence: Runs 3-16, observation iv).
 
-4. **Wait 5 seconds after opening PR, then run board reconciliation** (PR link triggers GitHub automations that may revert statuses):
+3. **Wait 5 seconds after opening PR, then run board reconciliation** (PR link triggers GitHub automations that may revert statuses):
    ```bash
    sleep 5
    ./scripts/reconcile-board.sh --from-state .agentic-workflow/runs/<N>/orchestrator.json \
@@ -409,9 +405,13 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
    Close retro issue (`item-close.sh`). Add to backlog PR as `Related (already closed): #<retro-issue>`.
 
-5. **Documentation propagation (defense-in-depth).** After all fix cycles and retro are complete, verify that existing documentation reflects the changes made by this backlog item. This is the second pass — Phase 4 handled the mechanical updates (roadmap, changelog). This pass catches deeper stale references that require reading the code.
+5. **Documentation propagation.** After all fix cycles and retro are complete — when the code is final and nothing else will change — update all documentation to reflect what was built. This is the single place where all doc updates happen.
 
-   **What to check:**
+   **Mechanical updates** (deterministic — the orchestrator knows what shipped):
+   - **`docs/CHANGELOG.md`**: Add entry for this run
+   - **`docs/ROADMAP.md`**: Mark the backlog item as Done (✅) with updated title and description. Mark any absorbed/superseded issues. Update dependency graph styling (completed items use grey `#9ca3af`). Update priority table rows.
+
+   **Propagation updates** (requires grep + judgment — find stale references):
    - `README.md` — architecture diagrams, project structure, technology descriptions
    - `CLAUDE.md` — conventions, helper script tables, configuration references
    - Agent files (`.claude/agents/*.md`) — any references to changed concepts
@@ -426,6 +426,8 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
 
    Dispatch a builder if the updates are non-trivial (architecture diagrams, large sections). For small changes (a few lines), the orchestrator can edit directly. Commit on the integration branch.
+
+   **Why Phase 5 and not earlier:** Documentation should not be written until the code is final. PR review fix cycles can add or remove functionality, and the retro may commit convention changes. Writing docs in Phase 4 risks them being immediately stale.
 
    **Evidence:** BL#116 shipped a complete server replacement of the file-based PM system, but README.md still showed `.workflow/items/` as the only persistence layer, ROADMAP.md listed the feature as "Future", and agent files referenced a non-existent `PROJECT.md`. All discovered post-merge by the human.
 

@@ -1,2 +1,6 @@
 [2026-03-22T09:57:34Z] issue=329 status=in-review START
 [2026-03-22T09:57:35Z] issue=329 status=in-review DONE prev=in-progress
+[2026-03-22T11:14:05Z] issue=342 status=in-progress START
+[2026-03-22T11:14:05Z] issue=342 status=in-progress DONE prev=ready
+[2026-03-22T11:20:43Z] issue=342 status=in-review START
+[2026-03-22T11:20:43Z] issue=342 status=in-review DONE prev=in-progress

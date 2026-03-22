@@ -1,7 +1,14 @@
+import { resolve, dirname } from "node:path";
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import * as schema from "../../src/db/schema";
+
+/** Resolve migration folder relative to this file, works from any cwd. */
+const MIGRATIONS_FOLDER = resolve(
+  dirname(new URL(import.meta.url).pathname),
+  "../../src/db/migrations"
+);
 
 /**
  * Create an in-memory SQLite database with all migrations applied.
@@ -17,7 +24,7 @@ export function setupTestDb(): {
 
   const db = drizzle(sqlite, { schema });
   migrate(db, {
-    migrationsFolder: "./server/src/db/migrations",
+    migrationsFolder: MIGRATIONS_FOLDER,
   });
 
   return { db, sqlite };

@@ -156,10 +156,17 @@ export function createAppWithStatic(options: StaticOptions = {}): Hono {
   );
 
   // SPA fallback: any path without an extension (or unknown) returns index.html.
-  // API paths are already matched above and never reach this handler.
+  // API paths must NOT be caught here — unregistered API routes should fall
+  // through to the 404 handler (e.g., when db is omitted in health-only mode).
   app.get("*", async (c) => {
-    // Requests for files with extensions that weren't found → 404
     const path = c.req.path;
+
+    // Never serve SPA for API paths — let 404 handler catch them
+    if (path.startsWith("/api/")) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+    // Requests for files with extensions that weren't found → 404
     const hasExtension = /\.[^./]+$/.test(path) && !path.endsWith("/");
     if (hasExtension) {
       return c.json({ error: "Not found" }, 404);

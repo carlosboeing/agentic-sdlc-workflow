@@ -230,6 +230,69 @@ describe("GitHubAdapter.updateItem", () => {
     expect(args).toContain("owner/test-repo");
   });
 
+  test("calls gh issue edit with --add-label when addLabels provided", async () => {
+    const payload: SyncUpdatePayload = {
+      itemId: 1,
+      externalId: "42",
+      changes: { addLabels: ["difficulty/easy", "hierarchy/story"] },
+    };
+
+    await adapter.updateItem(payload);
+
+    const [args] = runGhSpy.mock.calls[0] as [string[]];
+    expect(args).toContain("--add-label");
+    expect(args).toContain("difficulty/easy,hierarchy/story");
+    expect(args).not.toContain("--remove-label");
+  });
+
+  test("calls gh issue edit with --remove-label when removeLabels provided", async () => {
+    const payload: SyncUpdatePayload = {
+      itemId: 1,
+      externalId: "42",
+      changes: { removeLabels: ["difficulty/medium"] },
+    };
+
+    await adapter.updateItem(payload);
+
+    const [args] = runGhSpy.mock.calls[0] as [string[]];
+    expect(args).toContain("--remove-label");
+    expect(args).toContain("difficulty/medium");
+    expect(args).not.toContain("--add-label");
+  });
+
+  test("calls gh issue edit with both --add-label and --remove-label simultaneously", async () => {
+    const payload: SyncUpdatePayload = {
+      itemId: 1,
+      externalId: "55",
+      changes: {
+        addLabels: ["difficulty/hard"],
+        removeLabels: ["difficulty/easy"],
+      },
+    };
+
+    await adapter.updateItem(payload);
+
+    const [args] = runGhSpy.mock.calls[0] as [string[]];
+    expect(args).toContain("--add-label");
+    expect(args).toContain("difficulty/hard");
+    expect(args).toContain("--remove-label");
+    expect(args).toContain("difficulty/easy");
+  });
+
+  test("omits label flags when addLabels and removeLabels are empty arrays", async () => {
+    const payload: SyncUpdatePayload = {
+      itemId: 1,
+      externalId: "42",
+      changes: { title: "X", addLabels: [], removeLabels: [] },
+    };
+
+    await adapter.updateItem(payload);
+
+    const [args] = runGhSpy.mock.calls[0] as [string[]];
+    expect(args).not.toContain("--add-label");
+    expect(args).not.toContain("--remove-label");
+  });
+
   test("throws on non-zero exit code", async () => {
     runGhSpy.mockResolvedValue({ stdout: "", stderr: "permission denied", exitCode: 1 });
 
@@ -379,6 +442,45 @@ describe("GitHubAdapter.setStatus", () => {
       const lastCallArgs = runGhSpy.mock.calls[runGhSpy.mock.calls.length - 1] as [string[]];
       expect(lastCallArgs[0]).toContain(expectedOptionId);
     }
+  });
+
+  test("uses parameterized GraphQL variables instead of string interpolation", async () => {
+    runGhSpy.mockResolvedValueOnce({
+      stdout: JSON.stringify({
+        data: {
+          repository: {
+            issue: { projectItems: { nodes: [{ id: "PVTI_item_abc" }] } },
+          },
+        },
+      }),
+      stderr: "",
+      exitCode: 0,
+    });
+    runGhSpy.mockResolvedValueOnce(makeSubprocessMock());
+
+    const payload: SyncSetStatusPayload = {
+      itemId: 1,
+      externalId: "42",
+      status: "in-progress",
+    };
+
+    await adapter.setStatus(payload);
+
+    const [firstArgs] = runGhSpy.mock.calls[0] as [string[]];
+    // query= arg must use $owner/$name/$number variables, not interpolated values
+    const queryIndex = firstArgs.indexOf("-f");
+    if (queryIndex !== -1) {
+      const queryArg = firstArgs[queryIndex + 1];
+      expect(queryArg).toContain("$owner");
+      expect(queryArg).toContain("$name");
+      expect(queryArg).toContain("$number");
+      // Concrete repo name must NOT appear in the query string
+      expect(queryArg).not.toContain("test-repo");
+    }
+    // Variable values must be in separate -f/-F arguments
+    expect(firstArgs).toContain("owner=owner");
+    expect(firstArgs).toContain("name=test-repo");
+    expect(firstArgs).toContain("number=42");
   });
 
   test("throws when project item not found", async () => {
@@ -550,17 +652,24 @@ describe("GitHubAdapter.linkChild", () => {
     const [secondArgs] = runGhSpy.mock.calls[1] as [string[]];
     expect(secondArgs).toContain("200");
 
-    // Third call: GraphQL addSubIssue mutation
+    // Third call: GraphQL addSubIssue mutation with parameterized variables
     const [thirdArgs] = runGhSpy.mock.calls[2] as [string[]];
     expect(thirdArgs).toContain("api");
     expect(thirdArgs).toContain("graphql");
+    // query= arg should use variables ($issueId, $subIssueId), not interpolated IDs
     const queryIndex = thirdArgs.indexOf("-f");
     if (queryIndex !== -1) {
       const queryArg = thirdArgs[queryIndex + 1];
       expect(queryArg).toContain("addSubIssue");
-      expect(queryArg).toContain("I_parent_node_id");
-      expect(queryArg).toContain("I_child_node_id");
+      expect(queryArg).toContain("$issueId");
+      expect(queryArg).toContain("$subIssueId");
+      // Node IDs must NOT be interpolated into the query string
+      expect(queryArg).not.toContain("I_parent_node_id");
+      expect(queryArg).not.toContain("I_child_node_id");
     }
+    // Node IDs passed as separate -f variable arguments
+    expect(thirdArgs).toContain("issueId=I_parent_node_id");
+    expect(thirdArgs).toContain("subIssueId=I_child_node_id");
   });
 
   test("throws when parent node ID fetch fails", async () => {

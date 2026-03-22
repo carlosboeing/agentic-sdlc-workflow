@@ -1,19 +1,21 @@
 /**
- * Dashboard page — Kanban board overview.
+ * Dashboard page — renders the Kanban board overview.
  *
- * Placeholder for E05-S02 (Kanban Board).
- * Shows a heading and a brief description of what will be here.
+ * Displays work items organized by board status in a five-column
+ * drag-and-drop Kanban board.
  */
+
+import { KanbanBoard } from "../components/KanbanBoard";
 
 export function Dashboard() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
-      <p className="text-gray-500">
-        Kanban board view — coming in E05-S02. This page will show work items
-        grouped by board status (Backlog, Ready, In Progress, In Review, Done)
-        with drag-and-drop reordering.
-      </p>
+    <div className="flex flex-col h-full">
+      <div className="shrink-0 px-6 pt-4 pb-2">
+        <h1 className="text-lg font-bold text-gray-900">Board</h1>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <KanbanBoard />
+      </div>
     </div>
   );
 }

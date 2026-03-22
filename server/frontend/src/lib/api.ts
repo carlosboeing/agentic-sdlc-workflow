@@ -172,7 +172,7 @@ export function createApiClient(baseUrl = ""): ApiClient {
     },
 
     linkChild: (parentId, childId) =>
-      post<void>(`/api/items/${parentId}/children`, { child_id: childId }),
+      post<void>(`/api/items/${parentId}/children`, { childId }),
 
     listChildren: (id) => get<WorkItem[]>(`/api/items/${id}/children`),
 

@@ -857,7 +857,17 @@ The `pm.adapter` config value changes:
 | `"local"` | `"server"` | Server handles local DB only |
 | (no server) | fallback to `"local"` | Graceful degradation when server not running |
 
-### 10.3 Rollback
+### 10.3 Opt-in Activation
+
+The default `pm.adapter` value in `.claude/agentic-sdlc-config.json` remains `"github"` after merge. To activate the server adapter, users should:
+
+1. Start the server: `cd server && bun run start`
+2. Verify it is healthy: `curl http://localhost:<port>/api/health`
+3. Change config: `"pm": { "adapter": "server" }`
+
+This ensures the server is verified working before scripts begin routing through it.
+
+### 10.4 Rollback
 
 If the server proves unstable, the config can be reverted to `"github"` or `"local"` to use the original file-based adapters. The SQLite database and `.workflow/items/` coexist -- neither is deleted during migration.
 

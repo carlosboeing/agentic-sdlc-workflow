@@ -110,6 +110,8 @@ export interface ServerOptions {
   port: number;
   startTimeMs?: number;
   idleTracker?: IdleTimeoutTracker;
+  /** Drizzle DB connection — required for item CRUD routes. Omit for health-only mode. */
+  db?: ReturnType<typeof drizzle>;
 }
 
 /**
@@ -120,7 +122,7 @@ export interface ServerOptions {
  */
 export function startServer(options: ServerOptions): ReturnType<typeof Bun.serve> {
   const startTimeMs = options.startTimeMs ?? Date.now();
-  const app = createApp({ startTimeMs, idleTracker: options.idleTracker });
+  const app = createApp({ startTimeMs, idleTracker: options.idleTracker, db: options.db });
 
   const server = Bun.serve({
     port: options.port,

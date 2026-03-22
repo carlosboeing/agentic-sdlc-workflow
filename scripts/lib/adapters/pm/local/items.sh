@@ -173,7 +173,7 @@ pm_update_item() {
   if [ -n "$new_title" ]; then _local_fm_write "$item_path" title "\"$new_title\""; fi
   if [ -n "$new_body" ]; then _local_write_body "$item_path" "$new_body"; fi
   _local_fm_write "$item_path" updated "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-  [ -n "$updated_by" ] && _local_fm_write "$item_path" updated_by "$updated_by"
+  { [ -n "$updated_by" ] && _local_fm_write "$item_path" updated_by "$updated_by"; } || true
 }
 
 # pm_append_body <item-id> <content> [--updated-by <agent>]
@@ -204,7 +204,7 @@ pm_append_body() {
     printf '\n%s\n' "$content" >> "$item_path"
   fi
   _local_fm_write "$item_path" updated "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-  [ -n "$updated_by" ] && _local_fm_write "$item_path" updated_by "$updated_by"
+  { [ -n "$updated_by" ] && _local_fm_write "$item_path" updated_by "$updated_by"; } || true
 }
 
 # pm_close_item <id> — sets state to closed, calls pm_set_status done.

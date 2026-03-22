@@ -41,9 +41,10 @@ echo ""
 echo "Test Group: File checks"
 if [ -f "$SCRIPT_DIR/test-local-integration.sh" ]; then echo "  PASS: test file exists"; PASS=$((PASS+1))
 else echo "  FAIL: test file not found"; FAIL=$((FAIL+1)); fi
+source "$SCRIPT_DIR/lib/thresholds.sh"
 LC=$(wc -l < "$SCRIPT_DIR/test-local-integration.sh")
-if [ "$LC" -le 200 ]; then echo "  PASS: under 200 lines ($LC)"; PASS=$((PASS+1))
-else echo "  FAIL: exceeds 200 lines ($LC)"; FAIL=$((FAIL+1)); fi
+if [ "$LC" -le "$THRESHOLD_ORCHESTRATION" ]; then echo "  PASS: under $THRESHOLD_ORCHESTRATION lines ($LC)"; PASS=$((PASS+1))
+else echo "  FAIL: exceeds $THRESHOLD_ORCHESTRATION lines ($LC)"; FAIL=$((FAIL+1)); fi
 echo ""
 
 # ─── Group 2: Full lifecycle ──────────────────────────────────────────────────

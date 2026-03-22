@@ -5,6 +5,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/thresholds.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 COST_BUDGET_SH="$REPO_ROOT/scripts/lib/cost-budget.sh"
 
@@ -79,11 +80,11 @@ else
 fi
 
 LINE_COUNT=$(wc -l < "$COST_BUDGET_SH" 2>/dev/null || echo 9999)
-if [ "$LINE_COUNT" -le 40 ]; then
-  echo "  PASS: cost-budget.sh is under 40 lines ($LINE_COUNT lines)"
+if [ "$LINE_COUNT" -le "$THRESHOLD_SMALL_MODULE" ]; then
+  echo "  PASS: cost-budget.sh is under $THRESHOLD_SMALL_MODULE lines ($LINE_COUNT lines)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: cost-budget.sh exceeds 40 lines ($LINE_COUNT lines)"
+  echo "  FAIL: cost-budget.sh exceeds $THRESHOLD_SMALL_MODULE lines ($LINE_COUNT lines)"
   FAIL=$((FAIL + 1))
 fi
 

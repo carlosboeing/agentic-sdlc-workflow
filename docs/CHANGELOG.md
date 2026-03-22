@@ -2,6 +2,17 @@
 
 ## 2026-03-20
 
+### Run 17 -- Three-Body Survival Gazette (backlog #303, 52m wall-clock)
+
+- **Full e2e pipeline validated:** Design → plan → build → review → retro with no skipped phases
+- **Tiered review strategy:** 4 easy stories (SKIP tier) bypassed per-story review, 1 medium story (REVIEW tier) received per-story review with APPROVE verdict
+- **Parallel dispatch:** 4 builders dispatched simultaneously in Wave 1 (3+1 due to maxParallelBuilders: 3)
+- **Cross-reference validation:** E02-S03 obituaries successfully cross-referenced specific details from E01-S01 (syzygy time, temperature) and E01-S02 (Sophon deployment, fleet details)
+- **Planted bug detection:** 2 bugs planted — "the Sun" singular in E02-S02 (SKIP tier, for PR reviewer), "9-dimensional" in E02-S03 (REVIEW tier, caught by per-story reviewer)
+- **Content:** 5 files for "Three-Body Survival Gazette" — weather forecasts, breaking news, classifieds, letters to editor, editorial with obituaries
+- **Test run asset conventions:** All docs in `test-agentic-sdlc/` subfolders validated
+- 2 epics, 5 stories (4 easy, 1 medium), 0 fix cycles
+
 ### Run 15 -- Supernatural Pet Adoption Agency (backlog #290, 49m wall-clock)
 
 - **First production test of tiered review strategy:** 4 easy stories successfully bypassed per-story review (`review_tier = SKIP`), 1 medium story received full per-story review (`review_tier = REVIEW`) with 1 fix cycle (formatting issue)

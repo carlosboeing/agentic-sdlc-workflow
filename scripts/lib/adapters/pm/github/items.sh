@@ -24,7 +24,7 @@ if declare -f "${_PM_FN_PREFIX}pm_create_item" > /dev/null 2>&1; then
 fi
 
 # --- pm_create_item ---
-# Usage: pm_create_item <level> <title> [--body <text>] [--body-file <path>] [--labels <csv>] [--created-by <agent>]
+# Usage: pm_create_item <level> <title> [--body <text>] [--labels <csv>] [--created-by <agent>]
 # Prints the created issue number on stdout (just the number).
 eval "${_PM_FN_PREFIX}pm_create_item() {
   local level=\"\$1\"
@@ -44,11 +44,10 @@ eval "${_PM_FN_PREFIX}pm_create_item() {
       ;;
   esac
 
-  local body=\"\" body_file=\"\" extra_labels=\"\"
+  local body=\"\" extra_labels=\"\" created_by=\"\"
   while [[ \$# -gt 0 ]]; do
     case \"\$1\" in
       --body)       body=\"\$2\";        shift 2 ;;
-      --body-file)  body_file=\"\$2\";   shift 2 ;;
       --labels)     extra_labels=\"\$2\"; shift 2 ;;
       --created-by) created_by=\"\$2\"; shift 2 ;;
       *)
@@ -70,23 +69,12 @@ eval "${_PM_FN_PREFIX}pm_create_item() {
     local meta_line=\"> 🤖 **Created by:** \$created_by · **Date:** \$(date -u +%Y-%m-%dT%H:%M:%SZ)\";
     if [ -n \"\$body\" ]; then
       body=\"\$(printf '%s\\n\\n%s' \"\$meta_line\" \"\$body\")\";
-    elif [ -n \"\$body_file\" ]; then
-      local tmp_body; tmp_body=\$(mktemp);
-      printf '%s\\n\\n' \"\$meta_line\" > \"\$tmp_body\";
-      cat \"\$body_file\" >> \"\$tmp_body\";
-      body_file=\"\$tmp_body\";
     else
       body=\"\$meta_line\";
     fi
   fi
 
-  local create_args=(gh issue create --repo \"\$CFG_REPO\" --title \"\$title\" --label \"\$all_labels\")
-
-  if [ -n \"\$body_file\" ]; then
-    create_args+=(--body-file \"\$body_file\")
-  elif [ -n \"\$body\" ]; then
-    create_args+=(--body \"\$body\")
-  fi
+  local create_args=(gh issue create --repo \"\$CFG_REPO\" --title \"\$title\" --label \"\$all_labels\" --body \"\$body\")
 
   local issue_url
   issue_url=\$(\"\${create_args[@]}\") || return 1

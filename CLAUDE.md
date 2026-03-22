@@ -44,6 +44,25 @@ The workflow runs long autonomous sessions where interruptions are expected: usa
 
 **Where AI judgment belongs in recovery:** The orchestrator uses judgment to decide what to do after recovery (which phase to resume, whether to re-dispatch a failed builder, how to handle partial work). But determining *where we are* — reading the state file, checking GitHub, verifying branch state — must be deterministic and scripted.
 
+## Design Philosophy: Fix What You Find
+
+When you encounter a small, pre-existing bug while working on something else — fix it. Don't defer it, don't file it, don't say "not my problem." If the fix is trivially small (a few lines, obvious correctness, no architectural risk), it costs less to fix now than to context-switch back to it later. The "not my problem" attitude causes small issues to fall through the cracks and accumulate into systemic debt.
+
+**The rule:** If you can fix it in under 5 minutes and the fix is obviously correct, fix it in the same change. If it's larger, file an issue — but bias toward fixing.
+
+**Where this applies:**
+- Pre-existing test failures you notice while running tests for your change
+- Missing `local` declarations, unguarded exit codes, stale comments
+- Off-by-one thresholds, typos in error messages, dead imports
+- Any small defect where the cost of fixing now is lower than the cost of rediscovering later
+
+**Where it does NOT apply:**
+- Architectural disagreements or design changes (those need discussion)
+- Large refactors that change behavior across many files
+- Fixes that require understanding context you don't have
+
+**Evidence:** Run 17 — three pre-existing test failures in `test-local-items-sh.sh` (129 tests, 3 failing) were caused by a classic bash trap: `[ -n "$updated_by" ] && ...` as the last statement returns exit 1 when the variable is empty. Two-character fix (`|| true`). Had been failing silently across multiple runs because each agent said "pre-existing, not my problem."
+
 ## Design Philosophy: Think Long Term, Execute Short Term
 
 Every design decision should consider the end-state architecture, but every implementation should deliver only what is needed now. Apply pragmatism — build for today's requirements while ensuring today's choices don't block tomorrow's goals.
@@ -301,7 +320,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/item-list.sh [--label <l>] [--state <s>] [--limit <n>]` | List work items (replaces `gh issue list`) |
 | `scripts/item-link-child.sh <parent> <child>` | Link a child sub-issue to a parent (replaces `gh api graphql ... addSubIssue`) |
 | `scripts/item-comment.sh <N> <body>` | Post a comment on a work item (replaces `gh issue comment`) |
-| `scripts/item-create.sh <level> --title <t> [--body <text>] [--body-file <path>] [--label <l>] ... [--slug <s>]` | Create work item (backlog/epic/story/docs). For backlog with --slug: full Phase 0 setup (board + status + label) |
+| `scripts/item-create.sh <level> --title <t> [--body <text>] [--label <l>] ... [--slug <s>]` | Create work item (backlog/epic/story/docs). For backlog with --slug: full Phase 0 setup (board + status + label) |
 | `scripts/item-set-status.sh <n> <status>` | Set project board status (backlog/ready/in-progress/in-review/done) |
 | `scripts/batch-set-status.sh <n>:<status> [<n>:<status> ...]` | Set board status for multiple issues: fetch-all, mutate-sequentially, verify-once |
 | `scripts/item-start.sh <n> --model <m> --agent <a>` | Post "Work Started" comment + set board to In Progress |

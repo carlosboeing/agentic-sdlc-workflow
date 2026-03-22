@@ -6,6 +6,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/thresholds.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 PASS=0
@@ -558,23 +559,15 @@ check_line_count() {
   fi
 }
 
-# Thresholds: original lines -> wrapper lines (approx targets from AC)
-# item-set-status.sh:    158 -> ~10 (generous: 25 with comments)
-# batch-set-status.sh:    158 -> ~10 (generous: 25 with comments)
-# item-start.sh:          50 -> ~10 (generous: 25 with comments)
-# item-review.sh:         37 -> ~10 (generous: 25 with comments)
-# item-close.sh:          26 -> ~10 (generous: 25 with comments)
-# reconcile-board.sh:     163 -> ~10 (generous: 25 with comments)
-# setup-labels.sh:         45 -> ~25 (generous: 65 with loop + labels)
-# item-create.sh: merged issue-create.sh + issue-create-backlog.sh (generous: 175)
-check_line_count "item-set-status.sh" 25
-check_line_count "batch-set-status.sh" 25
-check_line_count "item-start.sh" 25
-check_line_count "item-review.sh" 25
-check_line_count "item-close.sh" 25
-check_line_count "reconcile-board.sh" 25
-check_line_count "setup-labels.sh" 65
-check_line_count "item-create.sh" 175
+# Thresholds from tests/scripts/lib/thresholds.sh
+check_line_count "item-set-status.sh" "$THRESHOLD_THIN_WRAPPER"
+check_line_count "batch-set-status.sh" "$THRESHOLD_THIN_WRAPPER"
+check_line_count "item-start.sh" "$THRESHOLD_THIN_WRAPPER"
+check_line_count "item-review.sh" "$THRESHOLD_THIN_WRAPPER"
+check_line_count "item-close.sh" "$THRESHOLD_THIN_WRAPPER"
+check_line_count "reconcile-board.sh" "$THRESHOLD_THIN_WRAPPER"
+check_line_count "setup-labels.sh" "$THRESHOLD_SMALL_MODULE"
+check_line_count "item-create.sh" "$THRESHOLD_ORCHESTRATION"
 
 echo ""
 

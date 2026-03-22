@@ -5,6 +5,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/thresholds.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 HIERARCHY_SH="$REPO_ROOT/scripts/lib/adapters/pm/github/hierarchy.sh"
 LABELS_SH="$REPO_ROOT/scripts/lib/adapters/pm/github/labels.sh"
@@ -88,20 +89,20 @@ done
 
 # Line count constraints
 HIERARCHY_LINES=$(wc -l < "$HIERARCHY_SH" 2>/dev/null || echo 999)
-if [ "$HIERARCHY_LINES" -le 60 ]; then
-  echo "  PASS: hierarchy.sh is under 60 lines ($HIERARCHY_LINES)"
+if [ "$HIERARCHY_LINES" -le "$THRESHOLD_SMALL_MODULE" ]; then
+  echo "  PASS: hierarchy.sh is under $THRESHOLD_SMALL_MODULE lines ($HIERARCHY_LINES)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: hierarchy.sh exceeds 60 lines ($HIERARCHY_LINES)"
+  echo "  FAIL: hierarchy.sh exceeds $THRESHOLD_SMALL_MODULE lines ($HIERARCHY_LINES)"
   FAIL=$((FAIL + 1))
 fi
 
 LABELS_LINES=$(wc -l < "$LABELS_SH" 2>/dev/null || echo 999)
-if [ "$LABELS_LINES" -le 60 ]; then
-  echo "  PASS: labels.sh is under 60 lines ($LABELS_LINES)"
+if [ "$LABELS_LINES" -le "$THRESHOLD_SMALL_MODULE" ]; then
+  echo "  PASS: labels.sh is under $THRESHOLD_SMALL_MODULE lines ($LABELS_LINES)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: labels.sh exceeds 60 lines ($LABELS_LINES)"
+  echo "  FAIL: labels.sh exceeds $THRESHOLD_SMALL_MODULE lines ($LABELS_LINES)"
   FAIL=$((FAIL + 1))
 fi
 

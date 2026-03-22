@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
+import type { EventService } from "../api/websocket";
 
 type Db = ReturnType<typeof drizzle>;
 
@@ -20,9 +21,13 @@ export interface AddCommentInput {
 /**
  * Service for comment operations on work items and documents.
  * Supports item comments, document comments, and threaded replies.
+ * Optionally accepts an EventService to broadcast real-time events.
  */
 export class CommentService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly eventService?: EventService
+  ) {}
 
   /** Add a comment to an item or document. Returns the created comment. */
   async addComment(input: AddCommentInput): Promise<Comment> {
@@ -59,6 +64,16 @@ export class CommentService {
           createdAt: now,
         })
         .run();
+
+      // Broadcast real-time event
+      this.eventService?.broadcast(
+        {
+          type: "comment:added",
+          data: { commentId: comment.id, itemId: input.itemId, author: input.author },
+          itemId: input.itemId,
+        },
+        { persistToDb: false }
+      );
     }
 
     return comment;

@@ -2,6 +2,7 @@ import { eq, and, inArray, type SQL } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
 import type { ItemType, BoardStatus, ItemState } from "../types";
+import type { EventService } from "../api/websocket";
 
 type Db = ReturnType<typeof drizzle>;
 
@@ -42,9 +43,13 @@ export interface ListItemsFilter {
 /**
  * Service for CRUD operations on work items.
  * Accepts a Drizzle database connection via constructor for testability.
+ * Optionally accepts an EventService to broadcast real-time events.
  */
 export class ItemService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly eventService?: EventService
+  ) {}
 
   /** Create a new work item with defaults for status/state. */
   async create(input: CreateItemInput): Promise<Item> {
@@ -85,6 +90,16 @@ export class ItemService {
         createdAt: now,
       })
       .run();
+
+    // Broadcast real-time event (no re-persist — activity log already written above)
+    this.eventService?.broadcast(
+      {
+        type: "item:created",
+        data: { id: item.id, title: input.title, type: input.type, createdBy: input.createdBy ?? null },
+        itemId: item.id,
+      },
+      { persistToDb: false }
+    );
 
     return item;
   }
@@ -201,6 +216,16 @@ export class ItemService {
       })
       .run();
 
+    // Broadcast real-time event
+    this.eventService?.broadcast(
+      {
+        type: "item:updated",
+        data: { id, changes },
+        itemId: id,
+      },
+      { persistToDb: false }
+    );
+
     return rows[0];
   }
 
@@ -230,6 +255,16 @@ export class ItemService {
         createdAt: now,
       })
       .run();
+
+    // Broadcast real-time event
+    this.eventService?.broadcast(
+      {
+        type: "item:closed",
+        data: { id, previousState },
+        itemId: id,
+      },
+      { persistToDb: false }
+    );
 
     return rows[0];
   }

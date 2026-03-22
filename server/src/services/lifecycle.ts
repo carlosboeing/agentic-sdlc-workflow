@@ -123,6 +123,15 @@ export class LifecycleService {
     return rows[0];
   }
 
+  /** Get all telemetry rows for an item, ordered by creation time. */
+  async getTelemetry(itemId: number): Promise<TelemetryRow[]> {
+    return this.db
+      .select()
+      .from(schema.telemetry)
+      .where(eq(schema.telemetry.itemId, itemId))
+      .all();
+  }
+
   /** Post telemetry data for an item and broadcast an activity event. */
   async postTelemetry(
     itemId: number,

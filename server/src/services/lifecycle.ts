@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
 import type { TelemetryModel } from "../types";
@@ -121,6 +121,16 @@ export class LifecycleService {
       .run();
 
     return rows[0];
+  }
+
+  /** Get all telemetry rows for an item, ordered by creation time. */
+  async getTelemetry(itemId: number): Promise<TelemetryRow[]> {
+    return this.db
+      .select()
+      .from(schema.telemetry)
+      .where(eq(schema.telemetry.itemId, itemId))
+      .orderBy(asc(schema.telemetry.createdAt))
+      .all();
   }
 
   /** Post telemetry data for an item and broadcast an activity event. */

@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
 
@@ -104,7 +104,7 @@ export class LabelService {
     return rows[0];
   }
 
-  /** Get all labels associated with an item. */
+  /** Get all labels associated with an item. Uses SQL-level filtering. */
   async getLabelsForItem(itemId: number): Promise<Label[]> {
     const associations = this.db
       .select()
@@ -115,8 +115,10 @@ export class LabelService {
     if (associations.length === 0) return [];
 
     const labelIds = associations.map((a) => a.labelId);
-    const allLabels = this.db.select().from(schema.labels).all();
-
-    return allLabels.filter((l) => labelIds.includes(l.id));
+    return this.db
+      .select()
+      .from(schema.labels)
+      .where(inArray(schema.labels.id, labelIds))
+      .all();
   }
 }

@@ -3,6 +3,7 @@ import { Database } from "bun:sqlite";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import { setupTestDb } from "../helpers/setup-db";
 import { ItemService } from "../../src/services/items";
+import { LabelService } from "../../src/services/labels";
 
 describe("ItemService", () => {
   let sqlite: Database;
@@ -147,6 +148,22 @@ describe("ItemService", () => {
       const items = await service.list({ type: "story", status: "in-progress" });
       expect(items).toHaveLength(1);
       expect(items[0].title).toBe("Story 1");
+    });
+
+    test("filters by label", async () => {
+      const labelService = new LabelService(db);
+      await labelService.addLabelToItem(1, "hierarchy/backlog");
+      await labelService.addLabelToItem(2, "hierarchy/epic");
+      await labelService.addLabelToItem(3, "hierarchy/story");
+
+      const backlogs = await service.list({ label: "hierarchy/backlog" });
+      expect(backlogs).toHaveLength(1);
+      expect(backlogs[0].id).toBe(1);
+    });
+
+    test("returns empty for non-existent label", async () => {
+      const items = await service.list({ label: "nonexistent-label" });
+      expect(items).toHaveLength(0);
     });
   });
 

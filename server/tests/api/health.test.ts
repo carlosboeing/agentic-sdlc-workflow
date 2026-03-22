@@ -67,4 +67,18 @@ describe("GET /api/health", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(Object.keys(body).sort()).toEqual(["status", "uptime"].sort());
   });
+
+  test("route is mounted at /api/health, not /health (daemonization regression guard)", async () => {
+    // The daemonization loop in index.ts polls /api/health to confirm startup.
+    // This test ensures the route prefix matches the polling URL — a mismatch
+    // would cause the parent process to always time out with exit code 1.
+    const correctPath = new Request("http://localhost/api/health");
+    const wrongPath = new Request("http://localhost/health");
+
+    const okRes = await app.fetch(correctPath);
+    const notFoundRes = await app.fetch(wrongPath);
+
+    expect(okRes.status).toBe(200);
+    expect(notFoundRes.status).toBe(404);
+  });
 });

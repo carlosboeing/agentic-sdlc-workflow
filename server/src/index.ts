@@ -117,8 +117,6 @@ async function commandStart(): Promise<void> {
   const child = Bun.spawn(["bun", "run", scriptPath, "start", "--foreground"], {
     stdio: ["ignore", "ignore", "inherit"], // stdin: none, stdout: ignore, stderr: inherit
     env: process.env,
-    // detached: true makes the child independent of the parent's process group
-    // so it continues running after the parent exits
   });
 
   // Unref the child so the parent process can exit without waiting for it
@@ -143,7 +141,7 @@ async function commandStart(): Promise<void> {
 
     // Phase 2: health check via HTTP
     try {
-      const resp = await fetch(`http://127.0.0.1:${port}/health`, {
+      const resp = await fetch(`http://127.0.0.1:${port}/api/health`, {
         signal: AbortSignal.timeout(1000),
       });
       if (resp.ok) {

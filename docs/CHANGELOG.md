@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-22
+
+### Briefing Skill: Context-Aware Project Orientation (backlog #316)
+
+- **New `/briefing` skill:** Pure AI-driven Claude Code skill that provides structured project orientation with two modes — briefing (between cycles) and debrief (PR open/cycle completed)
+- **Three-tier data source discovery:** Frontmatter-driven (Tier 1), fixed-path (Tier 2), CLAUDE.md-referenced (Tier 3) — 13 sources total with priority ordering
+- **Configurable depth:** `/briefing quick`, `/briefing`, `/briefing deep` with config overrides in `.claude/agentic-sdlc-config.json`
+- **SBAR-inspired debrief:** Healthcare shift-handoff model adapted for merge-readiness assessment
+- **Read-only, zero side effects:** Safe to run at any time; model improvements directly improve briefing quality
+- 1 epic, 2 stories (1 easy, 1 medium), 0 fix cycles
+
 ## 2026-03-20
 
 ### Run 17 -- Three-Body Survival Gazette (backlog #303, 52m wall-clock)

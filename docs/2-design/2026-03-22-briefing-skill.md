@@ -3,6 +3,7 @@ date: 2026-03-22
 author: carlosboeing
 agent: designer
 status: approved
+backlog: 316
 title: "Briefing Skill: Context-Aware Project Orientation"
 ---
 

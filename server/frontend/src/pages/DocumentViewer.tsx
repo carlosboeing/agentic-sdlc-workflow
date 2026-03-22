@@ -1,26 +1,32 @@
 /**
- * Document Viewer page — markdown preview with file tree sidebar.
+ * Document Viewer page — markdown preview with file tree sidebar and comment panel.
  *
  * Layout:
- *   ┌─────────────────────────────────────────────────┐
- *   │  [Sidebar]                 [Content area]        │
- *   │  DocumentTree              MarkdownViewer         │
- *   │  (scrollable file list)    (scrollable content)  │
- *   └─────────────────────────────────────────────────┘
+ *   +-----------------------------------------------------+
+ *   |  [Sidebar]       [Content area]     [Comment panel]  |
+ *   |  DocumentTree    MarkdownViewer     CommentThread    |
+ *   |  (scrollable)    (scrollable)       (if active)      |
+ *   +-----------------------------------------------------+
  *
  * State:
  * - File list loaded on mount via GET /api/documents
  * - Selected file loaded on click via GET /api/documents/:path
  * - URL param (/* wildcard) pre-selects a file on direct navigation
+ * - Comments loaded via useDocComments hook when a document is selected
+ * - Active anchor tracks which paragraph's comment thread is open
  *
- * Implemented in E06-S01.
+ * Implemented in E06-S01 (base), extended in E06-S02 (comments).
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DocumentTree } from "../components/DocumentTree";
 import { MarkdownViewer } from "../components/MarkdownViewer";
+import { CommentThread } from "../components/CommentThread";
+import { DetachedComments } from "../components/DetachedComments";
 import { useDocument } from "../hooks/useDocument";
+import { useDocComments } from "../hooks/useDocComments";
+import { generateParagraphAnchors } from "../lib/anchors";
 import { api } from "../lib/api";
 import type { DocumentEntry } from "../lib/types";
 
@@ -43,7 +49,32 @@ export function DocumentViewer() {
   // cancellation whenever selectedPath changes.
   const { document, loading: docLoading, error: docError } = useDocument(selectedPath);
 
-  // Scroll position memory: path → scrollTop
+  // Comment state
+  const {
+    grouped: commentGrouped,
+    comments: allComments,
+    addComment,
+  } = useDocComments(selectedPath);
+
+  // Active anchor for comment thread panel
+  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
+
+  // Compute document anchors for stale detection
+  const documentAnchors = useMemo(() => {
+    if (!document) return [];
+    return generateParagraphAnchors(document.content).map((a) => a.anchor);
+  }, [document]);
+
+  // Find detached comments (anchored to elements that no longer exist)
+  const detachedComments = useMemo(() => {
+    if (!document || allComments.length === 0) return [];
+    const anchorSet = new Set(documentAnchors);
+    return allComments.filter(
+      (c) => c.anchor !== null && !anchorSet.has(c.anchor)
+    );
+  }, [allComments, documentAnchors, document]);
+
+  // Scroll position memory: path -> scrollTop
   const scrollPositions = useRef<Map<string, number>>(new Map());
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -77,6 +108,11 @@ export function DocumentViewer() {
     }
   }, [urlPath]);
 
+  // Close comment panel when switching documents
+  useEffect(() => {
+    setActiveAnchor(null);
+  }, [selectedPath]);
+
   // Restore scroll position after a document loads successfully
   useEffect(() => {
     if (!document || !selectedPath) return;
@@ -99,6 +135,24 @@ export function DocumentViewer() {
     navigate(`/docs/${path}`, { replace: true });
   }
 
+  function handleToggleAnchor(anchor: string) {
+    setActiveAnchor((prev) => (prev === anchor ? null : anchor));
+  }
+
+  async function handleAddComment(
+    body: string,
+    author: string,
+    anchor: string,
+    threadId?: string
+  ) {
+    await addComment(body, author, anchor, threadId);
+  }
+
+  // Get comments for the active anchor
+  const activeComments = activeAnchor
+    ? commentGrouped.byAnchor.get(activeAnchor) ?? []
+    : [];
+
   return (
     <div className="flex h-full">
       {/* Sidebar — file tree */}
@@ -107,7 +161,7 @@ export function DocumentViewer() {
           Documents
         </h2>
         {filesLoading ? (
-          <p className="text-sm text-gray-400 italic px-2">Loading…</p>
+          <p className="text-sm text-gray-400 italic px-2">Loading...</p>
         ) : filesError ? (
           <p className="text-sm text-red-500 px-2">{filesError}</p>
         ) : (
@@ -140,7 +194,7 @@ export function DocumentViewer() {
           </div>
         ) : docLoading ? (
           <div className="flex items-center justify-center h-32">
-            <p className="text-sm text-gray-400">Loading…</p>
+            <p className="text-sm text-gray-400">Loading...</p>
           </div>
         ) : docError ? (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4">
@@ -152,11 +206,30 @@ export function DocumentViewer() {
             <div className="mb-4 pb-3 border-b border-gray-100">
               <p className="text-xs text-gray-400 font-mono">{document.path}</p>
             </div>
-            {/* Markdown content */}
-            <MarkdownViewer content={document.content} />
+            {/* Markdown content with comment anchoring */}
+            <MarkdownViewer
+              content={document.content}
+              commentsByAnchor={commentGrouped.byAnchor}
+              activeAnchor={activeAnchor}
+              onToggleAnchor={handleToggleAnchor}
+            />
+            {/* Detached comments section */}
+            <DetachedComments comments={detachedComments} />
           </>
         ) : null}
       </div>
+
+      {/* Comment panel — right side, aligned with active anchor */}
+      {activeAnchor && (
+        <aside className="w-96 flex-shrink-0 border-l border-gray-200 bg-gray-50 overflow-y-auto p-4">
+          <CommentThread
+            comments={activeComments}
+            anchor={activeAnchor}
+            onAddComment={handleAddComment}
+            onClose={() => setActiveAnchor(null)}
+          />
+        </aside>
+      )}
     </div>
   );
 }

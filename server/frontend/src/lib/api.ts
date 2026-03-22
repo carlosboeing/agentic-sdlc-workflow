@@ -114,7 +114,8 @@ export interface ApiClient {
     path: string,
     body: string,
     author?: string,
-    anchor?: string
+    anchor?: string,
+    threadId?: string
   ): Promise<Comment>;
 }
 
@@ -199,11 +200,12 @@ export function createApiClient(baseUrl = ""): ApiClient {
     listDocumentComments: (path) =>
       get<Comment[]>(`/api/documents/${encodeDocPath(path)}/comments`),
 
-    addDocumentComment: (path, body, author = "human", anchor) =>
+    addDocumentComment: (path, body, author = "human", anchor, threadId) =>
       post<Comment>(`/api/documents/${encodeDocPath(path)}/comments`, {
         body,
         author,
         ...(anchor !== undefined ? { anchor } : {}),
+        ...(threadId !== undefined ? { thread_id: threadId } : {}),
       }),
   };
 }

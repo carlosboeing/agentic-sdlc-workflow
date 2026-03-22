@@ -158,6 +158,7 @@ export function createDocumentsRouter(
       body: parseResult.data.body,
       author: parseResult.data.author,
       anchor: parseResult.data.anchor,
+      threadId: parseResult.data.thread_id,
     });
 
     return c.json(comment, 201);

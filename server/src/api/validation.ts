@@ -142,6 +142,7 @@ export const AddDocumentCommentBodySchema = z.object({
   body: z.string().min(1, "body is required"),
   author: z.string().min(1, "author is required"),
   anchor: z.string().optional(),
+  thread_id: z.string().optional(),
 });
 
 // ---------------------------------------------------------------------------

@@ -16,6 +16,10 @@ export interface SyncUpdatePayload {
   changes: {
     title?: string;
     body?: string;
+    /** Labels to add to the issue (appended, not replaced). */
+    addLabels?: string[];
+    /** Labels to remove from the issue. */
+    removeLabels?: string[];
   };
 }
 

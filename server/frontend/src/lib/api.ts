@@ -56,6 +56,11 @@ async function parseResponse<T>(res: Response): Promise<T> {
         : `HTTP ${res.status}`;
     throw new ApiClientError(message, res.status, body);
   }
+  // 204 No Content — the server intentionally sends no body (common for DELETE).
+  // Attempting res.json() on an empty response throws "Unexpected end of JSON input".
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
+  }
   return res.json() as Promise<T>;
 }
 

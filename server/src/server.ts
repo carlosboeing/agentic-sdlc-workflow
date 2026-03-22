@@ -36,6 +36,10 @@ export interface StaticOptions {
    * Defaults to `<server-dir>/frontend/dist`.
    */
   distDir?: string;
+  /** Millisecond timestamp of server start (forwarded to createApp). */
+  startTimeMs?: number;
+  /** Idle timeout tracker (forwarded to createApp). */
+  idleTracker?: IdleTimeoutTracker;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,17 +131,17 @@ export function createApp(options: AppOptions = {}): Hono {
 export function createAppWithStatic(options: StaticOptions = {}): Hono {
   const serverDir = new URL(import.meta.url).pathname.replace(/\/src\/server\.ts$/, "");
   const distDir = options.distDir ?? join(serverDir, "frontend", "dist");
-  const app = createApp();
+  const app = createApp({
+    startTimeMs: options.startTimeMs,
+    idleTracker: options.idleTracker,
+  });
 
   // Serve static files from distDir for requests with a file extension.
   // serveStatic resolves paths relative to the Bun process cwd, so we use
   // an explicit root that points to the dist directory.
   app.use(
     "/assets/*",
-    serveStatic({
-      root: distDir,
-      rewriteRequestPath: (path) => path.replace(/^\/assets\//, "/assets/"),
-    })
+    serveStatic({ root: distDir })
   );
 
   // SPA fallback: any path without an extension (or unknown) returns index.html.
@@ -179,17 +183,30 @@ export interface ServerOptions {
   port: number;
   startTimeMs?: number;
   idleTracker?: IdleTimeoutTracker;
+  /**
+   * Absolute path to the built frontend dist directory.
+   * When provided (or defaulted), the server serves the React SPA in addition
+   * to the API routes.  Defaults to `<server-dir>/frontend/dist`.
+   */
+  distDir?: string;
 }
 
 /**
  * Start a Bun HTTP server on `localhost:<port>`.
+ *
+ * The server always serves the React SPA via `createAppWithStatic()` so that
+ * the production startup path serves both the API and the frontend.
  *
  * Returns the Bun server instance (has `.stop()` for graceful shutdown).
  * All logging goes to stderr.
  */
 export function startServer(options: ServerOptions): ReturnType<typeof Bun.serve> {
   const startTimeMs = options.startTimeMs ?? Date.now();
-  const app = createApp({ startTimeMs, idleTracker: options.idleTracker });
+  const app = createAppWithStatic({
+    distDir: options.distDir,
+    startTimeMs,
+    idleTracker: options.idleTracker,
+  });
 
   const server = Bun.serve({
     port: options.port,

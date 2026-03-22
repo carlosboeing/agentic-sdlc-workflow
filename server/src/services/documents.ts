@@ -72,6 +72,11 @@ export class DocumentService {
   /**
    * Check whether a relative path is safe to use.
    *
+   * Callers MUST pass a pre-decoded path (URI decoding must happen at the
+   * route handler level before calling this method). This avoids double-
+   * decoding: a `%` in a legitimate filename would be decoded twice and
+   * corrupted if this method also decoded.
+   *
    * A path is safe when:
    * - It does not start with / (absolute paths are rejected)
    * - It does not contain .. segments (traversal is rejected)
@@ -86,15 +91,14 @@ export class DocumentService {
       return false;
     }
 
-    // Reject paths containing .. (includes encoded variants after decode)
-    const decoded = decodeURIComponent(relPath);
-    if (decoded.includes("..")) {
+    // Reject paths containing .. segments
+    if (relPath.includes("..")) {
       return false;
     }
 
     // Final check: resolve and verify the resulting path is under docsDir
     try {
-      const absPath = resolve(join(this.docsDir, decoded));
+      const absPath = resolve(join(this.docsDir, relPath));
       return (
         absPath.startsWith(this.docsDir + "/") || absPath === this.docsDir
       );

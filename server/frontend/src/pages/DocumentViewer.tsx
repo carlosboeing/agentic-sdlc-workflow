@@ -20,8 +20,9 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DocumentTree } from "../components/DocumentTree";
 import { MarkdownViewer } from "../components/MarkdownViewer";
+import { useDocument } from "../hooks/useDocument";
 import { api } from "../lib/api";
-import type { DocumentEntry, DocumentContent } from "../lib/types";
+import type { DocumentEntry } from "../lib/types";
 
 export function DocumentViewer() {
   // The /* route in App.tsx gives us the splat param
@@ -37,9 +38,10 @@ export function DocumentViewer() {
   const [selectedPath, setSelectedPath] = useState<string | null>(
     urlPath ?? null
   );
-  const [document, setDocument] = useState<DocumentContent | null>(null);
-  const [docLoading, setDocLoading] = useState(false);
-  const [docError, setDocError] = useState<string | null>(null);
+
+  // useDocument handles fetching, loading state, error state, and request
+  // cancellation whenever selectedPath changes.
+  const { document, loading: docLoading, error: docError } = useDocument(selectedPath);
 
   // Scroll position memory: path → scrollTop
   const scrollPositions = useRef<Map<string, number>>(new Map());
@@ -75,44 +77,16 @@ export function DocumentViewer() {
     }
   }, [urlPath]);
 
-  // Load document when selectedPath changes
+  // Restore scroll position after a document loads successfully
   useEffect(() => {
-    if (!selectedPath) {
-      setDocument(null);
-      return;
-    }
-
-    let cancelled = false;
-    setDocLoading(true);
-    setDocError(null);
-
-    api
-      .getDocument(selectedPath)
-      .then((doc) => {
-        if (!cancelled) {
-          setDocument(doc);
-          setDocLoading(false);
-          // Restore scroll position for this document
-          requestAnimationFrame(() => {
-            if (contentRef.current) {
-              const saved = scrollPositions.current.get(selectedPath) ?? 0;
-              contentRef.current.scrollTop = saved;
-            }
-          });
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          const msg = err instanceof Error ? err.message : "Failed to load document";
-          setDocError(msg);
-          setDocLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPath]);
+    if (!document || !selectedPath) return;
+    requestAnimationFrame(() => {
+      if (contentRef.current) {
+        const saved = scrollPositions.current.get(selectedPath) ?? 0;
+        contentRef.current.scrollTop = saved;
+      }
+    });
+  }, [document, selectedPath]);
 
   // Save scroll position when navigating away
   function handleSelectPath(path: string) {

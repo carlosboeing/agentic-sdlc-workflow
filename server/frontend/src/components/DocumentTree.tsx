@@ -38,21 +38,6 @@ export function groupFilesByDirectory(
   return groups;
 }
 
-/**
- * Extract the unique top-level directories from a flat file list.
- * Returns sorted directory names.
- */
-export function getTopLevelDirs(files: DocumentEntry[]): string[] {
-  const dirs = new Set<string>();
-  for (const file of files) {
-    const slashIdx = file.path.indexOf("/");
-    if (slashIdx >= 0) {
-      dirs.add(file.path.slice(0, slashIdx));
-    }
-  }
-  return Array.from(dirs).sort();
-}
-
 interface FileNodeProps {
   file: DocumentEntry;
   selectedPath: string | null;
@@ -94,7 +79,6 @@ function FileNode({ file, selectedPath, onSelectPath }: FileNodeProps) {
 interface DirGroupProps {
   dirPath: string;
   files: DocumentEntry[];
-  allFiles: DocumentEntry[];
   selectedPath: string | null;
   onSelectPath: (path: string) => void;
 }
@@ -178,7 +162,6 @@ export function DocumentTree({
           key={dir}
           dirPath={dir}
           files={groups.get(dir) ?? []}
-          allFiles={files}
           selectedPath={selectedPath}
           onSelectPath={onSelectPath}
         />

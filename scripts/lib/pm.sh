@@ -229,107 +229,54 @@ _pm_generate_create_item_wrapper() {
   }'
 }
 
-# --- Step 3: Determine adapter mode ---
+# --- Step 3: Determine external adapter ---
 PM_EXTERNAL="${CFG_PM_ADAPTER:-}"
 PM_ADAPTER="local"
 PM_ADAPTER_DIR="$_PM_LOCAL_DIR"
 
-# =============================================================================
-# Server adapter: when pm.adapter = "server", the server adapter is the
-# primary adapter (not a dual-write external). If the server is not running,
-# gracefully fall back to the local adapter with a warning.
-# =============================================================================
-if [ "$PM_EXTERNAL" = "server" ]; then
-  _PM_SERVER_DIR="$_PM_SCRIPT_DIR/adapters/pm/server"
-  _PM_SERVER_RUNNING=false
+# Handle pm.adapter = "local" (deprecated — local is now always-on)
+if [ "$PM_EXTERNAL" = "local" ]; then
+  echo "NOTE: pm.adapter='local' is deprecated. Local adapter is now always-on." >&2
+  echo "  To run local-only, remove pm.adapter or set it to null." >&2
+  echo "  To sync to GitHub, set pm.adapter to 'github'." >&2
+  PM_EXTERNAL=""
+fi
 
-  if [ -d "$_PM_SERVER_DIR" ]; then
-    # Source _common.sh to get _server_health_check
+# Handle pm.adapter = "github" (default from config.sh) or other external adapter
+if [ -n "$PM_EXTERNAL" ]; then
+  _PM_EXTERNAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/$PM_EXTERNAL"
+  if [ ! -d "$_PM_EXTERNAL_DIR" ]; then
+    echo "WARNING: External PM adapter '$PM_EXTERNAL' not found at $_PM_EXTERNAL_DIR. Running local-only." >&2
+    PM_EXTERNAL=""
+  fi
+fi
+
+if [ -n "$PM_EXTERNAL" ]; then
+  # --- Step 3a: Source external adapter with _PM_LOADING_EXTERNAL=1 ---
+  # External adapter modules use prefix injection: when _PM_LOADING_EXTERNAL
+  # is set, they define functions as _external_pm_* instead of pm_*.
+  _PM_LOADING_EXTERNAL=1
+  export _PM_LOADING_EXTERNAL
+
+  _PM_EXT_MODULES=()
+  while IFS= read -r -d '' _f; do
+    _PM_EXT_MODULES+=("$_f")
+  done < <(find -L "$_PM_EXTERNAL_DIR" -maxdepth 1 -name "*.sh" -print0 | sort -z)
+
+  for _PM_MODULE in "${_PM_EXT_MODULES[@]}"; do
     # shellcheck disable=SC1090
-    source "$_PM_SERVER_DIR/_common.sh"
+    source "$_PM_MODULE"
+  done
 
-    if _server_health_check 2>/dev/null; then
-      _PM_SERVER_RUNNING=true
-    fi
-  fi
+  unset _PM_LOADING_EXTERNAL
 
-  if [ "$_PM_SERVER_RUNNING" = "true" ]; then
-    # Server is running: source all server adapter modules as primary pm_*
-    _PM_SERVER_MODULES=()
-    while IFS= read -r -d '' _f; do
-      _PM_SERVER_MODULES+=("$_f")
-    done < <(find -L "$_PM_SERVER_DIR" -maxdepth 1 -name "*.sh" -print0 | sort -z)
-
-    for _PM_MODULE in "${_PM_SERVER_MODULES[@]}"; do
-      # shellcheck disable=SC1090
-      source "$_PM_MODULE"
-    done
-
-    PM_ADAPTER="server"
-    PM_ADAPTER_DIR="$_PM_SERVER_DIR"
-    PM_EXTERNAL=""
-  else
-    # Server not running: fall back to local adapter
-    echo "WARNING: Workflow server not running. Falling back to local file adapter." >&2
-    PM_EXTERNAL=""
-    # pm_* aliases to _local_pm_* (same as no-external mode)
-    for _fn in "${_PM_LOCAL_FUNCTIONS[@]}"; do
-      eval "${_fn}() { _local_${_fn} \"\$@\"; }"
-    done
-  fi
-
-  unset _PM_SERVER_DIR _PM_SERVER_RUNNING _PM_SERVER_MODULES 2>/dev/null || true
-
-# =============================================================================
-# Legacy dual-write mode: "github" or other external adapters
-# =============================================================================
+  # --- Step 3b: Generate dual-write wrappers ---
+  _pm_generate_wrappers
 else
-
-  # Handle pm.adapter = "local" (deprecated — local is now always-on)
-  if [ "$PM_EXTERNAL" = "local" ]; then
-    echo "NOTE: pm.adapter='local' is deprecated. Local adapter is now always-on." >&2
-    echo "  To run local-only, remove pm.adapter or set it to null." >&2
-    echo "  To sync to GitHub, set pm.adapter to 'github'." >&2
-    PM_EXTERNAL=""
-  fi
-
-  # Handle pm.adapter = "github" (default from config.sh) or other external adapter
-  if [ -n "$PM_EXTERNAL" ]; then
-    _PM_EXTERNAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/$PM_EXTERNAL"
-    if [ ! -d "$_PM_EXTERNAL_DIR" ]; then
-      echo "WARNING: External PM adapter '$PM_EXTERNAL' not found at $_PM_EXTERNAL_DIR. Running local-only." >&2
-      PM_EXTERNAL=""
-    fi
-  fi
-
-  if [ -n "$PM_EXTERNAL" ]; then
-    # --- Step 3a: Source external adapter with _PM_LOADING_EXTERNAL=1 ---
-    # External adapter modules use prefix injection: when _PM_LOADING_EXTERNAL
-    # is set, they define functions as _external_pm_* instead of pm_*.
-    _PM_LOADING_EXTERNAL=1
-    export _PM_LOADING_EXTERNAL
-
-    _PM_EXT_MODULES=()
-    while IFS= read -r -d '' _f; do
-      _PM_EXT_MODULES+=("$_f")
-    done < <(find -L "$_PM_EXTERNAL_DIR" -maxdepth 1 -name "*.sh" -print0 | sort -z)
-
-    for _PM_MODULE in "${_PM_EXT_MODULES[@]}"; do
-      # shellcheck disable=SC1090
-      source "$_PM_MODULE"
-    done
-
-    unset _PM_LOADING_EXTERNAL
-
-    # --- Step 3b: Generate dual-write wrappers ---
-    _pm_generate_wrappers
-  else
-    # --- No external adapter: pm_* aliases directly to _local_pm_* ---
-    for _fn in "${_PM_LOCAL_FUNCTIONS[@]}"; do
-      eval "${_fn}() { _local_${_fn} \"\$@\"; }"
-    done
-  fi
-
+  # --- No external adapter: pm_* aliases directly to _local_pm_* ---
+  for _fn in "${_PM_LOCAL_FUNCTIONS[@]}"; do
+    eval "${_fn}() { _local_${_fn} \"\$@\"; }"
+  done
 fi
 
 export PM_ADAPTER PM_ADAPTER_DIR PM_EXTERNAL

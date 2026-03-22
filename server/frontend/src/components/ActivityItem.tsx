@@ -105,9 +105,9 @@ export function ActivityItem(props: ActivityItemProps) {
   let timestamp: string;
 
   if (props.variant === "log") {
-    eventType = props.event.eventType;
+    eventType = props.event.event_type;
     description = describeEvent(eventType, props.event.payload);
-    timestamp = props.event.createdAt;
+    timestamp = props.event.created_at;
   } else {
     eventType = props.message.type;
     description = describeEvent(eventType, props.message.data);

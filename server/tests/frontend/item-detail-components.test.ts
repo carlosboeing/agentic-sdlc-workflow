@@ -87,15 +87,15 @@ describe("CommentList", () => {
 function makeTelemetryRecord(overrides: Partial<TelemetryRecord> = {}): TelemetryRecord {
   return {
     id: 1,
-    itemId: 10,
+    item_id: 10,
     model: "sonnet",
-    durationMs: 60000,
+    duration_ms: 60000,
     tokens: 50000,
-    toolUses: 10,
-    costEstimate: 0.5,
-    commitHash: null,
+    tool_uses: 10,
+    cost_estimate: 0.5,
+    commit_hash: null,
     metadata: null,
-    createdAt: "2026-03-22T10:00:00.000Z",
+    created_at: "2026-03-22T10:00:00.000Z",
     ...overrides,
   };
 }
@@ -106,11 +106,11 @@ describe("TelemetrySummary aggregate computation", () => {
     expect(typeof mod.TelemetrySummary).toBe("function");
   });
 
-  test("aggregateTelemetry sums durationMs across records", async () => {
+  test("aggregateTelemetry sums duration_ms across records", async () => {
     const { aggregateTelemetry } = await import("../../frontend/src/components/TelemetrySummary");
     const records: TelemetryRecord[] = [
-      makeTelemetryRecord({ durationMs: 30000 }),
-      makeTelemetryRecord({ id: 2, durationMs: 90000 }),
+      makeTelemetryRecord({ duration_ms: 30000 }),
+      makeTelemetryRecord({ id: 2, duration_ms: 90000 }),
     ];
     const result = aggregateTelemetry(records);
     expect(result.totalDurationMs).toBe(120000);
@@ -126,21 +126,21 @@ describe("TelemetrySummary aggregate computation", () => {
     expect(result.totalTokens).toBe(100000);
   });
 
-  test("aggregateTelemetry sums costEstimate across records", async () => {
+  test("aggregateTelemetry sums cost_estimate across records", async () => {
     const { aggregateTelemetry } = await import("../../frontend/src/components/TelemetrySummary");
     const records: TelemetryRecord[] = [
-      makeTelemetryRecord({ costEstimate: 0.25 }),
-      makeTelemetryRecord({ id: 2, costEstimate: 0.75 }),
+      makeTelemetryRecord({ cost_estimate: 0.25 }),
+      makeTelemetryRecord({ id: 2, cost_estimate: 0.75 }),
     ];
     const result = aggregateTelemetry(records);
     expect(result.totalCost).toBeCloseTo(1.0, 5);
   });
 
-  test("aggregateTelemetry handles null costEstimate as zero", async () => {
+  test("aggregateTelemetry handles null cost_estimate as zero", async () => {
     const { aggregateTelemetry } = await import("../../frontend/src/components/TelemetrySummary");
     const records: TelemetryRecord[] = [
-      makeTelemetryRecord({ costEstimate: null }),
-      makeTelemetryRecord({ id: 2, costEstimate: 0.5 }),
+      makeTelemetryRecord({ cost_estimate: null }),
+      makeTelemetryRecord({ id: 2, cost_estimate: 0.5 }),
     ];
     const result = aggregateTelemetry(records);
     expect(result.totalCost).toBeCloseTo(0.5, 5);

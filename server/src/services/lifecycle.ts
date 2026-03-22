@@ -86,7 +86,6 @@ export class LifecycleService {
       {
         type: "status:changed",
         data: {
-          itemId,
           from: previousStatus,
           to: "in-progress",
           agent: input.agent,
@@ -145,7 +144,6 @@ export class LifecycleService {
       {
         type: "status:changed",
         data: {
-          itemId,
           from: previousStatus,
           to: "in-review",
           commitHash: input.commitHash,

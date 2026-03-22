@@ -23,12 +23,6 @@
   "pm": {
     "adapter": "github"
   },
-  "server": {
-    "port": 0,
-    "portRange": [3100, 3199],
-    "idleTimeoutMinutes": 30,
-    "logLevel": "info"
-  },
   "workflow": {
     "autoMergePlanPR": true,
     "autoMergeDesignPR": true,

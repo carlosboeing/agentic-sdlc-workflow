@@ -95,7 +95,7 @@ export function CommentList({
                     {comment.author}
                   </span>
                   <span className="text-xs text-gray-400">
-                    {formatCommentDate(comment.createdAt)}
+                    {formatCommentDate(comment.created_at)}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">

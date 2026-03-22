@@ -104,27 +104,6 @@ describe("createApp without db — item routes are absent (health-only mode)", (
 });
 
 // ---------------------------------------------------------------------------
-// Document routes wiring (E06-S01)
-// ---------------------------------------------------------------------------
-
-describe("createApp with db — document routes are active", () => {
-  test("GET /api/documents returns 200 when db is passed", async () => {
-    const app = createApp({ db });
-    const req = new Request("http://localhost/api/documents");
-    const res = await app.fetch(req);
-    // Should return 200 with an array (may be empty if docs/ doesn't exist in test env)
-    expect(res.status).toBe(200);
-  });
-
-  test("GET /api/documents is absent without db (routes not registered)", async () => {
-    const app = createApp({}); // no db
-    const req = new Request("http://localhost/api/documents");
-    const res = await app.fetch(req);
-    expect(res.status).toBe(404);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // ServerOptions.db threading — verifies startServer() accepts and uses db
 // ---------------------------------------------------------------------------
 

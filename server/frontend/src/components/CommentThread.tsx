@@ -2,8 +2,8 @@
  * CommentThread — inline comment thread anchored to a paragraph.
  *
  * Displays a list of comments for a specific anchor, organized as:
- * - Top-level comments (threadId is null) shown first
- * - Replies (threadId matches a parent comment id) shown indented below their parent
+ * - Top-level comments (thread_id is null) shown first
+ * - Replies (thread_id matches a parent comment id) shown indented below their parent
  *
  * Each comment shows author, timestamp, and body. A reply form
  * appears when the user clicks "Reply" on a comment.
@@ -67,7 +67,7 @@ function CommentBubble({
     >
       <div className="flex items-center gap-2 text-xs">
         <span className="font-medium text-gray-700">{comment.author}</span>
-        <span className="text-gray-400">{formatTimestamp(comment.createdAt)}</span>
+        <span className="text-gray-400">{formatTimestamp(comment.created_at)}</span>
       </div>
       <p className="mt-1 text-sm text-gray-600 leading-relaxed">
         {comment.body}
@@ -94,16 +94,16 @@ export function CommentThread({
   const [showNewComment, setShowNewComment] = useState(comments.length === 0);
 
   // Separate top-level comments from replies
-  const topLevel = comments.filter((c) => c.threadId === null);
-  const replies = comments.filter((c) => c.threadId !== null);
+  const topLevel = comments.filter((c) => c.thread_id === null);
+  const replies = comments.filter((c) => c.thread_id !== null);
 
-  // Group replies by parent threadId
+  // Group replies by parent thread_id
   const repliesByParent = new Map<string, Comment[]>();
   for (const reply of replies) {
-    if (reply.threadId) {
-      const existing = repliesByParent.get(reply.threadId) ?? [];
+    if (reply.thread_id) {
+      const existing = repliesByParent.get(reply.thread_id) ?? [];
       existing.push(reply);
-      repliesByParent.set(reply.threadId, existing);
+      repliesByParent.set(reply.thread_id, existing);
     }
   }
 

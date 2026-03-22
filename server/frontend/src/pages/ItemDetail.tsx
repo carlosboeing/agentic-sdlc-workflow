@@ -120,29 +120,29 @@ export function ItemDetail() {
               Details
             </h3>
             <dl className="space-y-2 text-sm">
-              {item.createdBy && (
+              {item.created_by && (
                 <div className="flex justify-between">
                   <dt className="text-gray-500">Created by</dt>
                   <dd className="text-gray-700 font-medium">
-                    {item.createdBy}
+                    {item.created_by}
                   </dd>
                 </div>
               )}
-              {item.externalId && (
+              {item.external_id && (
                 <div className="flex justify-between">
                   <dt className="text-gray-500">GitHub Issue</dt>
                   <dd className="text-gray-700">
-                    {item.externalUrl ? (
+                    {item.external_url ? (
                       <a
-                        href={item.externalUrl}
+                        href={item.external_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-700 underline"
                       >
-                        #{item.externalId}
+                        #{item.external_id}
                       </a>
                     ) : (
-                      `#${item.externalId}`
+                      `#${item.external_id}`
                     )}
                   </dd>
                 </div>
@@ -150,7 +150,7 @@ export function ItemDetail() {
               <div className="flex justify-between">
                 <dt className="text-gray-500">Created</dt>
                 <dd className="text-gray-700">
-                  {new Date(item.createdAt).toLocaleDateString("en-US", {
+                  {new Date(item.created_at).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
@@ -160,7 +160,7 @@ export function ItemDetail() {
               <div className="flex justify-between">
                 <dt className="text-gray-500">Updated</dt>
                 <dd className="text-gray-700">
-                  {new Date(item.updatedAt).toLocaleDateString("en-US", {
+                  {new Date(item.updated_at).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",

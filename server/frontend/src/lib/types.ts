@@ -69,46 +69,46 @@ export interface WorkItem {
   status: BoardStatus;
   state: ItemState;
   body: string | null;
-  parentId: number | null;
-  externalId: string | null;
-  externalUrl: string | null;
-  createdBy: AgentRole | null;
-  createdAt: string;
-  updatedAt: string;
+  parent_id: number | null;
+  external_id: string | null;
+  external_url: string | null;
+  created_by: AgentRole | null;
+  created_at: string;
+  updated_at: string;
   labels?: Label[];
 }
 
 export interface Comment {
   id: number;
-  itemId: number | null;
-  documentPath: string | null;
+  item_id: number | null;
+  document_path: string | null;
   anchor: string | null;
   body: string;
   author: string;
-  threadId: string | null;
-  createdAt: string;
-  updatedAt: string;
+  thread_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TelemetryRecord {
   id: number;
-  itemId: number;
+  item_id: number;
   model: TelemetryModel;
-  durationMs: number;
+  duration_ms: number;
   tokens: number;
-  toolUses: number | null;
-  costEstimate: number | null;
-  commitHash: string | null;
+  tool_uses: number | null;
+  cost_estimate: number | null;
+  commit_hash: string | null;
   metadata: string | null;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface ActivityEvent {
   id: number;
-  itemId: number | null;
-  eventType: ActivityEventType;
+  item_id: number | null;
+  event_type: ActivityEventType;
   payload: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface HealthResponse {
@@ -138,28 +138,6 @@ export interface WsItemStatusChanged {
 }
 
 // ---------------------------------------------------------------------------
-// Document types
-// ---------------------------------------------------------------------------
-
-/** A file entry returned by GET /api/documents. */
-export interface DocumentEntry {
-  /** Relative path from docs root (e.g., "design/overview.md"). */
-  path: string;
-  /** Display name (filename). */
-  name: string;
-}
-
-/** Full document content returned by GET /api/documents/:path. */
-export interface DocumentContent {
-  /** Relative path from docs root. */
-  path: string;
-  /** Filename only. */
-  name: string;
-  /** Raw markdown content. */
-  content: string;
-}
-
-// ---------------------------------------------------------------------------
 // Query / filter params
 // ---------------------------------------------------------------------------
 
@@ -179,7 +157,7 @@ export interface CreateItemPayload {
   type: ItemType;
   title: string;
   body?: string;
-  parentId?: number;
+  parent_id?: number;
   labels?: string[];
 }
 

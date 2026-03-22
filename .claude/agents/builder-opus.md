@@ -154,6 +154,7 @@ Read the project's CLAUDE.md for project-specific code conventions. These univer
 - **Use precise types** — avoid `object`, `dynamic`, `any`, or equivalent loose types
 - **Follow existing patterns** — match the project's DI, config, and architectural patterns
 - **Register new services** — when creating a new service/provider class, ensure it's registered in the project's dependency injection setup in the same commit. Unit tests often mock the DI layer, so missing registrations pass all tests but fail at runtime.
+- **Write startup wiring integration tests for server components** — when a story creates or modifies a service injected via constructor in a server component, write a test that exercises the full startup path (e.g., `startServer({db}) -> createApp({db}) -> route handler`), not just the factory function in isolation. Tests that inject dependencies directly bypass the production entry point and miss wiring gaps. Evidence: BL116 had 12/18 stories require fix cycles due to DI wiring blindspots invisible to unit tests.
 - **Comment only non-obvious logic** — no `// set the variable` comments
 
 ## Capturing Lessons

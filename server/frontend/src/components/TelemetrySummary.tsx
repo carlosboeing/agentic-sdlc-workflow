@@ -28,9 +28,9 @@ export function aggregateTelemetry(records: TelemetryRecord[]): TelemetryAggrega
   let totalCost = 0;
 
   for (const r of records) {
-    totalDurationMs += r.durationMs;
+    totalDurationMs += r.duration_ms;
     totalTokens += r.tokens;
-    totalCost += r.costEstimate ?? 0;
+    totalCost += r.cost_estimate ?? 0;
   }
 
   return {
@@ -106,7 +106,7 @@ function TelemetryRow({ record }: { record: TelemetryRecord }) {
   return (
     <tr className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
       <td className="py-3 pr-4 text-sm text-gray-600">
-        #{record.itemId}
+        #{record.item_id}
       </td>
       <td className="py-3 pr-4">
         <span
@@ -119,14 +119,14 @@ function TelemetryRow({ record }: { record: TelemetryRecord }) {
         </span>
       </td>
       <td className="py-3 pr-4 text-sm text-gray-700 tabular-nums">
-        {formatDuration(record.durationMs)}
+        {formatDuration(record.duration_ms)}
       </td>
       <td className="py-3 pr-4 text-sm text-gray-700 tabular-nums">
         {formatTokens(record.tokens)}
       </td>
       <td className="py-3 text-sm text-gray-700 tabular-nums">
-        {record.costEstimate !== null
-          ? formatCost(record.costEstimate)
+        {record.cost_estimate !== null
+          ? formatCost(record.cost_estimate)
           : "—"}
       </td>
     </tr>

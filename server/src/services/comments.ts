@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
 import type { EventService } from "../api/websocket";
@@ -85,7 +85,6 @@ export class CommentService {
       .select()
       .from(schema.comments)
       .where(eq(schema.comments.itemId, itemId))
-      .orderBy(asc(schema.comments.createdAt))
       .all();
   }
 
@@ -95,7 +94,6 @@ export class CommentService {
       .select()
       .from(schema.comments)
       .where(eq(schema.comments.documentPath, documentPath))
-      .orderBy(asc(schema.comments.createdAt))
       .all();
   }
 }

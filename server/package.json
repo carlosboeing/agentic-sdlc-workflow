@@ -12,6 +12,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "drizzle-orm": "^0.38.0",
     "hono": "^4.7.0",
     "zod": "^3.24.0"

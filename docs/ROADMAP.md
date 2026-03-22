@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated:** 2026-03-22 (post BL#316)
+> **Last updated:** 2026-03-23 (post BL#116)
 > **Work tracking:** [Project Board](https://github.com/users/carlosboeing/projects/7)
 > **Analysis & research:** [docs/1-discovery/2026-03-15-roadmap.md](1-discovery/2026-03-15-roadmap.md)
 
@@ -19,7 +19,7 @@ graph TD
     242["#242 Gantt Chart<br/>Readability ✅"]
     243["#243 Phase<br/>Restructuring ✅"]
     282["#282 Rich Agent<br/>Metrics (S)"]
-    283["#283 Local PM<br/>Storage (M)"]
+    283["#283 Local PM<br/>Storage ✅<br/>(absorbed by #116)"]
     289["#289 CLI Scripts<br/>Redesign (M)"]
     112["#112 Plugin<br/>Packaging (XL)"]
     113["#113 Multi-PM<br/>Adapters (XL)"]
@@ -27,7 +27,7 @@ graph TD
     208["#208 DOC Abstraction<br/>Layer (M)"]
     114["#114 Domain<br/>Profiles (L)"]
     115["#115 Specialist<br/>Agents (L)"]
-    116["#116 Dashboard (XL)"]
+    116["#116 Workflow Runtime<br/>Service ✅"]
     117["#117 Multi-Repo (XL)"]
     118["#118 Learning Across<br/>Projects (L)"]
     148["#148 Adversarial<br/>Deliberation (M)"]
@@ -73,7 +73,7 @@ graph TD
     style 113 fill:#374151,color:#fff
     style 114 fill:#374151,color:#fff
     style 115 fill:#374151,color:#fff
-    style 116 fill:#374151,color:#fff
+    style 116 fill:#9ca3af,color:#fff
     style 117 fill:#374151,color:#fff
     style 118 fill:#374151,color:#fff
     style 148 fill:#059669,color:#fff
@@ -83,7 +83,7 @@ graph TD
     style 242 fill:#9ca3af,color:#fff
     style 243 fill:#9ca3af,color:#fff
     style 282 fill:#059669,color:#fff
-    style 283 fill:#059669,color:#fff
+    style 283 fill:#9ca3af,color:#fff
     style 289 fill:#059669,color:#fff
     style 316 fill:#059669,color:#fff
 ```
@@ -107,7 +107,7 @@ graph TD
 | 4 | [#110](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/110) | Configurable Taxonomy | L | 109 | Plugin |
 | 5 | [#108](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/108) | Run on Real Software | L | 105, 106, 107 | Active |
 | — | [#282](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/282) | Rich Agent Tool Metrics | S | 243 | Active |
-| — | [#283](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/283) | Scale Local PM Storage | M | — | Active |
+| ✅ | [#283](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/283) | ~~Scale Local PM Storage~~ | M | — | Done (absorbed by #116) |
 | — | [#289](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/289) | CLI Scripts Redesign | M | — | Active |
 | — | [#166](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/166) | Telemetry Diagrams | S | — | Quick win |
 | — | [#316](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/316) | Briefing Skill | S | — | Active |
@@ -118,7 +118,7 @@ graph TD
 | 9 | [#113](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/113) | Multi-PM Adapters | XL | 109, 112 | Future |
 | 10 | [#114](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/114) | Domain Profiles | L | — | Future |
 | 11 | [#115](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/115) | New Specialist Agents | L | — | Future |
-| 12 | [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | Dashboard | XL | 111 | Future |
+| ✅ | [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | ~~Workflow Runtime Service~~ | XL | 111 | Done |
 | 13 | [#117](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/117) | Multi-Repo Orchestration | XL | 109, 112 | Future |
 | 14 | [#118](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/118) | Learning Across Projects | L | 107, 112 | Future |
 
@@ -157,8 +157,8 @@ Redesign the retro agent to stop self-modifying workflow files. Separate project
 **[#282 Rich Agent Tool Metrics](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/282)** — `size/S`
 Capture all available Agent tool return fields (`duration_api_ms`, `input_tokens`, `output_tokens`, `total_cost_usd`, `num_turns`). Use `duration_api_ms` for Gantt bar width on stalled dispatches. Use `total_cost_usd` for direct platform cost instead of rate estimation.
 
-**[#283 Scale Local PM Storage](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/283)** — `size/M`
-Replace flat `.workflow/items/` folder with a scalable storage solution. Designer to evaluate options (embedded DB, document store, hierarchical folders, etc.). Must support query patterns: get by number, list by label/state/hierarchy, get children, bulk operations.
+**[#283 Scale Local PM Storage](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/283)** — `size/M` ✅ *(absorbed by #116)*
+Absorbed by #116 (Workflow Runtime Service). The SQLite-backed server replaces the flat `.workflow/items/` folder with a proper database, addressing all scaling concerns.
 
 **[#289 CLI Scripts Redesign](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/289)** — `size/M`
 Standardize all 19 CLI scripts to consistent flag-based argument parsing. Evaluate whether bash is the right language or if some/all scripts should migrate to Python or another language. Currently 8 pure-positional, 6 hybrid, 5 pure-flag.
@@ -201,8 +201,8 @@ Config-driven builder/reviewer profiles for content, research, data, marketing, 
 **[#115 New Specialist Agents](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/115)** — `size/L`
 Estimator (most concrete — uses telemetry history), triage, documenter, QA, release, compliance, onboarding agents.
 
-**[#116 Dashboard](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116)** — `size/XL`
-Ephemeral local web UI: Kanban board, telemetry charts, Gantt timeline. Reads from `.workflow/` files. CLI fallback for terminal environments.
+**[#116 Workflow Runtime Service](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116)** — `size/XL` ✅
+Persistent Bun server replacing the file-system PM adapter with SQLite. Six pillars: PM backend (SQLite, Drizzle ORM, 7 tables), HTTP API (20+ Hono endpoints), MCP server (13 tools via stdio), sync engine (durable queue with retry/dead-letter, GitHub adapter), React dashboard (Kanban board, item detail, telemetry, WebSocket activity feed), and document viewer (markdown preview, Mermaid rendering, paragraph-anchored inline comment threads). Shell scripts continue working via the server PM adapter with automatic fallback to the local file adapter. 6 epics, 19 stories, 69 agent dispatches. Absorbs #283.
 
 **[#117 Multi-Repo Orchestration](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/117)** — `size/XL`
 Backlog items spanning multiple repos with cross-repo branch coordination and merge strategy.

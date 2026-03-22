@@ -33,7 +33,7 @@ Your deliverables are: working code, passing tests, and commits on the correct b
 
 2. **Read the plan and reference docs:**
    - Plan in `docs/3-plans/` for the current epic
-   - Architecture in `docs/5-guides/PROJECT.md`
+   - Architecture in `README.md` (PM architecture, project structure)
    - Design doc in `docs/2-design/` for the feature
 
 3. **Search for relevant lessons** — discover known pitfalls and patterns from previous stories:

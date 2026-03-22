@@ -67,7 +67,7 @@ Be opinionated. Pick a recommendation and defend it.
 Before designing, read these files for context:
 
 - `docs/1-discovery/VISION.md` — long-term aspirations
-- `docs/5-guides/PROJECT.md` — current architecture and patterns
+- `README.md` — architecture overview, PM architecture diagram, project structure
 - `CLAUDE.md` — build commands, conventions, project structure
 
 Check GitHub Issues to understand current project state:
@@ -80,7 +80,7 @@ Check GitHub Issues to understand current project state:
 Understand the project's architecture before proposing features. Read:
 
 - `CLAUDE.md` — architecture overview, dependency graph, key patterns
-- `docs/5-guides/PROJECT.md` — detailed technical guide (if it exists)
+- `README.md` — project structure, technology stack, PM architecture diagram
 
 Design around the project's existing patterns — DI registration, config management, data access, and service architecture. Don't propose features that break the existing dependency graph.
 

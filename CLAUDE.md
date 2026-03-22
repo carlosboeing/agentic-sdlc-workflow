@@ -88,7 +88,7 @@ Every design decision should consider the end-state architecture, but every impl
 
 ## Project Documentation
 
-- `docs/5-guides/PROJECT.md` — full architecture and technical overview
+- `README.md` — architecture overview, PM architecture diagram, project structure
 - `docs/1-discovery/VISION.md` — long-term vision and aspirations
 - `docs/CHANGELOG.md` — build history
 - `docs/2-design/` — feature design documents
@@ -145,7 +145,7 @@ Six specialized agents in `.claude/agents/`:
 - Never start work without a corresponding GitHub Issue
 - Use conventional commits: `<type>(<scope>): <description>`
 - **Never use `#N` in commit messages** unless intentionally referencing a GitHub issue. GitHub auto-links any `#N` pattern to issue N, so reviewer warning numbers, list indices, or other numbered references must use a format without `#` (e.g., `warning 4`, `W4`, `item 4`). The `Fixes #N` / `Closes #N` footer is the correct place for issue references.
-- Reference `docs/5-guides/PROJECT.md` for architecture context
+- Reference `README.md` for architecture context (PM architecture diagram, project structure, workflow overview)
 - Write lesson files when encountering bugs, unexpected behavior, or missing conventions (see Lesson Conventions below)
 - **Local PM items must be committed (when using the local file adapter).** All scripts that create or modify work items (`item-create.sh`, `item-set-status.sh`, `item-start.sh`, `item-review.sh`, `item-close.sh`, `item-comment.sh`, `item-append-body.sh`, `item-telemetry.sh`) write to `.workflow/items/` when the PM adapter is `"local"` or `"github"`. These files must be included in your commits (`git add .workflow/items/`). The integration branch (`backlog/<N>-<slug>`) is the source of truth for local PM state — all agent branches merge into it, keeping PM items in sync across agents. **When the server adapter is active** (`pm.adapter: "server"` in config), PM data lives in SQLite (`.agentic-workflow/workflow.db`) and `.workflow/items/` files are not created — no commit needed. See `server/` directory and `docs/2-design/2026-03-22-workflow-runtime-service-design.md` for the server architecture.
 

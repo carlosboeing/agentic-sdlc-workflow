@@ -35,6 +35,8 @@ import {
 import { startServer } from "./server";
 import { createDatabase, closeDatabase } from "./db/connection";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { createMcpServer } from "./mcp/server";
+import { connectStdioTransport } from "./mcp/transport";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -355,23 +357,44 @@ async function commandMcp(): Promise<void> {
       : undefined;
 
   // Start the HTTP server with the database connection wired in.
+  // In MCP mode, stdout is reserved for MCP JSON-RPC — no stdout log output.
   const server = startServer({ port, startTimeMs, idleTracker, db });
 
-  // Write PID and port files AFTER the server starts successfully (W1 fix).
+  // Write PID and port files AFTER the server starts successfully.
   writePidFile(WORK_DIR, process.pid);
   writePortFile(WORK_DIR, port);
 
-  // MCP stdio transport will be connected by E03 (MCP Server epic).
-  // For now, keep the HTTP server alive until stdin closes.
-  process.stdin.resume();
-  process.stdin.on("end", async () => {
-    process.stderr.write("MCP stdin closed. Shutting down.\n");
+  process.stderr.write(
+    `[mcp] HTTP server running on port ${port}. Connecting MCP transport...\n`
+  );
+
+  // Create the MCP server with all PM tools registered, sharing the same DB
+  // connection as the HTTP API (no duplicate state, single source of truth).
+  const mcpServer = createMcpServer(db);
+
+  // Connect the MCP stdio transport. After this call:
+  //   - stdin is consumed by MCP (JSON-RPC messages from Claude Code)
+  //   - stdout is used by MCP (JSON-RPC responses to Claude Code)
+  //   - All logging continues to stderr
+  await connectStdioTransport(mcpServer);
+
+  process.stderr.write("[mcp] MCP stdio transport connected. Ready.\n");
+
+  // Graceful shutdown on MCP stdin close (Claude Code session ended)
+  // or explicit SIGTERM / SIGINT signals.
+  async function handleMcpShutdown(): Promise<void> {
+    process.stderr.write("MCP shutdown initiated. Stopping server...\n");
     idleTracker?.stop();
+    await mcpServer.close();
     server.stop(true);
     closeDatabase(sqlite);
     await gracefulShutdown(WORK_DIR);
+    process.stderr.write("MCP server stopped.\n");
     process.exit(0);
-  });
+  }
+
+  process.on("SIGTERM", () => handleMcpShutdown());
+  process.on("SIGINT", () => handleMcpShutdown());
 }
 
 // ---------------------------------------------------------------------------

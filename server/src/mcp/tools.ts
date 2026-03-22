@@ -140,6 +140,16 @@ export const postTelemetrySchema = {
   commit: z.string().optional(),
 };
 
+export const addDocCommentSchema = {
+  path: z.string(),
+  body: z.string(),
+  anchor: z.string().optional(),
+};
+
+export const listDocCommentsSchema = {
+  path: z.string(),
+};
+
 // ---------------------------------------------------------------------------
 // ID generation (mirrors server/src/api/items.ts generateLocalId)
 // ---------------------------------------------------------------------------
@@ -380,6 +390,34 @@ export function createMcpToolHandlers(
           }
         );
         return success(telemetry);
+      },
+    },
+
+    // ----- Document Comments -----
+
+    add_doc_comment: {
+      description:
+        "Add a comment to a design document, optionally anchored to a specific section",
+      inputSchema: addDocCommentSchema,
+      handler: async (args) => {
+        const comment = await commentService.addComment({
+          documentPath: args.path as string,
+          body: args.body as string,
+          anchor: args.anchor as string | undefined,
+          author: "mcp",
+        });
+        return success(comment);
+      },
+    },
+
+    list_doc_comments: {
+      description: "List all comments on a design document by its path",
+      inputSchema: listDocCommentsSchema,
+      handler: async (args) => {
+        const comments = await commentService.listDocumentComments(
+          args.path as string
+        );
+        return success(comments);
       },
     },
   };

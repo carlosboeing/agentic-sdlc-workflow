@@ -72,4 +72,13 @@ export class CommentService {
       .where(eq(schema.comments.itemId, itemId))
       .all();
   }
+
+  /** List all comments for a given document path, ordered by creation time. */
+  async listDocumentComments(documentPath: string): Promise<Comment[]> {
+    return this.db
+      .select()
+      .from(schema.comments)
+      .where(eq(schema.comments.documentPath, documentPath))
+      .all();
+  }
 }

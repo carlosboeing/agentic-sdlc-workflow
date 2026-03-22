@@ -1,5 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { serveStatic } from "hono/bun";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { IdleTimeoutTracker } from "./lifecycle";
 
 // ---------------------------------------------------------------------------
@@ -21,6 +24,18 @@ export function createHealthRouter(startTimeMs: number): Hono {
   });
 
   return router;
+}
+
+// ---------------------------------------------------------------------------
+// Static serving options
+// ---------------------------------------------------------------------------
+
+export interface StaticOptions {
+  /**
+   * Absolute path to the directory containing the built frontend assets.
+   * Defaults to `<server-dir>/frontend/dist`.
+   */
+  distDir?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +104,68 @@ export function createApp(options: AppOptions = {}): Hono {
   // --- 404 handler ---
   app.notFound((c) => {
     return c.json({ error: "Not found" }, 404);
+  });
+
+  return app;
+}
+
+// ---------------------------------------------------------------------------
+// App factory with static SPA serving
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the Hono application with static file serving for the React SPA.
+ *
+ * Serving strategy:
+ * 1. `/api/*` routes are handled by the API layer (no fallback).
+ * 2. Requests for files with extensions (`.js`, `.css`, `.ico`, etc.) are
+ *    served from `distDir/`. If the file does not exist, returns 404.
+ * 3. All other paths fall back to `index.html` so client-side routing works.
+ *
+ * @param options.distDir - Absolute path to the built frontend dist directory.
+ */
+export function createAppWithStatic(options: StaticOptions = {}): Hono {
+  const serverDir = new URL(import.meta.url).pathname.replace(/\/src\/server\.ts$/, "");
+  const distDir = options.distDir ?? join(serverDir, "frontend", "dist");
+  const app = createApp();
+
+  // Serve static files from distDir for requests with a file extension.
+  // serveStatic resolves paths relative to the Bun process cwd, so we use
+  // an explicit root that points to the dist directory.
+  app.use(
+    "/assets/*",
+    serveStatic({
+      root: distDir,
+      rewriteRequestPath: (path) => path.replace(/^\/assets\//, "/assets/"),
+    })
+  );
+
+  // SPA fallback: any path without an extension (or unknown) returns index.html.
+  // API paths are already matched above and never reach this handler.
+  app.get("*", async (c) => {
+    // Requests for files with extensions that weren't found → 404
+    const path = c.req.path;
+    const hasExtension = /\.[^./]+$/.test(path) && !path.endsWith("/");
+    if (hasExtension) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+    // Serve index.html for all other paths (client-side routes)
+    const indexPath = join(distDir, "index.html");
+    if (!existsSync(indexPath)) {
+      return c.text(
+        "Frontend not built. Run: bun run build:frontend",
+        503
+      );
+    }
+    const file = Bun.file(indexPath);
+    return new Response(file, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        // index.html must not be cached so deployments take effect immediately
+        "cache-control": "no-cache, no-store, must-revalidate",
+      },
+    });
   });
 
   return app;

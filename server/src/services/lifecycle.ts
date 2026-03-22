@@ -2,6 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
 import type { TelemetryModel } from "../types";
+import type { EventService } from "../api/websocket";
 import type { Item } from "./items";
 
 type Db = ReturnType<typeof drizzle>;
@@ -37,7 +38,10 @@ export interface PostTelemetryInput {
  * activity log broadcasting.
  */
 export class LifecycleService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly eventService?: EventService
+  ) {}
 
   /** Start work on an item: set status to in-progress and log the transition. */
   async startWork(itemId: number, input: StartWorkInput): Promise<Item | null> {
@@ -76,6 +80,21 @@ export class LifecycleService {
         createdAt: now,
       })
       .run();
+
+    // Broadcast to WebSocket subscribers (no re-persist — activity log already written above)
+    this.eventService?.broadcast(
+      {
+        type: "status:changed",
+        data: {
+          from: previousStatus,
+          to: "in-progress",
+          agent: input.agent,
+          model: input.model,
+        },
+        itemId,
+      },
+      { persistToDb: false }
+    );
 
     return rows[0];
   }
@@ -120,6 +139,20 @@ export class LifecycleService {
       })
       .run();
 
+    // Broadcast to WebSocket subscribers (no re-persist — activity log already written above)
+    this.eventService?.broadcast(
+      {
+        type: "status:changed",
+        data: {
+          from: previousStatus,
+          to: "in-review",
+          commitHash: input.commitHash,
+        },
+        itemId,
+      },
+      { persistToDb: false }
+    );
+
     return rows[0];
   }
 
@@ -158,7 +191,7 @@ export class LifecycleService {
 
     const telemetryRow = rows[0];
 
-    // Broadcast activity event
+    // Persist activity log entry and broadcast real-time event
     this.db
       .insert(schema.activityLog)
       .values({
@@ -173,6 +206,21 @@ export class LifecycleService {
         createdAt: now,
       })
       .run();
+
+    // Broadcast to WebSocket subscribers (no re-persist — activity log already written above)
+    this.eventService?.broadcast(
+      {
+        type: "telemetry:posted",
+        data: {
+          telemetryId: telemetryRow.id,
+          model: input.model,
+          durationMs: input.durationMs,
+          tokens: input.tokens,
+        },
+        itemId,
+      },
+      { persistToDb: false }
+    );
 
     return telemetryRow;
   }

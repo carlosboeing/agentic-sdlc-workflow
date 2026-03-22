@@ -6,6 +6,7 @@ import { join } from "node:path";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import { IdleTimeoutTracker } from "./lifecycle";
 import { registerRoutes } from "./api/routes";
+import { EventService, createWsHandler, withWebSocketUpgrade } from "./api/websocket";
 
 // ---------------------------------------------------------------------------
 // Health router (exported for testing without a running server)
@@ -44,6 +45,8 @@ export interface StaticOptions {
   idleTracker?: IdleTimeoutTracker;
   /** Drizzle DB connection (forwarded to createApp). */
   db?: ReturnType<typeof drizzle>;
+  /** EventService for real-time broadcasts (forwarded to createApp). */
+  eventService?: EventService;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,6 +60,12 @@ export interface AppOptions {
   idleTracker?: IdleTimeoutTracker;
   /** Drizzle DB connection — required for item CRUD routes. Omit in health-only tests. */
   db?: ReturnType<typeof drizzle>;
+  /**
+   * EventService for real-time broadcasts.
+   * When provided, services emit WebSocket events on mutations.
+   * When omitted, a default EventService is created from db (if db is provided).
+   */
+  eventService?: EventService;
 }
 
 /**
@@ -106,7 +115,7 @@ export function createApp(options: AppOptions = {}): Hono {
   app.route("/api", createHealthRouter(startTimeMs));
 
   if (options.db) {
-    registerRoutes(app, options.db);
+    registerRoutes(app, options.db, options.eventService);
   }
 
   // --- Global error handler ---
@@ -145,6 +154,7 @@ export function createAppWithStatic(options: StaticOptions = {}): Hono {
     startTimeMs: options.startTimeMs,
     idleTracker: options.idleTracker,
     db: options.db,
+    eventService: options.eventService,
   });
 
   // Serve static files from distDir for requests with a file extension.
@@ -209,34 +219,61 @@ export interface ServerOptions {
   distDir?: string;
   /** Drizzle DB connection — required for item CRUD routes. Omit for health-only mode. */
   db?: ReturnType<typeof drizzle>;
+  /**
+   * EventService for real-time WebSocket broadcasts.
+   * When omitted and db is provided, a new EventService is created automatically.
+   */
+  eventService?: EventService;
 }
 
 /**
- * Start a Bun HTTP server on `localhost:<port>`.
+ * Start a Bun HTTP server on `localhost:<port>` with WebSocket support.
  *
  * The server always serves the React SPA via `createAppWithStatic()` so that
  * the production startup path serves both the API and the frontend.
+ * WebSocket upgrade requests to `/ws` are handled before Hono routing.
  *
  * Returns the Bun server instance (has `.stop()` for graceful shutdown).
  * All logging goes to stderr.
  */
 export function startServer(options: ServerOptions): ReturnType<typeof Bun.serve> {
   const startTimeMs = options.startTimeMs ?? Date.now();
+
+  // Create or reuse EventService for real-time WebSocket broadcasts
+  const eventService =
+    options.eventService ??
+    (options.db ? new EventService(options.db) : undefined);
+
   const app = createAppWithStatic({
     distDir: options.distDir,
     startTimeMs,
     idleTracker: options.idleTracker,
     db: options.db,
+    eventService,
   });
+
+  // Server reference required for Bun's publish() — set after Bun.serve() returns
+  const serverRef: { current: ReturnType<typeof Bun.serve> | null } = { current: null };
+
+  // Wrap the Hono fetch to handle /ws upgrade before Hono routing
+  const fetchWithWs = withWebSocketUpgrade(app.fetch, serverRef);
+
+  const wsHandler = eventService
+    ? createWsHandler(eventService, serverRef)
+    : undefined;
 
   const server = Bun.serve({
     port: options.port,
     hostname: "127.0.0.1", // localhost only — never 0.0.0.0
-    fetch: app.fetch,
+    fetch: fetchWithWs,
+    websocket: wsHandler,
     error(error) {
       process.stderr.write(`Server error: ${error.message}\n`);
     },
   });
+
+  // Set the server reference so EventService can publish to connected clients
+  serverRef.current = server;
 
   process.stderr.write(`Server running on http://127.0.0.1:${server.port}\n`);
   return server;

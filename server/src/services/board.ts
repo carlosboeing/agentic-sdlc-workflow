@@ -3,6 +3,7 @@ import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
 import type { BoardStatus } from "../types";
 import type { Item } from "./items";
+import type { EventService } from "../api/websocket";
 
 type Db = ReturnType<typeof drizzle>;
 
@@ -17,9 +18,13 @@ const VALID_STATUSES: ReadonlySet<string> = new Set([
 /**
  * Service for board status transitions on work items.
  * Validates status values and logs transitions to the activity log.
+ * Optionally accepts an EventService to broadcast real-time events.
  */
 export class BoardService {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly eventService?: EventService
+  ) {}
 
   /** Set the board status on an item. Validates the status enum. */
   async setStatus(itemId: number, status: BoardStatus): Promise<Item | null> {
@@ -61,6 +66,16 @@ export class BoardService {
         createdAt: now,
       })
       .run();
+
+    // Broadcast real-time event
+    this.eventService?.broadcast(
+      {
+        type: "status:changed",
+        data: { itemId, from: previousStatus, to: status, timestamp: now },
+        itemId,
+      },
+      { persistToDb: false }
+    );
 
     return rows[0];
   }

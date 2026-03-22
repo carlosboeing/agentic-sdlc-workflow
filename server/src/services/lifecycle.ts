@@ -81,6 +81,21 @@ export class LifecycleService {
       })
       .run();
 
+    // Broadcast to WebSocket subscribers (no re-persist — activity log already written above)
+    this.eventService?.broadcast(
+      {
+        type: "status:changed",
+        data: {
+          from: previousStatus,
+          to: "in-progress",
+          agent: input.agent,
+          model: input.model,
+        },
+        itemId,
+      },
+      { persistToDb: false }
+    );
+
     return rows[0];
   }
 
@@ -123,6 +138,20 @@ export class LifecycleService {
         createdAt: now,
       })
       .run();
+
+    // Broadcast to WebSocket subscribers (no re-persist — activity log already written above)
+    this.eventService?.broadcast(
+      {
+        type: "status:changed",
+        data: {
+          from: previousStatus,
+          to: "in-review",
+          commitHash: input.commitHash,
+        },
+        itemId,
+      },
+      { persistToDb: false }
+    );
 
     return rows[0];
   }

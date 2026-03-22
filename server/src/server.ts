@@ -3,7 +3,9 @@ import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import type { drizzle } from "drizzle-orm/bun-sqlite";
 import { IdleTimeoutTracker } from "./lifecycle";
+import { registerRoutes } from "./api/routes";
 
 // ---------------------------------------------------------------------------
 // Health router (exported for testing without a running server)
@@ -40,6 +42,8 @@ export interface StaticOptions {
   startTimeMs?: number;
   /** Idle timeout tracker (forwarded to createApp). */
   idleTracker?: IdleTimeoutTracker;
+  /** Drizzle DB connection (forwarded to createApp). */
+  db?: ReturnType<typeof drizzle>;
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +55,8 @@ export interface AppOptions {
   startTimeMs?: number;
   /** Idle timeout tracker — its touch() method is called on every request. */
   idleTracker?: IdleTimeoutTracker;
+  /** Drizzle DB connection — required for item CRUD routes. Omit in health-only tests. */
+  db?: ReturnType<typeof drizzle>;
 }
 
 /**
@@ -99,6 +105,10 @@ export function createApp(options: AppOptions = {}): Hono {
   // --- API routes ---
   app.route("/api", createHealthRouter(startTimeMs));
 
+  if (options.db) {
+    registerRoutes(app, options.db);
+  }
+
   // --- Global error handler ---
   app.onError((err, c) => {
     process.stderr.write(`Unhandled error: ${err.message}\n`);
@@ -134,6 +144,7 @@ export function createAppWithStatic(options: StaticOptions = {}): Hono {
   const app = createApp({
     startTimeMs: options.startTimeMs,
     idleTracker: options.idleTracker,
+    db: options.db,
   });
 
   // Serve static files from distDir for requests with a file extension.
@@ -189,6 +200,8 @@ export interface ServerOptions {
    * to the API routes.  Defaults to `<server-dir>/frontend/dist`.
    */
   distDir?: string;
+  /** Drizzle DB connection — required for item CRUD routes. Omit for health-only mode. */
+  db?: ReturnType<typeof drizzle>;
 }
 
 /**
@@ -206,6 +219,7 @@ export function startServer(options: ServerOptions): ReturnType<typeof Bun.serve
     distDir: options.distDir,
     startTimeMs,
     idleTracker: options.idleTracker,
+    db: options.db,
   });
 
   const server = Bun.serve({

@@ -4,6 +4,7 @@ import {
   integer,
   real,
   primaryKey,
+  type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
@@ -22,7 +23,7 @@ export const items = sqliteTable("items", {
     enum: ["open", "closed"],
   }).notNull(),
   body: text("body"),
-  parentId: integer("parent_id").references((): ReturnType<typeof integer> => items.id),
+  parentId: integer("parent_id").references((): AnySQLiteColumn => items.id),
   externalId: text("external_id"),
   externalUrl: text("external_url"),
   createdBy: text("created_by"),

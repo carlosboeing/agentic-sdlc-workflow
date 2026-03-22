@@ -17,7 +17,7 @@
  *   returns immediately to the caller once the server is up.
  */
 
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import {
   readPidFile,
@@ -33,6 +33,8 @@ import {
   readServerConfig,
 } from "./lifecycle";
 import { startServer } from "./server";
+import { createDatabase, closeDatabase } from "./db/connection";
+import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -45,6 +47,20 @@ import { startServer } from "./server";
  */
 const REPO_ROOT = resolve(new URL(import.meta.url).pathname, "../../..");
 const WORK_DIR = join(REPO_ROOT, ".agentic-workflow");
+
+/**
+ * Database file path (relative to repo root).
+ * Can be overridden via WORKFLOW_DB_PATH environment variable.
+ */
+const DB_PATH = process.env.WORKFLOW_DB_PATH ?? join(WORK_DIR, "workflow.db");
+
+/**
+ * Drizzle migrations folder — relative to this file so it works from any cwd.
+ */
+const MIGRATIONS_FOLDER = resolve(
+  dirname(new URL(import.meta.url).pathname),
+  "./db/migrations"
+);
 
 // ---------------------------------------------------------------------------
 // Command dispatch
@@ -183,6 +199,14 @@ async function commandStartForeground(): Promise<void> {
     process.exit(1);
   }
 
+  // Initialize database and run migrations before starting the server.
+  // Both the raw sqlite handle (for WAL checkpoint on shutdown) and the
+  // Drizzle wrapper (for route handlers) are needed.
+  process.stderr.write(`[db] Opening database at ${DB_PATH}\n`);
+  const { db, sqlite } = createDatabase(DB_PATH);
+  migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  process.stderr.write("[db] Migrations applied.\n");
+
   const startTimeMs = Date.now();
 
   // Set up idle timeout
@@ -197,8 +221,8 @@ async function commandStartForeground(): Promise<void> {
         })
       : undefined;
 
-  // Start the HTTP server
-  const server = startServer({ port, startTimeMs, idleTracker });
+  // Start the HTTP server with the database connection wired in.
+  const server = startServer({ port, startTimeMs, idleTracker, db });
 
   // Write PID and port files AFTER the server starts successfully (W1 fix).
   // If Bun.serve() throws, these files are never written — no stale files left.
@@ -212,7 +236,8 @@ async function commandStartForeground(): Promise<void> {
     process.stderr.write("Shutting down server...\n");
     idleTracker?.stop();
     srv.stop(true); // Wait for in-flight requests
-    // TODO(E02): wire checkpointFn when database is integrated with server startup
+    // Flush WAL and close the database before process exit.
+    closeDatabase(sqlite);
     await gracefulShutdown(WORK_DIR);
     process.stderr.write("Server stopped.\n");
     process.exit(0);
@@ -309,6 +334,12 @@ async function commandMcp(): Promise<void> {
     process.exit(1);
   }
 
+  // Initialize database and run migrations before starting the server.
+  process.stderr.write(`[db] Opening database at ${DB_PATH}\n`);
+  const { db, sqlite } = createDatabase(DB_PATH);
+  migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  process.stderr.write("[db] Migrations applied.\n");
+
   const startTimeMs = Date.now();
   const idleTimeoutMs = config.idleTimeoutMinutes * 60 * 1000;
   const idleTracker =
@@ -317,13 +348,14 @@ async function commandMcp(): Promise<void> {
           process.stderr.write("Idle timeout in MCP mode. Shutting down.\n");
           idleTracker?.stop();
           server.stop(true);
-          // TODO(E02): wire checkpointFn when database is integrated with server startup
+          closeDatabase(sqlite);
           await gracefulShutdown(WORK_DIR);
           process.exit(0);
         })
       : undefined;
 
-  const server = startServer({ port, startTimeMs, idleTracker });
+  // Start the HTTP server with the database connection wired in.
+  const server = startServer({ port, startTimeMs, idleTracker, db });
 
   // Write PID and port files AFTER the server starts successfully (W1 fix).
   writePidFile(WORK_DIR, process.pid);
@@ -336,7 +368,7 @@ async function commandMcp(): Promise<void> {
     process.stderr.write("MCP stdin closed. Shutting down.\n");
     idleTracker?.stop();
     server.stop(true);
-    // TODO(E02): wire checkpointFn when database is integrated with server startup
+    closeDatabase(sqlite);
     await gracefulShutdown(WORK_DIR);
     process.exit(0);
   });

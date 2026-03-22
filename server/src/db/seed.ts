@@ -36,6 +36,15 @@
  *   ...body...
  *
  *   ---
+ *
+ * Known limitation:
+ *   Standalone comment files in `.workflow/comments/<id>/<NNN>-*.md` are NOT
+ *   imported. This migration only extracts comments embedded inline in item
+ *   bodies under the Activity Log section. Standalone comment files (e.g.,
+ *   telemetry posts) represent a separate data source that would require a
+ *   second migration pass over `.workflow/comments/`. This is a deliberate
+ *   deferral — the Activity Log comments cover the most common cases
+ *   (Work Started, Ready for Review) needed by the initial migration.
  */
 
 import { readdirSync, readFileSync, existsSync } from "node:fs";
@@ -129,11 +138,19 @@ function parseFrontmatter(
       }
     }
 
-    const colonIdx = line.indexOf(":");
+    // Split on the first ": " (colon + space) so that values containing
+    // colons (e.g. `title: "[#10/E01] Widget: Core"` or ISO timestamps like
+    // `created: 2026-01-01T10:00:00Z`) are captured in full without truncation.
+    // Fall back to bare ":" (no trailing space) for `key:` lines with no value.
+    const colonSpaceIdx = line.indexOf(": ");
+    const colonIdx = colonSpaceIdx !== -1 ? colonSpaceIdx : line.indexOf(":");
     if (colonIdx === -1) continue;
 
     const key = line.slice(0, colonIdx).trim();
-    const rawValue = line.slice(colonIdx + 1).trim();
+    // When using ": " separator, the value starts 2 chars after colonIdx;
+    // when using bare ":" (no space), it starts 1 char after.
+    const valueStart = colonSpaceIdx !== -1 ? colonIdx + 2 : colonIdx + 1;
+    const rawValue = line.slice(valueStart).trim();
 
     if (key === "labels") {
       inLabelsList = true;
@@ -357,8 +374,8 @@ export async function migrateFromItems(
 
     if (existing.length > 0) {
       // Item already imported — still ensure labels and comments are present
-      await _ensureLabels(db, frontmatter.id, frontmatter.labels, result);
-      await _ensureComments(db, frontmatter.id, body, result);
+      _ensureLabels(db, frontmatter.id, frontmatter.labels, result);
+      _ensureComments(db, frontmatter.id, body, result);
       continue;
     }
 
@@ -449,12 +466,12 @@ export async function migrateFromItems(
  * Ensure all labels exist and are associated with the item.
  * Idempotent: no duplicate label rows or associations created.
  */
-async function _ensureLabels(
+function _ensureLabels(
   db: Db,
   itemId: number,
   labelNames: string[],
   result: MigrationResult
-): Promise<void> {
+): void {
   for (const name of labelNames) {
     if (!name) continue;
 
@@ -499,12 +516,12 @@ async function _ensureLabels(
  * Ensure activity log comments are imported for an item.
  * Idempotent: deduplicates by (itemId, createdAt).
  */
-async function _ensureComments(
+function _ensureComments(
   db: Db,
   itemId: number,
   body: string,
   result: MigrationResult
-): Promise<void> {
+): void {
   const comments = parseActivityLogComments(body);
 
   for (const comment of comments) {

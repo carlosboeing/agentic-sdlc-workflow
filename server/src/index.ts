@@ -219,8 +219,10 @@ async function commandStartForeground(): Promise<void> {
 
   // Run data migration on first startup: import .workflow/items/ if DB is empty.
   // Idempotent — safe to run every time; skips items that already exist.
-  const existingItemCount = (db.select().from(schema.items).all() as unknown[])
-    .length;
+  const existingItemCount = db
+    .select({ id: schema.items.id })
+    .from(schema.items)
+    .all().length;
   if (existingItemCount === 0 && existsSync(ITEMS_DIR)) {
     process.stderr.write(
       "[seed] Database is empty — importing .workflow/items/\n"
@@ -366,6 +368,25 @@ async function commandMcp(): Promise<void> {
   const { db, sqlite } = createDatabase(DB_PATH);
   migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
   process.stderr.write("[db] Migrations applied.\n");
+
+  // Run data migration on first startup: import .workflow/items/ if DB is empty.
+  // Idempotent — safe to run every time; skips items that already exist.
+  const existingItemCount = db
+    .select({ id: schema.items.id })
+    .from(schema.items)
+    .all().length;
+  if (existingItemCount === 0 && existsSync(ITEMS_DIR)) {
+    process.stderr.write(
+      "[seed] Database is empty — importing .workflow/items/\n"
+    );
+    const seedResult = await migrateFromItems(db, ITEMS_DIR);
+    process.stderr.write(
+      `[seed] Imported ${seedResult.itemsImported} items, ` +
+        `${seedResult.labelsCreated} labels, ` +
+        `${seedResult.relationshipsLinked} relationships, ` +
+        `${seedResult.commentsImported} comments.\n`
+    );
+  }
 
   const startTimeMs = Date.now();
   const idleTimeoutMs = config.idleTimeoutMinutes * 60 * 1000;

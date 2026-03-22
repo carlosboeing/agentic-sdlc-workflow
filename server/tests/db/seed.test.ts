@@ -556,6 +556,41 @@ describe("migrateFromItems", () => {
   });
 
   // -------------------------------------------------------------------------
+  // YAML parser edge cases
+  // -------------------------------------------------------------------------
+
+  describe("YAML parser colon handling", () => {
+    test("title with colon in quoted value is parsed in full", async () => {
+      const md = `---
+id: 99
+title: "[#10/E01] Widget: Core Module"
+type: story
+status: backlog
+labels:
+  - hierarchy/story
+parent: null
+state: open
+created: 2026-01-01T10:00:00Z
+updated: 2026-01-01T10:00:00Z
+---
+
+Body here.
+`;
+      fixtureDir = createFixtureDir({ "99.md": md });
+      await migrateFromItems(db, fixtureDir);
+
+      const rows = db
+        .select()
+        .from(schema.items)
+        .where(eq(schema.items.id, 99))
+        .all();
+      // Title must include the full text after the colon in the value,
+      // not be truncated at the second colon.
+      expect(rows[0].title).toBe("[#10/E01] Widget: Core Module");
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Multi-file import
   // -------------------------------------------------------------------------
 

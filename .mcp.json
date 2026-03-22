@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "workflow-pm": {
+      "command": "bun",
+      "args": ["run", "server/src/index.ts", "mcp"],
+      "env": {}
+    }
+  }
+}

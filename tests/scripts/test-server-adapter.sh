@@ -734,6 +734,88 @@ assert_contains "PM_adapter_is_server" "CFG_PM_ADAPTER=server" "$CFG_OUTPUT"
 
 echo ""
 
+# =========================================================================
+# Test Group 22: pm_add_doc_comment validates argument count
+# =========================================================================
+echo "Test Group 22: pm_add_doc_comment validates argument count"
+
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/comments.sh'
+  pm_add_doc_comment 2>&1
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+DOC_COMMENT_STDERR=$(cat "$TMPERR")
+DOC_COMMENT_STDOUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_nonzero "pm_add_doc_comment_no_args_fails" "$EXIT_CODE"
+assert_contains "pm_add_doc_comment_usage_message" "Usage:" "$DOC_COMMENT_STDERR$DOC_COMMENT_STDOUT"
+
+# One argument should also fail
+TMPOUT=$(mktemp)
+TMPERR=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/comments.sh'
+  pm_add_doc_comment '2-design/overview.md' 2>&1
+" > "$TMPOUT" 2>"$TMPERR"
+EXIT_CODE=$?
+rm -f "$TMPOUT" "$TMPERR"
+
+assert_exit_nonzero "pm_add_doc_comment_one_arg_fails" "$EXIT_CODE"
+
+echo ""
+
+# =========================================================================
+# Test Group 23: pm_add_doc_comment calls correct HTTP endpoint
+# =========================================================================
+echo "Test Group 23: pm_add_doc_comment calls correct HTTP endpoint"
+
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  source '$SERVER_ADAPTER_DIR/_common.sh'
+  source '$SERVER_ADAPTER_DIR/comments.sh'
+  fn_body=\$(declare -f pm_add_doc_comment)
+  echo \"\$fn_body\"
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+DOC_FN_BODY=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+
+assert_exit_zero "pm_add_doc_comment_sources_ok" "$EXIT_CODE"
+assert_contains "pm_add_doc_comment_calls_documents_endpoint" "/api/documents/" "$DOC_FN_BODY"
+assert_contains "pm_add_doc_comment_calls_comments_subpath" "/comments" "$DOC_FN_BODY"
+
+echo ""
+
+# =========================================================================
+# Test Group 24: pm_add_doc_comment is registered in server adapter
+# =========================================================================
+echo "Test Group 24: pm_add_doc_comment registered in server adapter"
+
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  export WORKFLOW_SERVER_URL='http://127.0.0.1:9999'
+  for f in '$SERVER_ADAPTER_DIR'/*.sh; do
+    source \"\$f\"
+  done
+  declare -f pm_add_doc_comment > /dev/null && echo 'pm_add_doc_comment:exists'
+" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+REG_OUTPUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+
+assert_exit_zero "pm_add_doc_comment_registration_ok" "$EXIT_CODE"
+assert_contains "pm_add_doc_comment_registered" "pm_add_doc_comment:exists" "$REG_OUTPUT"
+
+echo ""
+
 # --- Cleanup ---
 rm -rf "$MOCK_CONFIG_DIR" 2>/dev/null || true
 

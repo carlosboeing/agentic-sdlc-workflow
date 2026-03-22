@@ -5,6 +5,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/thresholds.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 LIFECYCLE_SH="$REPO_ROOT/scripts/lib/adapters/pm/github/lifecycle.sh"
 
@@ -92,11 +93,11 @@ fi
 
 if [ -f "$LIFECYCLE_SH" ]; then
   LINE_COUNT=$(wc -l < "$LIFECYCLE_SH")
-  if [ "$LINE_COUNT" -lt 80 ]; then
-    echo "  PASS: lifecycle.sh is under 80 lines ($LINE_COUNT lines)"
+  if [ "$LINE_COUNT" -le "$THRESHOLD_SMALL_MODULE" ]; then
+    echo "  PASS: lifecycle.sh is under $THRESHOLD_SMALL_MODULE lines ($LINE_COUNT lines)"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: lifecycle.sh exceeds 80 lines ($LINE_COUNT lines)"
+    echo "  FAIL: lifecycle.sh exceeds $THRESHOLD_SMALL_MODULE lines ($LINE_COUNT lines)"
     FAIL=$((FAIL + 1))
   fi
 fi

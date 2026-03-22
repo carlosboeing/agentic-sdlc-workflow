@@ -89,13 +89,13 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-# Line count under 200
+source "$SCRIPT_DIR/lib/thresholds.sh"
 LINE_COUNT=$(wc -l < "$ITEMS_SH" 2>/dev/null || echo 9999)
-if [ "$LINE_COUNT" -le 210 ]; then
-  echo "  PASS: items.sh is under 210 lines ($LINE_COUNT)"
+if [ "$LINE_COUNT" -le "$THRESHOLD_ADAPTER_MODULE" ]; then
+  echo "  PASS: items.sh is under $THRESHOLD_ADAPTER_MODULE lines ($LINE_COUNT)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: items.sh exceeds 210 lines ($LINE_COUNT)"
+  echo "  FAIL: items.sh exceeds $THRESHOLD_ADAPTER_MODULE lines ($LINE_COUNT)"
   FAIL=$((FAIL + 1))
 fi
 
@@ -170,30 +170,8 @@ assert_eq "pm_create_item_returns_number" "999" "$OUTPUT"
 rm -rf "$MOCK_DIR"
 echo ""
 
-# --- Test Group 3: pm_create_item with --body-file ---
-echo "Test Group: pm_create_item with --body-file"
-
-MOCK_DIR=$(build_mock_env)
-BODY_FILE=$(mktemp)
-echo "Body from file" > "$BODY_FILE"
-TMPOUT=$(mktemp)
-bash --norc --noprofile -c "
-  export PATH=\"$MOCK_DIR:\$PATH\"
-  export CFG_REPO=\"test-owner/test-repo\"
-  source \"$ITEMS_SH\"
-  pm_create_item epic \"My Epic\" --body-file \"$BODY_FILE\"
-" > "$TMPOUT" 2>&1
-EXIT_CODE=$?
-OUTPUT=$(cat "$TMPOUT")
-rm -f "$TMPOUT" "$BODY_FILE"
-
-assert_exit_zero "pm_create_item_body_file_exits_zero" "$EXIT_CODE"
-assert_eq "pm_create_item_body_file_returns_number" "999" "$OUTPUT"
-
-rm -rf "$MOCK_DIR"
-echo ""
-
-# --- Test Group 4: pm_create_item hierarchy label mapping ---
+# --- Test Group 3: pm_create_item hierarchy label mapping ---
+# (Test Group 3 was --body-file, removed — --body-file is no longer supported by the GitHub adapter)
 echo "Test Group: pm_create_item hierarchy label mapping"
 
 # We capture what gh is called with to verify the hierarchy label.

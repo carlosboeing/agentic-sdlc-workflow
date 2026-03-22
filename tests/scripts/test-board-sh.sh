@@ -6,6 +6,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/thresholds.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PM_SH="$REPO_ROOT/scripts/lib/pm.sh"
 BOARD_SH="$REPO_ROOT/scripts/lib/adapters/pm/github/board.sh"
@@ -97,19 +98,19 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-# Check file is not too large (should split reconcile if over 200 lines)
+# Check file is not too large (should split reconcile if over adapter module threshold)
 if [ -f "$BOARD_SH" ]; then
   BOARD_LINES=$(wc -l < "$BOARD_SH" | tr -d ' ')
-  if [ "$BOARD_LINES" -le 200 ]; then
-    echo "  PASS: board.sh is within 200-line limit ($BOARD_LINES lines)"
+  if [ "$BOARD_LINES" -le "$THRESHOLD_ADAPTER_MODULE" ]; then
+    echo "  PASS: board.sh is within $THRESHOLD_ADAPTER_MODULE-line limit ($BOARD_LINES lines)"
     PASS=$((PASS + 1))
   else
-    # If over 200 lines, reconcile.sh must exist as a split
+    # If over threshold, reconcile.sh must exist as a split
     if [ -f "$ADAPTERS_DIR/reconcile.sh" ]; then
-      echo "  PASS: board.sh exceeds 200 lines but reconcile.sh exists as split"
+      echo "  PASS: board.sh exceeds $THRESHOLD_ADAPTER_MODULE lines but reconcile.sh exists as split"
       PASS=$((PASS + 1))
     else
-      echo "  FAIL: board.sh is $BOARD_LINES lines (>200) and reconcile.sh does not exist"
+      echo "  FAIL: board.sh is $BOARD_LINES lines (>$THRESHOLD_ADAPTER_MODULE) and reconcile.sh does not exist"
       FAIL=$((FAIL + 1))
     fi
   fi
@@ -354,11 +355,11 @@ assert_exit_nonzero "AddToBoard_no_args_exits_nonzero" "$EXIT_CODE"
 echo ""
 
 # --- Test Group 11: Reconcile split check ---
-echo "Test Group: Reconcile split (if board.sh > 200 lines, reconcile.sh must exist)"
+echo "Test Group: Reconcile split (if board.sh > $THRESHOLD_ADAPTER_MODULE lines, reconcile.sh must exist)"
 
 if [ -f "$BOARD_SH" ]; then
   BOARD_LINES=$(wc -l < "$BOARD_SH" | tr -d ' ')
-  if [ "$BOARD_LINES" -gt 200 ]; then
+  if [ "$BOARD_LINES" -gt "$THRESHOLD_ADAPTER_MODULE" ]; then
     if [ -f "$ADAPTERS_DIR/reconcile.sh" ]; then
       echo "  PASS: reconcile.sh exists (board.sh is $BOARD_LINES lines)"
       PASS=$((PASS + 1))

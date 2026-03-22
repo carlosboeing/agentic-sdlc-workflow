@@ -77,12 +77,13 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+source "$SCRIPT_DIR/lib/thresholds.sh"
 LINE_COUNT=$(wc -l < "$ITEMS_SH" 2>/dev/null || echo 9999)
-if [ "$LINE_COUNT" -le 250 ]; then
-  echo "  PASS: items.sh is under 250 lines ($LINE_COUNT)"
+if [ "$LINE_COUNT" -le "$THRESHOLD_ADAPTER_MODULE" ]; then
+  echo "  PASS: items.sh is under $THRESHOLD_ADAPTER_MODULE lines ($LINE_COUNT)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: items.sh exceeds 250 lines ($LINE_COUNT)"
+  echo "  FAIL: items.sh exceeds $THRESHOLD_ADAPTER_MODULE lines ($LINE_COUNT)"
   FAIL=$((FAIL + 1))
 fi
 echo ""

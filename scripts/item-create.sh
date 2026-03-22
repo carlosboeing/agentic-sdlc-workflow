@@ -8,8 +8,8 @@ set -euo pipefail
 # GitHub (returns the ID), local adapter creates .workflow/items/<id>.md.
 #
 # Usage:
-#   ./scripts/item-create.sh <level> --title "..." [--body "..."] [--body-file <path>] [--label "..."] [--label "..."] [--created-by <agent>]
-#   ./scripts/item-create.sh backlog --title "..." --slug <slug> [--body "..."] [--body-file <path>]
+#   ./scripts/item-create.sh <level> --title "..." [--body "..."] [--label "..."] [--label "..."] [--created-by <agent>]
+#   ./scripts/item-create.sh backlog --title "..." --slug <slug> [--body "..."]
 #
 # Where <level> is: backlog, epic, story, docs
 #
@@ -38,7 +38,7 @@ source "$SCRIPT_DIR/lib/pm.sh"
 # --- Argument parsing ---
 if [ $# -lt 1 ]; then
   echo "Error: level argument required" >&2
-  echo "Usage: $0 <level> --title <title> [--body <body>] [--body-file <path>] [--label <label>] ... [--slug <slug>]" >&2
+  echo "Usage: $0 <level> --title <title> [--body <body>] [--label <label>] ... [--slug <slug>]" >&2
   exit 1
 fi
 
@@ -47,7 +47,6 @@ shift
 
 TITLE=""
 BODY=""
-BODY_FILE=""
 SLUG=""
 LABELS=()
 CREATED_BY=""
@@ -56,13 +55,12 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --title)     TITLE="$2";           shift 2 ;;
     --body)      BODY="$2";            shift 2 ;;
-    --body-file) BODY_FILE="$2";       shift 2 ;;
     --label)     LABELS+=("$2");       shift 2 ;;
     --slug)      SLUG="$2";           shift 2 ;;
     --created-by) CREATED_BY="$2";     shift 2 ;;
     *)
       echo "Error: unknown option '$1'" >&2
-      echo "Usage: $0 <level> --title <title> [--body <body>] [--body-file <path>] [--label <label>] ... [--slug <slug>]" >&2
+      echo "Usage: $0 <level> --title <title> [--body <body>] [--label <label>] ... [--slug <slug>]" >&2
       exit 1
       ;;
   esac
@@ -91,12 +89,7 @@ for lbl in "${LABELS[@]+"${LABELS[@]}"}"; do
   fi
 done
 
-CREATE_ARGS=("$LEVEL" "$TITLE")
-if [ -n "$BODY_FILE" ]; then
-  CREATE_ARGS+=(--body-file "$BODY_FILE")
-elif [ -n "$BODY" ]; then
-  CREATE_ARGS+=(--body "$BODY")
-fi
+CREATE_ARGS=("$LEVEL" "$TITLE" --body "$BODY")
 if [ -n "$LABELS_CSV" ]; then
   CREATE_ARGS+=(--labels "$LABELS_CSV")
 fi

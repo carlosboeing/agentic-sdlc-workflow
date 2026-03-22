@@ -8,6 +8,7 @@ set -euo pipefail
 # Does NOT make real GitHub API calls — gh is mocked to capture rendered output.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/thresholds.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/item-telemetry.sh"
 FIXTURE_DIR="$REPO_ROOT/tests/fixtures/telemetry"
@@ -153,11 +154,11 @@ echo ""
 echo "Test Group: Line count reduction"
 
 LINE_COUNT=$(wc -l < "$SCRIPT_UNDER_TEST")
-if [ "$LINE_COUNT" -le 500 ]; then
-  echo "  PASS: Line count reduced ($LINE_COUNT <= 500)"
+if [ "$LINE_COUNT" -le "$THRESHOLD_LARGE_ORCH" ]; then
+  echo "  PASS: Line count reduced ($LINE_COUNT <= $THRESHOLD_LARGE_ORCH)"
   PASS=$((PASS + 1))
 else
-  echo "  FAIL: Line count too high ($LINE_COUNT > 500, target <= 450)"
+  echo "  FAIL: Line count too high ($LINE_COUNT > $THRESHOLD_LARGE_ORCH)"
   FAIL=$((FAIL + 1))
 fi
 

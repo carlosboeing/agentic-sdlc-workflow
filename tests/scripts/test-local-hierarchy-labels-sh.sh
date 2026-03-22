@@ -8,6 +8,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/thresholds.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 COMMON_SH="$REPO_ROOT/scripts/lib/adapters/pm/local/_common.sh"
 ITEMS_SH="$REPO_ROOT/scripts/lib/adapters/pm/local/items.sh"
@@ -97,11 +98,11 @@ for sh_file in "$HIERARCHY_SH" "$LABELS_SH"; do
   fi
 
   LINE_COUNT=$(wc -l < "$sh_file" 2>/dev/null || echo 9999)
-  if [ "$LINE_COUNT" -le 200 ]; then
-    echo "  PASS: $base is under 200 lines ($LINE_COUNT)"
+  if [ "$LINE_COUNT" -le "$THRESHOLD_ADAPTER_MODULE" ]; then
+    echo "  PASS: $base is under $THRESHOLD_ADAPTER_MODULE lines ($LINE_COUNT)"
     PASS=$((PASS + 1))
   else
-    echo "  FAIL: $base exceeds 200 lines ($LINE_COUNT)"
+    echo "  FAIL: $base exceeds $THRESHOLD_ADAPTER_MODULE lines ($LINE_COUNT)"
     FAIL=$((FAIL + 1))
   fi
 done

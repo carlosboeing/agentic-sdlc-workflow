@@ -36,6 +36,7 @@ describe("MCP Tool Handlers", () => {
     lifecycleService = new LifecycleService(db);
     labelService = new LabelService(db);
     handlers = createMcpToolHandlers({
+      db,
       itemService,
       boardService,
       commentService,

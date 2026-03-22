@@ -67,20 +67,6 @@ export interface ExternalPmAdapter {
   linkChild(payload: SyncLinkChildPayload): Promise<void>;
 }
 
-/** Row shape for sync_queue table, inferred from schema. */
-export interface SyncQueueEntry {
-  id: number;
-  operation: string;
-  payload: string;
-  status: string;
-  retryCount: number;
-  lastError: string | null;
-  idempotencyKey: string | null;
-  itemId: number | null;
-  createdAt: string;
-  processedAt: string | null;
-}
-
 /** Options for the SyncWorker polling loop. */
 export interface SyncWorkerOptions {
   /** Polling interval in milliseconds. Default: 5000 (5 seconds). */

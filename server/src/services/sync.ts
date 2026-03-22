@@ -1,4 +1,4 @@
-import { eq, and, asc, inArray, sql } from "drizzle-orm";
+import { eq, asc, sql } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
 import type { SyncOperation } from "../types";
@@ -98,7 +98,7 @@ export class SyncService {
       }
     }
 
-    const now = new Date().toISOString();
+    const now = new Date(this.nowMs()).toISOString();
     const rows = this.db
       .insert(schema.syncQueue)
       .values({
@@ -134,11 +134,7 @@ export class SyncService {
     const pending = this.db
       .select()
       .from(schema.syncQueue)
-      .where(
-        and(
-          eq(schema.syncQueue.status, "pending")
-        )
-      )
+      .where(eq(schema.syncQueue.status, "pending"))
       .orderBy(asc(schema.syncQueue.id))
       .all();
 
@@ -286,7 +282,7 @@ export class SyncService {
       .update(schema.syncQueue)
       .set({
         status: "success",
-        processedAt: new Date().toISOString(),
+        processedAt: new Date(this.nowMs()).toISOString(),
       })
       .where(eq(schema.syncQueue.id, id))
       .run();
@@ -299,16 +295,16 @@ export class SyncService {
         status: "pending",
         lastError: error,
         retryCount,
-        processedAt: new Date().toISOString(),
+        processedAt: new Date(this.nowMs()).toISOString(),
       })
       .where(eq(schema.syncQueue.id, id))
       .run();
   }
 
   private markDeadLetter(id: number, error?: string, retryCount?: number): void {
-    const values: Record<string, unknown> = {
+    const values: Partial<typeof schema.syncQueue.$inferInsert> = {
       status: "dead_letter",
-      processedAt: new Date().toISOString(),
+      processedAt: new Date(this.nowMs()).toISOString(),
     };
     if (error !== undefined) values.lastError = error;
     if (retryCount !== undefined) values.retryCount = retryCount;

@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import type { drizzle } from "drizzle-orm/bun-sqlite";
 import { IdleTimeoutTracker } from "./lifecycle";
+import { registerRoutes } from "./api/routes";
 
 // ---------------------------------------------------------------------------
 // Health router (exported for testing without a running server)
@@ -32,6 +34,8 @@ export interface AppOptions {
   startTimeMs?: number;
   /** Idle timeout tracker — its touch() method is called on every request. */
   idleTracker?: IdleTimeoutTracker;
+  /** Drizzle DB connection — required for item CRUD routes. Omit in health-only tests. */
+  db?: ReturnType<typeof drizzle>;
 }
 
 /**
@@ -79,6 +83,10 @@ export function createApp(options: AppOptions = {}): Hono {
 
   // --- API routes ---
   app.route("/api", createHealthRouter(startTimeMs));
+
+  if (options.db) {
+    registerRoutes(app, options.db);
+  }
 
   // --- Global error handler ---
   app.onError((err, c) => {

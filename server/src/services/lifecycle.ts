@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../db/schema";
 import type { TelemetryModel } from "../types";
@@ -129,6 +129,7 @@ export class LifecycleService {
       .select()
       .from(schema.telemetry)
       .where(eq(schema.telemetry.itemId, itemId))
+      .orderBy(asc(schema.telemetry.createdAt))
       .all();
   }
 

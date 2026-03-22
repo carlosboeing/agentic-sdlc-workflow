@@ -22,7 +22,7 @@ import { LinkChildBodySchema, formatZodError } from "./validation";
  */
 export function createHierarchyRouter(
   hierarchyService: HierarchyService,
-  itemService?: ItemService
+  itemService: ItemService
 ): Hono {
   const router = new Hono();
 
@@ -77,11 +77,9 @@ export function createHierarchyRouter(
     }
 
     // Verify parent exists before listing children
-    if (itemService) {
-      const item = await itemService.get(parentId);
-      if (!item) {
-        return c.json({ error: `Item ${parentId} not found`, details: [] }, 404);
-      }
+    const item = await itemService.get(parentId);
+    if (!item) {
+      return c.json({ error: `Item ${parentId} not found`, details: [] }, 404);
     }
 
     const children = await hierarchyService.listChildren(parentId);

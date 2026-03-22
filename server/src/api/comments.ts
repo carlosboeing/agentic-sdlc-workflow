@@ -22,7 +22,7 @@ import { AddCommentBodySchema, formatZodError } from "./validation";
  */
 export function createCommentsRouter(
   commentService: CommentService,
-  itemService?: ItemService
+  itemService: ItemService
 ): Hono {
   const router = new Hono();
 
@@ -39,11 +39,9 @@ export function createCommentsRouter(
     }
 
     // Verify item exists before listing comments
-    if (itemService) {
-      const item = await itemService.get(id);
-      if (!item) {
-        return c.json({ error: `Item ${id} not found`, details: [] }, 404);
-      }
+    const item = await itemService.get(id);
+    if (!item) {
+      return c.json({ error: `Item ${id} not found`, details: [] }, 404);
     }
 
     const comments = await commentService.listComments(id);
@@ -63,11 +61,9 @@ export function createCommentsRouter(
     }
 
     // Verify item exists
-    if (itemService) {
-      const item = await itemService.get(id);
-      if (!item) {
-        return c.json({ error: `Item ${id} not found`, details: [] }, 404);
-      }
+    const existingItem = await itemService.get(id);
+    if (!existingItem) {
+      return c.json({ error: `Item ${id} not found`, details: [] }, 404);
     }
 
     let raw: unknown;

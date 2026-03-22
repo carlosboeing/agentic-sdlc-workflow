@@ -29,7 +29,7 @@ import {
  */
 export function createTelemetryRouter(
   lifecycleService: LifecycleService,
-  itemService?: ItemService
+  itemService: ItemService
 ): Hono {
   const router = new Hono();
 
@@ -110,11 +110,9 @@ export function createTelemetryRouter(
     }
 
     // Verify item exists
-    if (itemService) {
-      const item = await itemService.get(id);
-      if (!item) {
-        return c.json({ error: `Item ${id} not found`, details: [] }, 404);
-      }
+    const existingForPost = await itemService.get(id);
+    if (!existingForPost) {
+      return c.json({ error: `Item ${id} not found`, details: [] }, 404);
     }
 
     let raw: unknown;
@@ -146,11 +144,9 @@ export function createTelemetryRouter(
     }
 
     // Verify item exists
-    if (itemService) {
-      const item = await itemService.get(id);
-      if (!item) {
-        return c.json({ error: `Item ${id} not found`, details: [] }, 404);
-      }
+    const existingForGet = await itemService.get(id);
+    if (!existingForGet) {
+      return c.json({ error: `Item ${id} not found`, details: [] }, 404);
     }
 
     const rows = await lifecycleService.getTelemetry(id);

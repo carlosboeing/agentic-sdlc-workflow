@@ -143,6 +143,8 @@ export const syncQueue = sqliteTable("sync_queue", {
   }).notNull(),
   retryCount: integer("retry_count").notNull().default(0),
   lastError: text("last_error"),
+  idempotencyKey: text("idempotency_key"),
+  itemId: integer("item_id"),
   createdAt: text("created_at").notNull(),
   processedAt: text("processed_at"),
 });

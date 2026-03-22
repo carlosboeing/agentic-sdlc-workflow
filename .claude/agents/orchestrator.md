@@ -343,7 +343,13 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
 
 2. **Update changelog** (`docs/CHANGELOG.md`) with the new entry for this run.
 
-3. **Open ONE backlog PR:**
+3. **Update roadmap** (`docs/ROADMAP.md`):
+   - Mark the backlog item as Done (✅) with updated title and description
+   - Mark any absorbed issues as Done with a note (e.g., "#283 absorbed by #116")
+   - Update dependency graph styling (completed items use grey `#9ca3af`)
+   - Update priority table rows
+
+4. **Open ONE backlog PR:**
    ```bash
    gh pr create --base main --head backlog/<N>-<slug> \
      --title "<Backlog item title>" \
@@ -358,7 +364,7 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
    The `Closes` list MUST include all **open** issues: backlog, ALL epics, ALL stories. Already-closed issues (design, plan) must NOT use `Closes` — list them as `Related (already closed): #24, #25`. Using `Closes` on already-closed issues triggers board status reversions (evidence: Runs 3-16, observation iv).
 
-4. **Wait 5 seconds after opening PR, then run board reconciliation** (PR link triggers GitHub automations that may revert statuses):
+5. **Wait 5 seconds after opening PR, then run board reconciliation** (PR link triggers GitHub automations that may revert statuses):
    ```bash
    sleep 5
    ./scripts/reconcile-board.sh --from-state .agentic-workflow/runs/<N>/orchestrator.json \
@@ -407,7 +413,27 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
    Close retro issue (`item-close.sh`). Add to backlog PR as `Related (already closed): #<retro-issue>`.
 
-5. **Set backlog to In Review.** Re-verify ALL board statuses (defense against drift):
+5. **Documentation propagation (defense-in-depth).** After all fix cycles and retro are complete, verify that existing documentation reflects the changes made by this backlog item. This is the second pass — Phase 4 handled the mechanical updates (roadmap, changelog). This pass catches deeper stale references that require reading the code.
+
+   **What to check:**
+   - `README.md` — architecture diagrams, project structure, technology descriptions
+   - `CLAUDE.md` — conventions, helper script tables, configuration references
+   - Agent files (`.claude/agents/*.md`) — any references to changed concepts
+   - Historical design docs — add forward-reference notes when a design is superseded
+
+   **How to check:** Grep for the backlog item's key concepts (feature name, absorbed issues, changed file paths, replaced patterns). Review each hit and update if stale.
+
+   ```bash
+   # Example: search for concepts changed by this backlog item
+   grep -rn "<old-concept>\|<absorbed-issue>\|<replaced-pattern>" \
+     README.md CLAUDE.md .claude/agents/ docs/ROADMAP.md --include="*.md"
+   ```
+
+   Dispatch a builder if the updates are non-trivial (architecture diagrams, large sections). For small changes (a few lines), the orchestrator can edit directly. Commit on the integration branch.
+
+   **Evidence:** BL#116 shipped a complete server replacement of the file-based PM system, but README.md still showed `.workflow/items/` as the only persistence layer, ROADMAP.md listed the feature as "Future", and agent files referenced a non-existent `PROJECT.md`. All discovered post-merge by the human.
+
+6. **Set backlog to In Review.** Re-verify ALL board statuses (defense against drift):
    ```bash
    for ISSUE in <design> <plan> <retro>; do ./scripts/item-close.sh $ISSUE; done
    for ISSUE in <stories> <epics>; do ./scripts/item-set-status.sh $ISSUE in-review; done
@@ -415,7 +441,7 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
    This step is mandatory — do not skip even if prior status calls reported success.
 
-6. **DO NOT merge the backlog PR.** Leave open for human review.
+7. **DO NOT merge the backlog PR.** Leave open for human review.
 
 ### Phase 6: Telemetry + Cleanup
 

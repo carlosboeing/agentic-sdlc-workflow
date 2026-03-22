@@ -750,6 +750,13 @@ Changes to the SDLC workflow (scripts, board management, dispatch, telemetry, ag
 - Added a board transition step to the orchestrator but didn't update CLAUDE.md's board transitions section
 - Changed "post as comment" to "append to issue body" but only updated one of two agent files
 - Created or closed a backlog item but didn't update `docs/ROADMAP.md`
+- Shipped a feature that replaces a core system but didn't update README.md's architecture diagram or agent file references
+
+**Orchestrator enforcement (defense-in-depth):** Individual agents should propagate changes as they work, but the orchestrator provides two safety nets:
+1. **Phase 4:** Mechanically update `docs/ROADMAP.md` (mark backlog done, mark absorbed issues) and `docs/CHANGELOG.md`.
+2. **Phase 5 (after retro):** Grep for stale references to concepts changed by the backlog item across `README.md`, `CLAUDE.md`, agent files, and design docs. Fix or dispatch a builder to fix. This catches propagation failures that individual agents missed — especially cross-cutting changes like replacing a core subsystem (e.g., file-based PM → server-backed PM).
+
+Evidence: BL#116 shipped a complete server replacing the file-based PM, but README.md, ROADMAP.md, CLAUDE.md, and 6 agent files still referenced the old system. All discovered post-merge by the human.
 
 ### Agent File Maintenance
 

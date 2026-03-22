@@ -26,7 +26,7 @@ import { CommentThread } from "../components/CommentThread";
 import { DetachedComments } from "../components/DetachedComments";
 import { useDocument } from "../hooks/useDocument";
 import { useDocComments } from "../hooks/useDocComments";
-import { generateParagraphAnchors } from "../../../src/lib/anchors";
+import { generateParagraphAnchors } from "../lib/anchors";
 import { api } from "../lib/api";
 import type { DocumentEntry } from "../lib/types";
 

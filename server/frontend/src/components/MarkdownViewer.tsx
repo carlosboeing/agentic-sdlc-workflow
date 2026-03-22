@@ -13,6 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useEffect, useRef, useMemo } from "react";
 import { AnchoredParagraph } from "./AnchoredParagraph";
+import { slugifyHeading } from "../lib/anchors";
 import type { Comment } from "../lib/types";
 
 interface MarkdownViewerProps {
@@ -26,19 +27,6 @@ interface MarkdownViewerProps {
   activeAnchor?: string | null;
   /** Called when the user toggles a comment thread on an anchor. */
   onToggleAnchor?: (anchor: string) => void;
-}
-
-/**
- * Convert a heading text to a slug suitable for use as an HTML id.
- * Mirrors GitHub's heading anchor algorithm.
- */
-export function slugifyHeading(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 /**

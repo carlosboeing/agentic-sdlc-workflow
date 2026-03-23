@@ -1,6 +1,13 @@
 # Agentic workflow plugin runtime data
 .agentic-workflow/
 
+# Server
+server/node_modules/
+server/frontend/dist/
+
+# Browser automation / UI testing tools
+.playwright-mcp/
+
 # macOS
 .DS_Store
 __pycache__/

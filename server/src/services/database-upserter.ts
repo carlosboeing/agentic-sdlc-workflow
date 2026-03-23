@@ -222,6 +222,68 @@ export class DatabaseUpserter {
   }
 
   /**
+   * Upsert additional comments for a specific item without touching item fields.
+   *
+   * Used for comment overflow pagination: when an issue has more than 50 comments,
+   * the extra pages are fetched and inserted here rather than via `upsertPage`.
+   * This avoids overwriting real item data with stale or synthetic values.
+   *
+   * @param itemId - The item ID (GitHub issue number) to attach comments to.
+   * @param comments - Additional comment nodes to upsert.
+   * @returns Counts of created and updated comments.
+   */
+  async upsertComments(
+    itemId: number,
+    comments: Array<{ body: string; author: string; createdAt: string; updatedAt: string }>
+  ): Promise<{ commentsCreated: number; commentsUpdated: number }> {
+    if (comments.length === 0) {
+      return { commentsCreated: 0, commentsUpdated: 0 };
+    }
+
+    return this.db.transaction((tx) => {
+      let commentsCreated = 0;
+      let commentsUpdated = 0;
+
+      for (const comment of comments) {
+        const existingComment = tx
+          .select({ id: schema.comments.id })
+          .from(schema.comments)
+          .where(
+            and(
+              eq(schema.comments.itemId, itemId),
+              eq(schema.comments.createdAt, comment.createdAt),
+              eq(schema.comments.author, comment.author)
+            )
+          )
+          .all();
+
+        if (existingComment.length === 0) {
+          tx
+            .insert(schema.comments)
+            .values({
+              itemId,
+              body: comment.body,
+              author: comment.author,
+              createdAt: comment.createdAt,
+              updatedAt: comment.updatedAt,
+            })
+            .run();
+          commentsCreated++;
+        } else {
+          tx
+            .update(schema.comments)
+            .set({ body: comment.body, updatedAt: comment.updatedAt })
+            .where(eq(schema.comments.id, existingComment[0].id))
+            .run();
+          commentsUpdated++;
+        }
+      }
+
+      return { commentsCreated, commentsUpdated };
+    });
+  }
+
+  /**
    * Set parentId for child items based on the accumulated parent map.
    * Runs in a single SQLite transaction.
    *

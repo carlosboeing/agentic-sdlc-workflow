@@ -104,6 +104,29 @@ describe("createApp without db — item routes are absent (health-only mode)", (
 });
 
 // ---------------------------------------------------------------------------
+// Sync route wiring — createApp includes /api/sync/* when db is provided
+// ---------------------------------------------------------------------------
+
+describe("createApp with db — sync routes are active", () => {
+  test("GET /api/sync/status returns 200 when db is passed", async () => {
+    const app = createApp({ db });
+    const req = new Request("http://localhost/api/sync/status");
+    const res = await app.fetch(req);
+    // Route is registered — should respond (not 404)
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.state).toBe("idle");
+  });
+
+  test("GET /api/sync/status returns 404 without db (sync routes not registered)", async () => {
+    const app = createApp({}); // no db — sync routes should not be registered
+    const req = new Request("http://localhost/api/sync/status");
+    const res = await app.fetch(req);
+    expect(res.status).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // ServerOptions.db threading — verifies startServer() accepts and uses db
 // ---------------------------------------------------------------------------
 

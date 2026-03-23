@@ -11,7 +11,7 @@ related:
   - 2026-03-11-agentic-sdlc-workitem-taxonomy.md
 ---
 
-> **Note:** This document is historical context for its backlog item. For the current PM architecture (script layer, inline comments, dual-write adapters), see the [PM Architecture diagram in README.md](../../README.md#project-management-architecture).
+> **Note:** This document is historical context for its backlog item. The file-based PM system described here has been superseded by [BL#116 Workflow Runtime Service](2026-03-22-workflow-runtime-service-design.md), which replaces `.workflow/items/` with a SQLite database served by a persistent Bun server. The file adapter remains as a fallback. For the current PM architecture, see the [PM Architecture diagram in README.md](../../README.md#project-management-architecture).
 
 
 # Design: Local-First PM System

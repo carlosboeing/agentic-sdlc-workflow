@@ -12,6 +12,8 @@ related:
 
 # Design: Agentic SDLC Workflow Extraction & Packaging
 
+> **Historical note:** This document describes the original extraction design from March 2026. The dashboard section (Decision: Dashboard) proposed an ephemeral HTTP server with a self-contained SPA. This was superseded by [BL#116 Workflow Runtime Service](2026-03-22-workflow-runtime-service-design.md), which implements a persistent Bun server with SQLite, React SPA, MCP tools, sync engine, and document viewer — a more comprehensive architecture than originally envisioned here.
+
 ## Overview
 
 The NeuralNorris project contains an agentic SDLC workflow — specialized agents for design, architecture, building, review, and retrospectives, orchestrated through a structured lifecycle with telemetry, lessons, and convention evolution. This workflow is valuable beyond NeuralNorris and should be extracted into a standalone, project-agnostic package that anyone can adopt.

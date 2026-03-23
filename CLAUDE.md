@@ -88,7 +88,7 @@ Every design decision should consider the end-state architecture, but every impl
 
 ## Project Documentation
 
-- `docs/5-guides/PROJECT.md` — full architecture and technical overview
+- `README.md` — architecture overview, PM architecture diagram, project structure
 - `docs/1-discovery/VISION.md` — long-term vision and aspirations
 - `docs/CHANGELOG.md` — build history
 - `docs/2-design/` — feature design documents
@@ -145,9 +145,10 @@ Six specialized agents in `.claude/agents/`:
 - Never start work without a corresponding GitHub Issue
 - Use conventional commits: `<type>(<scope>): <description>`
 - **Never use `#N` in commit messages** unless intentionally referencing a GitHub issue. GitHub auto-links any `#N` pattern to issue N, so reviewer warning numbers, list indices, or other numbered references must use a format without `#` (e.g., `warning 4`, `W4`, `item 4`). The `Fixes #N` / `Closes #N` footer is the correct place for issue references.
-- Reference `docs/5-guides/PROJECT.md` for architecture context
+- Reference `README.md` for architecture context (PM architecture diagram, project structure, workflow overview)
 - Write lesson files when encountering bugs, unexpected behavior, or missing conventions (see Lesson Conventions below)
-- **Local PM items must be committed.** All scripts that create or modify work items (`item-create.sh`, `item-set-status.sh`, `item-start.sh`, `item-review.sh`, `item-close.sh`, `item-comment.sh`, `item-append-body.sh`, `item-telemetry.sh`) write to `.workflow/items/`. These files must be included in your commits (`git add .workflow/items/`). The integration branch (`backlog/<N>-<slug>`) is the source of truth for local PM state — all agent branches merge into it, keeping PM items in sync across agents.
+- **Browser automation / UI testing artifacts:** When taking screenshots or saving test artifacts using any browser automation tool (Playwright, Puppeteer, Cypress, Selenium, etc.), always save to a dedicated output directory (e.g., `.playwright-mcp/`, `.test-artifacts/`) — never to the project root or working directory. These artifacts should be gitignored. If the tool supports an `--output-dir` flag or equivalent configuration, use it.
+- **Local PM items must be committed (when using the local file adapter).** All scripts that create or modify work items (`item-create.sh`, `item-set-status.sh`, `item-start.sh`, `item-review.sh`, `item-close.sh`, `item-comment.sh`, `item-append-body.sh`, `item-telemetry.sh`) write to `.workflow/items/` when the PM adapter is `"local"` or `"github"`. These files must be included in your commits (`git add .workflow/items/`). The integration branch (`backlog/<N>-<slug>`) is the source of truth for local PM state — all agent branches merge into it, keeping PM items in sync across agents. **When the server adapter is active** (`pm.adapter: "server"` in config), PM data lives in SQLite (`.agentic-workflow/workflow.db`) and `.workflow/items/` files are not created — no commit needed. See `server/` directory and `docs/2-design/2026-03-22-workflow-runtime-service-design.md` for the server architecture.
 
 ### Branch Conventions
 
@@ -513,7 +514,7 @@ sleep 5  # allow automations to fire
 
 The script reads the state file, computes expected statuses deterministically, batch-queries actual statuses (1 API point), and fixes discrepancies. Call at every phase boundary and as a final step before workflow completion.
 
-**Update changelog:** The integration branch MUST include a `docs/CHANGELOG.md` entry before the PR is opened. Add the entry under the current date, following the existing format (feature summary + bullet points). For test run entries, include the wall-clock duration in the heading: `**Run N -- <Topic>** (backlog #NNN, 25m wall-clock)`. Read `session.lifecycle_duration_ms` from the orchestrator state file to get the exact duration — do not estimate.
+**Update changelog:** The integration branch MUST include a `docs/CHANGELOG.md` entry. Added during Phase 5 documentation propagation (after all fix cycles and retro are complete, when the code is final). Add the entry under the current date, following the existing format (feature summary + bullet points). For test run entries, include the wall-clock duration in the heading: `**Run N -- <Topic>** (backlog #NNN, 25m wall-clock)`. Read `session.lifecycle_duration_ms` from the orchestrator state file to get the exact duration — do not estimate.
 
 **Internal merges (epic → integration branch):** Epic branches merge into the integration branch using `--no-ff` merge (not squash). This is an internal merge — only the final PR to `main` uses squash. Design/plan PRs targeting the integration branch also use regular merge (`--merge`).
 
@@ -750,6 +751,11 @@ Changes to the SDLC workflow (scripts, board management, dispatch, telemetry, ag
 - Added a board transition step to the orchestrator but didn't update CLAUDE.md's board transitions section
 - Changed "post as comment" to "append to issue body" but only updated one of two agent files
 - Created or closed a backlog item but didn't update `docs/ROADMAP.md`
+- Shipped a feature that replaces a core system but didn't update README.md's architecture diagram or agent file references
+
+**Orchestrator enforcement:** Individual agents should propagate changes as they work, but the orchestrator provides a safety net in **Phase 5 (after all fix cycles and retro are complete)**: update `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `README.md`, `CLAUDE.md`, agent files, and historical design docs in a single pass when the code is final. This catches propagation failures that individual agents missed — especially cross-cutting changes like replacing a core subsystem. Documentation is not written earlier because PR review fix cycles and retro convention changes can invalidate it.
+
+Evidence: BL#116 shipped a complete server replacing the file-based PM, but README.md, ROADMAP.md, CLAUDE.md, and 6 agent files still referenced the old system. All discovered post-merge by the human.
 
 ### Agent File Maintenance
 

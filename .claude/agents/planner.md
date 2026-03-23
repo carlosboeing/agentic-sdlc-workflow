@@ -74,7 +74,7 @@ When your prompt does NOT include "autonomous", use the brainstorming skill and 
 
 ## Tech Stack
 
-Read the project's CLAUDE.md for the current tech stack, build commands, and architecture patterns. The planner must understand the existing codebase before decomposing work — read `docs/5-guides/PROJECT.md` if it exists for detailed architecture context.
+Read the project's CLAUDE.md for the current tech stack, build commands, and architecture patterns. The planner must understand the existing codebase before decomposing work — read `README.md` for architecture context (PM architecture diagram, project structure, workflow overview).
 
 ## Design Constraints
 
@@ -88,7 +88,7 @@ Read the project's CLAUDE.md for the current tech stack, build commands, and arc
 
 Before planning, read these files for context:
 
-- `docs/5-guides/PROJECT.md` — full architecture and technical overview
+- `README.md` — architecture overview, PM architecture diagram, project structure
 - `CLAUDE.md` — build commands, conventions, project structure
 - Approved design doc in `docs/2-design/` for the feature being planned
 

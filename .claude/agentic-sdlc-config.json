@@ -30,6 +30,12 @@
     "maxParallelBuilders": 3,
     "maxCostPerRun": null
   },
+  "server": {
+    "port": 3117,
+    "portRange": [3117, 3127],
+    "idleTimeoutMinutes": 240,
+    "logLevel": "info"
+  },
   "reviewStrategy": {
     "skipPerStoryReview": {
       "enabled": true,

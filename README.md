@@ -308,30 +308,46 @@ graph TB
             linr["Linear - future"]
             ado["Azure DevOps - future"]
         end
-        subgraph always["Always On"]
+        subgraph always["Always On (choose one)"]
             direction LR
+            server["SQLite via Server"]
             local[".workflow/items/id.md"]
         end
     end
 
-    agents -->|"agents only call scripts"| scripts
+    subgraph runtime["🖥️ Workflow Runtime Service (optional)"]
+        direction LR
+        dashboard["React Dashboard"]
+        mcptools["MCP Tools"]
+        docviewer["Document Viewer"]
+    end
+
+    agents -->|"agents only call scripts<br/>(or MCP tools)"| scripts
     scripts -->|"scripts call pm functions"| pm
     pm -->|"sync"| always
     pm -.->|"fire-and-forget"| optional
+    mcptools -->|"same service layer"| pm
+    server -.->|"serves"| dashboard
+    server -.->|"serves"| docviewer
 
+    style server fill:#059669,color:#fff
     style local fill:#059669,color:#fff
     style github fill:#3b82f6,color:#fff
     style jira fill:#6b7280,color:#fff
     style linr fill:#6b7280,color:#fff
     style ado fill:#6b7280,color:#fff
+    style dashboard fill:#7c3aed,color:#fff
+    style mcptools fill:#7c3aed,color:#fff
+    style docviewer fill:#7c3aed,color:#fff
 ```
 
 **Key design rules:**
 
-- **Agents only call wrapper scripts** (`scripts/item-*.sh`) — never `pm_*` functions or `gh` commands for PM operations
-- **Local persistence is always on** — every work item exists as a `.workflow/items/<id>.md` file with inline Activity Log (comments appended to the same file)
+- **Agents only call wrapper scripts** (`scripts/item-*.sh`) — or MCP tools when the server is running. Never `pm_*` functions or `gh` commands directly.
+- **Local persistence is always on** — either via the SQLite-backed server (recommended) or the `.workflow/items/` file adapter (fallback). The server adapter routes through HTTP to SQLite; the file adapter writes directly to disk. Both are always-on; external sync is separate.
 - **External sync is optional** — GitHub is the current adapter; future adapters (Jira, Linear, Azure DevOps) plug in without changing any layer above
-- **Dual-write is transparent** — `pm.sh` auto-generates wrappers at load time that call local (sync) then external (fire-and-forget)
+- **Dual-write is transparent** — `pm.sh` auto-generates wrappers at load time that call local (sync) then external (fire-and-forget). When the server adapter is active, the server handles external sync internally via a durable queue with retry.
+- **MCP tools as a first-class interface** — the server exposes 13 MCP tools (create_item, set_status, add_comment, etc.) via `.mcp.json` auto-discovery. Agents can use MCP tools directly instead of routing through shell scripts.
 
 
 ---
@@ -459,28 +475,40 @@ The workflow enforces several safety mechanisms:
   agents/                  ← Agent definitions (9 files: orchestrator, designer,
                              planner, builder + 3 variants, reviewer, retro)
   hooks/                   ← Claude Code hooks (logging)
-  agentic-sdlc-config.json ← Workflow configuration (model routing, board IDs, pricing)
+  agentic-sdlc-config.json ← Workflow configuration (model routing, board IDs, pricing, server)
   settings.json            ← Permissions and hook registration
 
+.mcp.json                  ← MCP server registration (Claude Code auto-discovers this)
+
 .agentic-workflow/         ← Runtime data (gitignored)
+  workflow.db              ← SQLite database (when server is running)
+  server.pid / server.port ← Daemon process management
   pricing.json             ← Cached API pricing (fetched live each run)
   runs/<backlog>/          ← Per-run orchestrator state
-  logs/                    ← Diagnostic logs (board status, drift detection)
+
+server/                    ← Workflow Runtime Service (Bun + TypeScript)
+  src/
+    db/                    ← Drizzle ORM schema, migrations, connection
+    services/              ← PM service layer (items, board, comments, hierarchy, labels, lifecycle, sync)
+    api/                   ← Hono HTTP API routes (20+ endpoints)
+    mcp/                   ← MCP server (13 tools via stdio transport)
+    adapters/              ← External sync adapters (GitHub)
+  frontend/                ← React SPA dashboard
+    src/
+      components/          ← Kanban board, activity feed, comment threads, etc.
+      pages/               ← Dashboard, item detail, telemetry, document viewer
+      hooks/               ← useWebSocket, useItems, useDocument
+  tests/                   ← ~500 tests (services, API, MCP, frontend)
 
 scripts/
-  item-set-status.sh     ← Board status transitions
-  item-start.sh          ← Mark story as started
-  item-review.sh         ← Mark story as ready for review
-  item-telemetry.sh      ← Post telemetry to issues/PRs
-  item-close.sh          ← Close issue and set board to Done
-  item-create.sh ← Create backlog item with board setup
-  fetch-pricing.sh        ← Fetch current Anthropic API pricing
-  cleanup-post-merge.sh   ← Post-merge branch and state cleanup
-  check-board-drift.sh    ← Detect board status persistence drift
-  dispatch-story.sh       ← CLI dispatch for standalone use
-  dispatch-workflow.sh    ← CLI full lifecycle dispatch
-  lib/config.sh           ← Shared config reader
-  templates/telemetry.md  ← Telemetry comment template
+  item-*.sh                ← PM wrapper scripts (work with both server and file adapters)
+  lib/
+    pm.sh                  ← PM abstraction layer (adapter routing)
+    adapters/pm/server/    ← Server PM adapter (HTTP→SQLite, with fallback to local files)
+    adapters/pm/github/    ← GitHub external adapter
+    adapters/pm/local/     ← Local file adapter (.workflow/items/)
+    config.sh              ← Shared config reader
+  templates/telemetry.md   ← Telemetry comment template
 
 docs/
   1-discovery/     ← Research, analysis, and roadmap
@@ -508,19 +536,31 @@ For example, Run 9 discovered a cross-contamination bug in parallel dispatch and
 
 ---
 
-## Test Runs
+## Runs
 
-14 test runs have validated the workflow across progressively complex scenarios. Runs 1-7 were in the original NeuralNorris repo; Runs 8-14 are in this repo.
+The workflow has been validated through 16 test runs (creative content workloads) and multiple real feature implementations. Runs 1-7 were in the original NeuralNorris repo; Runs 8+ are in this repo.
+
+### Real Feature Builds
+
+| Backlog | Feature | Stories | Epics | Cost |
+|---------|---------|---------|-------|------|
+| [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | Workflow Runtime Service (Bun server, dashboard, MCP, doc viewer) | 19 | 6 | ~$50 |
+| [#227](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/227) | Dual-Write PM Layer | 6 | 2 | ~$8 |
+| [#111](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111) | Local-First PM System | 10 | 3 | ~$14 |
+| [#109](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109) | PM Abstraction Layer | 10 | 3 | ~$13 |
+
+### Test Runs (creative content)
 
 | Run | Backlog | Theme | Primary Test | Stories | Cost |
 |-----|---------|-------|-------------|---------|------|
-| 14 | [#83](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/83) | Interdimensional Health Inspections | Fix cycle validation, cross-epic merge | 12 | ~$11.34 |
-| 13 | [#69](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/69) | Alien Tourist Bureau | Runtime data, live pricing, dispatches-from-state | 6 | ~$4.83 |
-| 12 | [#56](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/56) | Time Traveler's Yelp Reviews | Configurable settings, model routing | 5 | ~$2.59 |
-| 11 | [#41](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/41) | Board Drift Detection + Fairy Tale HR | Board drift detection, 3-way parallel | 6 | ~$6.57 |
-| 10 | [#27](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/27) | Orchestrator Logging + Nature Doc S2 | Orchestrator logging infrastructure | 6 | ~$5.50 |
-| 9 | [#14](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/14) | CIA Cat Field Reports | Full autonomous lifecycle | 5 | ~$4.44 |
-| 8 | [#1](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/1) | Office Nature Documentary | Worktree isolation | 5 | ~$3.50 |
+| 17 | [#303](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/303) | Three-Body Survival Gazette | Full v2 workflow | 6 | ~$7 |
+| 15 | [#290](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/290) | Supernatural Pet Adoption Agency | Universal worktree isolation | 6 | ~$8 |
+| 14 | [#83](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/83) | Interdimensional Health Inspections | Fix cycle validation, cross-epic merge | 12 | ~$11 |
+| 13 | [#69](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/69) | Alien Tourist Bureau | Runtime data, live pricing, dispatches-from-state | 6 | ~$5 |
+| 12 | [#56](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/56) | Time Traveler's Yelp Reviews | Configurable settings, model routing | 5 | ~$3 |
+| 11 | [#41](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/41) | Board Drift Detection + Fairy Tale HR | Board drift detection, 3-way parallel | 6 | ~$7 |
+| 9 | [#14](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/14) | CIA Cat Field Reports | Full autonomous lifecycle | 5 | ~$4 |
+| 8 | [#1](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/1) | Office Nature Documentary | Worktree isolation | 5 | ~$4 |
 
 ---
 

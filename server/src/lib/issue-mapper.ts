@@ -147,7 +147,7 @@ export class IssueMapper {
         title: node.title,
         body: node.body,
         type: this._deriveType(labelNames),
-        status: this._deriveStatus(node.projectItems.nodes),
+        status: this._deriveStatus(node.projectItems.nodes, node.state),
         state: node.state === "OPEN" ? "open" : "closed",
         externalId: String(node.number),
         externalUrl: node.url,
@@ -183,8 +183,14 @@ export class IssueMapper {
     return "story";
   }
 
-  private _deriveStatus(projectItems: GitHubProjectItemNode[]): BoardStatus {
-    if (projectItems.length === 0) return "backlog";
+  private _deriveStatus(
+    projectItems: GitHubProjectItemNode[],
+    issueState: string
+  ): BoardStatus {
+    // Fallback: closed issues without board status → "done"
+    const fallback: BoardStatus = issueState === "CLOSED" ? "done" : "backlog";
+
+    if (projectItems.length === 0) return fallback;
 
     // Use the first project item (issues belong to at most one relevant project)
     const fieldValues = projectItems[0].fieldValues.nodes;
@@ -193,11 +199,11 @@ export class IssueMapper {
       if (fv.field?.name === "Status" && fv.name) {
         const normalized = fv.name.toLowerCase();
         const mapped = STATUS_MAP[normalized];
-        return mapped ?? "backlog";
+        return mapped ?? fallback;
       }
     }
 
     // Status field not found in fieldValues
-    return "backlog";
+    return fallback;
   }
 }

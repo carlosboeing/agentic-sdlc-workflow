@@ -48,6 +48,10 @@ export type ActivityEventType =
   | "sync:queued"
   | "sync:completed"
   | "sync:failed"
+  | "sync:pull:started"
+  | "sync:pull:progress"
+  | "sync:pull:complete"
+  | "sync:pull:error"
   | "server:started"
   | "server:stopped";
 

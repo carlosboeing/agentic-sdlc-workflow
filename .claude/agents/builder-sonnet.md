@@ -167,7 +167,7 @@ Before writing code, ask yourself these questions. Most fix cycles come from bui
 
 2. **What else needs to know this exists?** When you add a feature, other parts of the system may need to react. If you add a new event type, does the WebSocket hub broadcast it? If you add a new API endpoint, does the client wrapper have a method for it? If you add a dependency, is it in the correct section of package.json?
 
-3. **Is every file I created imported by production code?** Trace each new file's import chain back to an entry point (server startup, route registration, component tree, etc.). If a file isn't reachable from any entry point, it's dead code — either wire it in or delete it. Don't confuse test coverage with reachability: a file can have passing tests but still be dead code if nothing in production imports it.
+3. **Can I delete any file I created and have no test fail?** If yes, you have dead code. Every file should be imported by production code or directly tested. Orphan files (created but never wired in) are the most common reviewer finding.
 
 4. **Am I duplicating logic that exists elsewhere?** Search the codebase before writing a utility function. If similar logic exists, import it or extract a shared module. If you must duplicate (e.g., frontend can't import from backend), document the duplication with a comment linking to the canonical source.
 

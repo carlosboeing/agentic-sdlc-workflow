@@ -69,6 +69,7 @@ function makeMockMapper() {
 function makeMockUpserter() {
   return {
     upsertPage: mock(() => ({ created: 0, updated: 0, labelsCreated: 0, commentsCreated: 0, commentsUpdated: 0 })),
+    upsertComments: mock(() => ({ commentsCreated: 0, commentsUpdated: 0 })),
     linkHierarchy: mock(() => 0),
   };
 }
@@ -432,5 +433,198 @@ describe("PullSyncService pointsConsumed", () => {
 
     // Points consumed = initial (4500) - final (4450) = 50
     expect(result.pointsConsumed).toBe(50);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PullSyncService pre-flight rate limit check (W2)
+// ---------------------------------------------------------------------------
+
+describe("PullSyncService pre-flight rate limit check", () => {
+  test("calls fetchRateLimit before fetching pages", async () => {
+    const fetcher = makeMockFetcher([makeIssuePage(2)]);
+    const mapper = makeMockMapper();
+    const upserter = makeMockUpserter();
+
+    const service = new PullSyncService(fetcher as never, mapper as never, upserter as never);
+    await service.pullSync();
+
+    expect(fetcher.fetchRateLimit.mock.calls.length).toBe(1);
+  });
+
+  test("aborts with error when pre-flight remaining is below threshold", async () => {
+    const fetcher = {
+      fetchRateLimit: mock(async (): Promise<GitHubRateLimitResponse> => ({
+        remaining: 400,
+        resetAt: "2026-01-01T02:00:00Z",
+      })),
+      fetchAllPages: mock(async function* () {
+        yield makeIssuePage(2);
+      }),
+      fetchCommentPage: mock(async () => ({
+        pageInfo: { hasNextPage: false, endCursor: null },
+        nodes: [],
+      })),
+    };
+    const mapper = makeMockMapper();
+    const upserter = makeMockUpserter();
+
+    const service = new PullSyncService(fetcher as never, mapper as never, upserter as never);
+    await expect(service.pullSync()).rejects.toThrow(/rate limit/i);
+
+    // Should NOT have fetched any pages
+    expect(fetcher.fetchAllPages.mock.calls.length).toBe(0);
+  });
+
+  test("pre-flight error message includes resetAt timestamp", async () => {
+    const fetcher = {
+      fetchRateLimit: mock(async (): Promise<GitHubRateLimitResponse> => ({
+        remaining: 100,
+        resetAt: "2026-01-01T02:00:00Z",
+      })),
+      fetchAllPages: mock(async function* () {
+        yield makeIssuePage(2);
+      }),
+      fetchCommentPage: mock(async () => ({
+        pageInfo: { hasNextPage: false, endCursor: null },
+        nodes: [],
+      })),
+    };
+    const mapper = makeMockMapper();
+    const upserter = makeMockUpserter();
+
+    const service = new PullSyncService(fetcher as never, mapper as never, upserter as never);
+    await expect(service.pullSync()).rejects.toThrow("2026-01-01T02:00:00Z");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PullSyncService comment overflow — upsertComments (C1)
+// ---------------------------------------------------------------------------
+
+describe("PullSyncService comment overflow upsertComments", () => {
+  test("calls upsertComments instead of upsertPage for overflow comments", async () => {
+    const issueWithOverflow = {
+      number: 42,
+      title: "Heavy issue",
+      body: "lots of comments",
+      state: "OPEN" as const,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      url: "https://github.com/owner/repo/issues/42",
+      parent: null,
+      labels: { nodes: [] },
+      projectItems: { nodes: [] },
+      comments: {
+        totalCount: 55,
+        pageInfo: { hasNextPage: true, endCursor: "cursor_at_50" },
+        nodes: Array.from({ length: 50 }, (_, i) => ({
+          body: `Comment ${i + 1}`,
+          author: { login: "user" },
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        })),
+      },
+    };
+
+    const issuePage: GitHubIssuePage = {
+      totalCount: 1,
+      pageInfo: { hasNextPage: false, endCursor: null },
+      rateLimitRemaining: 4500,
+      nodes: [issueWithOverflow],
+    };
+
+    const overflowComments = [
+      { body: "Comment 51", author: { login: "user" }, createdAt: "2026-01-02T00:01:00Z", updatedAt: "2026-01-02T00:01:00Z" },
+      { body: "Comment 52", author: { login: "user" }, createdAt: "2026-01-02T00:02:00Z", updatedAt: "2026-01-02T00:02:00Z" },
+    ];
+
+    const fetcher = {
+      fetchRateLimit: mock(async (): Promise<GitHubRateLimitResponse> => ({
+        remaining: 4500,
+        resetAt: "2026-01-01T01:00:00Z",
+      })),
+      fetchAllPages: mock(async function* () {
+        yield issuePage;
+      }),
+      fetchCommentPage: mock(async () => ({
+        pageInfo: { hasNextPage: false, endCursor: null },
+        nodes: overflowComments,
+      })),
+    };
+
+    const mapper = makeMockMapper();
+    const upserter = makeMockUpserter();
+    upserter.upsertComments.mockReturnValue({ commentsCreated: 2, commentsUpdated: 0 });
+
+    const service = new PullSyncService(fetcher as never, mapper as never, upserter as never);
+    const result = await service.pullSync();
+
+    // upsertComments should be called for the overflow, not upsertPage
+    expect(upserter.upsertComments.mock.calls.length).toBe(1);
+    const [itemId, comments] = upserter.upsertComments.mock.calls[0] as [number, unknown[]];
+    expect(itemId).toBe(42);
+    expect(comments).toHaveLength(2);
+
+    // upsertPage should only be called once (for the main page), not for overflow
+    expect(upserter.upsertPage.mock.calls.length).toBe(1);
+
+    // Overflow comment counts should be reflected in the result
+    expect(result.commentsCreated).toBe(2);
+  });
+
+  test("does not overwrite item data when fetching overflow comments", async () => {
+    const issueWithOverflow = {
+      number: 7,
+      title: "Real Title",
+      body: "Real body",
+      state: "OPEN" as const,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      url: "https://github.com/owner/repo/issues/7",
+      parent: null,
+      labels: { nodes: [] },
+      projectItems: { nodes: [] },
+      comments: {
+        totalCount: 55,
+        pageInfo: { hasNextPage: true, endCursor: "cursor_overflow" },
+        nodes: [],
+      },
+    };
+
+    const issuePage: GitHubIssuePage = {
+      totalCount: 1,
+      pageInfo: { hasNextPage: false, endCursor: null },
+      rateLimitRemaining: 4500,
+      nodes: [issueWithOverflow],
+    };
+
+    const fetcher = {
+      fetchRateLimit: mock(async (): Promise<GitHubRateLimitResponse> => ({
+        remaining: 4500,
+        resetAt: "2026-01-01T01:00:00Z",
+      })),
+      fetchAllPages: mock(async function* () {
+        yield issuePage;
+      }),
+      fetchCommentPage: mock(async () => ({
+        pageInfo: { hasNextPage: false, endCursor: null },
+        nodes: [{ body: "Extra comment", author: { login: "u" }, createdAt: "2026-01-02T00:00:00Z", updatedAt: "2026-01-02T00:00:00Z" }],
+      })),
+    };
+
+    const mapper = makeMockMapper();
+    const upserter = makeMockUpserter();
+
+    const service = new PullSyncService(fetcher as never, mapper as never, upserter as never);
+    await service.pullSync();
+
+    // upsertPage should only receive the real mapped issue (not a synthetic dummy)
+    expect(upserter.upsertPage.mock.calls.length).toBe(1);
+    const [mappedIssues] = upserter.upsertPage.mock.calls[0] as [Array<{ item: { title: string } }>];
+    // All items passed to upsertPage should have real titles (not empty string from a synthetic dummy)
+    for (const issue of mappedIssues) {
+      expect(issue.item.title).not.toBe("");
+    }
   });
 });

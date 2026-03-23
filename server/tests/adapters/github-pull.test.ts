@@ -355,6 +355,28 @@ describe("GitHubPullFetcher.fetchAllPages", () => {
     expect(thrownError).toBeDefined();
     expect((thrownError as Error).message).toMatch(/rate limit|points/i);
   });
+
+  test("rate limit abort error includes resetAt timestamp, not cursor", async () => {
+    // Page with low rate limit — should abort with the resetAt from rateLimit response
+    runGhSpy.mockResolvedValueOnce(
+      makePageResponse([makeIssueNode({ number: 1 })], true, "cursor_opaque_base64", 2, 400)
+    );
+
+    let thrownError: unknown;
+    try {
+      for await (const _page of fetcher.fetchAllPages()) {
+        // consumed
+      }
+    } catch (err) {
+      thrownError = err;
+    }
+
+    expect(thrownError).toBeDefined();
+    const message = (thrownError as Error).message;
+    // Must include the resetAt timestamp, not the pagination cursor
+    expect(message).toContain("2026-01-01T01:00:00Z");
+    expect(message).not.toContain("cursor_opaque_base64");
+  });
 });
 
 // ---------------------------------------------------------------------------

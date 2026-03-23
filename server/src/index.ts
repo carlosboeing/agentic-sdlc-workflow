@@ -5,6 +5,7 @@
  *   bun run src/index.ts start   — Start the daemon (returns immediately to caller)
  *   bun run src/index.ts stop    — Stop a running daemon
  *   bun run src/index.ts status  — Print running status
+ *   bun run src/index.ts sync    — One-shot pull sync from GitHub and exit
  *   bun run src/index.ts mcp     — Start as MCP server (stdio transport)
  *
  * All log output goes to stderr.  stdout is reserved for MCP JSON-RPC messages.
@@ -18,7 +19,7 @@
  */
 
 import { resolve, join, dirname } from "node:path";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import {
   readPidFile,
   readPortFile,
@@ -39,6 +40,12 @@ import { migrateFromItems } from "./db/seed";
 import * as schema from "./db/schema";
 import { createMcpServer } from "./mcp/server";
 import { connectStdioTransport } from "./mcp/transport";
+import { GitHubPullFetcher } from "./adapters/github-pull";
+import { IssueMapper } from "./lib/issue-mapper";
+import { DatabaseUpserter } from "./services/database-upserter";
+import { PullSyncService } from "./services/pull-sync";
+import { runStartupSeed, commandSync } from "./index-internals";
+import type { drizzle } from "drizzle-orm/bun-sqlite";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -73,6 +80,40 @@ const MIGRATIONS_FOLDER = resolve(
 const ITEMS_DIR = join(REPO_ROOT, ".workflow", "items");
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the GitHub repo from the config file.
+ * Falls back to an empty string if the config is missing or malformed.
+ */
+function readGitHubRepo(repoRoot: string): string {
+  const configPath = join(repoRoot, ".claude", "agentic-sdlc-config.json");
+  if (!existsSync(configPath)) return "";
+  try {
+    const raw = readFileSync(configPath, "utf8");
+    const parsed = JSON.parse(raw) as { github?: { repo?: string } };
+    return parsed.github?.repo ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Create a PullSyncService wired with real dependencies.
+ * Used by both the `sync` command and startup seed logic.
+ */
+function createPullSyncService(
+  db: ReturnType<typeof drizzle>
+): PullSyncService {
+  const repo = readGitHubRepo(REPO_ROOT);
+  const fetcher = new GitHubPullFetcher({ repo });
+  const mapper = new IssueMapper();
+  const upserter = new DatabaseUpserter(db);
+  return new PullSyncService(fetcher, mapper, upserter);
+}
+
+// ---------------------------------------------------------------------------
 // Command dispatch
 // ---------------------------------------------------------------------------
 
@@ -95,15 +136,42 @@ switch (command) {
   case "status":
     await commandStatus();
     break;
+  case "sync":
+    await commandSyncEntry();
+    break;
   case "mcp":
     await commandMcp();
     break;
   default:
     process.stderr.write(`Unknown command: ${command}\n`);
     process.stderr.write(
-      "Usage: bun run src/index.ts [start|stop|status|mcp]\n"
+      "Usage: bun run src/index.ts [start|stop|status|sync|mcp]\n"
     );
     process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// sync command — one-shot pull sync and exit
+// ---------------------------------------------------------------------------
+
+async function commandSyncEntry(): Promise<void> {
+  ensureWorkDir();
+
+  process.stderr.write(`[db] Opening database at ${DB_PATH}\n`);
+  const { db, sqlite } = createDatabase(DB_PATH);
+  migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  process.stderr.write("[db] Migrations applied.\n");
+
+  const pullSyncService = createPullSyncService(db);
+
+  await commandSync({
+    pullSyncService,
+    stderrWrite: (msg) => process.stderr.write(msg),
+    processExit: (code) => {
+      closeDatabase(sqlite);
+      process.exit(code);
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -217,24 +285,20 @@ async function commandStartForeground(): Promise<void> {
   migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
   process.stderr.write("[db] Migrations applied.\n");
 
-  // Run data migration on first startup: import .workflow/items/ if DB is empty.
-  // Idempotent — safe to run every time; skips items that already exist.
+  // Run data seed on first startup: attempt pull sync, fall back to file seed.
   const existingItemCount = db
     .select({ id: schema.items.id })
     .from(schema.items)
     .all().length;
-  if (existingItemCount === 0 && existsSync(ITEMS_DIR)) {
-    process.stderr.write(
-      "[seed] Database is empty — importing .workflow/items/\n"
-    );
-    const seedResult = await migrateFromItems(db, ITEMS_DIR);
-    process.stderr.write(
-      `[seed] Imported ${seedResult.itemsImported} items, ` +
-        `${seedResult.labelsCreated} labels, ` +
-        `${seedResult.relationshipsLinked} relationships, ` +
-        `${seedResult.commentsImported} comments.\n`
-    );
-  }
+
+  await runStartupSeed({
+    existingItemCount,
+    pullSyncService: createPullSyncService(db),
+    itemsDir: ITEMS_DIR,
+    itemsDirExists: existsSync(ITEMS_DIR),
+    migrateFromItems: (_, dir) => migrateFromItems(db, dir as string),
+    stderrWrite: (msg) => process.stderr.write(msg),
+  });
 
   const startTimeMs = Date.now();
 
@@ -369,24 +433,20 @@ async function commandMcp(): Promise<void> {
   migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
   process.stderr.write("[db] Migrations applied.\n");
 
-  // Run data migration on first startup: import .workflow/items/ if DB is empty.
-  // Idempotent — safe to run every time; skips items that already exist.
+  // Run data seed on first startup: attempt pull sync, fall back to file seed.
   const existingItemCount = db
     .select({ id: schema.items.id })
     .from(schema.items)
     .all().length;
-  if (existingItemCount === 0 && existsSync(ITEMS_DIR)) {
-    process.stderr.write(
-      "[seed] Database is empty — importing .workflow/items/\n"
-    );
-    const seedResult = await migrateFromItems(db, ITEMS_DIR);
-    process.stderr.write(
-      `[seed] Imported ${seedResult.itemsImported} items, ` +
-        `${seedResult.labelsCreated} labels, ` +
-        `${seedResult.relationshipsLinked} relationships, ` +
-        `${seedResult.commentsImported} comments.\n`
-    );
-  }
+
+  await runStartupSeed({
+    existingItemCount,
+    pullSyncService: createPullSyncService(db),
+    itemsDir: ITEMS_DIR,
+    itemsDirExists: existsSync(ITEMS_DIR),
+    migrateFromItems: (_, dir) => migrateFromItems(db, dir as string),
+    stderrWrite: (msg) => process.stderr.write(msg),
+  });
 
   const startTimeMs = Date.now();
   const idleTimeoutMs = config.idleTimeoutMinutes * 60 * 1000;

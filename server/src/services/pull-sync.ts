@@ -95,7 +95,7 @@ export interface UpsertCommentsResult {
 
 /** Upserts mapped issues into SQLite. */
 export interface DatabaseUpserter {
-  upsertPage(issues: MappedIssue[]): UpsertPageResult;
+  upsertPage(issues: MappedIssue[]): UpsertPageResult | Promise<UpsertPageResult>;
   /**
    * Upsert additional comments for a specific item without touching any item fields.
    * Used for comment overflow pagination — avoids overwriting real item data with dummy values.
@@ -106,8 +106,8 @@ export interface DatabaseUpserter {
   upsertComments(
     itemId: number,
     comments: MappedIssue["comments"]
-  ): UpsertCommentsResult;
-  linkHierarchy(parentMap: Map<number, number>): number;
+  ): UpsertCommentsResult | Promise<UpsertCommentsResult>;
+  linkHierarchy(parentMap: Map<number, number>): number | Promise<number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +214,7 @@ export class PullSyncService {
         }
 
         // Upsert this page
-        const upsertResult = this.upserter.upsertPage(mappedIssues);
+        const upsertResult = await this.upserter.upsertPage(mappedIssues);
         result.itemsCreated += upsertResult.created;
         result.itemsUpdated += upsertResult.updated;
         result.labelsCreated += upsertResult.labelsCreated;
@@ -242,7 +242,7 @@ export class PullSyncService {
             updatedAt: n.updatedAt,
           }));
 
-          const overflowResult = this.upserter.upsertComments(overflow.number, additionalComments);
+          const overflowResult = await this.upserter.upsertComments(overflow.number, additionalComments);
           result.commentsCreated += overflowResult.commentsCreated;
           result.commentsUpdated += overflowResult.commentsUpdated;
 
@@ -251,7 +251,7 @@ export class PullSyncService {
       }
 
       // Link parent-child hierarchy in a final pass
-      result.hierarchyLinked = this.upserter.linkHierarchy(parentMap);
+      result.hierarchyLinked = await this.upserter.linkHierarchy(parentMap);
 
       // Compute points consumed
       if (initialRateLimitRemaining !== null && finalRateLimitRemaining !== null) {

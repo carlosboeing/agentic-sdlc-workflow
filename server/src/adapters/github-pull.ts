@@ -70,6 +70,8 @@ export interface GitHubIssuePage {
   pageInfo: { hasNextPage: boolean; endCursor: string | null };
   /** Remaining GraphQL points from the page response rateLimit field. */
   rateLimitRemaining: number;
+  /** ISO timestamp when the rate limit resets, from the page response rateLimit field. */
+  rateLimitResetAt: string;
   nodes: GitHubIssueNode[];
 }
 
@@ -292,8 +294,9 @@ query($owner: String!, $name: String!, $first: Int!, $cursor: String) {
 
       const { totalCount, pageInfo, nodes } = issuesConn.repository.issues;
       const rateLimitRemaining = issuesConn.rateLimit?.remaining ?? 5000;
+      const rateLimitResetAt = issuesConn.rateLimit?.resetAt ?? "";
 
-      return { totalCount, pageInfo, nodes, rateLimitRemaining };
+      return { totalCount, pageInfo, nodes, rateLimitRemaining, rateLimitResetAt };
     }
 
     throw lastError ?? new Error("fetchPage failed: unknown error after retries");
@@ -319,7 +322,7 @@ query($owner: String!, $name: String!, $first: Int!, $cursor: String) {
 
       if (page.rateLimitRemaining < rateLimitThreshold) {
         throw new Error(
-          `Rate limit: remaining points (${page.rateLimitRemaining}) below threshold (${rateLimitThreshold}). Resets at ${page.pageInfo.endCursor ?? "unknown"}.`
+          `Rate limit: remaining points (${page.rateLimitRemaining}) below threshold (${rateLimitThreshold}). Resets at ${page.rateLimitResetAt || "unknown"}.`
         );
       }
 

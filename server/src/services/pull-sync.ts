@@ -87,9 +87,26 @@ export interface UpsertPageResult {
   commentsUpdated: number;
 }
 
+/** Result of upserting comments only (no item data). */
+export interface UpsertCommentsResult {
+  commentsCreated: number;
+  commentsUpdated: number;
+}
+
 /** Upserts mapped issues into SQLite. */
 export interface DatabaseUpserter {
   upsertPage(issues: MappedIssue[]): UpsertPageResult;
+  /**
+   * Upsert additional comments for a specific item without touching any item fields.
+   * Used for comment overflow pagination — avoids overwriting real item data with dummy values.
+   *
+   * @param itemId - The item ID (GitHub issue number) to attach comments to.
+   * @param comments - Additional comment nodes to upsert.
+   */
+  upsertComments(
+    itemId: number,
+    comments: MappedIssue["comments"]
+  ): UpsertCommentsResult;
   linkHierarchy(parentMap: Map<number, number>): number;
 }
 
@@ -131,6 +148,15 @@ export class PullSyncService {
    */
   async pullSync(_options?: PullSyncOptions): Promise<PullSyncResult> {
     const startMs = Date.now();
+
+    // Pre-flight: verify rate limit budget before starting the sync.
+    const rateLimitThreshold = 500;
+    const preflightRateLimit = await this.fetcher.fetchRateLimit();
+    if (preflightRateLimit.remaining < rateLimitThreshold) {
+      throw new Error(
+        `Rate limit: remaining points (${preflightRateLimit.remaining}) below threshold (${rateLimitThreshold}). Resets at ${preflightRateLimit.resetAt}.`
+      );
+    }
 
     const result: PullSyncResult = {
       totalIssues: 0,
@@ -202,13 +228,13 @@ export class PullSyncService {
         });
       }
 
-      // Fetch additional comment pages for overflow issues
+      // Fetch additional comment pages for overflow issues.
+      // Use upsertComments (not upsertPage) to avoid overwriting real item data with dummy values.
       for (const overflow of overflowIssues) {
         let cursor: string | null = overflow.cursor;
         while (cursor !== null) {
           const commentPage = await this.fetcher.fetchCommentPage(overflow.number, cursor);
 
-          // Build a minimal mapped issue for the additional comments only
           const additionalComments = commentPage.nodes.map(n => ({
             body: n.body,
             author: n.author?.login ?? "unknown",
@@ -216,30 +242,7 @@ export class PullSyncService {
             updatedAt: n.updatedAt,
           }));
 
-          // Delegate upsert of overflow comments to upserter as a single-comment page
-          // We pass a synthetic page containing just the extra comments for the item.
-          // The upserter's upsertPage handles partial updates via conflict resolution.
-          const syntheticMapped: MappedIssue = {
-            item: {
-              id: overflow.number,
-              title: "",
-              body: null,
-              type: "story",
-              status: "backlog",
-              state: "open",
-              externalId: String(overflow.number),
-              externalUrl: "",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            labels: [],
-            parentNumber: null,
-            comments: additionalComments,
-          };
-
-          // Use upsertPage with a flag-like pattern: pass comments only
-          // (the item already exists from the main page upsert)
-          const overflowResult = this.upserter.upsertPage([syntheticMapped]);
+          const overflowResult = this.upserter.upsertComments(overflow.number, additionalComments);
           result.commentsCreated += overflowResult.commentsCreated;
           result.commentsUpdated += overflowResult.commentsUpdated;
 

@@ -44,5 +44,22 @@
         "requireLabel": "test-agentic-sdlc"
       }
     }
+  },
+  "briefing": {
+    "defaultDepth": "standard",
+    "sources": {
+      "roadmap": true,
+      "changelog": true,
+      "retroDocs": { "enabled": true, "maxCount": 2 },
+      "lessonFiles": { "enabled": true, "severityThreshold": "high" },
+      "designDocs": true,
+      "planDocs": true,
+      "retroRecommendations": true,
+      "openPRs": true,
+      "board": true,
+      "stateFile": true,
+      "reviewerComments": true,
+      "gitLog": false
+    }
   }
 }

@@ -517,3 +517,43 @@ These emerged from the discussion. Not prioritized — to be evaluated and added
 7. **Cross-project learning:** When the workflow runs on 10 different projects, each with its own Layer 2 file, the lessons are siloed. Is there a Layer 0 (global workflow knowledge) that aggregates patterns across projects? E.g., "DI wiring is a common failure pattern in server projects" — learned from BL#116 but applicable to any future server project.
 
 8. **A/B test design:** What's the right benchmark backlog item? Should it be a real roadmap item (useful output) or a synthetic benchmark (more controlled)? Real items have natural variance; synthetic items may not exercise realistic patterns. How do we account for model performance variance between runs?
+
+---
+
+## Appendix A: Builder Instruction Changes (for A/B Test Variant)
+
+The following content was drafted, tested in discussion, and then reverted from `builder.md` to preserve a clean baseline for A/B testing. Apply this to the variant clone's `builder.md` (and all three builder variants) for Pair A testing.
+
+**Insert after the existing "Code Rules" section (after the "Comment only non-obvious logic" bullet), before "Capturing Lessons":**
+
+```markdown
+### Think Systemically, Not Just Locally
+
+Before writing code, ask yourself these questions. Most fix cycles come from builders thinking locally (does my function work?) instead of systemically (does my function work inside the running system?).
+
+**Integration checklist (ask before marking a story complete):**
+
+1. **How does this reach the user?** Trace the path from entry point to your code. If you wrote a service, is it wired into the startup path? If you wrote a route, is it registered in the router? If you wrote a component, is it imported by a page? Every new module must be reachable from the system's entry point — not just callable from a test.
+
+2. **What else needs to know this exists?** When you add a feature, other parts of the system may need to react. If you add a new event type, does the WebSocket hub broadcast it? If you add a new API endpoint, does the client wrapper have a method for it? If you add a dependency, is it in the correct section of package.json?
+
+3. **Is every file I created imported by production code?** Trace each new file's import chain back to an entry point (server startup, route registration, component tree, etc.). If a file isn't reachable from any entry point, it's dead code — either wire it in or delete it. Don't confuse test coverage with reachability: a file can have passing tests but still be dead code if nothing in production imports it.
+
+4. **Am I duplicating logic that exists elsewhere?** Search the codebase before writing a utility function. If similar logic exists, import it or extract a shared module. If you must duplicate (e.g., frontend can't import from backend), document the duplication with a comment linking to the canonical source.
+
+**Engineering principles as heuristics (not dogma):**
+
+Apply these principles with judgment. Each has a context where violating it is the right call.
+
+| Principle | What it prevents | When to bend it |
+|-----------|-----------------|-----------------|
+| **KISS** — prefer simple, obvious solutions | Over-engineered abstractions that nobody can debug | When the "simple" solution creates a maintenance trap (e.g., copy-pasting 200 lines vs. extracting a function) |
+| **DRY** — share logic, don't copy it | Bugs fixed in one place but not the other | When sharing creates a coupling that's worse than the duplication (e.g., forcing frontend to import from backend source tree) |
+| **YAGNI** — don't build what isn't needed yet | Dead code, speculative abstractions, unused parameters | When a small structural investment now (folder layout, interface design) prevents a painful migration later |
+| **Separation of Concerns** — each module owns one responsibility | Cross-layer violations, circular dependencies, God objects | When strict separation creates a class explosion that's harder to reason about than the "messy" original |
+| **SOLID** — especially Single Responsibility and Dependency Inversion | Rigid code that can't be tested or extended | When applying all five principles to a simple function creates 5 files where 1 was clear enough |
+
+**The meta-principle:** Every principle is a heuristic for reducing future cost. Apply the one that reduces cost the most in your specific context. When two principles conflict (DRY says share it, SoC says keep layers separate), use judgment — which violation will be more expensive to fix later?
+```
+
+**Note:** This version includes the fixed item 3 (reachability check instead of the flawed "can I delete this file" heuristic). The original version was corrected during review before being reverted for A/B testing purposes.

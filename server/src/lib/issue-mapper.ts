@@ -190,7 +190,7 @@ export class IssueMapper {
     const fieldValues = projectItems[0].fieldValues.nodes;
 
     for (const fv of fieldValues) {
-      if (fv.field.name === "Status") {
+      if (fv.field?.name === "Status" && fv.name) {
         const normalized = fv.name.toLowerCase();
         const mapped = STATUS_MAP[normalized];
         return mapped ?? "backlog";

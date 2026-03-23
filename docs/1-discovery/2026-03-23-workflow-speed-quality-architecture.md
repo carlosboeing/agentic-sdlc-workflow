@@ -522,7 +522,7 @@ These emerged from the discussion. Not prioritized — to be evaluated and added
 
 ## Appendix A: Builder Instruction Changes (for A/B Test Variant)
 
-The following content was drafted, tested in discussion, and then reverted from `builder.md` to preserve a clean baseline for A/B testing. Apply this to the variant clone's `builder.md` (and all three builder variants) for Pair A testing.
+The following content was drafted during the BL#116 post-run discussion and then reverted from `builder.md` to preserve a clean baseline for A/B testing. This is a **starting example, not a final specification** — the implementer should evaluate, adapt, and improve it based on their own design phase findings.
 
 **Insert after the existing "Code Rules" section (after the "Comment only non-obvious logic" bullet), before "Capturing Lessons":**
 

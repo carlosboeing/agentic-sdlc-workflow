@@ -22,6 +22,7 @@ export const ItemStateSchema = z.enum(["open", "closed"]);
 
 /** Body for POST /api/items */
 export const CreateItemBodySchema = z.object({
+  id: z.number().int().positive().optional(), // explicit ID (e.g., GitHub issue number from dual-write sync)
   title: z.string().min(1, "title is required"),
   type: ItemTypeSchema,
   body: z.string().optional(),

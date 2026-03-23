@@ -71,7 +71,11 @@ CFG_ROUTE_MEDIUM=$(_cfg '.modelRouting.medium' "sonnet")
 CFG_ROUTE_HARD=$(_cfg '.modelRouting.hard' "opus")
 
 # --- PM adapter ---
+# Primary adapter: "local" (file-based), "server" (SQLite via HTTP API), or "github" (legacy)
+# When "server", the server must be running (health check at startup).
 CFG_PM_ADAPTER=$(_cfg '.pm.adapter' "github")
+# External adapter: fire-and-forget sync target (typically "github")
+CFG_PM_EXTERNAL=$(_cfg '.pm.external' "")
 
 # --- Workflow directory (top-level, project-scoped) ---
 # Reads from top-level .workflowDir; falls back to legacy pm.local.workflowDir for

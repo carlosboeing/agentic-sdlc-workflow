@@ -85,17 +85,24 @@ if [ -n "${_PM_TEST_ADAPTER_DIR:-}" ]; then
 fi
 
 # =============================================================================
-# Dual-source loader: always local, optionally external
+# Dual-source loader: primary adapter + optional external sync target
 # =============================================================================
 
-# Source config to get CFG_PM_ADAPTER
+# Source config to get CFG_PM_ADAPTER and CFG_PM_EXTERNAL
 # shellcheck source=scripts/lib/config.sh
 source "$_PM_SCRIPT_DIR/config.sh"
 
-# --- Step 1: Always source the local adapter ---
-_PM_LOCAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/local"
+# --- Step 1: Source the primary adapter ---
+# Primary adapter is determined by CFG_PM_ADAPTER:
+#   "server" → server/ (SQLite via HTTP API, requires running server)
+#   anything else → local/ (file-based, backward compatible)
+if [ "$CFG_PM_ADAPTER" = "server" ]; then
+  _PM_LOCAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/server"
+else
+  _PM_LOCAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/local"
+fi
 if [ ! -d "$_PM_LOCAL_DIR" ]; then
-  echo "ERROR: Local PM adapter not found at $_PM_LOCAL_DIR" >&2
+  echo "ERROR: Primary PM adapter not found at $_PM_LOCAL_DIR" >&2
   return 1 2>/dev/null || exit 1
 fi
 
@@ -230,19 +237,20 @@ _pm_generate_create_item_wrapper() {
 }
 
 # --- Step 3: Determine external adapter ---
-PM_EXTERNAL="${CFG_PM_ADAPTER:-}"
-PM_ADAPTER="local"
-PM_ADAPTER_DIR="$_PM_LOCAL_DIR"
-
-# Handle pm.adapter = "local" (deprecated — local is now always-on)
-if [ "$PM_EXTERNAL" = "local" ]; then
-  echo "NOTE: pm.adapter='local' is deprecated. Local adapter is now always-on." >&2
-  echo "  To run local-only, remove pm.adapter or set it to null." >&2
-  echo "  To sync to GitHub, set pm.adapter to 'github'." >&2
+# External adapter comes from pm.external config (e.g., "github").
+# Fallback: when pm.external is empty and pm.adapter is NOT "server",
+# use pm.adapter as external (backward compatible with old "github" config).
+if [ -n "$CFG_PM_EXTERNAL" ]; then
+  PM_EXTERNAL="$CFG_PM_EXTERNAL"
+elif [ "$CFG_PM_ADAPTER" != "server" ] && [ "$CFG_PM_ADAPTER" != "local" ]; then
+  PM_EXTERNAL="$CFG_PM_ADAPTER"
+else
   PM_EXTERNAL=""
 fi
+PM_ADAPTER="$CFG_PM_ADAPTER"
+PM_ADAPTER_DIR="$_PM_LOCAL_DIR"
 
-# Handle pm.adapter = "github" (default from config.sh) or other external adapter
+# Handle external adapter directory lookup
 if [ -n "$PM_EXTERNAL" ]; then
   _PM_EXTERNAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/$PM_EXTERNAL"
   if [ ! -d "$_PM_EXTERNAL_DIR" ]; then

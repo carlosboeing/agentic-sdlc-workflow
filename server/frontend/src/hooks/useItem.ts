@@ -69,8 +69,8 @@ export function useItem(id: string | undefined): UseItemResult {
           api.listItemComments(numId).catch(() => [] as Comment[]),
           api.getItemTelemetry(numId).catch(() => [] as TelemetryRecord[]),
           api.listChildren(numId).catch(() => [] as WorkItem[]),
-          item.parent_id
-            ? api.getItem(item.parent_id).catch(() => null)
+          item.parentId
+            ? api.getItem(item.parentId).catch(() => null)
             : Promise.resolve(null),
         ]);
 

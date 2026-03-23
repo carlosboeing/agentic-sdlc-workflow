@@ -64,7 +64,7 @@ export function DetachedComments({ comments }: DetachedCommentsProps) {
                     {comment.author}
                   </span>
                   <span className="text-gray-400">
-                    {new Date(comment.created_at).toLocaleDateString()}
+                    {new Date(comment.createdAt).toLocaleDateString()}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 mt-0.5">{comment.body}</p>

@@ -3,6 +3,9 @@
  *
  * These are used by the API client and React components to type
  * data received from or sent to the server API.
+ *
+ * IMPORTANT: The API returns camelCase field names (from Drizzle ORM).
+ * All interfaces here must use camelCase to match.
  */
 
 /** Work item hierarchy types — exactly three levels. */
@@ -38,6 +41,10 @@ export type ActivityEventType =
   | "sync:queued"
   | "sync:completed"
   | "sync:failed"
+  | "sync:pull:started"
+  | "sync:pull:progress"
+  | "sync:pull:complete"
+  | "sync:pull:error"
   | "server:started"
   | "server:stopped";
 
@@ -52,7 +59,7 @@ export type AgentRole =
   | "human";
 
 // ---------------------------------------------------------------------------
-// API response shapes
+// API response shapes (camelCase — matches Drizzle ORM serialization)
 // ---------------------------------------------------------------------------
 
 export interface Label {
@@ -69,46 +76,46 @@ export interface WorkItem {
   status: BoardStatus;
   state: ItemState;
   body: string | null;
-  parent_id: number | null;
-  external_id: string | null;
-  external_url: string | null;
-  created_by: AgentRole | null;
-  created_at: string;
-  updated_at: string;
+  parentId: number | null;
+  externalId: string | null;
+  externalUrl: string | null;
+  createdBy: AgentRole | null;
+  createdAt: string;
+  updatedAt: string;
   labels?: Label[];
 }
 
 export interface Comment {
   id: number;
-  item_id: number | null;
-  document_path: string | null;
+  itemId: number | null;
+  documentPath: string | null;
   anchor: string | null;
   body: string;
   author: string;
-  thread_id: string | null;
-  created_at: string;
-  updated_at: string;
+  threadId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TelemetryRecord {
   id: number;
-  item_id: number;
+  itemId: number;
   model: TelemetryModel;
-  duration_ms: number;
+  durationMs: number;
   tokens: number;
-  tool_uses: number | null;
-  cost_estimate: number | null;
-  commit_hash: string | null;
+  toolUses: number | null;
+  costEstimate: number | null;
+  commitHash: string | null;
   metadata: string | null;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface ActivityEvent {
   id: number;
-  item_id: number | null;
-  event_type: ActivityEventType;
+  itemId: number | null;
+  eventType: ActivityEventType;
   payload: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface HealthResponse {
@@ -157,7 +164,7 @@ export interface CreateItemPayload {
   type: ItemType;
   title: string;
   body?: string;
-  parent_id?: number;
+  parentId?: number;
   labels?: string[];
 }
 

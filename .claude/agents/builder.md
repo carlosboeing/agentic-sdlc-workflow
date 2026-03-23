@@ -157,34 +157,6 @@ Read the project's CLAUDE.md for project-specific code conventions. These univer
 - **Write startup wiring integration tests for server components** — when a story creates or modifies a service injected via constructor in a server component, write a test that exercises the full startup path (e.g., `startServer({db}) -> createApp({db}) -> route handler`), not just the factory function in isolation. Tests that inject dependencies directly bypass the production entry point and miss wiring gaps. Evidence: BL116 had 12/18 stories require fix cycles due to DI wiring blindspots invisible to unit tests.
 - **Comment only non-obvious logic** — no `// set the variable` comments
 
-### Think Systemically, Not Just Locally
-
-Before writing code, ask yourself these questions. Most fix cycles come from builders thinking locally (does my function work?) instead of systemically (does my function work inside the running system?).
-
-**Integration checklist (ask before marking a story complete):**
-
-1. **How does this reach the user?** Trace the path from entry point to your code. If you wrote a service, is it wired into the startup path? If you wrote a route, is it registered in the router? If you wrote a component, is it imported by a page? Every new module must be reachable from the system's entry point — not just callable from a test.
-
-2. **What else needs to know this exists?** When you add a feature, other parts of the system may need to react. If you add a new event type, does the WebSocket hub broadcast it? If you add a new API endpoint, does the client wrapper have a method for it? If you add a dependency, is it in the correct section of package.json?
-
-3. **Can I delete any file I created and have no test fail?** If yes, you have dead code. Every file should be imported by production code or directly tested. Orphan files (created but never wired in) are the most common reviewer finding.
-
-4. **Am I duplicating logic that exists elsewhere?** Search the codebase before writing a utility function. If similar logic exists, import it or extract a shared module. If you must duplicate (e.g., frontend can't import from backend), document the duplication with a comment linking to the canonical source.
-
-**Engineering principles as heuristics (not dogma):**
-
-Apply these principles with judgment. Each has a context where violating it is the right call.
-
-| Principle | What it prevents | When to bend it |
-|-----------|-----------------|-----------------|
-| **KISS** — prefer simple, obvious solutions | Over-engineered abstractions that nobody can debug | When the "simple" solution creates a maintenance trap (e.g., copy-pasting 200 lines vs. extracting a function) |
-| **DRY** — share logic, don't copy it | Bugs fixed in one place but not the other | When sharing creates a coupling that's worse than the duplication (e.g., forcing frontend to import from backend source tree) |
-| **YAGNI** — don't build what isn't needed yet | Dead code, speculative abstractions, unused parameters | When a small structural investment now (folder layout, interface design) prevents a painful migration later |
-| **Separation of Concerns** — each module owns one responsibility | Cross-layer violations, circular dependencies, God objects | When strict separation creates a class explosion that's harder to reason about than the "messy" original |
-| **SOLID** — especially Single Responsibility and Dependency Inversion | Rigid code that can't be tested or extended | When applying all five principles to a simple function creates 5 files where 1 was clear enough |
-
-**The meta-principle:** Every principle is a heuristic for reducing future cost. Apply the one that reduces cost the most in your specific context. When two principles conflict (DRY says share it, SoC says keep layers separate), use judgment — which violation will be more expensive to fix later?
-
 ## Capturing Lessons
 
 When you encounter a bug, unexpected behavior, missing convention, or anything worth remembering for future work, create a lesson file immediately — don't defer it.

@@ -88,19 +88,14 @@ fi
 # Dual-source loader: primary adapter + optional external sync target
 # =============================================================================
 
-# Source config to get CFG_PM_ADAPTER and CFG_PM_EXTERNAL
+# Source config to get CFG_PM_ADAPTER
 # shellcheck source=scripts/lib/config.sh
 source "$_PM_SCRIPT_DIR/config.sh"
 
-# --- Step 1: Source the primary adapter ---
-# Primary adapter is determined by CFG_PM_ADAPTER:
-#   "server" → server/ (SQLite via HTTP API, requires running server)
-#   anything else → local/ (file-based, backward compatible)
-if [ "$CFG_PM_ADAPTER" = "server" ]; then
-  _PM_LOCAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/server"
-else
-  _PM_LOCAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/local"
-fi
+# --- Step 1: Source the local adapter ---
+# The local PM is the workflow server (SQLite via HTTP API).
+# The old file-based adapter (adapters/pm/local/) is retained for tests.
+_PM_LOCAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/server"
 if [ ! -d "$_PM_LOCAL_DIR" ]; then
   echo "ERROR: Primary PM adapter not found at $_PM_LOCAL_DIR" >&2
   return 1 2>/dev/null || exit 1
@@ -236,18 +231,10 @@ _pm_generate_create_item_wrapper() {
   }'
 }
 
-# --- Step 3: Determine external adapter ---
-# External adapter comes from pm.external config (e.g., "github").
-# Fallback: when pm.external is empty and pm.adapter is NOT "server",
-# use pm.adapter as external (backward compatible with old "github" config).
-if [ -n "$CFG_PM_EXTERNAL" ]; then
-  PM_EXTERNAL="$CFG_PM_EXTERNAL"
-elif [ "$CFG_PM_ADAPTER" != "server" ] && [ "$CFG_PM_ADAPTER" != "local" ]; then
-  PM_EXTERNAL="$CFG_PM_ADAPTER"
-else
-  PM_EXTERNAL=""
-fi
-PM_ADAPTER="$CFG_PM_ADAPTER"
+# --- Step 3: Determine sync target ---
+# pm.adapter names the remote to sync to (e.g., "github").
+PM_EXTERNAL="${CFG_PM_ADAPTER:-}"
+PM_ADAPTER="local"
 PM_ADAPTER_DIR="$_PM_LOCAL_DIR"
 
 # Handle external adapter directory lookup

@@ -21,8 +21,7 @@
     "hard": "opus"
   },
   "pm": {
-    "adapter": "server",
-    "external": "github"
+    "adapter": "github"
   },
   "workflow": {
     "autoMergePlanPR": true,

@@ -23,3 +23,9 @@ export { SyncService } from "./sync";
 export type { SyncQueueRow, EnqueueOptions, SyncServiceOptions, QueueStatus } from "./sync";
 
 export { SyncWorker } from "./sync-worker";
+
+export { PullSyncService } from "./pull-sync";
+export type { PullSyncOptions, PullSyncResult } from "./pull-sync";
+
+export { DatabaseUpserter } from "./database-upserter";
+export type { UpsertPageResult } from "./database-upserter";

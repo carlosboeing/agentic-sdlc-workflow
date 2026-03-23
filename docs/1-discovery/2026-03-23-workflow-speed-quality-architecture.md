@@ -381,7 +381,41 @@ The workflow should be zero-config by default with progressive disclosure of opt
 
 ---
 
-## 8. A/B Testing Strategy
+## 8. Tester Agent (Visual / E2E Testing)
+
+### The Gap
+
+The current workflow has builders (write code + unit tests) and reviewers (read code, find bugs). Neither actually **runs the application and verifies it works visually**. The reviewer reads the build script and sees `Bun.build()` processing CSS — it looks correct. But the CSS has no utility classes because `Bun.build()` doesn't run Tailwind's content scanning. This class of bug is invisible to code review.
+
+**Evidence:** BL#116's dashboard shipped with zero Tailwind styling. All 500+ tests passed. The reviewer approved. The bug was only discovered when a human opened the browser and saw unstyled HTML. The fix was a one-line change in the build script.
+
+### What a Tester Agent Would Do
+
+A new agent type — `tester` — that runs after the builder and before (or alongside) the reviewer:
+
+1. **Build the project** — run the build command, verify it succeeds
+2. **Start the application** — launch the server/app locally
+3. **Run visual checks** — navigate to key pages, verify elements render, check for console errors
+4. **Run E2E scenarios** — click through critical paths (create item, navigate, submit form)
+5. **Take screenshots** — capture visual state for human review or diffing
+6. **Report findings** — post results as an issue comment (like the reviewer does)
+
+### Tool Agnostic
+
+The tester agent should work with whatever browser automation tool is available — Playwright, Puppeteer, Cypress, Selenium, or any MCP-accessible browser tool. The agent instructions should describe **what to verify** (pages load, elements render, no console errors) rather than **which tool to use**. The tool choice is a project-level configuration.
+
+**Artifact management:** When taking screenshots or saving test artifacts, always save to a dedicated output directory (e.g., `.test-artifacts/`) — never to the project root. This directory should be gitignored.
+
+### Open Questions
+
+- Should the tester agent run per-story (after each builder) or per-epic (after merge)?
+- How does it know what to test? From acceptance criteria? From a test plan in the story issue?
+- Should it generate Playwright test files that persist, or run ad-hoc checks and discard?
+- How to handle projects without a UI (APIs, CLIs, libraries)? The tester agent may not always apply.
+
+---
+
+## 9. A/B Testing Strategy
 
 ### The Attribution Problem
 
@@ -480,7 +514,7 @@ Pair A should run first — it's the cheapest test (just instruction changes) an
 
 ---
 
-## 9. Summary of Potential Backlog Items
+## 10. Summary of Potential Backlog Items
 
 These emerged from the discussion. Not prioritized — to be evaluated and added to the roadmap separately.
 
@@ -497,10 +531,11 @@ These emerged from the discussion. Not prioritized — to be evaluated and added
 | Conflict detection between instruction layers | Quality | Low-Medium (prevents silent rule conflicts) | S — startup check |
 | Refactor builder.md: separate generic vs specific | Architecture | Medium (prerequisite for plugin packaging) | S — move content between files |
 | A/B testing benchmark | Diagnostics | High (validates all other optimizations with data) | M — design benchmark item, run paired comparisons |
+| Tester agent (visual/E2E) | Quality | High (catches bugs invisible to code review) | L — new agent, browser automation integration, test infrastructure |
 
 ---
 
-## 9. Open Questions
+## 11. Open Questions
 
 1. **Mock contract accuracy:** How often would the planner's upfront contracts be wrong, requiring rework? Is the rework cost less than the parallelism benefit? Needs experimentation.
 

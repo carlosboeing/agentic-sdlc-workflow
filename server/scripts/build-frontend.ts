@@ -60,38 +60,34 @@ process.stderr.write(
 );
 
 // ---------------------------------------------------------------------------
-// Step 2: Process CSS
-// Bun's CSS bundler names the output after the input file (globals.css).
-// We rename to main.css to match the reference in index.html.
+// Step 2: Process CSS with Tailwind CLI
+// Bun.build() does NOT run Tailwind's content scanning — it bundles raw CSS
+// without generating utility classes. We use the @tailwindcss/cli package
+// which scans component files for class usage and generates the final CSS.
 // ---------------------------------------------------------------------------
 
-const cssResult = await Bun.build({
-  entrypoints: [join(frontendDir, "src", "styles", "globals.css")],
-  outdir: assetsDir,
-  target: "browser",
-});
+const cssInput = join(frontendDir, "src", "styles", "globals.css");
+const cssOutput = join(assetsDir, "main.css");
 
-if (!cssResult.success) {
-  for (const log of cssResult.logs) {
-    process.stderr.write(`CSS build error: ${log.message}\n`);
-  }
-  // Non-fatal: CSS failures shouldn't block the build
-  process.stderr.write("Warning: CSS bundling failed — writing fallback stylesheet\n");
+// Use process.execPath to find the bun binary (works even when bun is not in $PATH)
+const bunPath = process.execPath;
+
+const cssProc = Bun.spawnSync(
+  [bunPath, "x", "tailwindcss", "-i", cssInput, "-o", cssOutput, "--minify"],
+  { cwd: serverDir, stderr: "pipe", stdout: "pipe" }
+);
+
+if (cssProc.exitCode !== 0) {
+  const stderr = cssProc.stderr.toString();
+  process.stderr.write(`CSS build error: ${stderr}\n`);
+  process.stderr.write("Warning: Tailwind CSS build failed — writing fallback stylesheet\n");
   writeFileSync(
-    join(assetsDir, "main.css"),
-    "/* CSS build failed — fallback */\nbody { font-family: system-ui, sans-serif; margin: 0; }\n"
+    cssOutput,
+    "/* Tailwind CSS build failed — fallback */\nbody { font-family: system-ui, sans-serif; margin: 0; }\n"
   );
 } else {
-  process.stderr.write(`Bundled CSS: ${cssResult.outputs.length} output file(s)\n`);
-
-  // Bun names the CSS output after the source file (globals.css → globals.css).
-  // Rename to main.css to match the <link> reference in index.html.
-  const globalsPath = join(assetsDir, "globals.css");
-  const mainCssPath = join(assetsDir, "main.css");
-  if (existsSync(globalsPath)) {
-    renameSync(globalsPath, mainCssPath);
-    process.stderr.write("Renamed: globals.css → main.css\n");
-  }
+  const stdout = cssProc.stderr.toString().trim();
+  process.stderr.write(`Tailwind CSS: ${stdout || "compiled successfully"}\n`);
 }
 
 // ---------------------------------------------------------------------------

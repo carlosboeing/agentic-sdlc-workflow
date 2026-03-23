@@ -14,7 +14,7 @@ import { createSyncRouter } from "../../src/api/sync";
 import { setupTestDb } from "../helpers/setup-db";
 import { EventService } from "../../src/api/websocket";
 import type { Database } from "bun:sqlite";
-import type { PullSyncResult, PullSyncOptions } from "../../src/services/pull-sync";
+import type { PullSyncResult } from "../../src/services/pull-sync";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,7 +59,7 @@ let eventService: EventService;
 let app: Hono;
 
 /** Spy on pullSync — reassigned in each test via closures on the mock service. */
-let pullSyncImpl: (opts?: PullSyncOptions) => Promise<PullSyncResult>;
+let pullSyncImpl: () => Promise<PullSyncResult>;
 
 beforeEach(() => {
   const setup = setupTestDb();
@@ -68,10 +68,10 @@ beforeEach(() => {
   eventService = new EventService(db);
 
   // Default: successful sync
-  pullSyncImpl = async (_opts?: PullSyncOptions) => makeResult();
+  pullSyncImpl = async () => makeResult();
 
   const mockService = {
-    pullSync: mock(async (opts?: PullSyncOptions) => pullSyncImpl(opts)),
+    pullSync: mock(async () => pullSyncImpl()),
   };
 
   const router = createSyncRouter(mockService);
@@ -87,12 +87,12 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("POST /api/sync/pull — success", () => {
-  test("returns 200 with PullSyncResult on valid body", async () => {
+  test("returns 200 with PullSyncResult on POST with JSON body", async () => {
     const res = await app.fetch(
       new Request("http://localhost/api/sync/pull", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filterLabels: ["backlog/364"], includeComments: true }),
+        body: JSON.stringify({}),
       })
     );
     expect(res.status).toBe(200);
@@ -103,7 +103,7 @@ describe("POST /api/sync/pull — success", () => {
     expect(body.errors).toEqual([]);
   });
 
-  test("returns 200 with empty body (all options optional)", async () => {
+  test("returns 200 with empty body", async () => {
     const res = await app.fetch(
       new Request("http://localhost/api/sync/pull", {
         method: "POST",
@@ -120,50 +120,8 @@ describe("POST /api/sync/pull — success", () => {
         method: "POST",
       })
     );
-    // Missing body should be treated as empty options — not 400
+    // No body should work fine — endpoint accepts no request body
     expect(res.status).toBe(200);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// POST /api/sync/pull — validation errors (400)
-// ---------------------------------------------------------------------------
-
-describe("POST /api/sync/pull — validation errors", () => {
-  test("returns 400 when filterLabels is not an array", async () => {
-    const res = await app.fetch(
-      new Request("http://localhost/api/sync/pull", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filterLabels: "not-an-array" }),
-      })
-    );
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as AnyJson;
-    expect(body.error).toBe("Validation failed");
-    expect(Array.isArray(body.details)).toBe(true);
-  });
-
-  test("returns 400 when filterLabels contains non-strings", async () => {
-    const res = await app.fetch(
-      new Request("http://localhost/api/sync/pull", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filterLabels: [1, 2, 3] }),
-      })
-    );
-    expect(res.status).toBe(400);
-  });
-
-  test("returns 400 when includeComments is not a boolean", async () => {
-    const res = await app.fetch(
-      new Request("http://localhost/api/sync/pull", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ includeComments: "yes" }),
-      })
-    );
-    expect(res.status).toBe(400);
   });
 });
 
@@ -178,10 +136,10 @@ describe("POST /api/sync/pull — concurrency", () => {
     const firstSyncPromise = new Promise<PullSyncResult>((resolve) => {
       resolveFirstSync = resolve;
     });
-    pullSyncImpl = async (_opts?: PullSyncOptions) => firstSyncPromise;
+    pullSyncImpl = async () => firstSyncPromise;
 
     const mockService = {
-      pullSync: mock(async (opts?: PullSyncOptions) => pullSyncImpl(opts)),
+      pullSync: mock(async () => pullSyncImpl()),
     };
     const router = createSyncRouter(mockService);
     const concurrentApp = buildApp(router);
@@ -222,12 +180,12 @@ describe("POST /api/sync/pull — concurrency", () => {
 
 describe("POST /api/sync/pull — server error", () => {
   test("returns 500 when PullSyncService throws", async () => {
-    pullSyncImpl = async (_opts?: PullSyncOptions) => {
+    pullSyncImpl = async () => {
       throw new Error("Rate limit: remaining points (300) below threshold (500)");
     };
 
     const mockService = {
-      pullSync: mock(async (opts?: PullSyncOptions) => pullSyncImpl(opts)),
+      pullSync: mock(async () => pullSyncImpl()),
     };
     const router = createSyncRouter(mockService);
     const errorApp = buildApp(router);

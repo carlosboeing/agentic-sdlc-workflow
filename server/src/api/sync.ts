@@ -2,7 +2,6 @@
  * Sync route group — POST /api/sync/pull and GET /api/sync/status.
  *
  * Responsibilities:
- *   - Validate request body (filterLabels, includeComments)
  *   - Guard against concurrent syncs via an in-memory mutex
  *   - Invoke PullSyncService.pullSync() and return PullSyncResult
  *   - Expose sync status (idle/running, lastResult)
@@ -12,29 +11,14 @@
  */
 
 import { Hono } from "hono";
-import { z } from "zod";
-import type { PullSyncResult, PullSyncOptions } from "../services/pull-sync";
-import { formatZodError } from "./validation";
-
-// ---------------------------------------------------------------------------
-// Request validation schemas
-// ---------------------------------------------------------------------------
-
-/** Body for POST /api/sync/pull */
-const PullSyncBodySchema = z
-  .object({
-    filterLabels: z.array(z.string()).optional(),
-    includeComments: z.boolean().optional(),
-  })
-  .optional()
-  .default({});
+import type { PullSyncResult } from "../services/pull-sync";
 
 // ---------------------------------------------------------------------------
 // Minimal service interface (avoids tight coupling to PullSyncService impl)
 // ---------------------------------------------------------------------------
 
 export interface SyncService {
-  pullSync(options?: PullSyncOptions): Promise<PullSyncResult>;
+  pullSync(): Promise<PullSyncResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,25 +57,6 @@ export function createSyncRouter(service: SyncService): Hono {
   // -------------------------------------------------------------------------
 
   router.post("/sync/pull", async (c) => {
-    // Parse request body — treat missing/empty body as empty options
-    let raw: unknown = {};
-    const contentType = c.req.header("content-type") ?? "";
-    if (contentType.includes("application/json")) {
-      try {
-        raw = await c.req.json();
-      } catch {
-        return c.json(
-          { error: "Invalid JSON body", details: [] },
-          400
-        );
-      }
-    }
-
-    const parseResult = PullSyncBodySchema.safeParse(raw);
-    if (!parseResult.success) {
-      return c.json(formatZodError(parseResult.error), 400);
-    }
-
     // Concurrency guard — one pull sync at a time
     if (state.running) {
       return c.json(
@@ -102,15 +67,7 @@ export function createSyncRouter(service: SyncService): Hono {
 
     state.running = true;
     try {
-      const opts: PullSyncOptions = {};
-      if (parseResult.data.filterLabels !== undefined) {
-        opts.filterLabels = parseResult.data.filterLabels;
-      }
-      if (parseResult.data.includeComments !== undefined) {
-        opts.includeComments = parseResult.data.includeComments;
-      }
-
-      const result = await service.pullSync(opts);
+      const result = await service.pullSync();
       state.lastResult = result;
       return c.json(result, 200);
     } catch (err) {

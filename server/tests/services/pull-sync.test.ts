@@ -2,7 +2,6 @@ import { describe, test, expect, beforeEach, mock, spyOn } from "bun:test";
 import type { GitHubIssuePage, GitHubRateLimitResponse } from "../../src/adapters/github-pull";
 import {
   PullSyncService,
-  type PullSyncOptions,
   type PullSyncResult,
 } from "../../src/services/pull-sync";
 
@@ -68,7 +67,7 @@ function makeMockMapper() {
 /** Creates a mock DatabaseUpserter. */
 function makeMockUpserter() {
   return {
-    upsertPage: mock(() => ({ created: 0, updated: 0, labelsCreated: 0, commentsCreated: 0, commentsUpdated: 0 })),
+    upsertPage: mock(() => ({ itemsCreated: 0, itemsUpdated: 0, labelsCreated: 0, commentsCreated: 0, commentsUpdated: 0 })),
     upsertComments: mock(() => ({ commentsCreated: 0, commentsUpdated: 0 })),
     linkHierarchy: mock(() => 0),
   };
@@ -123,7 +122,7 @@ describe("PullSyncService.pullSync", () => {
 
   test("returns PullSyncResult with populated counters after single page", async () => {
     const fetcher = makeMockFetcher([makeIssuePage(3)]);
-    upserter.upsertPage.mockReturnValue({ created: 2, updated: 1, labelsCreated: 0, commentsCreated: 0, commentsUpdated: 0 });
+    upserter.upsertPage.mockReturnValue({ itemsCreated: 2, itemsUpdated: 1, labelsCreated: 0, commentsCreated: 0, commentsUpdated: 0 });
     upserter.linkHierarchy.mockReturnValue(2);
 
     const service = new PullSyncService(fetcher as never, mapper as never, upserter as never);
@@ -146,9 +145,9 @@ describe("PullSyncService.pullSync", () => {
     ];
     const fetcher = makeMockFetcher(pages);
     upserter.upsertPage
-      .mockReturnValueOnce({ created: 2, updated: 0, labelsCreated: 1, commentsCreated: 5, commentsUpdated: 0 })
-      .mockReturnValueOnce({ created: 1, updated: 1, labelsCreated: 0, commentsCreated: 3, commentsUpdated: 1 })
-      .mockReturnValueOnce({ created: 0, updated: 2, labelsCreated: 2, commentsCreated: 0, commentsUpdated: 2 });
+      .mockReturnValueOnce({ itemsCreated: 2, itemsUpdated: 0, labelsCreated: 1, commentsCreated: 5, commentsUpdated: 0 })
+      .mockReturnValueOnce({ itemsCreated: 1, itemsUpdated: 1, labelsCreated: 0, commentsCreated: 3, commentsUpdated: 1 })
+      .mockReturnValueOnce({ itemsCreated: 0, itemsUpdated: 2, labelsCreated: 2, commentsCreated: 0, commentsUpdated: 2 });
     upserter.linkHierarchy.mockReturnValue(4);
 
     const service = new PullSyncService(fetcher as never, mapper as never, upserter as never);
@@ -249,7 +248,7 @@ describe("PullSyncService event emission", () => {
     const fetcher = makeMockFetcher([makeIssuePage(5)]);
     const mapper = makeMockMapper();
     const upserter = makeMockUpserter();
-    upserter.upsertPage.mockReturnValue({ created: 3, updated: 2, labelsCreated: 0, commentsCreated: 0, commentsUpdated: 0 });
+    upserter.upsertPage.mockReturnValue({ itemsCreated: 3, itemsUpdated: 2, labelsCreated: 0, commentsCreated: 0, commentsUpdated: 0 });
     const eventService = makeMockEventService();
 
     const service = new PullSyncService(

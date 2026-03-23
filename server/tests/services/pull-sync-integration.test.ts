@@ -5,9 +5,8 @@
  * -> PullSyncService, using an in-memory SQLite database and mocked _runGh()
  * calls to simulate GitHub GraphQL responses.
  *
- * DatabaseUpserterAdapter bridges the field-name gap between DatabaseUpserter
- * ({ itemsCreated, itemsUpdated }) and the PullSyncService DatabaseUpserter
- * interface ({ created, updated }), while also implementing upsertComments.
+ * DatabaseUpserter is passed directly to PullSyncService — no adapter needed
+ * since both use the same field names (itemsCreated, itemsUpdated).
  */
 
 import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
@@ -18,49 +17,8 @@ import { setupTestDb } from "../helpers/setup-db";
 import { GitHubPullFetcher } from "../../src/adapters/github-pull";
 import { IssueMapper } from "../../src/lib/issue-mapper";
 import { DatabaseUpserter } from "../../src/services/database-upserter";
-import {
-  PullSyncService,
-  type MappedIssue,
-  type UpsertPageResult,
-  type UpsertCommentsResult,
-  type DatabaseUpserter as PullSyncDbInterface,
-} from "../../src/services/pull-sync";
+import { PullSyncService } from "../../src/services/pull-sync";
 import * as schema from "../../src/db/schema";
-
-// ---------------------------------------------------------------------------
-// DatabaseUpserterAdapter
-//
-// Bridges the field-naming convention between DatabaseUpserter's result
-// shape ({ itemsCreated, itemsUpdated }) and the PullSyncService interface
-// shape ({ created, updated }). Also exposes upsertComments which delegates
-// to the underlying DatabaseUpserter.
-// ---------------------------------------------------------------------------
-
-class DatabaseUpserterAdapter implements PullSyncDbInterface {
-  constructor(private readonly upserter: DatabaseUpserter) {}
-
-  async upsertPage(issues: MappedIssue[]): Promise<UpsertPageResult> {
-    const result = await this.upserter.upsertPage(issues);
-    return {
-      created: result.itemsCreated,
-      updated: result.itemsUpdated,
-      labelsCreated: result.labelsCreated,
-      commentsCreated: result.commentsCreated,
-      commentsUpdated: result.commentsUpdated,
-    };
-  }
-
-  async upsertComments(
-    itemId: number,
-    comments: MappedIssue["comments"]
-  ): Promise<UpsertCommentsResult> {
-    return this.upserter.upsertComments(itemId, comments);
-  }
-
-  async linkHierarchy(parentMap: Map<number, number>): Promise<number> {
-    return this.upserter.linkHierarchy(parentMap);
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Fixtures: GitHub GraphQL response shapes (matching design section 4.1)
@@ -463,9 +421,8 @@ function buildPipeline(db: ReturnType<typeof drizzle>) {
   const fetcher = new GitHubPullFetcher({ repo: "carlosboeing/agentic-sdlc-workflow" });
   const mapper = new IssueMapper();
   const upserter = new DatabaseUpserter(db);
-  const adapter = new DatabaseUpserterAdapter(upserter);
-  const service = new PullSyncService(fetcher as never, mapper, adapter);
-  return { fetcher, mapper, upserter, adapter, service };
+  const service = new PullSyncService(fetcher as never, mapper, upserter);
+  return { fetcher, mapper, upserter, service };
 }
 
 // ---------------------------------------------------------------------------

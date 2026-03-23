@@ -21,17 +21,6 @@ import type { EventService } from "../api/websocket";
 // Public interfaces
 // ---------------------------------------------------------------------------
 
-export interface PullSyncOptions {
-  /** Only sync issues matching these labels. Default: all issues. */
-  filterLabels?: string[];
-  /** Only sync issues updated after this ISO timestamp. Default: all. */
-  updatedSince?: string;
-  /** Maximum GraphQL points to consume before aborting. Default: 1000. */
-  maxPoints?: number;
-  /** Include comments in the sync. Default: true. */
-  includeComments?: boolean;
-}
-
 export interface PullSyncResult {
   totalIssues: number;
   itemsCreated: number;
@@ -80,8 +69,8 @@ export interface MappedIssue {
 
 /** Result of upserting a page of issues. */
 export interface UpsertPageResult {
-  created: number;
-  updated: number;
+  itemsCreated: number;
+  itemsUpdated: number;
   labelsCreated: number;
   commentsCreated: number;
   commentsUpdated: number;
@@ -146,7 +135,7 @@ export class PullSyncService {
    * Throws on fatal errors (rate limit, network failure after retries).
    * Emits sync:pull:error before re-throwing.
    */
-  async pullSync(_options?: PullSyncOptions): Promise<PullSyncResult> {
+  async pullSync(): Promise<PullSyncResult> {
     const startMs = Date.now();
 
     // Pre-flight: verify rate limit budget before starting the sync.
@@ -215,8 +204,8 @@ export class PullSyncService {
 
         // Upsert this page
         const upsertResult = await this.upserter.upsertPage(mappedIssues);
-        result.itemsCreated += upsertResult.created;
-        result.itemsUpdated += upsertResult.updated;
+        result.itemsCreated += upsertResult.itemsCreated;
+        result.itemsUpdated += upsertResult.itemsUpdated;
         result.labelsCreated += upsertResult.labelsCreated;
         result.commentsCreated += upsertResult.commentsCreated;
         result.commentsUpdated += upsertResult.commentsUpdated;

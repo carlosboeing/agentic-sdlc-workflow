@@ -265,6 +265,7 @@ export function startServer(options: ServerOptions): ReturnType<typeof Bun.serve
   const server = Bun.serve({
     port: options.port,
     hostname: "127.0.0.1", // localhost only — never 0.0.0.0
+    idleTimeout: 120, // seconds — sync endpoint needs ~15s; default 10s kills it
     fetch: fetchWithWs,
     websocket: wsHandler,
     error(error) {

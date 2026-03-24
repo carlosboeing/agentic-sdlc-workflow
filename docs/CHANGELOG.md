@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-23
+
+### GitHub-to-SQLite Sync — Pull Direction (backlog #364)
+
+- **Pull sync engine:** Fetches all issues from GitHub GraphQL API with cursor pagination and upserts into SQLite. Three components: GitHubPullFetcher, IssueMapper, DatabaseUpserter
+- **Three trigger points:** `POST /api/sync/pull` API endpoint, `bun run server/src/index.ts sync` CLI command, automatic on startup (replaces file-based seed with GitHub-first + file fallback)
+- **Rate limit awareness:** Pre-flight check, per-page monitoring, abort at 500-point threshold (~126-400 points for 300 issues)
+- **PM adapter simplified:** Workflow server (SQLite) is now the default local PM adapter. `pm.adapter` config names the sync target. Old `.workflow/items/` files removed
+- **Infrastructure fixes:** Server API accepts explicit IDs for dual-write sync, `_local_pm_create_item_with_id` added to server adapter, port file path bug fixed
+- 2 epics, 5 stories (2 medium, 2 easy, 1 medium), 1 fix cycle (E01-S01 comment overflow data corruption), 1 PR fix cycle (interface mismatch NaN counters)
+
 ## 2026-03-22
 
 ### Briefing Skill: Context-Aware Project Orientation (backlog #316)

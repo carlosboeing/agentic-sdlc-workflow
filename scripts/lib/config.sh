@@ -71,7 +71,9 @@ CFG_ROUTE_MEDIUM=$(_cfg '.modelRouting.medium' "sonnet")
 CFG_ROUTE_HARD=$(_cfg '.modelRouting.hard' "opus")
 
 # --- PM adapter ---
-CFG_PM_ADAPTER=$(_cfg '.pm.adapter' "github")
+# Sync target for dual-write (typically "github"). The local PM is always the
+# workflow server (SQLite via HTTP API); pm.adapter names the remote to sync to.
+CFG_PM_ADAPTER=$(_cfg '.pm.adapter' "")
 
 # --- Workflow directory (top-level, project-scoped) ---
 # Reads from top-level .workflowDir; falls back to legacy pm.local.workflowDir for

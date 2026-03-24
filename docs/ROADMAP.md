@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated:** 2026-03-23 (post BL#116)
+> **Last updated:** 2026-03-23 (post BL#364)
 > **Work tracking:** [Project Board](https://github.com/users/carlosboeing/projects/7)
 > **Analysis & research:** [docs/1-discovery/2026-03-15-roadmap.md](1-discovery/2026-03-15-roadmap.md)
 
@@ -35,6 +35,7 @@ graph TD
     150["#150 Split<br/>orchestrator.md ✅"]
     166["#166 Telemetry<br/>Diagrams (S)"]
     316["#316 Briefing<br/>Skill (S)"]
+    364["#364 GitHub-to-SQLite<br/>Sync ✅"]
 
     105 --> 108
     106 --> 108
@@ -56,6 +57,7 @@ graph TD
     112 --> 117
     112 --> 118
     243 --> 282
+    116 --> 364
     283 --> 112
     289 --> 112
 
@@ -86,6 +88,7 @@ graph TD
     style 283 fill:#9ca3af,color:#fff
     style 289 fill:#059669,color:#fff
     style 316 fill:#059669,color:#fff
+    style 364 fill:#9ca3af,color:#fff
 ```
 
 ✅ Done · 🟢 Active (ready now) · 🟣 Plugin track · ⚫ Future ideas
@@ -119,6 +122,7 @@ graph TD
 | 10 | [#114](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/114) | Domain Profiles | L | — | Future |
 | 11 | [#115](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/115) | New Specialist Agents | L | — | Future |
 | ✅ | [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | ~~Workflow Runtime Service~~ | XL | 111 | Done |
+| ✅ | [#364](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/364) | ~~GitHub-to-SQLite Sync (Pull Direction)~~ | M | 116 | Done |
 | 13 | [#117](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/117) | Multi-Repo Orchestration | XL | 109, 112 | Future |
 | 14 | [#118](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/118) | Learning Across Projects | L | 107, 112 | Future |
 

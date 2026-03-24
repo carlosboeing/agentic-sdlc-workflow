@@ -11,7 +11,7 @@ backlog: 116
 
 ## Status
 
-Approved
+Approved — **Updated 2026-03-23:** The server adapter is now the default local PM. `pm.adapter` names the remote sync target (e.g., `"github"`), not the local storage backend.
 
 ## Context
 
@@ -23,26 +23,24 @@ The Workflow Runtime Service introduces a SQLite-backed server that handles both
 
 ## Decision
 
-Add `"server"` as a new PM adapter value. When configured, `pm.sh` routes all `pm_*` calls to the server adapter (`scripts/lib/adapters/pm/server/`), which calls the HTTP API via `curl`. The server handles external sync internally through its durable sync queue.
+The workflow server (SQLite via HTTP API) is the local PM adapter. The `pm.adapter` config field names the remote sync target for dual-write (e.g., `"github"`). The old file-based adapter (`adapters/pm/local/`) is retained for tests only.
 
 **Adapter routing:**
 
 ```
-pm.adapter = "server"
-  -> pm.sh sources scripts/lib/adapters/pm/server/*.sh
+pm.sh always sources scripts/lib/adapters/pm/server/*.sh as the local adapter
   -> pm_* functions call HTTP API via curl
-  -> Server writes to SQLite + enqueues external sync
+  -> Server writes to SQLite
 
-pm.adapter = "github" (legacy, unchanged)
-  -> pm.sh sources local + github adapters with dual-write wrappers
-  -> pm_* functions write to .workflow/items/ + fire-and-forget gh CLI
+pm.adapter = "github" (optional sync target)
+  -> pm.sh additionally sources adapters/pm/github/*.sh as external
+  -> Dual-write wrappers: local (sync) + external (fire-and-forget)
 
-pm.adapter = "local" (unchanged)
-  -> pm.sh sources local adapter only
-  -> pm_* functions write to .workflow/items/
+pm.adapter = "" (no sync target)
+  -> Local only, no external sync
 ```
 
-**Graceful fallback:** When `pm.adapter` is `"server"` but the server is not running (health check fails), `pm.sh` automatically falls back to the `"local"` adapter with a stderr warning. This preserves workflow functionality during server downtime, developer setup, or CI environments where the server is not needed.
+The old three-way routing (`"server"` / `"github"` / `"local"`) was simplified in BL#364 to remove the implementation detail from the config. The server IS the local adapter — there's no choice to make.
 
 ## Consequences
 
@@ -60,10 +58,10 @@ pm.adapter = "local" (unchanged)
 ### Mitigations
 - **Latency:** localhost HTTP round-trip is ~1ms. The previous file I/O path was ~5-10ms (YAML parse + write + fsync). The server path is comparable or faster.
 - **curl dependency:** curl is part of macOS and every major Linux distribution. Not a practical concern.
-- **Auto-start:** The orchestrator starts the server in Phase 0. Individual PM calls do not trigger server start -- they fall back to the local adapter.
+- **Auto-start:** The orchestrator starts the server in Phase 0. Individual PM calls do not trigger server start.
 
 ## Alternatives Considered
 
-1. **Replace the local adapter entirely:** Remove file-based storage and require the server for all PM operations. Rejected because it removes the fallback path and makes CI setup harder.
+1. **Keep file-based adapter as default with server opt-in:** The original BL#116 approach. Rejected because it required users to explicitly configure `pm.adapter: "server"` — the server should just be the default local PM.
 2. **Use Unix sockets instead of HTTP:** Lower overhead than TCP, but less portable (Windows), harder to debug (no curl), and the latency difference is negligible for this workload.
 3. **Embed SQLite directly in shell scripts:** Use `sqlite3` CLI instead of a server. Rejected because it does not provide WebSocket events for the dashboard, MCP tools for agents, or the sync queue for reliable external sync.

@@ -308,10 +308,9 @@ graph TB
             linr["Linear - future"]
             ado["Azure DevOps - future"]
         end
-        subgraph always["Always On (choose one)"]
+        subgraph always["Local (always on)"]
             direction LR
-            server["SQLite via Server"]
-            local[".workflow/items/id.md"]
+            server["SQLite via Workflow Server"]
         end
     end
 
@@ -331,7 +330,6 @@ graph TB
     server -.->|"serves"| docviewer
 
     style server fill:#059669,color:#fff
-    style local fill:#059669,color:#fff
     style github fill:#3b82f6,color:#fff
     style jira fill:#6b7280,color:#fff
     style linr fill:#6b7280,color:#fff
@@ -344,9 +342,9 @@ graph TB
 **Key design rules:**
 
 - **Agents only call wrapper scripts** (`scripts/item-*.sh`) — or MCP tools when the server is running. Never `pm_*` functions or `gh` commands directly.
-- **Local persistence is always on** — either via the SQLite-backed server (recommended) or the `.workflow/items/` file adapter (fallback). The server adapter routes through HTTP to SQLite; the file adapter writes directly to disk. Both are always-on; external sync is separate.
-- **External sync is optional** — GitHub is the current adapter; future adapters (Jira, Linear, Azure DevOps) plug in without changing any layer above
-- **Dual-write is transparent** — `pm.sh` auto-generates wrappers at load time that call local (sync) then external (fire-and-forget). When the server adapter is active, the server handles external sync internally via a durable queue with retry.
+- **Local persistence is always on** — the workflow server stores all PM data in SQLite (`.agentic-workflow/workflow.db`). The old `.workflow/items/` file adapter is retained for tests only.
+- **External sync is optional** — `pm.adapter` in config names the remote sync target (e.g., `"github"`). Future adapters (Jira, Linear, Azure DevOps) plug in without changing any layer above.
+- **Dual-write is transparent** — `pm.sh` auto-generates wrappers at load time that call the local server (sync) then the external adapter (fire-and-forget).
 - **MCP tools as a first-class interface** — the server exposes 13 MCP tools (create_item, set_status, add_comment, etc.) via `.mcp.json` auto-discovery. Agents can use MCP tools directly instead of routing through shell scripts.
 
 
@@ -501,12 +499,12 @@ server/                    ← Workflow Runtime Service (Bun + TypeScript)
   tests/                   ← ~500 tests (services, API, MCP, frontend)
 
 scripts/
-  item-*.sh                ← PM wrapper scripts (work with both server and file adapters)
+  item-*.sh                ← PM wrapper scripts
   lib/
-    pm.sh                  ← PM abstraction layer (adapter routing)
-    adapters/pm/server/    ← Server PM adapter (HTTP→SQLite, with fallback to local files)
-    adapters/pm/github/    ← GitHub external adapter
-    adapters/pm/local/     ← Local file adapter (.workflow/items/)
+    pm.sh                  ← PM abstraction layer (local + dual-write wrappers)
+    adapters/pm/server/    ← Local PM adapter (HTTP→SQLite via workflow server)
+    adapters/pm/github/    ← GitHub sync adapter (fire-and-forget dual-write)
+    adapters/pm/local/     ← Legacy file adapter (tests only)
     config.sh              ← Shared config reader
   templates/telemetry.md   ← Telemetry comment template
 

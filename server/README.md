@@ -103,9 +103,11 @@ These are gitignored. The database persists your workflow data across server res
 
 ## Data Migration
 
-On first startup, if the database is empty and `.workflow/items/` contains existing item files, the server automatically imports them into SQLite. This is a one-time migration — subsequent starts skip it.
+On first startup, if the database is empty and `.workflow/items/` contains legacy item files, the server automatically imports them into SQLite. This is a one-time migration — subsequent starts skip it.
 
-To manually trigger migration:
+The server is now the default local PM adapter. All `pm_*` shell functions route through the server's HTTP API. The old file-based adapter (`scripts/lib/adapters/pm/local/`) is retained for tests only.
+
+To manually trigger migration from legacy files:
 ```bash
 bun run src/db/seed.ts
 ```

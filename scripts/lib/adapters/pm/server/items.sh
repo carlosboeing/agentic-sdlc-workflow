@@ -60,6 +60,58 @@ eval "${_PM_FN_PREFIX}pm_create_item() {
   echo \"\$response\" | jq -r '.id'
 }"
 
+# _local_pm_create_item_with_id <id> <level> <title> [--body <t>] [--body-file <p>] [--labels <csv>] [--created-by <agent>]
+# Creates an item with a specific ID (e.g., GitHub issue number from dual-write sync).
+# This is called by the dual-write wrapper after the external adapter creates the item.
+# NOTE: This function is always defined with _local_ prefix (not subject to
+# _PM_FN_PREFIX) because it's an internal interface called by the wrapper in pm.sh.
+_local_pm_create_item_with_id() {
+  local explicit_id="$1" level="$2" title="$3"; shift 3
+  local body="" body_file="" labels="" created_by=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --body) body="$2"; shift 2 ;;
+      --body-file) body_file="$2"; shift 2 ;;
+      --labels) labels="$2"; shift 2 ;;
+      --created-by) created_by="$2"; shift 2 ;;
+      *) shift ;;  # skip unknown flags silently (wrapper may pass extras)
+    esac
+  done
+
+  # Read body from file if specified
+  if [ -n "$body_file" ] && [ -f "$body_file" ]; then
+    body=$(cat "$body_file")
+  fi
+
+  # Build labels JSON array
+  local labels_json="[]"
+  if [ -n "$labels" ]; then
+    labels_json=$(printf '%s' "$labels" | awk -F',' '{
+      printf "["
+      for(i=1;i<=NF;i++) {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $i)
+        if(i>1) printf ","
+        printf "\"%s\"", $i
+      }
+      printf "]"
+    }')
+  fi
+
+  local escaped_title escaped_body
+  escaped_title=$(_server_escape_json "$title")
+  escaped_body=$(_server_escape_json "$body")
+
+  local json_payload
+  json_payload="{\"id\":${explicit_id},\"type\":\"${level}\",\"title\":\"${escaped_title}\""
+  [ -n "$body" ] && json_payload="${json_payload},\"body\":\"${escaped_body}\""
+  [ -n "$created_by" ] && json_payload="${json_payload},\"createdBy\":\"${created_by}\""
+  json_payload="${json_payload},\"labels\":${labels_json}}"
+
+  local response
+  response=$(_server_pm_curl_post "/api/items" "$json_payload") || return 1
+  echo "$response" | jq -r '.id'
+}
+
 # pm_get_item <id> [--json <fields>]
 eval "${_PM_FN_PREFIX}pm_get_item() {
   local item_id=\"\$1\"; shift

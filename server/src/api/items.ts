@@ -94,7 +94,9 @@ export function createItemsRouter(
     }
 
     const data = parseResult.data;
-    const id = generateLocalId(db);
+    // Use explicit id from request body if provided (e.g., GitHub issue number
+    // from dual-write sync), otherwise auto-generate locally.
+    const id = data.id ?? generateLocalId(db);
 
     const item = await itemService.create({
       id,

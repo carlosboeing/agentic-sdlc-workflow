@@ -16,9 +16,11 @@ if [ -n "${_SERVER_COMMON_LOADED:-}" ]; then
 fi
 _SERVER_COMMON_LOADED=1
 
-# Resolve the workflow directory for port file lookup.
+# Resolve the state directory for port file lookup.
+# The server writes server.port to .agentic-workflow/ (its state directory),
+# NOT to $CFG_WORKFLOW_DIR (.workflow/ — the PM items directory).
 # _SERVER_WORKFLOW_DIR can be overridden for testing.
-_SERVER_WORKFLOW_DIR="${_SERVER_WORKFLOW_DIR:-${CFG_WORKFLOW_DIR:-.agentic-workflow}}"
+_SERVER_WORKFLOW_DIR="${_SERVER_WORKFLOW_DIR:-.agentic-workflow}"
 
 # Default curl timeout for API calls (seconds)
 _SERVER_CURL_TIMEOUT="${_SERVER_CURL_TIMEOUT:-5}"

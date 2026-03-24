@@ -85,17 +85,19 @@ if [ -n "${_PM_TEST_ADAPTER_DIR:-}" ]; then
 fi
 
 # =============================================================================
-# Dual-source loader: always local, optionally external
+# Dual-source loader: primary adapter + optional external sync target
 # =============================================================================
 
 # Source config to get CFG_PM_ADAPTER
 # shellcheck source=scripts/lib/config.sh
 source "$_PM_SCRIPT_DIR/config.sh"
 
-# --- Step 1: Always source the local adapter ---
-_PM_LOCAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/local"
+# --- Step 1: Source the local adapter ---
+# The local PM is the workflow server (SQLite via HTTP API).
+# The old file-based adapter (adapters/pm/local/) is retained for tests.
+_PM_LOCAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/server"
 if [ ! -d "$_PM_LOCAL_DIR" ]; then
-  echo "ERROR: Local PM adapter not found at $_PM_LOCAL_DIR" >&2
+  echo "ERROR: Primary PM adapter not found at $_PM_LOCAL_DIR" >&2
   return 1 2>/dev/null || exit 1
 fi
 
@@ -229,20 +231,13 @@ _pm_generate_create_item_wrapper() {
   }'
 }
 
-# --- Step 3: Determine external adapter ---
+# --- Step 3: Determine sync target ---
+# pm.adapter names the remote to sync to (e.g., "github").
 PM_EXTERNAL="${CFG_PM_ADAPTER:-}"
 PM_ADAPTER="local"
 PM_ADAPTER_DIR="$_PM_LOCAL_DIR"
 
-# Handle pm.adapter = "local" (deprecated — local is now always-on)
-if [ "$PM_EXTERNAL" = "local" ]; then
-  echo "NOTE: pm.adapter='local' is deprecated. Local adapter is now always-on." >&2
-  echo "  To run local-only, remove pm.adapter or set it to null." >&2
-  echo "  To sync to GitHub, set pm.adapter to 'github'." >&2
-  PM_EXTERNAL=""
-fi
-
-# Handle pm.adapter = "github" (default from config.sh) or other external adapter
+# Handle external adapter directory lookup
 if [ -n "$PM_EXTERNAL" ]; then
   _PM_EXTERNAL_DIR="$_PM_SCRIPT_DIR/adapters/pm/$PM_EXTERNAL"
   if [ ! -d "$_PM_EXTERNAL_DIR" ]; then

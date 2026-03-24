@@ -67,7 +67,7 @@ function CommentBubble({
     >
       <div className="flex items-center gap-2 text-xs">
         <span className="font-medium text-gray-700">{comment.author}</span>
-        <span className="text-gray-400">{formatTimestamp(comment.created_at)}</span>
+        <span className="text-gray-400">{formatTimestamp(comment.createdAt)}</span>
       </div>
       <p className="mt-1 text-sm text-gray-600 leading-relaxed">
         {comment.body}
@@ -94,16 +94,16 @@ export function CommentThread({
   const [showNewComment, setShowNewComment] = useState(comments.length === 0);
 
   // Separate top-level comments from replies
-  const topLevel = comments.filter((c) => c.thread_id === null);
-  const replies = comments.filter((c) => c.thread_id !== null);
+  const topLevel = comments.filter((c) => c.threadId === null);
+  const replies = comments.filter((c) => c.threadId !== null);
 
   // Group replies by parent thread_id
   const repliesByParent = new Map<string, Comment[]>();
   for (const reply of replies) {
-    if (reply.thread_id) {
-      const existing = repliesByParent.get(reply.thread_id) ?? [];
+    if (reply.threadId) {
+      const existing = repliesByParent.get(reply.threadId) ?? [];
       existing.push(reply);
-      repliesByParent.set(reply.thread_id, existing);
+      repliesByParent.set(reply.threadId, existing);
     }
   }
 

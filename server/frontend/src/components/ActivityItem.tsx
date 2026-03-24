@@ -62,13 +62,13 @@ function describeEvent(eventType: string, payload: string | unknown): string {
     case "item:closed":
       return `Item #${String(data.id ?? "?")} closed`;
     case "status:changed": {
-      const itemId = data.itemId ?? data.item_id;
+      const itemId = data.itemId ?? data.itemId;
       return `Item #${String(itemId ?? "?")} → ${String(data.to ?? data.newStatus ?? "")}`;
     }
     case "comment:added":
-      return `Comment on #${String(data.itemId ?? data.item_id ?? "?")} by ${String(data.author ?? "?")}`;
+      return `Comment on #${String(data.itemId ?? data.itemId ?? "?")} by ${String(data.author ?? "?")}`;
     case "telemetry:posted":
-      return `Telemetry posted for #${String(data.itemId ?? data.item_id ?? "?")}`;
+      return `Telemetry posted for #${String(data.itemId ?? data.itemId ?? "?")}`;
     case "connection:established":
       return "Connected to server";
     default:
@@ -105,9 +105,9 @@ export function ActivityItem(props: ActivityItemProps) {
   let timestamp: string;
 
   if (props.variant === "log") {
-    eventType = props.event.event_type;
+    eventType = props.event.eventType;
     description = describeEvent(eventType, props.event.payload);
-    timestamp = props.event.created_at;
+    timestamp = props.event.createdAt;
   } else {
     eventType = props.message.type;
     description = describeEvent(eventType, props.message.data);

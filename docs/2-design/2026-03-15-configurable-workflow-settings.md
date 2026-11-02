@@ -4,7 +4,7 @@ author: carlosboeing
 agent: designer
 status: approved
 scope: Centralize hardcoded workflow configuration into a single config file, as the foundation for future Claude Code plugin packaging
-related: docs/1-discovery/2026-03-15-plugin-packaging-research.md
+related: ../1-discovery/2026-03-15-plugin-packaging-research.md
 ---
 
 # Design: Configurable Workflow Settings

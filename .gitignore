@@ -11,3 +11,4 @@ server/frontend/dist/
 # macOS
 .DS_Store
 __pycache__/
+.worktrees/

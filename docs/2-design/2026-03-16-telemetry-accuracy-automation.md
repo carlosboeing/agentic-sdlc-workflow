@@ -1,6 +1,8 @@
 ---
+title: "Telemetry Accuracy & Automation"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-16
-author: carlosboeing
 agent: designer
 backlog: 106
 status: draft

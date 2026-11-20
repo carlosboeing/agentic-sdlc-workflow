@@ -1,6 +1,8 @@
 ---
+title: "Appendix: Agentic SDLC as a Claude Code Plugin"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-10
-author: carlosboeing
 agent: designer
 status: draft
 parent: 2026-03-09-agentic-sdlc-v2-design.md

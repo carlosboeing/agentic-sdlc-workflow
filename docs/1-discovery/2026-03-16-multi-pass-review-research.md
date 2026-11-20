@@ -1,6 +1,8 @@
 ---
+title: "Multi-Pass Review Research: Evidence from Backlog #106"
+type: research
+authors: ["Carlos Boeing"]
 date: 2026-03-16
-author: carlosboeing
 agent: orchestrator
 scope: Research into multi-pass review strategy for critical decision points in the agentic SDLC workflow
 backlog-context: 106

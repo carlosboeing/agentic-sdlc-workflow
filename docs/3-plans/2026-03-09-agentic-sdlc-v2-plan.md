@@ -1,6 +1,8 @@
 ---
+title: "Agentic SDLC v2 — Implementation Plan"
+type: plan
+authors: ["Carlos Boeing"]
 date: 2026-03-09
-author: carlosboeing
 agent: planner
 status: draft
 epic: sdlc-v2

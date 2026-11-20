@@ -1,6 +1,8 @@
 ---
+title: "Workflow Speed, Quality & Instruction Architecture — Discovery"
+type: research
+authors: ["Carlos Boeing"]
 date: 2026-03-23
-author: carlosboeing
 agent: general
 scope: Post BL#116 deep dive — workflow speed optimization, quality improvement, instruction architecture (3-layer model), mock contract parallelism, review strategy, observability gaps
 sources:

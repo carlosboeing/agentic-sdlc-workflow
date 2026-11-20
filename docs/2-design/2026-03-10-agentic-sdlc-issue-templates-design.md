@@ -1,6 +1,8 @@
 ---
+title: "Design: GitHub Issue Templates for Work Items"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-10
-author: carlosboeing
 agent: orchestrator
 status: draft
 ---

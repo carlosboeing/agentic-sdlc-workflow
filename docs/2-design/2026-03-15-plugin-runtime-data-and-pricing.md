@@ -1,6 +1,8 @@
 ---
+title: "Design: Plugin Runtime Data & Pricing Architecture"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-15
-author: carlosboeing
 agent: orchestrator
 status: approved
 backlog: 56

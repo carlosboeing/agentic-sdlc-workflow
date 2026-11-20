@@ -1,6 +1,8 @@
 ---
+title: "Design: Split orchestrator.md into Core Instructions and Scripts"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-17
-author: carlosboeing
 agent: designer
 status: draft
 backlog: 150

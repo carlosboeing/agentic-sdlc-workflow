@@ -1,6 +1,8 @@
 ---
+title: "Workflow Runtime Service — Discovery & Research"
+type: research
+authors: ["Carlos Boeing"]
 date: 2026-03-22
-author: carlos
 backlog: 116
 scope: Brainstorming and research for BL#116 — expanding from a dashboard to a full workflow runtime service
 ---

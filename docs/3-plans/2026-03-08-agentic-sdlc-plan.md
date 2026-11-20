@@ -1,6 +1,8 @@
 ---
+title: "Agentic SDLC Implementation Plan"
+type: plan
+authors: ["Carlos Boeing"]
 date: 2026-03-08
-author: carlosboeing
 agent: general
 status: approved
 ---

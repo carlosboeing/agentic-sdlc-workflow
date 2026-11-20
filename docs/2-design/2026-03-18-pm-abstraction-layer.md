@@ -1,7 +1,8 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 title: PM Abstraction Layer
 date: 2026-03-18
-author: carlosboeing
 agent: designer
 status: draft
 backlog: 109

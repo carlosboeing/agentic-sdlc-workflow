@@ -1,6 +1,8 @@
 ---
+title: "Agentic SDLC Workflow for an Earlier Host Project"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-08
-author: carlosboeing
 agent: general
 status: approved
 ---

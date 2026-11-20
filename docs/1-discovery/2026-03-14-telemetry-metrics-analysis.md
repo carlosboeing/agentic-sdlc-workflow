@@ -1,6 +1,8 @@
 ---
+title: "Agentic SDLC Pipeline — Telemetry Metrics Analysis"
+type: analysis
+authors: ["Carlos Boeing"]
 date: 2026-03-14
-author: carlosboeing
 agent: general
 scope: Comprehensive telemetry metrics analysis across 11 test runs of the agentic SDLC pipeline
 sources: GitHub issue telemetry comments (earlier host repository issues for Runs 1-7, carlosboeing/agentic-sdlc-workflow issues 1-41)

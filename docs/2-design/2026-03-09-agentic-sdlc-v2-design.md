@@ -1,6 +1,8 @@
 ---
+title: "Agentic SDLC Workflow v2 — Orchestration & Self-Improvement"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-09
-author: carlosboeing
 agent: designer
 status: draft
 retro: ../4-reviews/2026-03-09-e01-calendar-retro.md

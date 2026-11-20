@@ -1,7 +1,8 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 title: "Phase Restructuring: Parallel Story Lifecycles and Tiered Reviews"
 date: 2026-03-19
-author: carlosboeing
 agent: designer
 backlog: 243
 status: approved

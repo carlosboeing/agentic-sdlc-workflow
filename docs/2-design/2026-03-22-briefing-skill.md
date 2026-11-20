@@ -1,6 +1,7 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-22
-author: carlosboeing
 agent: designer
 status: approved
 backlog: 316

@@ -1,6 +1,8 @@
 ---
+title: "Telemetry Deep Dive — Critical Workflow Analysis"
+type: analysis
+authors: ["Carlos Boeing"]
 date: 2026-03-19
-author: carlosboeing
 agent: general
 scope: Deep-dive telemetry analysis across 14 backlog items (Runs 8-16 + 5 infrastructure runs) — model routing ROI, phase optimization, long poles, and visualization improvements
 sources: GitHub issue telemetry comments and PR descriptions for backlog items 1, 14, 27, 41, 56, 69, 83, 105, 106, 109, 111, 150, 167, 227

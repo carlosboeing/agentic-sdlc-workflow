@@ -1,7 +1,8 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 title: Workflow Runtime Service Design
 date: 2026-03-22
-author: carlosboeing
 agent: designer
 status: draft
 backlog: 116

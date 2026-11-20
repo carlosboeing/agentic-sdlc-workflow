@@ -1,7 +1,8 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 title: Local-First PM System
 date: 2026-03-18
-author: carlosboeing
 agent: designer
 status: draft
 backlog: 111

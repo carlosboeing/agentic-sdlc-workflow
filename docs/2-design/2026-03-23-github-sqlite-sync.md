@@ -1,7 +1,8 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 title: "GitHub-to-SQLite Sync (Pull Direction)"
 date: 2026-03-23
-author: carlosboeing
 agent: designer
 status: draft
 backlog: 364

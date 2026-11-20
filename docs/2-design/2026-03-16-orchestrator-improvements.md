@@ -1,6 +1,8 @@
 ---
+title: "Design: Orchestrator Improvements"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-16
-author: carlosboeing
 agent: designer
 backlog: 105
 scope: Bundle of orchestrator enhancements — reviewer routing, early branch creation, streaming reviews, batched board updates, batch issue creation, format templates, orchestrator override pattern, overhead metrics capture

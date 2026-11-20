@@ -1,6 +1,8 @@
 ---
+title: "Design: Agentic SDLC Workflow Extraction & Packaging"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-11
-author: carlosboeing
 agent: designer
 status: draft
 related:

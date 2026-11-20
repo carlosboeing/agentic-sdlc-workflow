@@ -1,6 +1,8 @@
 ---
+title: "Design: Work Item Taxonomy for Agentic SDLC"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-11
-author: carlosboeing
 agent: general
 status: draft
 recommendations:

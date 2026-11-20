@@ -1,6 +1,8 @@
 ---
+title: "Plugin Packaging Research & Brainstorming"
+type: research
+authors: ["Carlos Boeing"]
 date: 2026-03-15
-author: carlosboeing
 agent: general
 scope: Research and brainstorming for packaging the agentic SDLC workflow as a Claude Code plugin
 ---

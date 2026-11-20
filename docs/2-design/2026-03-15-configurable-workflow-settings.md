@@ -1,6 +1,8 @@
 ---
+title: "Design: Configurable Workflow Settings"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-15
-author: carlosboeing
 agent: designer
 status: approved
 scope: Centralize hardcoded workflow configuration into a single config file, as the foundation for future Claude Code plugin packaging

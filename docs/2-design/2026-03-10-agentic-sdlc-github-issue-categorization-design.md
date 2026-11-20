@@ -1,6 +1,8 @@
 ---
+title: "GitHub Issue Categorization Improvements"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-10
-author: carlosboeing
 agent: general
 status: approved
 ---

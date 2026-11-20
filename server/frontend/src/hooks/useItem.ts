@@ -6,7 +6,7 @@
  * - Comments (GET /api/items/:id/comments)
  * - Telemetry records (GET /api/items/:id/telemetry)
  * - Children items (GET /api/items/:id/children)
- * - Parent item (GET /api/items/:id if parent_id exists)
+ * - Parent item (GET /api/items/:id if parentId exists)
  */
 
 import { useState, useEffect } from "react";

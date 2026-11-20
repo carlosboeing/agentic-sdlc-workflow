@@ -1,0 +1,26 @@
+# Dependabot configuration.
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+
+  # Dependabot supports Bun (bun >= 1.1.39, bun.lock) as package-ecosystem "bun".
+  - package-ecosystem: bun
+    directory: "/server"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore
+      include: scope

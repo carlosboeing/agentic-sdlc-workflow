@@ -145,6 +145,28 @@ export interface WsItemStatusChanged {
 }
 
 // ---------------------------------------------------------------------------
+// Document types
+// ---------------------------------------------------------------------------
+
+/** A file entry returned by GET /api/documents. */
+export interface DocumentEntry {
+  /** Relative path from docs root (e.g., "design/overview.md"). */
+  path: string;
+  /** Display name (filename). */
+  name: string;
+}
+
+/** Full document content returned by GET /api/documents/:path. */
+export interface DocumentContent {
+  /** Relative path from docs root. */
+  path: string;
+  /** Filename only. */
+  name: string;
+  /** Raw markdown content. */
+  content: string;
+}
+
+// ---------------------------------------------------------------------------
 // Query / filter params
 // ---------------------------------------------------------------------------
 

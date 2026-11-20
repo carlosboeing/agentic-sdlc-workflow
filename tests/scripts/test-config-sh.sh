@@ -7,7 +7,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONFIG_SH="$REPO_ROOT/scripts/lib/config.sh"
-CONFIG_JSON="$REPO_ROOT/.claude/agentic-sdlc-config.json"
+# Fully configured fixture board, not the (empty) repository config.
+CONFIG_JSON="$REPO_ROOT/tests/fixtures/config/github-board.json"
+export _CFG_FILE_OVERRIDE="$CONFIG_JSON"
 
 PASS=0
 FAIL=0
@@ -98,13 +100,13 @@ bash --norc --noprofile -c "
 
 get_val() { grep "^$1=" "$TMPOUT" | cut -d= -f2; }
 
-assert_eq "CFG_REPO_IsSet" "carlosboeing/agentic-sdlc-workflow" "$(get_val CFG_REPO)"
+assert_eq "CFG_REPO_IsSet" "example-org/example-repo" "$(get_val CFG_REPO)"
 assert_eq "CFG_PROJECT_NUMBER_IsSet" "7" "$(get_val CFG_PROJECT_NUMBER)"
-assert_eq "CFG_PROJECT_OWNER_IsSet" "carlosboeing" "$(get_val CFG_PROJECT_OWNER)"
-assert_eq "CFG_STATUS_BACKLOG_IsSet" "17425ce6" "$(get_val CFG_STATUS_BACKLOG)"
-assert_eq "CFG_STATUS_IN_PROGRESS_IsSet" "47fc9ee4" "$(get_val CFG_STATUS_IN_PROGRESS)"
-assert_eq "CFG_STATUS_IN_REVIEW_IsSet" "9bb97c15" "$(get_val CFG_STATUS_IN_REVIEW)"
-assert_eq "CFG_STATUS_DONE_IsSet" "98236657" "$(get_val CFG_STATUS_DONE)"
+assert_eq "CFG_PROJECT_OWNER_IsSet" "example-org" "$(get_val CFG_PROJECT_OWNER)"
+assert_eq "CFG_STATUS_BACKLOG_IsSet" "opt-backlog" "$(get_val CFG_STATUS_BACKLOG)"
+assert_eq "CFG_STATUS_IN_PROGRESS_IsSet" "opt-in-progress" "$(get_val CFG_STATUS_IN_PROGRESS)"
+assert_eq "CFG_STATUS_IN_REVIEW_IsSet" "opt-in-review" "$(get_val CFG_STATUS_IN_REVIEW)"
+assert_eq "CFG_STATUS_DONE_IsSet" "opt-done" "$(get_val CFG_STATUS_DONE)"
 assert_eq "CFG_ROUTE_EASY_IsSet" "sonnet" "$(get_val CFG_ROUTE_EASY)"
 assert_eq "CFG_ROUTE_MEDIUM_IsSet" "sonnet" "$(get_val CFG_ROUTE_MEDIUM)"
 assert_eq "CFG_ROUTE_HARD_IsSet" "opus" "$(get_val CFG_ROUTE_HARD)"

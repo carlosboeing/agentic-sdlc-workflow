@@ -25,6 +25,32 @@ eval "${_PM_FN_PREFIX}pm_add_comment() {
     \"{\\\"body\\\":\\\"\$escaped_body\\\",\\\"author\\\":\\\"shell-adapter\\\"}\" > /dev/null
 }"
 
+# pm_add_doc_comment <path> <body> [anchor]
+# Add a comment to a design document, optionally anchored to a heading or paragraph.
+# <path> is the document path relative to the docs/ directory (e.g. "2-design/overview.md")
+# <anchor> is an optional anchor slug (e.g. "introduction" or "p-0")
+eval "${_PM_FN_PREFIX}pm_add_doc_comment() {
+  if [ \$# -lt 2 ]; then
+    echo \"Usage: pm_add_doc_comment <path> <body> [anchor]\" >&2
+    return 1
+  fi
+  local doc_path=\"\$1\"
+  local body=\"\$2\"
+  local anchor=\"\${3:-}\"
+
+  local escaped_body escaped_anchor json_body
+  escaped_body=\$(_server_escape_json \"\$body\")
+
+  if [ -n \"\$anchor\" ]; then
+    escaped_anchor=\$(_server_escape_json \"\$anchor\")
+    json_body=\"{\\\"body\\\":\\\"\$escaped_body\\\",\\\"author\\\":\\\"shell-adapter\\\",\\\"anchor\\\":\\\"\$escaped_anchor\\\"}\"
+  else
+    json_body=\"{\\\"body\\\":\\\"\$escaped_body\\\",\\\"author\\\":\\\"shell-adapter\\\"}\"
+  fi
+
+  _server_pm_curl_post \"/api/documents/\$doc_path/comments\" \"\$json_body\" > /dev/null
+}"
+
 # pm_post_telemetry <item-id> [flags...]
 # Delegates to scripts/item-telemetry.sh, passing all flags through unchanged.
 eval "${_PM_FN_PREFIX}pm_post_telemetry() {

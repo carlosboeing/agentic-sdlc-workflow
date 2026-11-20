@@ -55,7 +55,7 @@ describe("MCP Tool Handlers", () => {
   // ---------------------------------------------------------------------------
 
   describe("tool registration", () => {
-    test("registers all 11 core PM tools", () => {
+    test("registers all 13 tools (11 PM + 2 doc comment)", () => {
       const expectedTools = [
         "create_item",
         "get_item",
@@ -68,6 +68,8 @@ describe("MCP Tool Handlers", () => {
         "start_work",
         "complete_work",
         "post_telemetry",
+        "add_doc_comment",
+        "list_doc_comments",
       ];
 
       for (const toolName of expectedTools) {

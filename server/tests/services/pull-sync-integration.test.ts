@@ -486,7 +486,7 @@ describe("Pull sync integration: full pipeline", () => {
     // Item 5: docs type (type/docs label, no hierarchy)
     const item5 = allItems.find((i) => i.id === 5);
     expect(item5?.type).toBe("docs");
-    expect(item5?.status).toBe("backlog");   // not on board -> default
+    expect(item5?.status).toBe("done");      // closed and not on board -> "done" fallback (issue-mapper)
 
     // Item 7: not on board -> default "backlog" status
     const item7 = allItems.find((i) => i.id === 7);

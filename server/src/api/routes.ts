@@ -8,6 +8,7 @@ import { BoardService } from "../services/board";
 import { CommentService } from "../services/comments";
 import { HierarchyService } from "../services/hierarchy";
 import { LifecycleService } from "../services/lifecycle";
+import { DocumentService } from "../services/documents";
 import { EventService, createActivityRouter } from "./websocket";
 import { createItemsRouter } from "./items";
 import { createBoardRouter } from "./board";
@@ -19,6 +20,7 @@ import { GitHubPullFetcher } from "../adapters/github-pull";
 import { PullSyncService } from "../services/pull-sync";
 import { IssueMapper } from "../lib/issue-mapper";
 import { DatabaseUpserter } from "../services/database-upserter";
+import { createDocumentsRouter } from "./documents";
 
 type Db = ReturnType<typeof drizzle>;
 
@@ -57,6 +59,7 @@ function readGithubRepo(): string {
  *   telemetry.ts — /api/items/:id/telemetry + start + complete (E02-S02)
  *   websocket.ts — /api/activity feed endpoint (E05-S04)
  *   sync.ts      — /api/sync/pull and /api/sync/status (E02-S01)
+ *   documents.ts — /api/documents list + read + comments (E06-S01)
  *
  * @param app          - The Hono application instance
  * @param db           - Drizzle DB connection shared by all route groups
@@ -64,12 +67,16 @@ function readGithubRepo(): string {
  *                       When omitted, services run without WebSocket events.
  * @param githubRepo   - Optional GitHub repo override ("owner/repo").
  *                       When omitted, read from agentic-sdlc-config.json.
+ * @param repoRoot     - Absolute path to the repository root.
+ *                       Used to resolve the docs/ directory for document serving.
+ *                       Defaults to 3 levels above this file (server/src/api/ → repo root).
  */
 export function registerRoutes(
   app: Hono,
   db: Db,
   eventService?: EventService,
-  githubRepo?: string
+  githubRepo?: string,
+  repoRoot?: string
 ): void {
   const effectiveEventService = eventService ?? new EventService(db);
   const itemService = new ItemService(db, effectiveEventService);
@@ -78,6 +85,13 @@ export function registerRoutes(
   const commentService = new CommentService(db, effectiveEventService);
   const hierarchyService = new HierarchyService(db);
   const lifecycleService = new LifecycleService(db, effectiveEventService);
+
+  // Resolve docs directory — defaults to <repo-root>/docs/
+  // routes.ts is at server/src/api/routes.ts; repo root is 3 dirs up
+  const resolvedRepoRoot =
+    repoRoot ?? resolve(new URL(import.meta.url).pathname, "../../../..");
+  const docsDir = join(resolvedRepoRoot, "docs");
+  const documentService = new DocumentService(docsDir);
 
   // Item CRUD + label management (E02-S01)
   app.route("/api", createItemsRouter(itemService, labelService, db));
@@ -104,4 +118,6 @@ export function registerRoutes(
   const upserter = new DatabaseUpserter(db);
   const pullSyncService = new PullSyncService(fetcher, mapper, upserter, effectiveEventService);
   app.route("/api", createSyncRouter(pullSyncService));
+  // Document file list + read + comments (E06-S01)
+  app.route("/api", createDocumentsRouter(documentService, commentService));
 }

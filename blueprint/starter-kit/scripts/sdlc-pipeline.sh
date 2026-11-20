@@ -81,7 +81,7 @@ run_with_retry() {
     # (The JSON output has no `.success` field; stderr is kept out of the JSON.)
     if result=$(claude -p "Implement task from spec: $task_file. $error_context" \
       --model "$model" \
-      --allowedTools "Read" "Write" "Edit" "Bash(npm run *)" "Bash(git add *)" "Bash(git commit *)" \
+      --allowedTools "Read" "Write" "Edit" "Bash(npm run test)" "Bash(npm run lint)" "Bash(git add *)" "Bash(git commit *)" \
       --permission-mode acceptEdits \
       --max-turns 50 \
       --output-format json) \
@@ -159,7 +159,7 @@ if [ "$ENTRY" = "full" ] || [ "$ENTRY" = "design" ]; then
       Load templates. Produce HLD, LLD, ADRs. Write to doc tool. Output JSON manifest." \
       --model "$(model_for architect)" \
       --output-format json \
-      --allowedTools "Read" "Grep" "Glob" "Bash(find:*)" "Bash(tree:*)" "Bash(wc:*)" "WebFetch" \
+      --allowedTools "Read" "Grep" "Glob" "Bash(tree:*)" "Bash(wc:*)" "WebFetch" \
         "mcp__docs__get_page" "mcp__docs__create_page" "mcp__docs__search" \
       --max-turns 40 \
       | jq -r '.result')
@@ -179,7 +179,7 @@ if [ "$ENTRY" != "build" ]; then
       Write specs to .claude/context/tasks/. Output JSON task manifest with DAG." \
       --model "$(model_for planner)" \
       --output-format json \
-      --allowedTools "Read" "Grep" "Glob" "Bash(find:*)" "Write" \
+      --allowedTools "Read" "Grep" "Glob" "Write" \
         "mcp__docs__get_page" "mcp__docs__search" \
         "mcp__pm__create_issue" "mcp__pm__search_issues" \
       --max-turns 40 \
@@ -238,7 +238,7 @@ for task_file in .claude/context/tasks/*.md; do
     cd "../wt-$name"
     claude -p "Write comprehensive tests. Run full suite. Fix failures." \
       --model sonnet \
-      --allowedTools "Read" "Write" "Edit" "Bash(npm run test *)" "Bash(pytest *)" \
+      --allowedTools "Read" "Write" "Edit" "Bash(npm run test)" "Bash(pytest)" \
       --permission-mode acceptEdits \
       --max-turns 30
   ) &
@@ -254,7 +254,7 @@ claude -p "Review all feature branches. Read HLD/LLD/ADRs from docs. \
   Merge all branches into temp integration branch, run full suite. \
   Output structured review." \
   --model opus \
-  --allowedTools "Read" "Grep" "Glob" "Bash(git *)" \
+  --allowedTools "Read" "Grep" "Glob" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" \
     "mcp__docs__get_page" "mcp__docs__search" "mcp__pm__add_comment" \
   --output-format json \
   --max-turns 20

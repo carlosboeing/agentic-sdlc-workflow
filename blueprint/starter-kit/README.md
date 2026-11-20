@@ -20,3 +20,7 @@ Verification was limited to `bash -n`, `jq empty` and offline `jq` checks of the
 - Model prices and flags reflect March 2026.
 
 Cost note: a real run would spend model tokens. If you try it, set `--max-turns` and `--max-budget-usd` on every `claude -p` call first.
+
+## Running it safely
+
+The pipeline runs unattended Claude Code sessions with per-stage tool allowlists. Allowlists narrow what a stage can do; they are not an isolation boundary. Run the kit only inside a disposable container or VM with no host credentials, or with Claude Code's sandbox enabled and network egress restricted. The allowlists were tightened in November 2026: no `find` (it can execute and delete through `-exec` and `-delete`; stages use Glob and Grep instead), exact `npm run test` and `npm run lint` scripts, and read-only `git diff`, `git log` and `git show` for the reviewer.

@@ -89,7 +89,7 @@ cp /path/to/agentic-sdlc-blueprint/starter-kit/.mcp.json .mcp.json
 
 ### 2. Customize `CLAUDE.md`
 
-Edit `CLAUDE.md` in the project root to reflect the target project's stack, commands, architecture, and conventions. This file is the single most important context source for all pipeline agents. See [04-context-strategy.md](../../blueprint/04-context-strategy.md) for guidance on what to include.
+Edit `CLAUDE.md` in the project root to reflect the target project's stack, commands, architecture, and conventions. This file is the single most important context source for all pipeline agents. See [04-context-strategy.md](../../04-context-strategy.md) for guidance on what to include.
 
 ### 3. Customize `.mcp.json`
 

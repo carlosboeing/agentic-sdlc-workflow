@@ -1,5 +1,7 @@
 # State Management
 
+> Historical reference design (March 2026), written before the implementation. Tool names, flags and prices reflect that date. For the system as built, see [the implementation architecture](../docs/architecture.md).
+
 This document specifies the inter-agent state flow, data formats, and storage locations that enable structured communication between pipeline stages. State is distributed across four storage locations: the doc tool (product and technical documents), the PM tool (epics, stories, work items), the local filesystem (task specs, status files), and run manifests (pipeline execution audit trail).
 
 ## 1. Overview

@@ -1,10 +1,12 @@
 # Agent Pipeline
 
+> Historical reference design (March 2026), written before the implementation. Tool names, flags and prices reflect that date. For the system as built, see [the implementation architecture](../docs/architecture.md).
+
 This document specifies the six-agent pipeline that transforms a high-level product goal into reviewed, tested pull requests. Each agent maps to a distinct cognitive mode and produces a single artifact type. Agents execute sequentially with checkpoint gates between stages, and inter-agent communication is mediated through structured JSON manifests and shared document stores.
 
 ## 1. Overview
 
-The pipeline enforces a strict separation of concerns: one agent per cognitive mode, one artifact type per agent. This constraint ensures that product thinking never contaminates implementation, that architecture decisions are explicit rather than emergent, and that task specifications carry full traceability to design documents.
+The pipeline enforces a strict separation of concerns: one agent per cognitive mode, one artifact type per agent. This constraint is intended to keep product decisions out of implementation, that architecture decisions are explicit rather than emergent, and that task specifications carry full traceability to design documents.
 
 ### Pipeline Sequence
 
@@ -240,7 +242,7 @@ graph TB
 
 ### 2.4 Builder (Senior Developer)
 
-**Cognitive Mode.** Implementation. Executes a single task specification in an isolated git worktree. Focused, scoped, and deterministic.
+**Cognitive Mode.** Implementation. Executes a single task specification in an isolated git worktree. Focused and scoped to one task specification.
 
 **Inputs.** A single task specification file path. The task spec contains all necessary context: source document references, relevant files, acceptance criteria, and dependencies.
 
@@ -425,9 +427,9 @@ Between each pipeline stage, the orchestrator presents a checkpoint where the hu
 
 ### Supervised vs. Autonomous Modes
 
-**Supervised (default).** The pipeline halts at every checkpoint and awaits human input. This is the recommended mode for all production use.
+**Supervised (default).** The pipeline halts at every checkpoint and awaits human input. This is the default and the recommended starting point.
 
-**Autonomous.** The pipeline skips all checkpoints and proceeds without human intervention. Enabled via `--autonomy autonomous`. Appropriate only for well-understood, low-risk changes in environments with robust CI/CD gates.
+**Autonomous.** The pipeline skips all checkpoints and skips the stage checkpoints only; merge still requires human approval (see [Security Model](06-security-model.md)). Enabled via `--autonomy autonomous`. Appropriate only for well-understood, low-risk changes in environments with robust CI/CD gates.
 
 ## 6. Agent Definition File Format
 

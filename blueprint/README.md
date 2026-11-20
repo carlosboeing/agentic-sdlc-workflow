@@ -1,99 +1,85 @@
-# Agentic SDLC Blueprint
+# Agentic SDLC blueprint
 
-**End-to-end agentic software development lifecycle — from product vision to merged PR.**
+> Status: reference design, March 2026. Written before the implementation and not run as a standalone kit. The implementation is the rest of this repository: see [the repository README](../README.md) and [the implementation architecture](../docs/architecture.md).
 
----
+## Thesis
 
-## Overview
+Coding agents do well on single tasks, but software delivery is a pipeline: requirements, design, planning, implementation, testing and review. The blueprint treats the development system around the agents as the thing to engineer: role contracts, scoped context, inspectable artifacts, dependency-aware execution, verification, and explicit human authority. It is a design written on paper first.
 
-Modern AI coding assistants have demonstrated remarkable capability at the individual task level — generating functions, writing tests, reviewing diffs. However, software development is not a single task; it is a pipeline. Requirements must be gathered, architecture defined, work decomposed, code written, tests executed, and reviews completed before anything ships. Without a structured approach, teams applying AI assistants to this pipeline encounter fragmented context, inconsistent quality, and manual handoff overhead that erodes most of the productivity gain.
+## What it is and is not
 
-This blueprint defines a complete agentic software development lifecycle (SDLC) that automates the full pipeline using Claude Code. It specifies a six-agent pipeline with clean role separation — Visionary, Architect, Planner, Builder, Tester, Reviewer — each with defined inputs, outputs, permissions, and context boundaries. The orchestration engine coordinates these agents through a DAG-aware execution model with parallel task dispatch, structured checkpoints, retry logic, and escalation paths. MCP (Model Context Protocol) integrations provide a unified abstraction over documentation and project management backends, while a defense-in-depth security model enforces least-privilege access, worktree isolation, and rollback capabilities at every layer.
+| It is | It is not |
+|---|---|
+| A reference design and vocabulary for an artifact-centred agentic SDLC, written in March 2026 | A runnable product or a maintained kit |
+| Specification-style documents: role contracts, context loading, orchestration, security layers, state formats | Evidence that the design works: nothing here was run end to end or measured |
+| Preserved with its self-audit and a proposal that anticipated later changes | A claim that role-based agent pipelines are new |
 
-The core design is deliberately backend-agnostic. The eight design documents in this repository define the architecture, agent contracts, orchestration algorithms, context strategy, integration interfaces, security model, state management, and scaling considerations independent of any specific toolstack. Pluggable implementation guides then map these abstractions onto concrete backends — GitHub Issues, Notion, Linear, Jira, and others — so teams can adopt the blueprint with the tools they already use.
+Figures in the documents are third-party numbers or illustrative estimates unless a document says otherwise. Tool names, flags, package names, prices and maturity ratings reflect March 2026 and are partly stale.
 
-## System Architecture
+## Architecture at a glance
 
 ```mermaid
 graph TB
-    Goal["High-Level Goal"]
-
-    subgraph MCP["MCP Abstraction Layer"]
-        DocMCP["Doc MCP"]
-        PMMCP["PM MCP"]
-    end
-
-    subgraph Orchestrator["Orchestrator"]
-        Config["Config"]
-        Engine["Engine"]
-    end
-
-    subgraph Pipeline["Six-Agent Pipeline"]
-        V["Visionary"] -->|checkpoint| A["Architect"]
-        A -->|checkpoint| P["Planner"]
-        P -->|checkpoint| B["Builder"]
-        B -->|checkpoint| T["Tester"]
-        T -->|checkpoint| R["Reviewer"]
-    end
-
-    subgraph State["State Management"]
-        Docs["Docs"]
-        TechDesign["Tech Design"]
-        TaskSpecs["Task Specs"]
-        Manifests["Manifests"]
-    end
-
-    subgraph Security["Security Layers"]
-        Permissions["Permission Boundaries"]
-        Isolation["Worktree Isolation"]
-        Rollback["Rollback Controls"]
-    end
-
-    Goal --> MCP
-    MCP --> Orchestrator
-    Orchestrator --> Pipeline
-    Pipeline --> State
-    Pipeline --> Security
-    R --> Output["Pull Requests → Merged Code"]
+    Goal["Product goal"] --> Orch["Orchestrator (deterministic script)"]
+    Orch --> V["Visionary"]
+    V -->|"checkpoint"| A["Architect"]
+    A -->|"checkpoint"| P["Planner"]
+    P -->|"checkpoint: task DAG"| B["Builders in git worktrees"]
+    B --> T["Tester"]
+    T --> R["Reviewer"]
+    R --> PR["Pull request, human merge"]
+    MCP["MCP doc and PM tools"] -.-> Orch
+    State["Artifacts: docs, task specs, manifests"] -.-> Orch
+    Sec["Security layers: sandbox, permissions, hooks, branch protection, CI"] -.-> B
 ```
 
-## Document Map
+## Design principles
 
-| # | Document | Description | Audience |
-|---|----------|-------------|----------|
-| 01 | [Architecture Overview](blueprint/01-architecture-overview.md) | System context, components, data flow, design principles, entry points | All |
-| 02 | [Agent Pipeline](blueprint/02-agent-pipeline.md) | Per-agent specs: role, I/O, permissions, model, context, prompt design | Engineers, Tech Leads |
-| 03 | [Orchestration Engine](blueprint/03-orchestration-engine.md) | DAG algorithm, retry/escalation, Bash to SDK to Actions tiers, manifests | Engineers |
-| 04 | [Context Strategy](blueprint/04-context-strategy.md) | Token budgets, 3-tier loading, per-agent context tables, RAG migration | Engineers, Architects |
-| 05 | [Integration Layer](blueprint/05-integration-layer.md) | MCP abstraction, unified tool interface, backend matrix, configs | Engineers, DevOps |
-| 06 | [Security Model](blueprint/06-security-model.md) | 5-layer defense, per-layer spec, worktree isolation, rollback | All |
-| 07 | [State Management](blueprint/07-state-management.md) | Task spec format, traceability, status files, run manifests, audit trail | Engineers |
-| 08 | [Monitoring & Scaling](blueprint/08-monitoring-scaling.md) | Telemetry, cost tracking, expectations, solo to team scaling | Tech Leads, Managers |
+- **Roles with contracts.** One role per cognitive mode and one artifact type per role, each with defined inputs, outputs, tools, model and context.
+- **Deterministic and probabilistic boundary.** The orchestrator is ordinary code: it sequences stages, resolves the dependency graph, retries, enforces budgets and records manifests. Models do the judgment work inside each stage. The boundary matters because the model-produced task DAG that the orchestrator consumes is unvalidated input, so it needs schema checks before it drives anything.
+- **Context is an engineering resource.** Each role loads only the documents and sections it needs, directed by the Planner. (A later critique in [internal/](internal/) argues for a more generous default; the question is open.)
+- **Artifacts, not conversation.** Handoffs go through inspectable documents, task specs with traceability to design sections, and manifests.
+- **Isolation.** One git worktree per parallel task.
+- **Verification as a stage.** Testing and review are separate roles, and review can return an architecture-drift verdict to design instead of failing the task.
+- **Human authority.** Supervised by default, autonomous as an opt-in that skips stage checkpoints only. A human always approves the merge.
+- **Layered, not absolute, safety.** The security layers are complementary controls. The pattern-based hook is a tripwire, not a boundary.
 
-## Quick Start
+## How the design evolved in the implementation
 
-1. Start with the [Architecture Overview](blueprint/01-architecture-overview.md) for the big picture — system context, component responsibilities, and data flow across the pipeline.
-2. Choose an [implementation guide](implementations/) that matches your toolstack (e.g., GitHub-native, Notion + Linear, Confluence + Jira).
-3. Copy `starter-kit/` into your project and customize `CLAUDE.md` and `.mcp.json` to match your repository structure and backend configuration.
+The implementation in the repository root was not built from this blueprint as a direct derivation. The two overlap, and several ideas changed or were dropped when they met real runs.
 
-## Implementation Guides
+| Blueprint concept | Implementation mechanism | Relationship |
+|---|---|---|
+| Visionary and Architect | Designer | Consolidated, as the [proposed improvements](internal/designs/2026-03-07-proposed-improvements.md) suggested |
+| Planner with a task DAG | Planner using GitHub Issues and dependency graphs | Kept, with GitHub Issues as the source of truth |
+| Builder and Tester | Builder with TDD and difficulty-based model routing | Tester folded into the Builder |
+| Reviewer with a drift verdict | Reviewer with severity findings and fix cycles | Kept and extended with fix and re-review loops |
+| Shell orchestrator | Orchestrator agent | Replaced |
+| Run manifests | Telemetry phase | Implemented in a different form |
+| (not in the blueprint) | Retrospective agent and lessons | Added by the implementation |
 
-| Implementation | Doc Backend | PM Backend | Status |
+## Document map
+
+| # | Document | Content | Status |
 |---|---|---|---|
-| [GitHub Native](implementations/github-native/) | Repository MD files | GitHub Issues + Projects | Available |
-| Notion + Linear | Notion pages | Linear issues | Planned |
-| Confluence + Jira | Confluence pages | Jira issues | Planned |
+| 01 | [Architecture Overview](01-architecture-overview.md) | System context, components, data flow, principles, entry points | Historical |
+| 02 | [Agent Pipeline](02-agent-pipeline.md) | Per-role contracts: inputs, outputs, permissions, model, context | Historical |
+| 03 | [Orchestration Engine](03-orchestration-engine.md) | DAG waves, retry and escalation, implementation tiers | Historical, embedded code is illustrative |
+| 04 | [Context Strategy](04-context-strategy.md) | Three-tier loading, per-role context tables | Historical, token figures are estimates |
+| 05 | [Integration Layer](05-integration-layer.md) | MCP abstraction and backend options | Historical, server and package tables are stale |
+| 06 | [Security Model](06-security-model.md) | Five layers, worktree isolation, rollback | Historical, hook example corrected |
+| 07 | [State Management](07-state-management.md) | Task spec format, status files, manifests, templates | Historical, examples are illustrative |
+| 08 | [Monitoring and Scaling](08-monitoring-scaling.md) | Telemetry, cost, scaling | Historical, figures are third-party assumptions |
+| | [Implementation guides](implementations/) | GitHub-native mapping of the abstractions | Illustrative, known stale inputs and tool names |
+| | [Starter kit](starter-kit/README.md) | Agent definitions, templates, scripts | Illustrative, not maintained, not run |
+| | [Internal materials](internal/README.md) | Self-audit (with errata) and proposed improvements | Historical |
 
-## Starter Kit
+Reading order: 01, 02, 03, 07 for engineers; 01, 02, 04, 08 for tech leads; 01, 06, 08 for stakeholders.
 
-The `starter-kit/` directory contains a working reference implementation including agent definitions, prompt templates, orchestration scripts, and configuration files. It is designed to be copied directly into a target project and then customized. The starter kit provides concrete, runnable examples of every abstraction defined in the design documents — from agent role contracts and context-loading logic to checkpoint validation and state-file schemas.
+## Related work
 
-## Reading Order by Audience
-
-- **Engineers**: 01 → 02 → 03 → 07 → Implementation Guide
-- **Tech Leads**: 01 → 02 → 04 → 08 → Implementation Guide
-- **Managers / Stakeholders**: 01 → 06 → 08
+The blueprint draws on well-established ideas and does not claim novelty for them: role specialization across agents, orchestrator and worker patterns, evaluator and reviewer loops, context engineering, and older software-engineering practice (design documents, ADRs, PRFAQ, DAG schedulers, git worktrees). Contemporary agent frameworks and vendor guidance cover much of the same ground.
 
 ## License
 
-MIT
+MIT, see [the repository license](../LICENSE).

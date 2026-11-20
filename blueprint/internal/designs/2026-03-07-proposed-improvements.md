@@ -345,11 +345,11 @@ Proposed sequencing based on impact and dependency order:
 
 ## Related Documents
 
-- [Architecture Overview](../blueprint/01-architecture-overview.md)
-- [Agent Pipeline](../blueprint/02-agent-pipeline.md)
-- [Orchestration Engine](../blueprint/03-orchestration-engine.md)
-- [Context Strategy](../blueprint/04-context-strategy.md)
-- [Integration Layer](../blueprint/05-integration-layer.md)
-- [Security Model](../blueprint/06-security-model.md)
-- [State Management](../blueprint/07-state-management.md)
-- [Monitoring and Scaling](../blueprint/08-monitoring-scaling.md)
+- [Architecture Overview](../../01-architecture-overview.md)
+- [Agent Pipeline](../../02-agent-pipeline.md)
+- [Orchestration Engine](../../03-orchestration-engine.md)
+- [Context Strategy](../../04-context-strategy.md)
+- [Integration Layer](../../05-integration-layer.md)
+- [Security Model](../../06-security-model.md)
+- [State Management](../../07-state-management.md)
+- [Monitoring and Scaling](../../08-monitoring-scaling.md)

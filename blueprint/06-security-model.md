@@ -1,10 +1,12 @@
 # Security Model
 
-This document specifies the defense-in-depth security architecture that governs all agent operations within the pipeline. Five independent security layers ensure that no single failure can result in destructive operations on production assets. Additionally, git worktree isolation provides filesystem-level separation for parallel agent execution, and rollback mechanisms enable recovery at multiple granularity levels.
+> Historical reference design (March 2026), written before the implementation. Tool names, flags and prices reflect that date. For the system as built, see [the implementation architecture](../docs/architecture.md).
+
+This document specifies the defense-in-depth security architecture that governs all agent operations within the pipeline. Five complementary controls reduce the chance and impact of a destructive action on production assets. They are not fully independent and do not guarantee prevention: layers 2 and 3 run in the same agent process, and the pattern-based hook guard is a tripwire, not a boundary. Additionally, git worktree isolation provides filesystem-level separation for parallel agent execution, and rollback mechanisms enable recovery at multiple granularity levels.
 
 ## 1. Overview
 
-The security model is predicated on the principle that AI agents are untrusted execution environments. Each agent operates within a constrained permission envelope, and every action must pass through multiple independent validation layers before it can affect production state.
+The security model is predicated on the principle that AI agents are untrusted execution environments. Each agent operates within a constrained permission envelope, and every action is intended to pass through multiple validation layers before it can affect production state.
 
 ### Trust Model
 
@@ -16,7 +18,7 @@ The security model is predicated on the principle that AI agents are untrusted e
 
 ### Defense-in-Depth Flow
 
-An agent tool call must pass through all five layers to affect production state. Failure at any layer results in the action being blocked.
+An agent tool call is intended to pass through all five layers to affect production state. Failure at any layer is intended to block the action; the layers are complementary rather than independent.
 
 ```mermaid
 graph TB
@@ -62,7 +64,7 @@ The outermost security layer restricts the agent's access to the operating syste
 
 ### Impact
 
-OS sandboxing reduces the frequency of interactive permission prompts by approximately 84%, as the sandbox preemptively blocks operations that would otherwise require runtime approval.
+Anthropic reported that sandboxing reduced permission prompts by 84% in its internal usage ([Claude Code sandboxing](https://www.anthropic.com/engineering/claude-code-sandboxing)). This figure was not measured here. The mechanism is that the sandbox preemptively blocks operations that would otherwise require runtime approval.
 
 ## 3. Layer 2: Tool Permissions
 
@@ -106,7 +108,7 @@ PreToolUse hooks intercept tool calls before execution and apply pattern-based f
 
 ### Configuration
 
-Hook guards are defined in `.claude/settings.json`:
+Hook guards are defined in `.claude/settings.json` and point at a small script. The hook receives the tool call as JSON on stdin (the command is at `.tool_input.command`), so the script reads stdin rather than an environment variable:
 
 ```json
 {
@@ -115,12 +117,14 @@ Hook guards are defined in `.claude/settings.json`:
       "matcher": "Bash",
       "hooks": [{
         "type": "command",
-        "command": "echo $CLAUDE_TOOL_INPUT | jq -r '.command' | grep -qE 'rm -rf|git push.*main|DROP TABLE' && echo '{\"decision\":\"block\",\"reason\":\"Destructive command blocked\"}' || echo '{\"decision\":\"approve\"}'"
+        "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.sh"
       }]
     }]
   }
 }
 ```
+
+An illustrative script is in [`starter-kit/.claude/hooks/guard-bash.sh`](starter-kit/.claude/hooks/guard-bash.sh). It denies a short list of destructive patterns and prints nothing otherwise, so Claude Code's normal permission flow still applies. Earlier drafts of this section used a variable that does not exist and returned an approve decision for every command, which would have bypassed permission prompts; that was a defect in the original design text.
 
 ### Blocked Patterns
 
@@ -143,16 +147,16 @@ In addition to PreToolUse hooks, git commit hooks enforce:
 
 ### Hook Response Format
 
-Hooks return a JSON decision:
+To block a call, a PreToolUse hook prints this JSON and exits 0 (alternatively, it exits 2 with the reason on stderr). To take no position, it exits 0 with no output. See the [hooks reference](https://code.claude.com/docs/en/hooks).
 
 ```json
-{ "decision": "approve" }
-```
-
-or
-
-```json
-{ "decision": "block", "reason": "Destructive command blocked: rm -rf detected" }
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Destructive command blocked: rm -rf detected"
+  }
+}
 ```
 
 ## 5. Layer 4: Git Branch Protection

@@ -1,5 +1,13 @@
 # Comprehensive Audit Report: Agentic SDLC Blueprint
 
+> **Errata (2026-11-20).** Later review against current documentation found that some findings below are wrong. The body is left as written in March 2026.
+>
+> - **Finding 2 is wrong.** `ccusage` is a real open-source npm CLI that reports Claude Code usage and cost. The blueprint's reference to `npx ccusage@latest` was correct (it is third-party, not part of Claude Code).
+> - **Finding 3 is wrong.** The Agent SDK does provide a `canUseTool` permission callback. The blueprint text in `03-orchestration-engine.md` was correct.
+> - **The finding about `https://api.githubcopilot.com/mcp/` is misleading.** That URL is GitHub's remote endpoint for its official MCP server, and the package the audit recommends instead (`@modelcontextprotocol/server-github`) has since been deprecated in favour of `github/github-mcp-server`.
+> - **None of the proposed fixes were applied** to the design documents. They are kept as historical, with status banners and a few targeted claim corrections.
+> - Statements such as "cross-references are 100% valid" and "the design is implementable" reflect the audit's scope at the time. The starter kit was never run end to end, and later review found defects in it (see [`../../starter-kit/README.md`](../../starter-kit/README.md)).
+
 **Date:** 2026-03-07
 
 ## Context

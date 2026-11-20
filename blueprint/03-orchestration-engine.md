@@ -1,5 +1,7 @@
 # Orchestration Engine
 
+> Historical reference design (March 2026), written before the implementation. Tool names, flags and prices reflect that date. For the system as built, see [the implementation architecture](../docs/architecture.md).
+
 This document specifies the orchestration engine that drives the six-agent pipeline. The engine manages pipeline configuration, DAG-aware parallel execution, retry with model escalation, checkpoint gates, and run manifest tracking. Three implementation tiers are defined, progressing from Bash scripts to the Agent SDK to GitHub Actions.
 
 ## 1. Overview

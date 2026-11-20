@@ -1,5 +1,7 @@
 # Context Strategy
 
+> Historical reference design (March 2026), written before the implementation. Tool names, flags and prices reflect that date. For the system as built, see [the implementation architecture](../docs/architecture.md).
+
 This document specifies the three-tier context loading architecture that governs which documents and sections each agent receives. The strategy addresses the problem of token waste and focus degradation: loading all pipeline documents into every agent consumes unnecessary tokens and dilutes the agent's attention across irrelevant content. The architecture progresses from zero-infrastructure structured loading to doc-tool native search to vector-based RAG, scaling with corpus size.
 
 ## 1. Overview

@@ -1,5 +1,7 @@
 # Monitoring and Scaling
 
+> Historical reference design (March 2026), written before the implementation. Tool names, flags and prices reflect that date. For the system as built, see [the implementation architecture](../docs/architecture.md).
+
 This document specifies the operational concerns for running the agentic SDLC pipeline: telemetry collection, cost tracking, performance expectations, and team scaling strategies. It also defines the CLAUDE.md configuration requirements for pipeline compatibility.
 
 ## 1. Overview
@@ -98,7 +100,7 @@ Pipeline run manifests (see [State Management](07-state-management.md)) track pe
 
 ## 4. Performance Expectations
 
-The following metrics represent empirically observed performance characteristics of agentic SDLC pipelines based on production deployments.
+The following figures are third-party or illustrative planning assumptions as of early 2026, collected from public industry reporting on agentic coding. They are not measurements from this project, which has not run this pipeline, and the original sources are not cited here. Treat them as order-of-magnitude placeholders to replace with your own measurements.
 
 | Metric | Value | Notes |
 |--------|-------|-------|
@@ -109,7 +111,7 @@ The following metrics represent empirically observed performance characteristics
 
 ### Implications
 
-- **The 33% success rate is expected, not a deficiency.** The retry and escalation strategy (see [Orchestration Engine](03-orchestration-engine.md)) is designed to handle the remaining 67% through progressive context expansion, model escalation, and human intervention.
+- **Expect first-attempt failures.** The retry and escalation strategy (see [Orchestration Engine](03-orchestration-engine.md)) assumes that a substantial share of tasks will not succeed on the first attempt and handles them through progressive context expansion, model escalation, and human intervention.
 - **The bottleneck shift to diff review is structural.** Teams should plan for increased review capacity, including tooling for efficient AI-generated diff review and potentially dedicated review time allocation.
 - **Cost scales with usage, not headcount.** Economy mode (see [Agent Pipeline](02-agent-pipeline.md)) reduces cost for simple features; standard mode is reserved for complex features requiring Opus-level reasoning.
 

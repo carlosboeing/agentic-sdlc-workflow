@@ -1,4 +1,3 @@
-# .claude/agents/architect.md
 ---
 name: architect
 description: Technical design agent. Produces HLD, LLD, and ADRs from standardized templates.

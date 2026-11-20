@@ -1,4 +1,3 @@
-# .claude/agents/reviewer.md
 ---
 name: reviewer
 description: Reviews PRs against design docs. Checks quality, security, architecture alignment. Runs integration test.

@@ -77,14 +77,15 @@ run_with_retry() {
       echo "Escalating to Opus for task $(basename "$task_file")"
     fi
 
-    result=$(claude -p "Implement task from spec: $task_file. $error_context" \
+    # Success = claude exits 0 and the JSON result is not flagged is_error.
+    # (The JSON output has no `.success` field; stderr is kept out of the JSON.)
+    if result=$(claude -p "Implement task from spec: $task_file. $error_context" \
       --model "$model" \
       --allowedTools "Read" "Write" "Edit" "Bash(npm run *)" "Bash(git add *)" "Bash(git commit *)" \
       --permission-mode acceptEdits \
       --max-turns 50 \
-      --output-format json 2>&1)
-
-    if echo "$result" | jq -e '.success == true' > /dev/null 2>&1; then
+      --output-format json) \
+      && ! echo "$result" | jq -e '.is_error == true' > /dev/null 2>&1; then
       return 0
     fi
 
@@ -199,17 +200,29 @@ else
 
   completed=()
   while true; do
+    # Ready = not yet completed, and every dependency already completed.
     ready=$(jq -r --argjson done "$(printf '%s\n' "${completed[@]:-}" | jq -R . | jq -s .)" \
-      '.dag | to_entries[] | select((.value - $done) == []) | .key' "$TASK_MANIFEST" 2>/dev/null)
+      '.dag | to_entries[] | select((.key as $k | $done | index($k) | not) and ((.value - $done) == [])) | .key' \
+      "$TASK_MANIFEST" 2>/dev/null)
     [ -z "$ready" ] && break
 
     echo "Wave: $ready"
+    pids=()
     for task_id in $ready; do
       task_file=".claude/context/tasks/${task_id}.md"
       git worktree add "../wt-$task_id" -b "feat/$task_id" main 2>/dev/null || true
       (cd "../wt-$task_id" && run_with_retry "$task_file") &
+      pids+=($!)
     done
-    wait
+    # Halt the whole run if any task in the wave failed.
+    wave_failed=0
+    for pid in "${pids[@]}"; do
+      wait "$pid" || wave_failed=1
+    done
+    if [ "$wave_failed" -ne 0 ]; then
+      echo "A task in this wave failed. Halting before the next wave."
+      exit 1
+    fi
     completed+=($ready)
   done
 fi

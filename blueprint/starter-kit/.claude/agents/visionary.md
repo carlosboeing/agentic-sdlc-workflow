@@ -1,4 +1,3 @@
-# .claude/agents/visionary.md
 ---
 name: visionary
 description: Product brainstorming agent. Produces PRFAQ, PRD, Product Vision from standardized templates.

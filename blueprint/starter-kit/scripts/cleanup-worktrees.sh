@@ -9,10 +9,16 @@ echo "Cleaning up worktrees..."
 for wt in ../wt-*; do
   [ -d "$wt" ] || continue
 
-  branch=$(git -C "$wt" branch --show-current 2>/dev/null || echo "unknown")
+  branch=$(git -C "$wt" branch --show-current 2>/dev/null || true)
 
-  # Check if branch is merged
-  if git branch --merged main | grep -q "$branch" || [ "$FORCE" = "--force" ]; then
+  # A detached HEAD has no branch name: never treat that as merged.
+  if [ -z "$branch" ]; then
+    echo "Keeping worktree: $wt (no branch checked out)"
+    continue
+  fi
+
+  # Check if branch is merged (exact name match, not substring)
+  if git branch --merged main --format='%(refname:short)' | grep -qxF -- "$branch" || [ "$FORCE" = "--force" ]; then
     echo "Removing worktree: $wt (branch: $branch — merged)"
     git worktree remove "$wt" 2>/dev/null || git worktree remove --force "$wt"
     git branch -d "$branch" 2>/dev/null || true

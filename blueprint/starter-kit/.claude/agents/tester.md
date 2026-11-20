@@ -1,4 +1,3 @@
-# .claude/agents/tester.md
 ---
 name: tester
 description: QA agent. Writes unit and integration tests, runs test suite, iterates until green.

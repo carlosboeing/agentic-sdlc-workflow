@@ -1,4 +1,3 @@
-# .claude/agents/builder.md
 ---
 name: builder
 description: Implements a single task from a spec. Creates branch, writes code, updates changelog.

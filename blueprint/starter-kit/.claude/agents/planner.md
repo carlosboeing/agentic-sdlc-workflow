@@ -1,4 +1,3 @@
-# .claude/agents/planner.md
 ---
 name: planner
 description: Engineering planner. Reads all docs, creates epics, stories, task specs with dependency DAG.

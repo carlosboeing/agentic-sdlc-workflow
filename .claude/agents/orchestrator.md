@@ -405,6 +405,12 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
    Close retro issue (`item-close.sh`). Add to backlog PR as `Related (already closed): #<retro-issue>`.
 
+   **Retro guard (before closing the backlog PR):** the retro may only change documentation. After the retro commits are on the integration branch, run the scope guard and the full test suite. If either fails, halt and report to the human; do not continue to documentation propagation or merge.
+   ```bash
+   ./scripts/check-retro-scope.sh <integration-base-sha> HEAD   # fails if a docs(retro) commit touches code
+   (cd server && bun test) && python3 -m pytest scripts/lib/test_compute_dispatches.py -q
+   ```
+
 5. **Documentation propagation.** After all fix cycles and retro are complete — when the code is final and nothing else will change — update all documentation to reflect what was built. This is the single place where all doc updates happen.
 
    **Mechanical updates** (deterministic — the orchestrator knows what shipped):

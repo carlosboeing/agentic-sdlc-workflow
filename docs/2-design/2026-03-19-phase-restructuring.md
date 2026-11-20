@@ -16,6 +16,8 @@ revision_reason: "Approach E (prompt augmentation) is infeasible due to subagent
 
 # Phase Restructuring: Parallel Story Lifecycles and Tiered Reviews
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## 1. Problem Statement
 
 The orchestrator's current dispatch model treats building and reviewing as separate sequential phases. This creates two measurable inefficiencies:

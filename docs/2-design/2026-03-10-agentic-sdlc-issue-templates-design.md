@@ -7,6 +7,8 @@ status: draft
 
 # Design: GitHub Issue Templates for Work Items
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 
 > **Naming note:** This doc uses "Backlog Item," "Epic," and "Story" — the terminology from the test runs. The work item taxonomy is now configurable with the default being Epic → Story → Task. See [Work Item Taxonomy](2026-03-11-agentic-sdlc-workitem-taxonomy.md) for the full design. The template *structure* (Brief → Grouping → Micro-Spec) is stable regardless of naming.
 

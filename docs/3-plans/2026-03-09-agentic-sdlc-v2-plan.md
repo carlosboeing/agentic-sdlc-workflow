@@ -10,7 +10,7 @@ epic: sdlc-v2
 
 ## Context
 
-The Calendar Tool build (12 stories, 167 tests, ~4.5h) was the first end-to-end test of the agentic SDLC. The [retro](../4-reviews/2026-03-09-e01-calendar-retro.md) exposed six structural problems: human orchestrator bottleneck, broken parallel telemetry, unused model routing, builder variant maintenance, no self-improvement loop, and review-as-afterthought. The [v2 design](../2-design/2026-03-09-agentic-sdlc-v2-design.md) proposes fixes for all six.
+The Calendar Tool build (12 stories, 167 tests, ~4.5h) was the first end-to-end test of the agentic SDLC. The retro exposed six structural problems: human orchestrator bottleneck, broken parallel telemetry, unused model routing, builder variant maintenance, no self-improvement loop, and review-as-afterthought. The [v2 design](../2-design/2026-03-09-agentic-sdlc-v2-design.md) proposes fixes for all six.
 
 **Scope:** Phases 1-3 of the v2 migration plan. Phase 4 (Norris integration) is deferred.
 

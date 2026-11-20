@@ -9,6 +9,8 @@ scope: Design the runtime data directory structure and pricing architecture for 
 
 # Design: Plugin Runtime Data & Pricing Architecture
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## Problem
 
 The workflow plugin needs to store runtime data (per-run orchestrator state, cached pricing, logs) but has no clear convention for where this data lives. The current approach scatters files across `.claude/state/`, the config file, and script-level hardcoded defaults. Additionally, the pricing system has three competing sources of truth that disagree — causing a 2.6x cost underreport in Run 12.

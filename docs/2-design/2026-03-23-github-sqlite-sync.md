@@ -15,6 +15,8 @@ related:
 
 # Design: GitHub-to-SQLite Sync (Pull Direction)
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## 1. Overview
 
 The Workflow Runtime Service (BL#116) has a sync engine that pushes local changes to GitHub (SQLite to GitHub via the `SyncService` queue). But it has no reverse direction -- the database cannot pull current state from GitHub. The dashboard seeds from stale `.workflow/items/` files, which may have outdated statuses, missing comments, and incorrect hierarchy.

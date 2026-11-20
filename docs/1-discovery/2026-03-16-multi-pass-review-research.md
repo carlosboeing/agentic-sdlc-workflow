@@ -8,6 +8,8 @@ backlog-context: 106
 
 # Multi-Pass Review Research: Evidence from Backlog #106
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 > **Purpose:** This document captures a natural experiment in multi-pass review that occurred during the backlog PR review for #106 (Telemetry Accuracy & Automation). The human asked the orchestrator to review the PR three times, each time asking for deeper verification. The results provide empirical data on the value, cost, and failure modes of repeated review passes — informing whether to add a dedicated integrator/inspector agent at critical decision points.
 
 ## Context

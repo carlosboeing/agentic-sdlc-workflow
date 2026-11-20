@@ -16,6 +16,8 @@ related:
 
 # Design: Workflow Runtime Service
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## 1. Overview
 
 The Workflow Runtime Service is a persistent local server that replaces the file-system PM adapter with a SQLite-backed database, serves a dashboard UI for human workflow monitoring, provides a document viewer for design doc review, and exposes PM operations as MCP tools for agent consumption. This is the single most consequential feature on the roadmap -- it addresses durability problems observed across 14+ production runs and transforms the human-in-the-loop experience.

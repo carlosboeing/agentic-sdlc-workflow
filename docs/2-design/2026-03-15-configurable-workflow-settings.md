@@ -9,6 +9,8 @@ related: ../1-discovery/2026-03-15-plugin-packaging-research.md
 
 # Design: Configurable Workflow Settings
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## Problem
 
 The agentic workflow has **80+ hardcoded values** scattered across 8 shell scripts, 9 agent markdown files, and CLAUDE.md. These include GitHub project IDs, board status option IDs, model routing preferences, and pricing rates. The consequences:
@@ -92,10 +94,10 @@ A new user only needs to provide their GitHub project details. Everything else h
 {
   "github": {
     "repo": "carlosboeing/agentic-sdlc-workflow",
-    "projectNumber": 7,
+    "projectNumber": 42,
     "owner": "carlosboeing",
-    "projectId": "PVT_kwHOADPMJc4BRg45",
-    "statusFieldId": "PVTSSF_lAHOADPMJc4BRg45zg_UfJc"
+    "projectId": "<project-id>",
+    "statusFieldId": "<status-field-id>"
   },
 
   "boardStatus": {
@@ -140,10 +142,10 @@ These settings identify the GitHub repository and the GitHub Projects board used
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `repo` | string | Recommended | Auto-detected via `gh repo view` | The full `owner/name` identifier of the GitHub repository (e.g., `"carlosboeing/agentic-sdlc-workflow"`). Used by scripts that call `gh api repos/<repo>/...` directly. If omitted, scripts fall back to auto-detection from the current git remote, but explicit is safer — auto-detection can fail in worktrees or CI environments where the remote isn't obvious. |
-| `projectNumber` | integer | **Yes** | None | The GitHub Projects board number visible in the project URL (e.g., `https://github.com/users/carlosboeing/projects/7` → `7`). Used by `item-create.sh` to add issues to the board and by `item-set-status.sh` to look up board item IDs. There is no sensible default — every GitHub project has a unique number. |
+| `projectNumber` | integer | **Yes** | None | The GitHub Projects board number visible in the project URL (e.g., a URL ending in `/projects/42` → `42`). Used by `item-create.sh` to add issues to the board and by `item-set-status.sh` to look up board item IDs. There is no sensible default — every GitHub project has a unique number. |
 | `owner` | string | **Yes** | None | The GitHub username or organization that owns the project board (e.g., `"carlosboeing"`). This is the project board owner, which may differ from the repo owner in organization setups. Used in `gh project item-add`, `gh project item-list`, and GraphQL queries. |
-| `projectId` | string | Optional | Looked up at runtime | The internal GraphQL node ID of the project (e.g., `"PVT_kwHOADPMJc4BRg45"`). Used in `gh project item-edit` mutations. If omitted, `item-set-status.sh` looks it up via `gh project item-list`, which works but costs an extra API call per status change. Providing it avoids that overhead. To find it: `gh project list --owner <owner> --format json \| jq '.projects[] \| select(.number == <N>) \| .id'`. |
-| `statusFieldId` | string | Optional | Looked up at runtime | The internal GraphQL ID of the "Status" field on the project board (e.g., `"PVTSSF_lAHOADPMJc4BRg45zg_UfJc"`). Used in `gh project item-edit` to set an issue's board status. Same trade-off as `projectId` — providing it avoids a runtime lookup. To find it: `gh project field-list <N> --owner <owner> --format json \| jq '.fields[] \| select(.name == "Status") \| .id'`. |
+| `projectId` | string | Optional | Looked up at runtime | The internal GraphQL node ID of the project (e.g., `"<project-id>"`). Used in `gh project item-edit` mutations. If omitted, `item-set-status.sh` looks it up via `gh project item-list`, which works but costs an extra API call per status change. Providing it avoids that overhead. To find it: `gh project list --owner <owner> --format json \| jq '.projects[] \| select(.number == <N>) \| .id'`. |
+| `statusFieldId` | string | Optional | Looked up at runtime | The internal GraphQL ID of the "Status" field on the project board (e.g., `"<status-field-id>"`). Used in `gh project item-edit` to set an issue's board status. Same trade-off as `projectId` — providing it avoids a runtime lookup. To find it: `gh project field-list <N> --owner <owner> --format json \| jq '.fields[] \| select(.name == "Status") \| .id'`. |
 
 **How to find these values:**
 
@@ -278,7 +280,7 @@ Agent files don't execute shell commands directly — they contain instructions 
 | Agent file | Change |
 |------------|--------|
 | `orchestrator.md` | Add Phase 0 instruction: "Read `.claude/agentic-sdlc-config.json` at session start. Use `modelRouting` for builder dispatch, `github` for API calls. If the file is missing, use defaults." Replace hardcoded project IDs and routing tables with "see config file" references. |
-| `designer.md` | Replace hardcoded `--owner carlosboeing` and project `7` with "read from config file". |
+| `designer.md` | Replace hardcoded `--owner carlosboeing` and project number with "read from config file". |
 | `planner.md` | Same — replace hardcoded project details with config file reference. |
 | `retro.md` | Replace hardcoded `carlosboeing/agentic-sdlc-workflow` in API calls with config reference. |
 | `builder*.md` | No changes needed — builders don't reference project-specific values. |
@@ -303,7 +305,7 @@ The board status option IDs table, model routing table, and GitHub project refer
 - **Doc directory paths** — `docs/2-design/`, `docs/3-plans/`, etc. remain as conventions.
 - **Issue naming format** — `[#<backlog>/ENN-SNN]` remains as a convention.
 - **State file paths** — `.agentic-workflow/runs/<backlog>/orchestrator.json` (moved from `.claude/state/` in Run 12).
-- **NeuralNorris-specific config** (`NN` section key) — this is the consumer app's configuration, not the workflow's configuration. It stays in CLAUDE.md as project documentation.
+- **host-specific config** (`Host` section key) — this is the consumer app's configuration, not the workflow's configuration. It stays in CLAUDE.md as project documentation.
 - **Test file** — `tests/scripts/test-dispatch-workflow.sh` routing assertion was already updated in this session.
 
 ---
@@ -319,10 +321,10 @@ Values that **break when the repo changes** — must be configurable.
 | Category | Example value | Files affected | Config field |
 |----------|--------------|----------------|-------------|
 | Repo name | `carlosboeing/agentic-sdlc-workflow` | 8 scripts, orchestrator.md, retro.md | `github.repo` |
-| Project number | `7` | CLAUDE.md, designer.md, planner.md, item-create.sh | `github.projectNumber` |
+| Project number | (hardcoded number) | CLAUDE.md, designer.md, planner.md, item-create.sh | `github.projectNumber` |
 | Project owner | `carlosboeing` | CLAUDE.md, designer.md, planner.md, item-set-status.sh, item-create.sh, check-board-drift.sh | `github.owner` |
-| Project ID | `PVT_kwHOADPMJc4BRg45` | CLAUDE.md, item-set-status.sh | `github.projectId` |
-| Status field ID | `PVTSSF_lAHOADPMJc4BRg45zg_UfJc` | CLAUDE.md, item-set-status.sh | `github.statusFieldId` |
+| Project ID | `<project-id>` | CLAUDE.md, item-set-status.sh | `github.projectId` |
+| Status field ID | `<status-field-id>` | CLAUDE.md, item-set-status.sh | `github.statusFieldId` |
 | Board status IDs | 6 hex values | CLAUDE.md, item-set-status.sh | `boardStatus.*` |
 
 ### Tier 2: Workflow preferences (addressed by this design)

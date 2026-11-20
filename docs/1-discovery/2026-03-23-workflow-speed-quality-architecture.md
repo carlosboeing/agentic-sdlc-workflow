@@ -16,6 +16,8 @@ related:
 
 # Workflow Speed, Quality & Instruction Architecture — Discovery
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 > **Context:** This document captures findings and ideas from a deep-dive analysis of BL#116 (Workflow Runtime Service) — the largest backlog item executed through the workflow (19 stories, 6 epics, 69 dispatches, ~$50, ~6.5h wall clock). The discussion expanded from "why was this run slow?" into broader architectural questions about instruction layering, parallelism strategies, review models, and the workflow's path toward domain-agnostic plugin packaging.
 
 ## 1. BL#116 Run Data
@@ -459,8 +461,8 @@ Both control and variant runs execute the **full workflow** — design, plan, im
 **Two separate repository clones**, each running in its own terminal:
 
 ```
-~/Projects/agentic-sdlc-workflow-control/    ← Clone A (baseline)
-~/Projects/agentic-sdlc-workflow-variant/    ← Clone B (with optimizations)
+<repo-root>-control/    ← Clone A (baseline)
+<repo-root>-variant/    ← Clone B (with optimizations)
 ```
 
 - **Separate backlog items on GitHub** — create two identical issues with the same body/scope but different issue numbers. Each run creates its own epics, stories, branches, and PM state with no cross-contamination.

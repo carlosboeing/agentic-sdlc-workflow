@@ -11,6 +11,8 @@ title: "Gantt Chart Readability: Story Code Regression and Work Timeline Mode"
 
 # Gantt Chart Readability: Story Code Regression and Work Timeline Mode
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## 1. Problem Statement
 
 Two compounding readability problems in `scripts/lib/compute-dispatches.py` render the Gantt chart and breakdown table unreliable for real-world runs:

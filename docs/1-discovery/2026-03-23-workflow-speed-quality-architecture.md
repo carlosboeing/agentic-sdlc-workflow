@@ -1,6 +1,7 @@
 ---
 title: "Workflow Speed, Quality & Instruction Architecture — Discovery"
 type: research
+status: resolved
 authors: ["Carlos Boeing"]
 date: 2026-03-23
 agent: general

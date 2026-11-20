@@ -1,6 +1,7 @@
 ---
 title: "Multi-Pass Review Research: Evidence from Backlog #106"
 type: research
+status: resolved
 authors: ["Carlos Boeing"]
 date: 2026-03-16
 agent: orchestrator

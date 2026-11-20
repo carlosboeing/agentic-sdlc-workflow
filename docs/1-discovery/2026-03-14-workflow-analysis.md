@@ -1,6 +1,7 @@
 ---
 title: "Agentic SDLC Pipeline — Critical Workflow Analysis"
 type: analysis
+status: resolved
 authors: ["Carlos Boeing"]
 date: 2026-03-14
 agent: general

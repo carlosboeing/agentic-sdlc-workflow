@@ -1,6 +1,7 @@
 ---
 title: "Telemetry Deep Dive — Critical Workflow Analysis"
 type: analysis
+status: resolved
 authors: ["Carlos Boeing"]
 date: 2026-03-19
 agent: general

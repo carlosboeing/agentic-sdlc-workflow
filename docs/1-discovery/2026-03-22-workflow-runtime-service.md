@@ -1,6 +1,7 @@
 ---
 title: "Workflow Runtime Service — Discovery & Research"
 type: research
+status: resolved
 authors: ["Carlos Boeing"]
 date: 2026-03-22
 backlog: 116

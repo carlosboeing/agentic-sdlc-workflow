@@ -1,6 +1,7 @@
 ---
 title: "Plugin Packaging Research & Brainstorming"
 type: research
+status: resolved
 authors: ["Carlos Boeing"]
 date: 2026-03-15
 agent: general

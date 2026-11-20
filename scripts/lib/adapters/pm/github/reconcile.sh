@@ -38,6 +38,9 @@ eval "${_PM_FN_PREFIX}pm_reconcile() {
     return 1
   fi
 
+  if declare -f _gh_board_configured >/dev/null 2>&1 && ! _gh_board_configured; then
+    _gh_board_skip_notice; return 0
+  fi
   _board_log \"reconcile START state_file=\$state_file dry_run=\$dry_run\"
 
   # Step 1: Compute expected statuses from state file (Python)

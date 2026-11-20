@@ -25,6 +25,18 @@ _board_log() {
   echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" >> "$_BOARD_LOG_FILE" 2>/dev/null || true
 }
 
+# Returns 0 when a GitHub Projects v2 board is configured (project ID, status
+# field ID and project number all set in .claude/agentic-sdlc-config.json).
+# Board operations are skipped with a one-line notice otherwise, so a clean
+# clone never targets anyone's board.
+_gh_board_configured() {
+  [ -n "${CFG_PROJECT_ID:-}" ] && [ -n "${CFG_STATUS_FIELD_ID:-}" ] && [ -n "${CFG_PROJECT_NUMBER:-}" ]
+}
+
+_gh_board_skip_notice() {
+  echo "NOTICE: no GitHub project board configured (.claude/agentic-sdlc-config.json github.projectId/statusFieldId/projectNumber); skipping board operation." >&2
+}
+
 # Maps status name to GitHub project option ID from CFG_STATUS_* config vars.
 _gh_status_to_option_id() {
   case "$1" in
@@ -119,6 +131,7 @@ eval "${_PM_FN_PREFIX}pm_set_status() {
     echo \"Usage: ${_PM_FN_PREFIX}pm_set_status <issue-number> <status>\" >&2
     return 1
   fi
+  if ! _gh_board_configured; then _gh_board_skip_notice; return 0; fi
   local issue_number=\"\$1\" status=\"\$2\" option_id status_display
   option_id=\$(_gh_status_to_option_id \"\$status\") || return 1
   status_display=\$(_gh_status_to_display \"\$status\") || return 1
@@ -152,6 +165,7 @@ eval "${_PM_FN_PREFIX}pm_add_to_board() {
   if [ \$# -lt 1 ]; then
     echo \"Usage: ${_PM_FN_PREFIX}pm_add_to_board <issue-number>\" >&2; return 1
   fi
+  if ! _gh_board_configured; then _gh_board_skip_notice; return 0; fi
   local issue_number=\"\$1\"
   local url=\"https://github.com/\$CFG_REPO_OWNER/\$CFG_REPO_NAME/issues/\$issue_number\"
   _board_log \"issue=\$issue_number ADD_TO_BOARD START\"
@@ -172,6 +186,7 @@ eval "${_PM_FN_PREFIX}pm_batch_set_status() {
   if [ \$# -lt 1 ]; then
     echo \"Usage: ${_PM_FN_PREFIX}pm_batch_set_status <issue>:<status> [...]\" >&2; return 1
   fi
+  if ! _gh_board_configured; then _gh_board_skip_notice; return 0; fi
   local -a issues=() statuses=() option_ids=() displays=()
   local pair issue status oid disp
   for pair in \"\$@\"; do

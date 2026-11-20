@@ -13,6 +13,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/item-telemetry.sh"
 FIXTURE_DIR="$REPO_ROOT/tests/fixtures/telemetry"
 PY_MODULE="$REPO_ROOT/scripts/lib/compute-dispatches.py"
+# Fully configured fixture board (pm.adapter=github), not the repository config.
+export _CFG_FILE_OVERRIDE="$REPO_ROOT/tests/fixtures/config/github-board.json"
 
 PASS=0
 FAIL=0

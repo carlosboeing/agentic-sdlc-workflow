@@ -1,19 +1,19 @@
 {
-  "$comment": "See docs/2-design/2026-03-15-configurable-workflow-settings.md for field documentation. Pricing is fetched live \u2014 add a 'pricing' section here only to override with custom/contract rates.",
+  "$comment": "Board settings are empty on purpose: with no GitHub project board configured, scripts skip board operations. Copy values from .claude/agentic-sdlc-config.example.json to enable them. See docs/5-guides/running-safely-guide.md.",
   "workflowDir": ".workflow",
   "github": {
-    "repo": "carlosboeing/agentic-sdlc-workflow",
-    "projectNumber": 7,
-    "owner": "carlosboeing",
-    "projectId": "PVT_kwHOADPMJc4BRg45",
-    "statusFieldId": "PVTSSF_lAHOADPMJc4BRg45zg_UfJc"
+    "repo": "",
+    "owner": "",
+    "projectNumber": "",
+    "projectId": "",
+    "statusFieldId": ""
   },
   "boardStatus": {
-    "backlog": "17425ce6",
-    "in-progress": "47fc9ee4",
-    "in-review": "9bb97c15",
-    "done": "98236657",
-    "ready": "f75ad846"
+    "backlog": "",
+    "ready": "",
+    "in-progress": "",
+    "in-review": "",
+    "done": ""
   },
   "modelRouting": {
     "easy": "sonnet",
@@ -21,7 +21,7 @@
     "hard": "opus"
   },
   "pm": {
-    "adapter": "github"
+    "adapter": "server"
   },
   "workflow": {
     "autoMergePlanPR": true,
@@ -32,7 +32,10 @@
   },
   "server": {
     "port": 3117,
-    "portRange": [3117, 3127],
+    "portRange": [
+      3117,
+      3127
+    ],
     "idleTimeoutMinutes": 240,
     "logLevel": "info"
   },
@@ -50,8 +53,14 @@
     "sources": {
       "roadmap": true,
       "changelog": true,
-      "retroDocs": { "enabled": true, "maxCount": 2 },
-      "lessonFiles": { "enabled": true, "severityThreshold": "high" },
+      "retroDocs": {
+        "enabled": true,
+        "maxCount": 2
+      },
+      "lessonFiles": {
+        "enabled": true,
+        "severityThreshold": "high"
+      },
       "designDocs": true,
       "planDocs": true,
       "retroRecommendations": true,

@@ -60,12 +60,12 @@ CFG_REPO_OWNER="${CFG_REPO%%/*}"
 CFG_REPO_NAME="${CFG_REPO##*/}"
 
 # --- Board status option IDs ---
-CFG_STATUS_BACKLOG=$(_cfg '.boardStatus.backlog' "17425ce6")
+CFG_STATUS_BACKLOG=$(_cfg '.boardStatus.backlog' "")
 # CFG_STATUS_PLANNED removed — status no longer exists
-CFG_STATUS_READY=$(_cfg '.boardStatus.ready' "f75ad846")
-CFG_STATUS_IN_PROGRESS=$(_cfg '.boardStatus["in-progress"]' "47fc9ee4")
-CFG_STATUS_IN_REVIEW=$(_cfg '.boardStatus["in-review"]' "9bb97c15")
-CFG_STATUS_DONE=$(_cfg '.boardStatus.done' "98236657")
+CFG_STATUS_READY=$(_cfg '.boardStatus.ready' "")
+CFG_STATUS_IN_PROGRESS=$(_cfg '.boardStatus["in-progress"]' "")
+CFG_STATUS_IN_REVIEW=$(_cfg '.boardStatus["in-review"]' "")
+CFG_STATUS_DONE=$(_cfg '.boardStatus.done' "")
 
 # --- Model routing ---
 CFG_ROUTE_EASY=$(_cfg '.modelRouting.easy' "sonnet")

@@ -1,6 +1,8 @@
 # Architecture Overview
 
-This document defines the high-level architecture of the Agentic SDLC Blueprint, a system that transforms a high-level product goal into a merged pull request through a pipeline of six specialized AI agents. Unlike task-level AI assistants that operate on isolated coding requests, this architecture treats software development as a directed pipeline with discrete stages, structured handoffs, and configurable entry points. The system is designed for a solo developer and scales to a team of fifteen.
+> Historical reference design (March 2026), written before the implementation. Tool names, flags and prices reflect that date. For the system as built, see [the implementation architecture](../docs/architecture.md).
+
+This document defines the high-level architecture of the Agentic SDLC Blueprint, a system that transforms a high-level product goal into a merged pull request through a pipeline of six specialized AI agents. Unlike task-level AI assistants that operate on isolated coding requests, this architecture treats software development as a directed pipeline with discrete stages, structured handoffs, and configurable entry points. The system is written for a solo developer; the team-scaling guidance in [Monitoring and Scaling](08-monitoring-scaling.md) is untested.
 
 ## 1. Design Principles
 
@@ -9,9 +11,9 @@ The architecture is governed by seven foundational principles. All component-lev
 | # | Principle | Description |
 |---|-----------|-------------|
 | 1 | Single Responsibility | Each agent owns exactly one cognitive mode and produces exactly one artifact type. No agent combines product thinking with code generation. |
-| 2 | Backend-Agnostic Integrations | All document and project management access is mediated through MCP abstraction layers. Swapping Notion for Confluence or GitHub Issues for Linear requires zero agent prompt changes. |
+| 2 | Backend-Agnostic Integrations | All document and project management access is mediated through MCP abstraction layers. With unified wrapper servers (not provided), swapping Notion for Confluence or GitHub Issues for Linear is intended to need only configuration changes. |
 | 3 | Structured Context over RAG | Agents load only the documents and sections they require, governed by a per-agent context matrix. RAG infrastructure is deferred until corpus size exceeds native search capabilities. |
-| 4 | Defense-in-Depth | Five independent security layers (OS sandbox, tool permissions, hook guards, branch protection, CI/CD gates) ensure that no single failure can result in destructive operations on production assets. |
+| 4 | Defense-in-Depth | Five complementary security layers (OS sandbox, tool permissions, hook guards, branch protection, CI/CD gates) reduce the chance and impact of destructive operations. They are not independent and do not guarantee prevention. |
 | 5 | DAG-Aware Parallelism | Task execution respects the dependency graph produced by the Planner agent. Independent tasks execute in parallel across isolated git worktrees; dependent tasks queue until prerequisites complete. |
 | 6 | Retry with Escalation | Failed agent invocations retry with progressively expanded context and, on final attempt, escalate to a higher-capability model before surfacing to a human operator. |
 | 7 | Configurable Entry Points | The pipeline supports four entry modes (Full, Design, Plan, Build) and resume-from-stage, enabling operators to skip completed stages or re-enter at any checkpoint. |
@@ -184,7 +186,7 @@ The pipeline integrates with CI/CD at two levels:
 
 ## 5. Security Considerations
 
-The system implements a defense-in-depth model comprising five independent security layers. Each layer can independently block a destructive action; an action must pass all five layers to reach production.
+The system implements a defense-in-depth model comprising five complementary security layers. Each layer can block a destructive action, but the layers are not fully independent and the pattern-based hook guard is a tripwire, not a boundary.
 
 | Layer | Mechanism | Scope |
 |-------|-----------|-------|

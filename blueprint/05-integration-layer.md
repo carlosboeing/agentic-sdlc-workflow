@@ -1,10 +1,12 @@
 # Integration Layer
 
+> Historical reference design (March 2026), written before the implementation. Tool names, flags and prices reflect that date. For the system as built, see [the implementation architecture](../docs/architecture.md).
+
 This document specifies the MCP-based integration architecture that provides backend-agnostic access to document management and project management services. The architecture ensures that agent prompts and orchestration logic remain invariant when the underlying doc or PM tool changes. Two logical MCP server groups (Document Management and Project Management) expose unified tool interfaces over pluggable backends.
 
 ## 1. Overview
 
-The integration layer implements the backend-agnostic integration principle defined in [Architecture Overview](01-architecture-overview.md). All agent interactions with external services are mediated through Model Context Protocol (MCP) servers that expose canonical tool names. Swapping Notion for Confluence, or GitHub Issues for Linear, requires only a configuration change in `.mcp.json`; no agent prompt or orchestration logic modifications are necessary.
+The integration layer implements the backend-agnostic integration principle defined in [Architecture Overview](01-architecture-overview.md). All agent interactions with external services are mediated through Model Context Protocol (MCP) servers that expose canonical tool names. Swapping Notion for Confluence, or GitHub Issues for Linear, is intended to require only a configuration change in `.mcp.json` once unified wrapper servers (Option A, not provided here) exist.
 
 ### Dual MCP Architecture
 
@@ -103,6 +105,8 @@ All MCP tools follow a namespaced convention: `mcp__<server>__<operation>`. Agen
 
 ### Available MCP Servers
 
+Maturity ratings are as listed by each project in March 2026 and were not evaluated by the author. They are likely stale.
+
 | Platform | Server | Maturity | Notes |
 |----------|--------|----------|-------|
 | Notion | `makenotion/notion-mcp-server` (official) | Production | Official Notion MCP server with full API coverage |
@@ -136,6 +140,8 @@ This approach eliminates external service dependencies at the cost of reduced re
 
 ### Available MCP Servers
 
+Maturity ratings are as listed by each project in March 2026 and were not evaluated by the author. They are likely stale.
+
 | Platform | Server | Maturity | Notes |
 |----------|--------|----------|-------|
 | GitHub Issues/Projects | `github/github-mcp-server` (official) | Production | Official GitHub MCP server; covers issues, PRs, projects |
@@ -161,7 +167,7 @@ Three strategies exist for achieving backend-agnostic integration. The choice de
 
 ### Option A: Thin Unified MCP Servers (Recommended)
 
-Build lightweight MCP wrapper servers (~200 lines of code each) that expose canonical tool names and translate calls to backend-specific APIs.
+Build lightweight MCP wrapper servers (a small wrapper each, not built here) that expose canonical tool names and translate calls to backend-specific APIs.
 
 **Advantages:**
 - Agent prompts never change when backends are swapped

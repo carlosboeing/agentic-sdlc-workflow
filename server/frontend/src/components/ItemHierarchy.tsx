@@ -2,7 +2,7 @@
  * ItemHierarchy — displays parent link and children list for a work item.
  *
  * Shows:
- * - Parent item link (if parent_id exists)
+ * - Parent item link (if parentId exists)
  * - List of child items with their status and type
  */
 

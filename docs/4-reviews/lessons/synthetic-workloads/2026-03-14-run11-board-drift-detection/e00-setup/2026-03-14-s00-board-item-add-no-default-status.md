@@ -20,7 +20,7 @@ During Phase 0 of backlog #41, the orchestrator added the issue to the project b
 ## Prevention
 
 Phase 0 must always include both steps sequentially:
-1. `gh project item-add 7 --owner carlosboeing --url <url>`
+1. `gh project item-add <project-number> --owner <owner> --url <url>`
 2. `./scripts/item-set-status.sh <N> backlog`
 
 Update the orchestrator agent's Phase 0 instructions to make the status-set call explicit after every `item-add`.

@@ -7,6 +7,8 @@ scope: Brainstorming and research for BL#116 — expanding from a dashboard to a
 
 # Workflow Runtime Service — Discovery & Research
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 > **Backlog:** [#116 Dashboard (Local Web UI)](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116)
 > **Status:** Brainstorming complete. Ready for design phase.
 

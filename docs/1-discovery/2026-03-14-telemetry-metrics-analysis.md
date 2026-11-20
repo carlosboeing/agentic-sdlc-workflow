@@ -3,10 +3,12 @@ date: 2026-03-14
 author: carlosboeing
 agent: general
 scope: Comprehensive telemetry metrics analysis across 11 test runs of the agentic SDLC pipeline
-sources: GitHub issue telemetry comments (gavinkilbride/NeuralNorris issues 57-205, carlosboeing/agentic-sdlc-workflow issues 1-41)
+sources: GitHub issue telemetry comments (earlier host repository issues for Runs 1-7, carlosboeing/agentic-sdlc-workflow issues 1-41)
 ---
 
 # Agentic SDLC Pipeline — Telemetry Metrics Analysis
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 ## Executive Summary
 
@@ -25,9 +27,9 @@ The most significant trends:
 - **Model routing may be suboptimal** — replacing Haiku with Sonnet for easy stories would be cost-neutral, use 3x fewer tokens, and free context window capacity
 - **Cost methodology evolved** — Run 4 used per-model rates (opus at $30/MTok), later runs used blended rates (75% input / 25% output), making direct cost comparisons across eras unreliable
 
-> **Note:** Run 2 (#72 — Recipe/Travel/Board Game) was planned (12 stories, 3 epics) but never executed. All aggregate metrics exclude Run 2.
+> **Note:** Run 2 (synthetic content workload) was planned (12 stories, 3 epics) but never executed. All aggregate metrics exclude Run 2.
 
-> **Data sources:** Runs 1–7 telemetry from [gavinkilbride/NeuralNorris](https://github.com/gavinkilbride/NeuralNorris) issues. Runs 8–11 telemetry from [carlosboeing/agentic-sdlc-workflow](https://github.com/carlosboeing/agentic-sdlc-workflow) issues and PR descriptions.
+> **Data sources:** Runs 1–7 telemetry from the earlier host repository's issues (not part of this repository). Runs 8–11 telemetry from [carlosboeing/agentic-sdlc-workflow](https://github.com/carlosboeing/agentic-sdlc-workflow) issues and PR descriptions.
 
 ---
 
@@ -54,15 +56,15 @@ The most significant trends:
 
 | Run | Date | Backlog # | Theme | Epics | Stories | Dispatches | Repo |
 |-----|------|-----------|-------|-------|---------|------------|------|
-| 1 | 2026-03-09 | #57 | Creative Writing Suite | 2 | 9 | 9 | NeuralNorris |
-| 2 | 2026-03-09 | #72 | Recipe/Travel/Board Game | 3 | 12 | — | NeuralNorris |
-| 3 | 2026-03-10 | #89 | Mythical Creatures Field Guide | 2 | 7 | 22 | NeuralNorris |
-| 4 | 2026-03-10 | #106 | Intergalactic Travel Advisory | 2 | 5 | 17 | NeuralNorris |
-| 5 | 2026-03-10 | #146 | DoomCo Supervillain Handbook | 2 | 5 | 15 | NeuralNorris |
-| 6 | 2026-03-10 | #162 | Cat Performance Review | 2 | 5 | 14 | NeuralNorris |
-| 7 | 2026-03-11 | #205 | Alien Anthropological Field Study | 2 | 5 | 19 | NeuralNorris |
-| 8 | 2026-03-12 | #1 | Office Nature Documentary | 2 | 5 | 16 | agentic-sdlc-workflow |
-| 9 | 2026-03-13 | #14 | CIA Cat Reports | 2 | 5 | 14 | agentic-sdlc-workflow |
+| 1 | 2026-03-09 | n/a | Synthetic content workload | 2 | 9 | 9 | earlier host repository |
+| 2 | 2026-03-09 | n/a | Synthetic content workload | 3 | 12 | — | earlier host repository |
+| 3 | 2026-03-10 | n/a | Synthetic content workload | 2 | 7 | 22 | earlier host repository |
+| 4 | 2026-03-10 | n/a | Synthetic content workload | 2 | 5 | 17 | earlier host repository |
+| 5 | 2026-03-10 | n/a | Synthetic content workload | 2 | 5 | 15 | earlier host repository |
+| 6 | 2026-03-10 | n/a | Synthetic content workload | 2 | 5 | 14 | earlier host repository |
+| 7 | 2026-03-11 | n/a | Synthetic content workload | 2 | 5 | 19 | earlier host repository |
+| 8 | 2026-03-12 | #1 | Run 8 | 2 | 5 | 16 | agentic-sdlc-workflow |
+| 9 | 2026-03-13 | #14 | Run 9 | 2 | 5 | 14 | agentic-sdlc-workflow |
 | 10 | 2026-03-13 | #27 | Orchestrator Logging | 2 | 6 | 16 | agentic-sdlc-workflow |
 | 11 | 2026-03-14 | #41 | Board Drift Detection | 2 | 6 | 16 | agentic-sdlc-workflow |
 
@@ -122,21 +124,21 @@ The most significant trends:
 
 ### 3.2 Per-Run Detail
 
-#### Run 1 — Creative Writing Suite (#57)
+#### Run 1
 
 Build-only pipeline. No reviewer, no retro. CLI dispatch via `claude -p` failed (nested session block); all 9 stories ran sequentially via Agent tool fallback.
 
 | Wave | Story | Model | Duration | Tokens | Cost |
 |------|-------|-------|----------|--------|------|
-| 1 | E01-S01 (#60) | haiku | 53s | 5K | ~$0.02 |
-| 1 | E01-S02 (#61) | haiku | 58s | 6K | ~$0.03 |
-| 1 | E01-S03 (#62) | sonnet | 1m 10s | 12K | ~$0.07 |
-| 1 | E02-S01 (#64) | haiku | 1m 07s | 8K | ~$0.04 |
-| 1 | E02-S02 (#65) | haiku | 1m 08s | 8K | ~$0.04 |
-| 2 | E01-S04 (#63) | sonnet | 59s | 15K | ~$0.09 |
-| 2 | E02-S03 (#66) | sonnet | 1m 50s | 15K | ~$0.09 |
-| 2 | E02-S04 (#67) | opus | 3m 09s | 25K | ~$0.75 |
-| 3 | E02-S05 (#68) | sonnet | 1m 52s | 12K | ~$0.07 |
+| 1 | E01-S01 | haiku | 53s | 5K | ~$0.02 |
+| 1 | E01-S02 | haiku | 58s | 6K | ~$0.03 |
+| 1 | E01-S03 | sonnet | 1m 10s | 12K | ~$0.07 |
+| 1 | E02-S01 | haiku | 1m 07s | 8K | ~$0.04 |
+| 1 | E02-S02 | haiku | 1m 08s | 8K | ~$0.04 |
+| 2 | E01-S04 | sonnet | 59s | 15K | ~$0.09 |
+| 2 | E02-S03 | sonnet | 1m 50s | 15K | ~$0.09 |
+| 2 | E02-S04 | opus | 3m 09s | 25K | ~$0.75 |
+| 3 | E02-S05 | sonnet | 1m 52s | 12K | ~$0.07 |
 | | **Total** | | **13m 06s** | **106K** | **~$1.20** |
 
 **Key observations:**
@@ -144,7 +146,7 @@ Build-only pipeline. No reviewer, no retro. CLI dispatch via `claude -p` failed 
 - Model routing worked correctly from the first story (4 haiku, 4 sonnet, 1 opus)
 - Epic telemetry cost was overstated ($3.18 reported vs $1.20 corrected actual)
 
-#### Run 3 — Mythical Creatures Field Guide (#89)
+#### Run 3
 
 First run with reviewer and retro agents. 3 build waves (4 parallel → 2 parallel → 1 sequential).
 
@@ -160,7 +162,7 @@ First run with reviewer and retro agents. 3 build waves (4 parallel → 2 parall
 
 **Fix cycles:** 2 on E01-S04 (word count compliance: 569 → 495 words)
 
-#### Run 4 — Intergalactic Travel Advisory (#106)
+#### Run 4
 
 Full lifecycle with structured per-wave telemetry. First run to post comprehensive Gantt timeline.
 
@@ -180,7 +182,7 @@ Full lifecycle with structured per-wave telemetry. First run to post comprehensi
 
 **Fix cycle:** 1 (E01-S01, `.gitignore` blocking `test-output/`)
 
-#### Run 5 — DoomCo Supervillain Handbook (#146)
+#### Run 5
 
 **First zero-fix run.** All 5 stories approved on first review.
 
@@ -196,7 +198,7 @@ Full lifecycle with structured per-wave telemetry. First run to post comprehensi
 | Retro | opus | 62K | 4m 22s | ~$0.62 |
 | **Total** | **15** | **626K** | **30m 22s** | **~$3.67** |
 
-#### Run 6 — Cat Performance Review (#162)
+#### Run 6
 
 First test of single-PR workflow (integration branch → main). ~28 min wall-clock design-to-merge.
 
@@ -211,7 +213,7 @@ First test of single-PR workflow (integration branch → main). ~28 min wall-clo
 
 **Fix cycles:** 0. GraphQL rate limit exhaustion first observed.
 
-#### Run 7 — Alien Anthropological Field Study (#205)
+#### Run 7
 
 **Workspace collision crisis.** Parallel dispatch without worktree isolation caused E01-S01's file to appear on E01-S03's branch.
 
@@ -977,7 +979,7 @@ The agentic SDLC pipeline has reached **operational maturity** for content-gener
 - **Self-improvement:** Infrastructure failures produce convention changes within one run; every issue has been resolved
 - **Remaining gaps:** Orchestrator overhead (29–51% of wall-clock), review cost dominance (41%), CLAUDE.md context growth (~2x token increase from Run 5 to Run 11)
 
-The next frontier is applying this pipeline to **real C# code stories** (NeuralNorris features) rather than content-generation test vehicles. Code stories will exercise TDD, DI wiring, EF Core migrations, and integration testing — phases that content stories bypass entirely.
+The next frontier is applying this pipeline to **real code stories** (features of the earlier host project) rather than content-generation test vehicles. Code stories will exercise TDD, DI wiring, EF Core migrations, and integration testing — phases that content stories bypass entirely.
 
 ---
 
@@ -985,13 +987,13 @@ The next frontier is applying this pipeline to **real C# code stories** (NeuralN
 
 | Run | Backlog Issue | PR | Source Repo | Telemetry Location |
 |-----|--------------|-----|-------------|-------------------|
-| 1 | [#57](https://github.com/gavinkilbride/NeuralNorris/issues/57) | — | gavinkilbride/NeuralNorris | Epic issues #58, #59 |
-| 2 | [#72](https://github.com/gavinkilbride/NeuralNorris/issues/72) | — | gavinkilbride/NeuralNorris | Never executed |
-| 3 | [#89](https://github.com/gavinkilbride/NeuralNorris/issues/89) | [#104](https://github.com/gavinkilbride/NeuralNorris/pull/104) | gavinkilbride/NeuralNorris | Backlog issue comment |
-| 4 | [#106](https://github.com/gavinkilbride/NeuralNorris/issues/106) | — | gavinkilbride/NeuralNorris | Backlog issue comment |
-| 5 | [#146](https://github.com/gavinkilbride/NeuralNorris/issues/146) | — | gavinkilbride/NeuralNorris | Backlog issue comment |
-| 6 | [#162](https://github.com/gavinkilbride/NeuralNorris/issues/162) | [#174](https://github.com/gavinkilbride/NeuralNorris/pull/174) | gavinkilbride/NeuralNorris | Backlog issue comment |
-| 7 | [#205](https://github.com/gavinkilbride/NeuralNorris/issues/205) | [#217](https://github.com/gavinkilbride/NeuralNorris/pull/217) | gavinkilbride/NeuralNorris | Backlog issue comment |
+| 1 | earlier host repository | — | earlier host repository | Epic issues #58, #59 |
+| 2 | earlier host repository | — | earlier host repository | Never executed |
+| 3 | earlier host repository | — | earlier host repository | Backlog issue comment |
+| 4 | earlier host repository | — | earlier host repository | Backlog issue comment |
+| 5 | earlier host repository | — | earlier host repository | Backlog issue comment |
+| 6 | earlier host repository | — | earlier host repository | Backlog issue comment |
+| 7 | earlier host repository | — | earlier host repository | Backlog issue comment |
 | 8 | [#1](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/1) | [#13](https://github.com/carlosboeing/agentic-sdlc-workflow/pull/13) | carlosboeing/agentic-sdlc-workflow | Backlog issue + PR body |
 | 9 | [#14](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/14) | [#26](https://github.com/carlosboeing/agentic-sdlc-workflow/pull/26) | carlosboeing/agentic-sdlc-workflow | Backlog issue + PR body |
 | 10 | [#27](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/27) | [#40](https://github.com/carlosboeing/agentic-sdlc-workflow/pull/40) | carlosboeing/agentic-sdlc-workflow | Backlog issue + PR body |

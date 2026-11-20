@@ -19,12 +19,12 @@ Running `git checkout e03-s03/telemetry-refactor` in Bash (CWD = the
 worktree) succeeded — it changed THIS worktree to the story branch.
 
 However, Read and Edit tool calls using the path
-`/Users/carlos/Projects/carlos/agentic-sdlc-workflow/...` (the main repo
+`<repo-root>/...` (the main repo
 root) were targeting the main working tree, not the worktree. The main
 working tree was on a different branch (`e03-s01/local-lifecycle`).
 
 The result: edits appeared to succeed (no errors), tests were run via `cd
-/Users/carlos/.../agentic-sdlc-workflow && bash ...` (main tree) and
+<repo-root> && bash ...` (main tree) and
 passed, but git status showed no changes. The edited files were in the
 MAIN working tree which was then switched by the orchestrator — losing the
 uncommitted edits silently.

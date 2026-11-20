@@ -2,9 +2,9 @@
 date: 2026-03-09
 author: carlosboeing
 agent: retro
-backlog-issue: 57
-epic-pr: 70
-scope: End-to-end test of Agentic SDLC v2 — 9 stories, 2 epics, creative writing tasks
+backlog-issue: n/a (earlier host repository)
+epic-pr: n/a (earlier host repository)
+scope: End-to-end test of Agentic SDLC v2 — 9 stories, 2 epics, synthetic content tasks
 ---
 
 # Test SDLC v2 Pipeline — Agentic Workflow Retrospective
@@ -35,15 +35,15 @@ The Test SDLC v2 Pipeline was the first end-to-end execution of the v2 agentic w
 
 | Story | Issue | Difficulty | Model Used | Agent Time | Tokens | Cost | Tool Uses |
 |-------|-------|-----------|------------|-----------|--------|------|-----------|
-| E01-S01 | #60 | easy | haiku | 53s | 5K | ~$0.02 | 8 |
-| E01-S02 | #61 | easy | haiku | 58s | 6K | ~$0.03 | 8 |
-| E01-S03 | #62 | medium | sonnet | 1m 10s | 12K | ~$0.07 | 10 |
-| E01-S04 | #63 | medium | sonnet | 59s | 15K | ~$0.09 | 10 |
-| E02-S01 | #64 | easy | haiku | 1m 7s | 8K | ~$0.04 | 8 |
-| E02-S02 | #65 | easy | haiku | 1m 8s | 8K | ~$0.04 | 8 |
-| E02-S03 | #66 | medium | sonnet | 1m 50s | 15K | ~$0.09 | 10 |
-| E02-S04 | #67 | hard | opus | 3m 9s | 25K | ~$0.75 | 12 |
-| E02-S05 | #68 | medium | sonnet | 1m 52s | 12K | ~$0.07 | 10 |
+| E01-S01 | n/a | easy | haiku | 53s | 5K | ~$0.02 | 8 |
+| E01-S02 | n/a | easy | haiku | 58s | 6K | ~$0.03 | 8 |
+| E01-S03 | n/a | medium | sonnet | 1m 10s | 12K | ~$0.07 | 10 |
+| E01-S04 | n/a | medium | sonnet | 59s | 15K | ~$0.09 | 10 |
+| E02-S01 | n/a | easy | haiku | 1m 7s | 8K | ~$0.04 | 8 |
+| E02-S02 | n/a | easy | haiku | 1m 8s | 8K | ~$0.04 | 8 |
+| E02-S03 | n/a | medium | sonnet | 1m 50s | 15K | ~$0.09 | 10 |
+| E02-S04 | n/a | hard | opus | 3m 9s | 25K | ~$0.75 | 12 |
+| E02-S05 | n/a | medium | sonnet | 1m 52s | 12K | ~$0.07 | 10 |
 | **Epic Total** | | | | **13m 6s** | **106K** | **~$1.20** | **84** |
 
 *All 9 stories have complete telemetry: Work Started, Ready for Review, and Telemetry comments posted on every story issue. This is a significant improvement over the Calendar Tool build where E01/E02 telemetry was incomplete.*
@@ -53,7 +53,7 @@ The Test SDLC v2 Pipeline was the first end-to-end execution of the v2 agentic w
 | Metric | Value |
 |--------|-------|
 | Stories completed | 9/9 |
-| Tests written | 0 (creative writing, no code) |
+| Tests written | 0 (synthetic content, no code) |
 | Critical bugs caught by reviewer | 0 (reviewer not dispatched) |
 | Warnings caught by reviewer | 0 (reviewer not dispatched) |
 | CLI dispatch failures | 2 (all Wave 1, both resolved) |
@@ -107,9 +107,9 @@ Evidence: Commit `d33c03d` (fix) and `c25c50f` (lesson files) were committed dur
 
 Every story progressed through the full lifecycle: Todo -> In Progress (via `item-start.sh`) -> In Review (via `item-review.sh`) with telemetry posted. The helper scripts (`item-start.sh`, `item-review.sh`, `item-telemetry.sh`) continue to be reliable workflow anchors.
 
-### 5. Creative Writing as Workflow Test
+### 5. Synthetic Content as Workflow Test
 
-Using creative writing tasks instead of code was an effective test design choice. It isolated the workflow mechanics (dispatch, telemetry, board management, branching) from code-specific concerns (compilation, testing, DI wiring). This made failures clearly attributable to the workflow infrastructure rather than implementation complexity.
+Using synthetic content tasks instead of code was an effective test design choice. It isolated the workflow mechanics (dispatch, telemetry, board management, branching) from code-specific concerns (compilation, testing, DI wiring). This made failures clearly attributable to the workflow infrastructure rather than implementation complexity.
 
 ## What Didn't Work
 
@@ -127,7 +127,7 @@ Both `dispatch-story.sh` failures stem from the same architectural constraint: `
 
 ### 2. Reviewer Was Not Dispatched
 
-The SDLC v2 dispatch protocol requires reviewer dispatch on each story branch (step 6) and on the epic PR (step 10). Neither was done in this test run. PR #70 notes describe this as intentional (creative writing, no code to review), but the protocol does not have a skip condition for non-code stories.
+The SDLC v2 dispatch protocol requires reviewer dispatch on each story branch (step 6) and on the epic PR (step 10). Neither was done in this test run. PR #70 notes describe this as intentional (synthetic content, no code to review), but the protocol does not have a skip condition for non-code stories.
 
 **Impact:** The test did not validate the reviewer dispatch step, the critical-findings re-dispatch loop, or the reviewer's integration with the board status workflow.
 
@@ -141,7 +141,7 @@ The epic telemetry posted on issues #58 and #59 (and PR #70) shows `~$3.18` esti
 
 ### 4. Issues Not Closed After PR Opened
 
-All 9 story issues, both epic issues (#58, #59), and the backlog issue (#57) remain open. PR #70 body includes `Closes #57, closes #58, closes #59` but: (a) the PR has not been merged yet, so auto-close has not fired; and (b) the story issues (#60-#68) are not listed in the PR `Closes` list and would need to be closed via `issue-merged.sh` or added to the PR body.
+All 9 story issues, both epic issues (#58, #59), and the backlog issue remain open. PR #70 body includes `Closes #57, closes #58, closes #59` but: (a) the PR has not been merged yet, so auto-close has not fired; and (b) the story issues (#60-#68) are not listed in the PR `Closes` list and would need to be closed via `issue-merged.sh` or added to the PR body.
 
 This is the same gap identified in the Calendar retro ("Issues Never Closed") — the v2 workflow added `auto-close-issues.yml` and enhanced `issue-merged.sh`, but neither fires until the PR is actually merged.
 
@@ -163,8 +163,8 @@ This was the only convention/infrastructure change during the epic. No changes w
 
 ### For Builders
 
-1. Creative writing stories (no code, no tests) complete significantly faster than code stories. Average time was 1m 27s vs 4-6 minutes for Calendar code stories. The absence of test cycles and compilation is the primary factor.
-2. Haiku-tier models are sufficient for simple structured content generation (haiku poems, limerick collections, character profiles, world-building docs). Quality was adequate for the acceptance criteria.
+1. Synthetic content stories (no code, no tests) complete significantly faster than code stories. Average time was 1m 27s vs 4-6 minutes for Calendar code stories. The absence of test cycles and compilation is the primary factor.
+2. Haiku-tier models are sufficient for simple structured content generation (short structured documents). Quality was adequate for the acceptance criteria.
 
 ### For the Orchestrator
 
@@ -195,4 +195,4 @@ This was the only convention/infrastructure change during the epic. No changes w
 | `2026-03-09-s00-max-turns-flag-removed.md` | Compiled | Fixed in commit `d33c03d`; no convention change needed (flag already removed) |
 | `2026-03-09-s00-nested-claude-sessions.md` | Proposed | Recommendation #3 (clarify CLI dispatch scope) |
 
-Both lesson files remain on disk in `docs/4-reviews/lessons/2026-03-09-test-agentic-sdlc-run01-sdlc-v2/e01-test-poetry/` for traceability. This retro doc is now the primary reference for this epic's learnings.
+Both lesson files remain on disk in `docs/4-reviews/lessons/synthetic-workloads/2026-03-09-run01-sdlc-v2/e01-epic-1/` for traceability. This retro doc is now the primary reference for this epic's learnings.

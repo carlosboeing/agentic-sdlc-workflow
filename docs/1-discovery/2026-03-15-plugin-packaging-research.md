@@ -7,6 +7,8 @@ scope: Research and brainstorming for packaging the agentic SDLC workflow as a C
 
 # Plugin Packaging Research & Brainstorming
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## Context
 
 The agentic SDLC workflow has been validated across 11 test runs with 100% completion rate and a 17-story zero-fix streak. The next step is making the workflow configurable and eventually packaging it as a Claude Code plugin for community use.
@@ -48,7 +50,7 @@ Key insight: although designed for software development, the test runs prove the
 
 ```json
 {
-  "github": { "projectNumber": 7, "owner": "carlosboeing" }
+  "github": { "projectNumber": 42, "owner": "carlosboeing" }
 }
 ```
 

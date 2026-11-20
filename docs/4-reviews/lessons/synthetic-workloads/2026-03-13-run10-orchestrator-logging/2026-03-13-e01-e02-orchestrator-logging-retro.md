@@ -4,14 +4,14 @@ author: carlosboeing
 agent: retro
 backlog-issue: 27
 backlog-pr: pending
-scope: Run 10 — validate two-layer diagnostic logging + Nature Documentary Season 2 content — 2 epics, 6 stories, 4 dispatch waves
+scope: Run 10 — validate two-layer diagnostic logging + a synthetic content workload — 2 epics, 6 stories, 4 dispatch waves
 ---
 
 # Orchestrator Logging (Run 10) — Agentic Workflow Retrospective
 
 ## Summary
 
-Run 10 implemented logging infrastructure validation (a validation script and design doc reconciliation) and produced four new Nature Documentary episodes, across 2 epics and 6 stories dispatched in 4 waves. The primary test objective — validating the two-layer diagnostic logging system (board-status.log + orchestrator.log via Claude Code hooks) — was met: the validation script was created and the design doc was reconciled with the actual implementation. All 6 stories passed review on first attempt (zero fix cycles), continuing the trend established in Run 9. Two significant pre-build issues were encountered: a design artifact matching bug that caused false-positive phase skipping, and GraphQL API rate limit exhaustion from heavy `item-list` queries.
+Run 10 implemented logging infrastructure validation (a validation script and design doc reconciliation) and produced four synthetic content documents, across 2 epics and 6 stories dispatched in 4 waves. The primary test objective — validating the two-layer diagnostic logging system (board-status.log + orchestrator.log via Claude Code hooks) — was met: the validation script was created and the design doc was reconciled with the actual implementation. All 6 stories passed review on first attempt (zero fix cycles), continuing the trend established in Run 9. Two significant pre-build issues were encountered: a design artifact matching bug that caused false-positive phase skipping, and GraphQL API rate limit exhaustion from heavy `item-list` queries.
 
 ## Timeline
 
@@ -100,11 +100,11 @@ Story E01-S02 (#34) established a reconciliation pattern: when implementation di
 
 ### 1. Design Artifact Matching Used Unreliable Grep
 
-During Phase 0, the orchestrator ran `grep -rl "27" docs/2-design/` to check for existing design docs. This matched files containing the number "27" as incidental text (word counts, line numbers) but belonging to different backlog items. The orchestrator incorrectly concluded the design phase could be skipped. Root cause: the orchestrator agent's Phase 0 instructions (`orchestrator.md` line 113) specify raw content grep instead of targeting YAML frontmatter. Design docs have a `backlog:` frontmatter field that uniquely identifies the owning backlog item, but the grep doesn't filter on it. Evidence: lesson file `docs/4-reviews/lessons/2026-03-13-test-agentic-sdlc-run10-orchestrator-logging/e00-setup/2026-03-13-s00-design-artifact-matching.md`.
+During Phase 0, the orchestrator ran `grep -rl "27" docs/2-design/` to check for existing design docs. This matched files containing the number "27" as incidental text (word counts, line numbers) but belonging to different backlog items. The orchestrator incorrectly concluded the design phase could be skipped. Root cause: the orchestrator agent's Phase 0 instructions (`orchestrator.md` line 113) specify raw content grep instead of targeting YAML frontmatter. Design docs have a `backlog:` frontmatter field that uniquely identifies the owning backlog item, but the grep doesn't filter on it. Evidence: lesson file `docs/4-reviews/lessons/synthetic-workloads/2026-03-13-run10-orchestrator-logging/e00-setup/2026-03-13-s00-design-artifact-matching.md`.
 
 ### 2. GraphQL API Rate Limit Exhaustion
 
-The planner's 58 API calls (creating issues, adding to project board, setting statuses) depleted the GitHub GraphQL rate limit (5000 points/hour). After the planner completed, the orchestrator couldn't set stories to Todo because `item-set-status.sh` uses `gh project item-list` which fetches all 200+ project items — a heavy query costing many points per call. The script calls it twice per invocation (lookup + verification), compounding the problem. The orchestrator worked around this by using direct REST API calls via `gh api`, but the workaround added ~6 minutes of orchestrator overhead. Evidence: lesson file `docs/4-reviews/lessons/2026-03-13-test-agentic-sdlc-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`.
+The planner's 58 API calls (creating issues, adding to project board, setting statuses) depleted the GitHub GraphQL rate limit (5000 points/hour). After the planner completed, the orchestrator couldn't set stories to Todo because `item-set-status.sh` uses `gh project item-list` which fetches all 200+ project items — a heavy query costing many points per call. The script calls it twice per invocation (lookup + verification), compounding the problem. The orchestrator worked around this by using direct REST API calls via `gh api`, but the workaround added ~6 minutes of orchestrator overhead. Evidence: lesson file `docs/4-reviews/lessons/synthetic-workloads/2026-03-13-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`.
 
 ### 3. Builder Scripts Failed During Rate Limit Window
 

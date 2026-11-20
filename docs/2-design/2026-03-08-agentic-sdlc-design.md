@@ -5,11 +5,13 @@ agent: general
 status: approved
 ---
 
-# Agentic SDLC Workflow for NeuralNorris
+# Agentic SDLC Workflow for an Earlier Host Project
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 ## Overview
 
-Introduce a structured AI-agent-driven software development lifecycle (SDLC) for NeuralNorris, adapted from the Agentic SDLC Framework proven in the parenting-game project. The system uses four specialized agents, GitHub Issues/Projects as the single source of truth, difficulty-based model routing for cost control, and helper scripts for telemetry.
+Introduce a structured AI-agent-driven software development lifecycle (SDLC) for the host project, adapted from the Agentic SDLC Framework proven in the an earlier private project project. The system uses four specialized agents, GitHub Issues/Projects as the single source of truth, difficulty-based model routing for cost control, and helper scripts for telemetry.
 
 ## Decisions Summary
 
@@ -20,7 +22,7 @@ Introduce a structured AI-agent-driven software development lifecycle (SDLC) for
 | Docs structure | Numbered SDLC phases (migrate existing files) |
 | Sentinel + reviewer | Complementary — Sentinel for security on all PRs, reviewer for code quality |
 | Model routing | easy→Haiku, medium→Sonnet, hard→Opus |
-| Helper scripts | Bash (consistent with parenting-game) |
+| Helper scripts | Bash (consistent with an earlier private project) |
 | Branch strategy | `epic/eNN-slug` → `eNN-sNN/slug`, no `norris/` prefix |
 | Sentinel trigger | All PRs to main |
 | Orchestration | Manual (human dispatches agents) |
@@ -34,7 +36,7 @@ Four agents in `.claude/agents/`, each with strict separation of concerns.
 
 ### designer — Creative Vision & Feature Design
 
-- **Role:** Product thinker who understands NeuralNorris's architecture and VISION.md
+- **Role:** Product thinker who understands the host project's architecture and VISION.md
 - **Responsibilities:**
   - Brainstorm features, evaluate feasibility against the existing architecture
   - Write design docs to `docs/2-design/`
@@ -45,7 +47,7 @@ Four agents in `.claude/agents/`, each with strict separation of concerns.
 
 ### planner — System Design & Planning
 
-- **Role:** Senior .NET planner who knows the NeuralNorris dependency graph
+- **Role:** Senior .NET planner who knows the host project dependency graph
 - **Responsibilities:**
   - Create implementation plans from approved designs → `docs/3-plans/`
   - Break plans into epics and stories with careful difficulty classification
@@ -72,15 +74,15 @@ Four agents in `.claude/agents/`, each with strict separation of concerns.
 
 ### reviewer — Code Quality & Convention Enforcement
 
-- **Role:** Code reviewer who knows NeuralNorris conventions deeply
+- **Role:** Code reviewer who knows the host project conventions deeply
 - **Responsibilities:**
   - Review PRs for architecture adherence, code quality, test coverage
-  - Check NeuralNorris-specific conventions:
+  - Check host-specific conventions:
     - `ITool` + `IKernelTool` contracts for new tools
     - DI registration patterns
     - `DateTimeOffset` stored as Unix milliseconds
     - snake_case tool names
-    - `NNConfig` binding for configuration
+    - `HostConfig` binding for configuration
     - Test naming: `Method_Condition_ExpectedResult`
   - Flag silent failures, missing error handling at system boundaries
   - Verify test coverage for new public APIs
@@ -168,7 +170,7 @@ No status labels — GitHub Issues open/closed state and GitHub Project board co
 
 ### GitHub Project
 
-- Single project board: **"NeuralNorris Development"**
+- Single project board: **"the host project Development"**
 - Columns: Backlog → In Progress → Review → Done
 - Project automations move cards when status changes
 
@@ -232,11 +234,11 @@ main
 
 ### Routing table
 
-| Difficulty | Model | Typical NeuralNorris tasks |
+| Difficulty | Model | Typical host-project tasks |
 |---|---|---|
 | **Easy** | Haiku | Config property additions, simple tests, docs, single-file bug fixes, adding a tool parameter |
-| **Medium** | Sonnet | New tool implementation following existing patterns, standard EF migrations, Blazor component updates, multi-file changes within one project |
-| **Hard** | Opus | New abstractions/interfaces, cross-project changes, orchestration logic, Blazor + backend wiring, security-sensitive code, DevOps tool additions |
+| **Medium** | Sonnet | New tool implementation following existing patterns, standard EF migrations, web UI component updates, multi-file changes within one project |
+| **Hard** | Opus | New abstractions/interfaces, cross-project changes, orchestration logic, web UI + backend wiring, security-sensitive code, DevOps tool additions |
 
 ### Planner's classification checklist
 
@@ -286,6 +288,6 @@ Remove the `norris/` branch name filter so Sentinel triggers on all PRs to `main
 ## What This Does NOT Include
 
 - Orchestrator automation (manual dispatch for now)
-- Changes to the core NeuralNorris architecture
+- Changes to the core the host project architecture
 - New runtime features or tools
 - Changes to existing tests or CI pipeline (beyond Sentinel trigger)

@@ -11,9 +11,9 @@ severity: high
 
 ## What happened
 
-Wave 1 dispatched 3 haiku builders concurrently for E01-S01 (#112), E01-S02 (#113), and E01-S03 (#114). All three builders operated in the same working directory without git worktree isolation (`isolation: "worktree"` was not used in the Agent tool dispatch). Each builder checked out its own story branch from the epic branch, but because they shared the working directory, branch checkout operations could theoretically race.
+Wave 1 dispatched 3 haiku builders concurrently for E01-S01, E01-S02, and E01-S03. All three builders operated in the same working directory without git worktree isolation (`isolation: "worktree"` was not used in the Agent tool dispatch). Each builder checked out its own story branch from the epic branch, but because they shared the working directory, branch checkout operations could theoretically race.
 
-No failures occurred in this run because the three stories wrote to independent files (`kepler-442b.md`, `gliese-667c.md`, `proxima-station.md`) in the same directory. However, if two builders attempted `git checkout` simultaneously, or if stories modified shared files, the lack of isolation could cause data loss or corrupted commits.
+No failures occurred in this run because the three stories wrote to independent files (three separate content files) in the same directory. However, if two builders attempted `git checkout` simultaneously, or if stories modified shared files, the lack of isolation could cause data loss or corrupted commits.
 
 ## Root cause
 

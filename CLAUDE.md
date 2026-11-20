@@ -245,7 +245,7 @@ Link sub-issues using `item-link-child.sh`:
 
 **Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `./scripts/item-append-body.sh <N> "<content>"` to append below the existing body. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
 
-**GitHub Project board:** All issues live on the [Agentic SDLC Workflow Project](https://github.com/users/carlosboeing/projects/7) (project number 7, owner `carlosboeing`).
+**GitHub Project board:** All issues live on the configured project board (optional).
 
 Status field values and their meanings:
 
@@ -278,16 +278,16 @@ Adding an issue to the project and setting its status: use `item-create.sh` (whi
 
 ```bash
 # Add a pre-existing issue to project (does NOT set status — item will have status: null)
-gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
+gh project item-add <project-number> --owner <owner> --url <issue-url> --format json
 
 # REQUIRED: Set status explicitly after adding
 ./scripts/item-set-status.sh <issue-number> in-progress
 
 # Or manually (use the option ID from the project field):
 # NOTE: gh project item-list output contains control characters that break jq -- always pipe through tr -d
-ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 | tr -d '\x00-\x1f' | jq -r '.items[] | select(.content.number == <issue-number>) | .id')
-gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
-  --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
+ITEM_ID=$(gh project item-list <project-number> --owner <owner> --format json --limit 100 | tr -d '\x00-\x1f' | jq -r '.items[] | select(.content.number == <issue-number>) | .id')
+gh project item-edit --project-id "<project-id>" --id "$ITEM_ID" \
+  --field-id "<status-field-id>" \
   --single-select-option-id "<option-id>"
 ```
 
@@ -468,7 +468,7 @@ Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Ever
 The orchestrator can handle the entire lifecycle from design to retro:
 
 ```bash
-# Autonomous (recommended) — full live UI with real-time progress
+# Autonomous — full live UI with real-time progress (see the README section on running safely)
 claude --agent orchestrator --dangerously-skip-permissions \
   "Execute backlog item #42."
 
@@ -624,7 +624,7 @@ docs/4-reviews/lessons/
       YYYY-MM-DD-sNN-<slug>.md
 ```
 
-Example: `docs/4-reviews/lessons/2026-03-13-test-agentic-sdlc-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`
+Example: `docs/4-reviews/lessons/synthetic-workloads/2026-03-13-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`
 
 The date-prefixed directory groups lessons by feature, with epic subfolders beneath. The backlog issue number is stored in the retro doc's YAML frontmatter, not in the directory name. File names tie each lesson to the specific story where it was discovered. Use the `e00-setup/` subfolder for lessons discovered during design, plan, or orchestrator-setup phases before any epic begins.
 
@@ -699,6 +699,8 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
 **Scoping grep for speed:** Scope to the current feature's lesson folder first (`docs/4-reviews/lessons/<issue>-<slug>/`), then fall back to retro docs for older features.
 
 ### Known Claude Code Platform Limitations (tested 2026-03-08)
+
+> These limitations were observed in March 2026, and several no longer hold. See `docs/architecture.md` for the current platform assumptions.
 
 These are limitations of Claude Code itself that affect how agents are dispatched:
 
@@ -790,15 +792,15 @@ This project validates the workflow pipeline using **test runs** — autonomous 
 
 | Run | Backlog | Topic | What it tested |
 |-----|---------|-------|---------------|
-| 8 | #1 | Office Nature Documentary | Worktree isolation |
-| 9 | #14 | CIA Cat Field Reports | Full autonomous lifecycle |
-| 10 | #27 | Orchestrator Logging + Nature Doc S2 | Orchestrator logging |
-| 11 | #41 | Board Drift Detection + Fairy Tale HR | Board drift detection |
-| 12 | #56 | Time Traveler's Yelp Reviews | Configurable workflow settings (config.json, model routing, pricing) |
-| 13 | #69 | Alien Tourist Bureau | Runtime data consolidation, live pricing, dispatches-from-state |
-| 14 | #83 | Interdimensional Health Inspections | Fix cycle validation, cross-epic merge |
+| 8 | #1 | Run 8 | Worktree isolation |
+| 9 | #14 | Run 9 | Full autonomous lifecycle |
+| 10 | #27 | Orchestrator Logging | Orchestrator logging |
+| 11 | #41 | Board Drift Detection | Board drift detection |
+| 12 | #56 | Run 12 | Configurable workflow settings (config.json, model routing, pricing) |
+| 13 | #69 | Run 13 | Runtime data consolidation, live pricing, dispatches-from-state |
+| 14 | #83 | Run 14 | Fix cycle validation, cross-epic merge |
 
-Runs 1-7 were executed in the original NeuralNorris repo (gavinkilbride/NeuralNorris, issues #57-#217).
+Runs 1-7 were executed in the repository where the workflow was first developed (an earlier host project); their issues are not part of this repository.
 
 ### Creating a Test Run
 
@@ -817,11 +819,10 @@ All test run assets are grouped under `test-agentic-sdlc/` subfolders within the
 
 | Asset | Convention | Example |
 |-------|-----------|---------|
-| **Design doc** | `docs/2-design/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>.md` | `docs/2-design/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption.md` |
-| **Plan doc** | `docs/3-plans/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>-plan.md` | `docs/3-plans/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption-plan.md` |
-| **Content output** | `test-output/test-agentic-sdlc-<slug>/` | `test-output/test-agentic-sdlc-supernatural-pet-adoption/` |
-| **Lesson folder** | `docs/4-reviews/lessons/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>/` | `docs/4-reviews/lessons/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption/` |
+| **Design doc** | `docs/2-design/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>.md` | `docs/2-design/test-agentic-sdlc/2026-03-20-run15.md` |
+| **Plan doc** | `docs/3-plans/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>-plan.md` | `docs/3-plans/test-agentic-sdlc/2026-03-20-run15-plan.md` |
+| **Lesson folder** | `docs/4-reviews/lessons/synthetic-workloads/YYYY-MM-DD-runNN-<slug>/` | `docs/4-reviews/lessons/synthetic-workloads/2026-03-20-run15/` |
 | **Labels** | `test-agentic-sdlc` on **all** issues (backlog, epics, stories, design, plan, retro) | — |
 
-Content files inside `test-output/test-agentic-sdlc-<slug>/` use descriptive names without prefix (e.g., `fire-elemental-adoptions.md`).
+Content output of test runs is not retained in the published tree, and neither are the per-run design and plan documents. Only the lessons and retros under `docs/4-reviews/lessons/synthetic-workloads/` are kept as engineering evidence.
 

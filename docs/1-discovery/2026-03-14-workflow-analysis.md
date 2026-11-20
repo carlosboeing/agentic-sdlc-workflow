@@ -7,6 +7,8 @@ scope: Critical workflow analysis of the agentic SDLC pipeline — system-level 
 
 # Agentic SDLC Pipeline — Critical Workflow Analysis
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## Executive Summary
 
 This document presents a system-level analysis of the agentic SDLC pipeline after 11 autonomous runs. It examines the workflow across three axes — **correctness & consistency**, **robustness**, and **innovation & leverage** — then extends into a deep analysis of the **work item taxonomy** and its coupling throughout the system. The analysis reads every agent file, every script, the telemetry template, CLAUDE.md, the recommendations tracker, and the last 3 retro docs as primary sources.
@@ -169,11 +171,11 @@ The workflow has evolved through 7 design iterations and 11 autonomous test runs
 | 2026-03-10 | [GitHub Issue Categorization](../2-design/2026-03-10-agentic-sdlc-github-issue-categorization-design.md) | Introduced `hierarchy/*` labels for level identification. Retired per-epic `epic/*` labels. Defined the three-level hierarchy with cross-tool mapping, decomposition rules, and status flow. |
 | 2026-03-10 | [Issue Templates](../2-design/2026-03-10-agentic-sdlc-issue-templates-design.md) | Standardized issue structure across all three levels. Backlog = "the brief" (Overview, Requirements, Context), Epic = "organizational glue" (story table, AC), Story = "the micro-spec" (self-contained Design + AC). Key principle: *"design detail lives in the design doc, execution detail lives in the story, epics are just folders."* |
 | 2026-03-10 | [Plugin Architecture](../2-design/2026-03-10-agentic-sdlc-plugin-architecture.md) | Defined MCP tool interfaces for `project-board`, `code-hosting`, and `docs-platform`. Proposed a layered architecture where agents call generic MCP tools, and provider MCP servers (GitHub, Linear, Jira, Azure DevOps) implement them. Mix-and-match providers (e.g., Jira + GitHub + Confluence). |
-| 2026-03-10 | [Self-Orchestration Plan](../3-plans/2026-03-10-agentic-sdlc-self-orchestration-plan.md) | Designed NeuralNorris as a thin relay over the orchestrator — C# tools (`ClaudeDispatchTool`, `SdlcWorkflowTool`) for subprocess management, workflow persistence, and progress relay. 3 epics, 9 stories. |
+| 2026-03-10 | Self-Orchestration Plan | Designed the host project as a thin relay over the orchestrator — host-specific C# dispatch tools for subprocess management, workflow persistence, and progress relay. 3 epics, 9 stories. |
 | 2026-03-11 | [Work Item Taxonomy](../2-design/2026-03-11-agentic-sdlc-workitem-taxonomy.md) | Comprehensive research across 9 PM tools and 4 methodologies. **Decision: Goal > Epic > Task.** "Goal" replaces "Backlog Item" (universal, cross-domain), "Task" replaces "Story" (domain-neutral, template-driven richness). Not yet implemented in the codebase. |
 | 2026-03-11 | [Extraction Design](../2-design/2026-03-11-agentic-sdlc-extraction-design.md) | Master plan for extracting the workflow into a standalone package. Defined PM Adapter and Doc Adapter interfaces. Proposed local-first storage (`.sdlc/` folder with YAML frontmatter), ephemeral dashboard, CLI entry point (`sdlc <command>`), and 5-phase migration path. |
-| 2026-03-13 | [Orchestrator Logging](../2-design/2026-03-13-test-agentic-sdlc-run10-orchestrator-logging.md) | Two-layer diagnostic logging: board status script logging (post-mutation verification) and orchestrator workflow logging via Claude Code hooks. Implemented and merged. |
-| 2026-03-14 | [Board Drift Detection](../2-design/2026-03-14-test-agentic-sdlc-run11-board-drift-detection.md) | Diagnostic script (`check-board-drift.sh`) for investigating board status persistence bug. Timed re-verification at +10s and +30s intervals. Implemented in Run 11. |
+| 2026-03-13 | Orchestrator Logging | Two-layer diagnostic logging: board status script logging (post-mutation verification) and orchestrator workflow logging via Claude Code hooks. Implemented and merged. |
+| 2026-03-14 | Board Drift Detection | Diagnostic script (`check-board-drift.sh`) for investigating board status persistence bug. Timed re-verification at +10s and +30s intervals. Implemented in Run 11. |
 
 ### Planned but Not Yet Implemented
 
@@ -192,7 +194,7 @@ The [extraction design](../2-design/2026-03-11-agentic-sdlc-extraction-design.md
 - **Local PM storage** — `.sdlc/` folder with YAML-frontmatter markdown files, folder-based hierarchy, sequential ID counter, and history files for comments/telemetry
 - **Dashboard** — Ephemeral HTTP server serving a self-contained SPA with Kanban board, activity feed, and telemetry summary. Auto-refreshes on file changes. CLI fallback (`sdlc board`) for terminal-only environments
 - **CLI entry point** — `sdlc <command>` wrapping all adapter calls
-- **Intent-based agent instructions** — Agents say "set status to in_progress" not "`gh project item-edit --project-id PVT_xxx`"
+- **Intent-based agent instructions** — Agents say "set status to in_progress" not "`gh project item-edit --project-id <project-id>`"
 - **Plugin packaging** — Claude Code plugin with agents, skills, hooks, and MCP servers bundled together
 
 None of these are implemented. The system remains GitHub-coupled with hardcoded `gh` CLI commands in all agent files.

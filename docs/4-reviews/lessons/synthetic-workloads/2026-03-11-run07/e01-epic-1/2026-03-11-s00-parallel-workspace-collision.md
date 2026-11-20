@@ -19,7 +19,7 @@ The fix commit message explicitly states "remove commute report from brunch stor
 
 The Agent tool was invoked without `isolation: "worktree"`. All three parallel builders checked out different branches in the same working directory. When E01-S01's haiku builder wrote `report-the-commute.md`, it was present in the working tree when E01-S03's sonnet builder committed, causing it to be staged and committed on the wrong branch.
 
-This is the same root cause identified in Run 4 (lesson: `docs/4-reviews/lessons/2026-03-10-test-agentic-sdlc-run04-travel-advisory/e01-destination-profiles/2026-03-10-s00-parallel-dispatch-no-worktree-isolation.md`) but this time it caused an actual defect rather than a theoretical risk.
+This is the same root cause identified in Run 4 (lesson: `docs/4-reviews/lessons/synthetic-workloads/2026-03-10-run04/e01-epic-1/2026-03-10-s00-parallel-dispatch-no-worktree-isolation.md`) but this time it caused an actual defect rather than a theoretical risk.
 
 ## Prevention
 

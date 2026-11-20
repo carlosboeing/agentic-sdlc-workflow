@@ -11,7 +11,7 @@ severity: medium
 
 ## What happened
 
-After auto-merging the design doc PR (#164) and plan PR (#173) into the integration branch, the orchestrator called `issue-merged.sh` to close the issues (#163, #165) and set their board status to Done. The script reported "not found on project board" for both issues, leaving them stuck in "In Progress" on the board even though the issues were closed.
+After auto-merging the design doc PR and plan PR into the integration branch, the orchestrator called `issue-merged.sh` to close the issues (#163, #165) and set their board status to Done. The script reported "not found on project board" for both issues, leaving them stuck in "In Progress" on the board even though the issues were closed.
 
 The root cause was a race condition: the designer/planner agents added the issues to the board, but by the time `issue-merged.sh` ran, the `gh project item-list` query returned stale data and couldn't find the items by issue number. The `jq` select filter returned empty, so the status update was skipped.
 

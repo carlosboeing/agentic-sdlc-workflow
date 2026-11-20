@@ -11,15 +11,15 @@ severity: medium
 
 ## What happened
 
-The orchestrator posted identical aggregate telemetry (all 7 stories across both epics) on both the E01 epic issue (#94) and the E02 epic issue (#95). The E01 breakdown showed E02 stories (#100, #101, #102) and vice versa.
+The orchestrator posted identical aggregate telemetry (all 7 stories across both epics) on both the E01 epic issue and the E02 epic issue. The E01 breakdown showed E02 stories (#100, #101, #102) and vice versa.
 
 Additionally, the estimated cost was inflated: the `--model sonnet` flag priced all 548K tokens at the sonnet rate (~$3.29), when the actual per-story cost from the breakdown was ~$1.30 (3 haiku + 3 sonnet + 1 opus).
 
 ## Root cause
 
 The combined PR strategy (both epics in one PR) led the orchestrator to treat telemetry as a single aggregate, posting the same comment on both epic issues. Each epic should get telemetry for only its own stories:
-- E01 (#94): stories #96, #97, #98, #99
-- E02 (#95): stories #100, #101, #102
+- E01: stories #96, #97, #98, #99
+- E02: stories #100, #101, #102
 - PR #104: full combined breakdown (correct to show all 7)
 
 ## Prevention

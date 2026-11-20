@@ -15,6 +15,8 @@ related:
 
 # Design: Dual-Write PM Layer
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 > **Status:** Draft
 
 ## 1. Overview
@@ -456,10 +458,10 @@ fi
   "workflowDir": ".workflow",
   "github": {
     "repo": "owner/repo",
-    "projectNumber": 7,
+    "projectNumber": 42,
     "owner": "owner",
-    "projectId": "PVT_xxx",
-    "statusFieldId": "PVTSSF_xxx"
+    "projectId": "<project-id>",
+    "statusFieldId": "<status-field-id>"
   },
   "boardStatus": { "...": "..." },
   "modelRouting": { "...": "..." },

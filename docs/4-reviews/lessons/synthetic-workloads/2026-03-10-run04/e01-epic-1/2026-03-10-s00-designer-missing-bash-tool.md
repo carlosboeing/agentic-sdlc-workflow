@@ -2,7 +2,7 @@
 date: 2026-03-10
 author: carlosboeing
 agent: retro
-story: "Design phase -- Intergalactic Travel Advisory"
+story: "Design phase -- Run 4"
 tags: [designer, orchestrator, agent-tools, bash, workflow]
 severity: medium
 ---
@@ -11,9 +11,9 @@ severity: medium
 
 ## What happened
 
-The designer agent does not have `Bash` in its YAML frontmatter tool list. This means the designer cannot run `gh`, `git`, or any shell commands. As a result, the orchestrator had to handle the entire git workflow for the design phase: creating the docs branch, committing the design doc, creating the GitHub Issue (#107), opening the PR (#108), and merging it.
+The designer agent does not have `Bash` in its YAML frontmatter tool list. This means the designer cannot run `gh`, `git`, or any shell commands. As a result, the orchestrator had to handle the entire git workflow for the design phase: creating the docs branch, committing the design doc, creating the GitHub Issue, opening the PR, and merging it.
 
-This is the same class of issue that affected the planner in Run 3 (lesson: `89-mythical-creatures/e01-creature-compendium/2026-03-10-s00-planner-missing-bash-tool.md`), which was fixed by adding `Bash` to the planner's tool list. The designer agent was not included in that fix.
+This is the same class of issue that affected the planner in Run 3 (lesson: `../../2026-03-10-run03/e01-epic-1/2026-03-10-s00-planner-missing-bash-tool.md`), which was fixed by adding `Bash` to the planner's tool list. The designer agent was not included in that fix.
 
 ## Root cause
 

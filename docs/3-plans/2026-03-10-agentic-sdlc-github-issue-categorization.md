@@ -107,7 +107,7 @@ while IFS= read -r issue; do
   elif [ "$HAS_BACKLOG" -gt 0 ]; then
     # Has backlog but no epic = could be backlog item OR a docs/plan issue
     # Check title for backlog indicators
-    if echo "$TITLE" | grep -qiE "^\[Backlog\]|^SDLC Self-Orchestration|^Test SDLC|^Agentic SDLC|Mythical Creatures Field Guide|Intergalactic Travel"; then
+    if echo "$TITLE" | grep -qiE "^\[Backlog\]|^SDLC Self-Orchestration|^Test SDLC|^Agentic SDLC|Run 3|Intergalactic Travel"; then
       echo "  backlog: #$NUMBER $TITLE"
       gh issue edit "$NUMBER" --repo "$REPO" --add-label "hierarchy/backlog"
     else

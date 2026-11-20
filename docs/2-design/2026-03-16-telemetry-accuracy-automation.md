@@ -9,6 +9,8 @@ scope: Telemetry pipeline accuracy — Gantt from state data, precise timestamps
 
 # Telemetry Accuracy & Automation
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 > **Status:** Draft
 
 ## Problem Statement

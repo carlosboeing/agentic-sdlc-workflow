@@ -11,6 +11,8 @@ recommendations:
 
 # Design: Work Item Taxonomy for Agentic SDLC
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## Overview
 
 This document captures the research, analysis, and reasoning behind a proposed work item taxonomy for an agentic SDLC workflow. The taxonomy must serve two audiences: AI agents that operate the pipeline and humans who need visibility and tracking through PM tools.

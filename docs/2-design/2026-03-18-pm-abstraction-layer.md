@@ -15,6 +15,8 @@ related:
 
 # Design: PM Abstraction Layer
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 > **Status:** Draft
 
 ## 1. Overview

@@ -2,7 +2,7 @@
 date: 2026-03-10
 author: carlosboeing
 agent: retro
-story: "E01-S03 (#114) -- Proxima Station -- Orbital Bazaar"
+story: "E01-S03 -- Proxima Station -- Orbital Bazaar"
 tags: [builder, telemetry, issue-comments, data-gap]
 severity: low
 ---

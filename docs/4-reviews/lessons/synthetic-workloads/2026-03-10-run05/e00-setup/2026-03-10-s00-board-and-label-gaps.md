@@ -12,9 +12,9 @@ severity: high
 ## What happened
 Three related gaps were discovered during Run 5:
 
-1. **Missing backlog labels:** Design doc issue (#147), plan issue (#149), and even the backlog item itself (#146) were missing the `backlog/146-doomco-handbook` label. Only epics and stories had it.
+1. **Missing backlog labels:** Design doc issue, plan issue, and even the backlog item itself were missing the `backlog/run5` label. Only epics and stories had it.
 
-2. **Backlog item never added to board at workflow start:** The backlog issue (#146) was never added to the project board or given an initial status. It stayed in "No Status" for the entire workflow until post-merge cleanup. It should have been added with status **Backlog** at Phase 0, then progressed to **In Progress** when the first builder dispatched.
+2. **Backlog item never added to board at workflow start:** The backlog issue was never added to the project board or given an initial status. It stayed in "No Status" for the entire workflow until post-merge cleanup. It should have been added with status **Backlog** at Phase 0, then progressed to **In Progress** when the first builder dispatched.
 
 3. **Design/plan doc issues never moved on the board:** Issues #147 (design doc) and #149 (plan) were set to In Progress / In Review by the designer/planner, but never moved to **Done** when their PRs were auto-merged. The orchestrator auto-merged the PRs but didn't update the board status for these doc issues.
 

@@ -4,14 +4,14 @@ author: carlosboeing
 agent: retro
 backlog-issue: 41
 backlog-pr: pending
-scope: Run 11 -- board drift detection infrastructure + Incident Reports from Fairy Tale HR -- 2 epics, 6 stories, 4 dispatch waves
+scope: Run 11 -- board drift detection infrastructure + a synthetic content workload -- 2 epics, 6 stories, 4 dispatch waves
 ---
 
 # Board Drift Detection (Run 11) -- Agentic Workflow Retrospective
 
 ## Summary
 
-Run 11 delivered two workstreams across 2 epics and 6 stories: a board drift detection diagnostic script (`check-board-drift.sh`) with validation integration, and four "Incident Reports from Fairy Tale HR" content files. The primary test objective -- investigating the board status persistence bug -- was met: the drift detection infrastructure was created and is ready for diagnostic use. All 6 stories passed review on first attempt (5 APPROVE, 1 COMMENT), no re-dispatches were needed, and no merge conflicts occurred. Wave 3 successfully exercised 3-way parallel dispatch with worktree isolation. All three difficulty levels (easy/medium/hard) and all three builder models (haiku/sonnet/opus) were used.
+Run 11 delivered two workstreams across 2 epics and 6 stories: a board drift detection diagnostic script (`check-board-drift.sh`) with validation integration, and four synthetic content files. The primary test objective -- investigating the board status persistence bug -- was met: the drift detection infrastructure was created and is ready for diagnostic use. All 6 stories passed review on first attempt (5 APPROVE, 1 COMMENT), no re-dispatches were needed, and no merge conflicts occurred. Wave 3 successfully exercised 3-way parallel dispatch with worktree isolation. All three difficulty levels (easy/medium/hard) and all three builder models (haiku/sonnet/opus) were used.
 
 ## Timeline
 

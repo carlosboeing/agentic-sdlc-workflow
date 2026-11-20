@@ -7,9 +7,11 @@ status: approved
 
 # GitHub Issue Categorization Improvements
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## Problem
 
-The NeuralNorris project board mixes backlog items, epics, and stories with no way to visually distinguish or filter by hierarchy level. The only clues are title prefixes (`[Backlog]`, `[#122/E01]`, `[#122/E01-S01]`) and per-instance grouping labels — but the board doesn't support filtering by hierarchy level.
+The host project board mixes backlog items, epics, and stories with no way to visually distinguish or filter by hierarchy level. The only clues are title prefixes (`[Backlog]`, `[#122/E01]`, `[#122/E01-S01]`) and per-instance grouping labels — but the board doesn't support filtering by hierarchy level.
 
 ## Solution
 
@@ -159,7 +161,7 @@ Level 3: Story            ← HOW to build it (implementable units)
 
 **Examples (for a "Calendar Core Infrastructure" epic):**
 - Story 1: "Calendar domain models" (CalendarEvent, CalendarProvider entities)
-- Story 2: "CalendarConfig and NNConfig extension"
+- Story 2: "CalendarConfig and HostConfig extension"
 - Story 3: "OAuthToken EF migration"
 
 **Heuristic:** If you can write a PR title for it and a reviewer could understand the scope from that title — it's a well-sized story. If the PR would touch 15+ files across multiple domains, it's too big — split it.
@@ -193,7 +195,7 @@ Backlog Item: "Calendar Integration"
 │   │   Acceptance: CalendarEvent, CalendarProvider entities with tests
 │   │
 │   ├── Story S02: "Configuration"
-│   │   Acceptance: CalendarConfig section in NNConfig, validated at startup
+│   │   Acceptance: CalendarConfig section in HostConfig, validated at startup
 │   │
 │   └── Story S03: "EF migration"
 │       Acceptance: Migration creates calendar tables, passes on SQLite
@@ -291,7 +293,7 @@ Different PM tools use different names for the same concepts. This table provide
 
 ### Why not GitHub Issue Types?
 
-GitHub Issue Types (Task, Bug, Feature) are organization-scoped only. NeuralNorris is on a personal account, so Issue Types are not available. Labels are the universal fallback that also provides cross-tool portability.
+GitHub Issue Types (Task, Bug, Feature) are organization-scoped only. The host project is on a personal account, so Issue Types are not available. Labels are the universal fallback that also provides cross-tool portability.
 
 ### Why keep `backlog/*` but retire `epic/*`?
 
@@ -299,7 +301,7 @@ A single grouping label per workstream is sufficient when combined with `hierarc
 
 ### Why not rename `backlog/*` to `sprint/*`?
 
-"Sprint" implies a time-boxed iteration (Scrum), which conflicts with the feature-scoped nature of NeuralNorris workstreams. It would also collide with first-class "Sprint" concepts in Jira, Azure DevOps, and other tools the workflow may integrate with in the future.
+"Sprint" implies a time-boxed iteration (Scrum), which conflicts with the feature-scoped nature of the host project workstreams. It would also collide with first-class "Sprint" concepts in Jira, Azure DevOps, and other tools the workflow may integrate with in the future.
 
 ### Why exactly three hierarchy levels?
 

@@ -2,7 +2,7 @@
 date: 2026-03-10
 author: carlosboeing
 agent: retro
-story: "E01-S01 (#112) -- Kepler-442b -- The Resort World"
+story: "E01-S01"
 tags: [builder, gitignore, staging, empty-commit, orchestrator]
 severity: high
 ---
@@ -11,7 +11,7 @@ severity: high
 
 ## What happened
 
-The haiku builder for E01-S01 (#112) created `test-output/travel-advisory/kepler-442b.md` on disk and ran `git add` followed by `git commit`. However, `.gitignore` contains `test-output/` which silently excluded the file from staging. The result was two empty commits (`9e69336`, `6926671`) -- the commit messages described creating the file, but no files were staged. The reviewer caught this as a critical issue: "File never committed. The branch has zero diff against the epic branch."
+The haiku builder for E01-S01 created a content file under `test-output/run4/` on disk and ran `git add` followed by `git commit`. However, `.gitignore` contains `test-output/` which silently excluded the file from staging. The result was two empty commits (`9e69336`, `6926671`) -- the commit messages described creating the file, but no files were staged. The reviewer caught this as a critical issue: "File never committed. The branch has zero diff against the epic branch."
 
 A fix cycle was required: the builder was re-dispatched and used `git add -f` to force-stage the file past `.gitignore`, producing commit `5b0a76d`. The other two Wave 1 builders (E01-S02, E01-S03) either used `git add -f` proactively or did not encounter this issue.
 

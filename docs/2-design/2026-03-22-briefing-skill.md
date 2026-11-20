@@ -11,6 +11,8 @@ title: "Briefing Skill: Context-Aware Project Orientation"
 
 # Briefing Skill: Context-Aware Project Orientation
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## 1. Problem Statement
 
 Humans managing agentic workflows suffer from **context loss** at two critical moments:

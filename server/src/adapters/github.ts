@@ -30,9 +30,9 @@ import type { BoardStatus } from "../types";
 export interface GitHubAdapterConfig {
   /** GitHub repository in "owner/repo" format. */
   repo: string;
-  /** GitHub Projects v2 project node ID (e.g. "PVT_kwHO…"). */
+  /** GitHub Projects v2 project node ID (e.g. "PVT_…"). */
   projectId: string;
-  /** Status field ID for the project (e.g. "PVTSSF_lAHO…"). */
+  /** Status field ID for the project (e.g. "PVTSSF_…"). */
   statusFieldId: string;
   /** Map from BoardStatus value to GitHub project option ID. */
   boardStatus: Record<BoardStatus, string>;

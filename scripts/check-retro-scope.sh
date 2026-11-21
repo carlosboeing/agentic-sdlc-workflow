@@ -3,16 +3,19 @@ set -uo pipefail
 
 # check-retro-scope.sh — Fail when a retro commit touches code.
 #
-# Retro commits (message starts with "docs(retro)") may change only docs/,
-# CLAUDE.md and .claude/agents/. Commit 4d3ab9b reverted about 1,000 lines of
-# server and script code under a docs(retro) message; this guard catches that.
+# Retro commits may change only docs/, CLAUDE.md and .claude/agents/. A retro
+# commit is one whose subject starts with "docs(retro)" (retrospective,
+# lessons, recommendations tracker) or "docs(conventions)" (convention
+# changes); these are the only subjects .claude/agents/retro.md tells the retro
+# agent to use. Commit 4d3ab9b reverted about 1,000 lines of server and script
+# code under a docs(retro) message; this guard catches that.
 #
 # Usage: ./scripts/check-retro-scope.sh <base-sha> <head-sha>
 #   Checks every non-merge commit in <base-sha>..<head-sha>.
 #
 # Exit codes:
-#   0 — every docs(retro) commit in the range stays inside the allowed paths
-#   1 — at least one docs(retro) commit touches other paths (listed on stdout)
+#   0 — every retro commit in the range stays inside the allowed paths
+#   1 — at least one retro commit touches other paths (listed on stdout)
 #   2 — usage error or unreadable range
 
 if [ $# -ne 2 ]; then
@@ -32,7 +35,7 @@ status=0
 for sha in $COMMITS; do
   subject=$(git log -1 --format=%s "$sha")
   case "$subject" in
-    "docs(retro)"*) ;;
+    "docs(retro)"*|"docs(conventions)"*) ;;
     *) continue ;;
   esac
   offending=$(git show --name-only --format= "$sha" | grep -vE '^(docs/|CLAUDE\.md$|\.claude/agents/)' || true)

@@ -77,7 +77,7 @@ Every number below is scoped to the runs it came from. The [case studies](docs/c
 
 - **Failure.** In backlog item 116 the retrospective ran in parallel with the PR review. Its commit `4d3ab9b`, labelled `docs(retro)`, landed 55 seconds after a review fix (`4634d58`) and reverted it, together with about 1,000 lines across 37 files: a document API schema and route, frontend fixes, a script fallback, part of a startup-wiring test and the CHANGELOG entry. The PR reviewer had read an earlier snapshot, the repository had no CI, and the squash merge carried the revert to `main`.
 - **How it was found.** In November 2026, running the server suite from a clean export showed 623 of 635 tests passing, 12 failing and 2 files unable to load. Diffing each suspect commit against its parent pointed at `4d3ab9b`.
-- **Fix and controls.** Restored in `72f7476` (server 681 of 681 passing). CI with a single `required` gate (`ab3d57e`). A retro scope guard, `scripts/check-retro-scope.sh`, that fails any `docs(retro)` commit touching code, run in CI and in the orchestrator after the retro, followed by a full test run before the PR proceeds (`b5a4212`).
+- **Fix and controls.** Restored in `72f7476` (server 681 of 681 passing). CI with a single `required` gate (`ab3d57e`). A retro scope guard, `scripts/check-retro-scope.sh`, that fails any `docs(retro)` or `docs(conventions)` commit touching code, run in CI and in the orchestrator after the retro, followed by a full test run before the PR proceeds (`b5a4212`).
 - **What remains.** The guard keys on the commit subject. A check that a retro commit's parent is the current branch head is planned, not built.
 
 ### More case studies

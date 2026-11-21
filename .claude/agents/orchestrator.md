@@ -419,7 +419,7 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
 
    **Retro guard (before closing the backlog PR):** the retro may only change documentation. After the retro commits are on the integration branch, run the scope guard and the full test suite. If either fails, halt and report to the human; do not continue to documentation propagation or merge.
    ```bash
-   ./scripts/check-retro-scope.sh <integration-base-sha> HEAD   # fails if a docs(retro) commit touches code
+   ./scripts/check-retro-scope.sh <integration-base-sha> HEAD   # fails if a docs(retro) or docs(conventions) commit touches code
    (cd server && bun test) && python3 -m pytest scripts/lib/test_compute_dispatches.py -q
    ```
 

@@ -47,18 +47,32 @@ out=$("$GUARD" "$BASE" HEAD); rc=$?
 check "code_in_retro_fails" 1 "$rc" "$out" "server/src/x.ts"
 check "offending_commit_listed" 1 "$rc" "$out" "${BAD:0:7}"
 
-# 3. A non-retro commit touching code is not this guard's business
+# 3. A convention-change commit is a retro commit too
+git checkout -q -b conventions "$BASE"
+mkdir -p .claude/agents
+echo conv > CLAUDE.md; echo conv > .claude/agents/builder.md
+git add -A; git commit -q -m "docs(conventions): require startup wiring tests"
+out=$("$GUARD" "$BASE" HEAD); rc=$?
+check "docs_only_conventions_passes" 0 "$rc" "$out" "OK"
+echo conv > scripts.sh
+git add -A; git commit -q -m "docs(conventions): also tweak a script"
+CONV_BAD=$(git rev-parse HEAD)
+out=$("$GUARD" "$BASE" HEAD); rc=$?
+check "code_in_conventions_fails" 1 "$rc" "$out" "scripts.sh"
+check "conventions_commit_listed" 1 "$rc" "$out" "${CONV_BAD:0:7}"
+
+# 4. A non-retro commit touching code is not this guard's business
 git checkout -q -b other "$BASE"
 echo three > server/src/x.ts
 git add -A; git commit -q -m "fix(server): change code"
 out=$("$GUARD" "$BASE" HEAD); rc=$?
 check "non_retro_code_commit_passes" 0 "$rc" "$out" "OK"
 
-# 4. Range that excludes the bad commit passes
+# 5. Range that excludes the bad commit passes
 out=$("$GUARD" "$BAD" "$BAD"); rc=$?
 check "empty_range_passes" 0 "$rc" "$out" "OK"
 
-# 5. Usage and bad range
+# 6. Usage and bad range
 out=$("$GUARD" 2>&1); rc=$?
 check "missing_args_exit_2" 2 "$rc" "$out" "Usage"
 out=$("$GUARD" deadbeef HEAD 2>&1); rc=$?

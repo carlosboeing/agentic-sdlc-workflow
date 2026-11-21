@@ -12,7 +12,7 @@ The approach comes from applying the controls of large engineering organisations
 
 ## In two minutes
 
-- **What ran.** In March 2026 the workflow carried 21 backlog items in this repository from issue to merged pull request: 10 synthetic content runs that exercise orchestration paths, and 11 items that changed the workflow's own scripts and runtime service. The record is public: 296 issues, 68 pull requests, 51 lesson files and 26 retrospectives.
+- **What ran.** In March 2026 the workflow carried 21 backlog items in this repository from issue to merged pull request: 10 synthetic content runs that exercise orchestration paths, and 11 items that changed the workflow's own scripts and runtime service. The full record stays with the repository: 296 issues, 68 pull requests, 51 lesson files and 26 retrospectives.
 - **Handoffs are artifacts, not chat history.** Backlog issue, design document, plan with epic and story issues and a dependency graph, one branch per story, one pull request per backlog item. Each step reads the previous step's files.
 - **Control model.** Code computes wall-clock, critical path, cost, run state and board reconciliation. Models write designs, code and review verdicts. Pre-declared halts (merge conflict, third fix cycle, open dependency, repeated dispatch failure) hand control back to a human.
 - **Execution model.** Independent stories run in parallel waves, one git worktree per agent, branched from one recorded commit. Review depth is tiered by difficulty, fix cycles stop at two, and difficulty labels route builders to models.
@@ -128,7 +128,7 @@ The first run is offline. It needs `python3` and touches no network, no Claude s
 python3 scripts/lib/compute-dispatches.py --from-state tests/fixtures/telemetry/state.json --gantt
 ```
 
-It prints the telemetry table and a Mermaid Gantt timeline for a three-dispatch fixture. Cost shows as a dash because no pricing data is cached. Then run the three offline test suites, the same ones CI runs:
+It prints JSON holding the telemetry tables and a Mermaid Gantt timeline for a three-dispatch fixture. Cost shows as a dash because no pricing data is cached. Then run the three offline test suites, the same ones CI runs:
 
 ```bash
 cd server && bun install --frozen-lockfile && bun test && cd ..   # 681 tests

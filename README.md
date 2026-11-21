@@ -168,7 +168,7 @@ A real run creates issues, branches and pull requests with your `gh` credentials
 - **Prompt-driven control flow.** Phase order, wave dispatch and halts depend on the orchestrator following a long prompt. Most role boundaries are instructions; the exceptions are the retro scope guard and the reviewer, which has no edit tools.
 - **Estimated cost.** Cost is tokens times a blended rate, reported as estimated API-equivalent value. Prompt caching and orchestrator tokens are not counted.
 - **Raw run state was deleted after each merge.** The March analyses can be checked against issue and PR telemetry comments, but not recomputed from source data.
-- **Experimental runtime service.** It must be started by hand, and the scripts fall back to local files when it is down.
+- **Experimental runtime service.** It is off by default (`pm.adapter` is null, so work items are local files). With `pm.adapter` set to `server` it must be started by hand, and the scripts fall back to local files when it is down.
 
 ## License
 

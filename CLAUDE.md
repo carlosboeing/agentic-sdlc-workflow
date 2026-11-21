@@ -100,7 +100,17 @@ Every design decision should consider the end-state architecture, but every impl
 
 ## Configuration
 
-Workflow configuration lives in `.claude/agentic-sdlc-config.json`. See `docs/2-design/2026-03-15-configurable-workflow-settings.md` for field documentation. All scripts read from this config file via the shared `scripts/lib/config.sh` library.
+Workflow configuration lives in `.claude/agentic-sdlc-config.json`. Every field is described under `_fields` in `.claude/agentic-sdlc-config.example.json`; the March design `docs/2-design/2026-03-15-configurable-workflow-settings.md` is historical and lists `workflow.*` keys that no script read and that were removed in November 2026. All scripts read from this config file via the shared `scripts/lib/config.sh` library.
+
+**`pm.adapter`** — where work items go (read by `scripts/lib/pm.sh`):
+
+| Value | Work items | Writes to GitHub issues, labels, board |
+|-------|-----------|----------------------------------------|
+| `null` (shipped default) | Files under `workflowDir` (`.workflow/`) | No |
+| `"server"` | The optional workflow server's SQLite database while it runs; the files when it is not running | No (the server only reads issues from `github.repo`) |
+| `"github"` | The files, then GitHub issues, comments, labels and sub-issue links, written without blocking; board status when the board fields are set | Yes |
+
+Branch pushes and pull requests go to GitHub in every mode.
 
 **`reviewStrategy` section** — controls per-story review skipping:
 
@@ -150,7 +160,7 @@ Six specialized agents in `.claude/agents/`:
 - Reference `README.md` for architecture context (PM architecture diagram, project structure, workflow overview)
 - Write lesson files when encountering bugs, unexpected behavior, or missing conventions (see Lesson Conventions below)
 - **Browser automation / UI testing artifacts:** When taking screenshots or saving test artifacts using any browser automation tool (Playwright, Puppeteer, Cypress, Selenium, etc.), always save to a dedicated output directory (e.g., `.playwright-mcp/`, `.test-artifacts/`) — never to the project root or working directory. These artifacts should be gitignored. If the tool supports an `--output-dir` flag or equivalent configuration, use it.
-- **Local PM data lives in SQLite** (`.agentic-workflow/workflow.db`) via the workflow server — no files to commit. The `pm.adapter` config field names the remote sync target (e.g., `"github"` for dual-write to the GitHub API). The old file-based adapter (`adapters/pm/local/`) is retained for tests only. See `server/` directory and `docs/2-design/2026-03-22-workflow-runtime-service-design.md` for the server architecture.
+- **Where work items live depends on `pm.adapter`** (see Configuration). With the shipped default (`null`) they are files under `.workflow/`, written relative to the directory a script runs in, so agents in separate worktrees see each other's items only after the files are committed and merged on the integration branch: commit `.workflow/` changes with your work. With `"server"`, items live in SQLite (`.agentic-workflow/workflow.db`) while the workflow server runs. With `"github"`, the files are also mirrored to GitHub issues. See `scripts/lib/pm.sh`, the `server/` directory and `docs/2-design/2026-03-22-workflow-runtime-service-design.md`.
 
 ### Branch Conventions
 

@@ -23,7 +23,7 @@ This guide takes a stranger from a fresh clone to a supervised run without touch
 | `bash`, `jq`, `python3` (3.10+) | Scripts and telemetry | `jq --version && python3 --version` |
 | `bun` (1.1.39 or newer; 1.4.3 tested) | Server, MCP tools, frontend build | `bun --version` |
 | Claude Code CLI | Levels 3 and 4 only | `claude --version` |
-| `gh`, authenticated with `repo` and `project` scopes | Levels 3 and 4 only | `gh auth status` |
+| `gh`, authenticated with the `repo` scope, plus `project` if you configure a board | Levels 3 and 4 only | `gh auth status` |
 
 Levels 1 and 2 need only the first three rows.
 
@@ -66,8 +66,16 @@ cd server && bun install && bun run build:frontend
 
 An interactive run keeps you in the loop: Claude Code asks before each action the allowlist does not cover.
 
-1. Check the configuration. The committed `.claude/agentic-sdlc-config.json` ships with an empty board and `pm.adapter` set to `server`. With no board configured, board scripts print a one-line notice and skip. Work items live in the local workflow server, or in files under `.workflow/` when the server is not running. To use your own GitHub Projects board, copy the field values you need from `.claude/agentic-sdlc-config.example.json` into `.claude/agentic-sdlc-config.json`. The example explains how to read each ID with `gh`.
-2. Optional: start the workflow server in another terminal with `cd server && bun run start`.
+1. Check the configuration. The committed `.claude/agentic-sdlc-config.json` ships with `pm.adapter` set to `null` and an empty board. Work items are then files under `.workflow/`, and no script writes GitHub issues, labels or board items; the run still pushes branches and opens pull requests in your repository. Board scripts print a one-line notice and skip. The `pm.adapter` values:
+
+   | `pm.adapter` | Work items | Writes GitHub issues, labels, board |
+   |---|---|---|
+   | `null` (default) | Files under `.workflow/` | No |
+   | `"server"` | The workflow server's SQLite database while it runs; the files when it does not | No; the server only reads issues from `github.repo` |
+   | `"github"` | The files, then GitHub issues, comments, labels and sub-issue links; board status when the board fields are set | Yes |
+
+   To mirror work items to your own GitHub issues and board, set `pm.adapter` to `"github"` and copy the field values you need from `.claude/agentic-sdlc-config.example.json`. Its `_fields` section explains each setting and how to read each ID with `gh`.
+2. Only with `pm.adapter` set to `"server"`: start the workflow server in another terminal with `cd server && bun run start`.
 3. Use a repository you own. The orchestrator creates issues, branches and pull requests there.
 4. Start the orchestrator and give it a small, low-risk backlog item:
 
@@ -98,21 +106,26 @@ Things to know:
 - Allow rules in a committed `.claude/settings.json` apply only after the folder is trusted. Start `claude` interactively once in the clone and accept the trust prompt, or place the rules in `.claude/settings.local.json`.
 - An action outside the allowlist is denied, not skipped silently. If the run stalls on a denied command, add a narrow rule for it in `.claude/settings.local.json` and rerun. Do not add `Bash(*)`.
 - Writes to `.git`, `.claude` and similar protected paths are denied in this mode.
-- Set `workflow.maxCostPerRun` in the config to cap spend per run.
+- Nothing in the workflow caps spend. A budget check exists (`scripts/lib/cost-budget.sh`) but no workflow step calls it. Use your model provider's spend limits, and stop the session if it runs longer than you expect.
 - **`--dangerously-skip-permissions` belongs only inside an isolated container** that holds nothing you care about. Never use it on a laptop, a shared machine or a clone with real credentials.
 
 ## What mutates GitHub state
 
-Levels 3 and 4 act with your `gh` credentials. A run can:
+Levels 3 and 4 act with your `gh` credentials. Whatever `pm.adapter` says, a run can:
+
+- push integration, epic, story and docs branches to `origin`
+- create, comment on and edit pull requests, including telemetry written into PR bodies
+- in autonomous mode, merge design and plan PRs into the integration branch with `git merge` and a push (never into `main`), and close such a PR with a comment if GitHub still shows it open
+
+Only with `pm.adapter` set to `"github"` can a run also:
 
 - create, edit, close and comment on issues, and link sub-issues
 - create labels (`scripts/setup-labels.sh`)
-- add items to a Projects board and change their Status (only when a board is configured)
-- push branches; deleting merged branches on `origin` happens only when you run `scripts/cleanup-post-merge.sh <backlog-number>` after a merge
-- create, comment on and edit pull requests, including telemetry written into PR bodies
-- in autonomous mode, merge design and plan PRs into the integration branch with `git merge` and a push (never into `main`)
+- add items to a Projects board and change their Status (only when the board fields are set)
 
-Levels 1 and 2 never do. Deny rules in `.claude/settings.json` refuse `gh pr merge`, pushes to `main`, force pushes, remote branch deletion, the cleanup script, repository deletion and `gh` DELETE calls in every mode, and they apply before the folder is trusted. They match command text, not intent, so protect `main` with branch protection on your fork as well.
+With `"server"`, the workflow server reads issues from `github.repo` on first start and on a sync request, and never writes to GitHub. Deleting merged branches on `origin` happens only when you run `scripts/cleanup-post-merge.sh <backlog-number>` after a merge.
+
+Levels 1 and 2 never touch GitHub. Deny rules in `.claude/settings.json` refuse `gh pr merge`, pushes to `main`, force pushes, remote branch deletion, the cleanup script, repository deletion and `gh` DELETE calls in every mode, and they apply before the folder is trusted. They match command text, not intent, so protect `main` with branch protection on your fork as well.
 
 ## What costs money
 

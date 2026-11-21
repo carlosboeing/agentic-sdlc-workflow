@@ -1,5 +1,5 @@
 {
-  "$comment": "Board settings are empty on purpose: with no GitHub project board configured, scripts skip board operations. Copy values from .claude/agentic-sdlc-config.example.json to enable them. See docs/5-guides/running-safely-guide.md.",
+  "$comment": "Defaults for a first run with no workflow server and no project board. pm.adapter is null, so work items are files under workflowDir and no script writes GitHub issues, labels or board items. The board fields are empty, so board operations are skipped. Branch pushes and pull requests still go to GitHub during a run. Every field is described under _fields in .claude/agentic-sdlc-config.example.json; see docs/5-guides/running-safely-guide.md.",
   "workflowDir": ".workflow",
   "github": {
     "repo": "",
@@ -21,14 +21,7 @@
     "hard": "opus"
   },
   "pm": {
-    "adapter": "server"
-  },
-  "workflow": {
-    "autoMergePlanPR": true,
-    "autoMergeDesignPR": true,
-    "skipRetro": false,
-    "maxParallelBuilders": 3,
-    "maxCostPerRun": null
+    "adapter": null
   },
   "server": {
     "port": 3117,

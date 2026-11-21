@@ -11,7 +11,7 @@ This document describes the system as built in March 2026 and repaired in Novemb
 
 ## System at a glance
 
-The workflow runs inside Claude Code. One orchestrator session follows a long prompt, dispatches role subagents through the Agent tool, and calls shell and Python scripts for everything that can be computed. GitHub holds the work items and the code; an optional local service mirrors work items in SQLite.
+The workflow runs inside Claude Code. One orchestrator session follows a long prompt, dispatches role subagents through the Agent tool, and calls shell and Python scripts for everything that can be computed. GitHub holds the code and the pull requests. Work items are local files by default, the optional runtime service's SQLite database when `pm.adapter` is `server`, or local files mirrored to GitHub issues when it is `github`.
 
 ```mermaid
 flowchart LR
@@ -21,7 +21,7 @@ flowchart LR
     A --> S
     S --> PM["PM abstraction: pm.sh"]
     PM --> SV["Runtime service: SQLite, HTTP, MCP"]
-    PM -.->|"fire-and-forget sync"| GH["GitHub issues, PRs, optional board"]
+    PM -.->|"sync only when pm.adapter is github"| GH["GitHub issues, PRs, optional board"]
     S --> ST["Run state file"]
     S --> T["Telemetry on issues and PR body"]
     CI["CI required gate"] -->|"checks every push and PR"| GH
@@ -35,7 +35,7 @@ flowchart LR
 | Role agents | [`.claude/agents/`](../.claude/agents/) | Designer, planner, builder, reviewer, retro. Each file lists what the role must not do. Builder variants for Haiku, Sonnet and Opus differ only in the `model` field. The reviewer has no `Write` or `Edit` tool (`disallowedTools`). | Built |
 | Operating brief | [`CLAUDE.md`](../CLAUDE.md) (828 lines) | Conventions every agent loads: branches, labels, hierarchy, dispatch protocol, telemetry rules, lessons | Built; longer than current guidance |
 | Work-item scripts | [`scripts/item-*.sh`](../scripts/) | The only way agents touch work items: create, get, list, comment, start, review, close, telemetry | Built, tested |
-| PM abstraction | [`scripts/lib/pm.sh`](../scripts/lib/pm.sh) and `scripts/lib/adapters/pm/` | One interface with adapters for the runtime service, GitHub and local files. Writes go to the local store first, then to GitHub without blocking. | Built, tested |
+| PM abstraction | [`scripts/lib/pm.sh`](../scripts/lib/pm.sh) and `scripts/lib/adapters/pm/` | One interface with adapters for local files, the runtime service and GitHub. `pm.adapter` selects them; the shipped default writes local files only. With `github`, writes go to the local files first, then to GitHub without blocking. | Built, tested |
 | Run state | [`scripts/state.sh`](../scripts/state.sh), [`orchestrator-state.v1.json`](../scripts/schemas/orchestrator-state.v1.json) | JSON state file per run with an append-only `dispatches[]` log, phase status, epic base commits and pricing | Built, tested; `reconstruct` is a stub |
 | Telemetry | [`scripts/lib/compute-dispatches.py`](../scripts/lib/compute-dispatches.py), [`scripts/templates/telemetry.md`](../scripts/templates/telemetry.md) | Per-dispatch breakdown, phase summary, wall-clock, critical path, fix-cycle rate, orchestrator overhead and a Mermaid Gantt chart | Built, 252 tests |
 | Board tools | [`reconcile-board.sh`](../scripts/reconcile-board.sh), [`batch-set-status.sh`](../scripts/batch-set-status.sh), [`check-board-drift.sh`](../scripts/check-board-drift.sh) | Compute expected board status from the state file and fix differences. Skipped when no board is configured. | Built, tested |
@@ -43,7 +43,7 @@ flowchart LR
 | Runtime service | [`server/`](../server/) | Bun, Hono HTTP API, Drizzle and SQLite, an MCP stdio server with 13 tools, a React dashboard, a sync queue with retry and dead-letter handling, and a pull sync from GitHub | Experimental, optional; started by hand |
 | Permissions | [`.claude/settings.json`](../.claude/settings.json) | An allowlist shaped for `--permission-mode dontAsk`, plus deny rules for `gh pr merge`, pushes to `main`, force pushes, remote branch deletion, the post-merge cleanup script, hard resets, repository deletion and secret reads | Built November 2026; a filter, not an isolation boundary |
 | Legacy CLI path | `scripts/dispatch-workflow.sh`, `scripts/dispatch-story.sh` | The first version's terminal dispatch, before the integration-branch model | Historical |
-| Cost budget | `scripts/lib/cost-budget.sh` | A budget check library | Not wired in; `maxCostPerRun` is unset |
+| Cost budget | `scripts/lib/cost-budget.sh` | A budget check library, sourced only by its test | Not wired in; nothing caps spend, and the shipped configs no longer list `maxCostPerRun` |
 
 ## Lifecycle
 
@@ -100,17 +100,19 @@ Each rule cites the run that produced it ([case study 3](case-studies.md#3-paral
 
 Agents call `scripts/item-*.sh`, never `gh` directly. The scripts call `pm_*` functions in `pm.sh`, which load an adapter:
 
-| Adapter | Role |
-|---|---|
-| Server | Primary local store through the runtime service's HTTP API. Falls back to the file adapter when the service is down. |
-| GitHub | Remote sync target, written after the local store without blocking. Board operations skip with a notice when no board is configured. |
-| Local files | File-based store kept for tests and as the fallback |
+| `pm.adapter` | Store | GitHub writes |
+|---|---|---|
+| `null` (shipped default) | Local files under `workflowDir` (`.workflow/`) | None |
+| `server` | The runtime service's SQLite database through its HTTP API while it runs; the local files when it is down (with a warning) | None; the service reads issues from `github.repo` on first start and on a sync request |
+| `github` | The local files, then GitHub issues, comments, labels and sub-issue links without blocking; issue creation waits for GitHub to get the number | Yes; board status too when the board fields are set, otherwise board operations skip with a notice |
+
+Whatever the adapter, a run pushes branches and creates, comments on and edits pull requests with the user's `gh` credentials.
 
 The runtime service started as a durable store for work items and grew into a dashboard, a document viewer with comments and an MCP server, so agents can use MCP tools instead of shell scripts. It is labelled experimental and optional: it must be started by hand, its MCP server predates the 2026-07-28 MCP specification, and GitHub now provides native sub-issues and dependencies that cover the hierarchy it models. The ROADMAP parks a narrower role for it, a local event log and telemetry store.
 
 ## Autonomy model and halt conditions
 
-The word "autonomous" in the start prompt switches modes. The `autoMergeDesignPR` and `autoMergePlanPR` config keys are not read by any script.
+The word "autonomous" in the start prompt switches modes. Earlier configs listed `autoMergeDesignPR`, `autoMergePlanPR`, `skipRetro`, `maxParallelBuilders` and `maxCostPerRun`; no script or prompt read the first four and no workflow step calls the budget check, so the shipped configs dropped them in November 2026.
 
 | Mode | What runs without a human | Human gates |
 |---|---|---|

@@ -20,7 +20,7 @@ flowchart LR
     O --> S["Scripts: state, telemetry, guards"]
     A --> S
     S --> PM["PM abstraction: pm.sh"]
-    PM --> SV["Runtime service: SQLite, HTTP, MCP"]
+    PM --> SV["Local files by default, or the optional runtime service: SQLite, HTTP, MCP"]
     PM -.->|"sync only when pm.adapter is github"| GH["GitHub issues, PRs, optional board"]
     S --> ST["Run state file"]
     S --> T["Telemetry on issues and PR body"]

@@ -223,7 +223,7 @@ Format: `**Blocked by:** none` or `**Blocked by:** #109, #110, #111`
 - Always present — use `none` explicitly, never omit the line
 - Use issue numbers with `#` prefix — renders as clickable links on GitHub
 - Optional parenthetical descriptions: `**Blocked by:** #109 (PM Abstraction Layer)`
-- Machine-parsed by the orchestrator: `grep -oP '(?<=Blocked by:\*\* ).*' | grep -oP '#\d+'`, and `[#<backlog>] Write design doc for X` / `[#<backlog>] Write implementation plan for X` / `[#<backlog>] Write retrospective for X` for doc issues. The backlog issue itself is also prefixed with `[#<N>]` by the orchestrator in Phase 0 (the number is known once the issue exists). This prefix disambiguates issues across features and makes them scannable on the project board.
+- Machine-parsed by the orchestrator with portable tools (BSD and GNU): `sed -n 's/.*Blocked by:\*\* *//p' | grep -oE '#[0-9]+'`. Title prefixes follow the same scheme: `[#<backlog>/ENN] Epic title`, `[#<backlog>/ENN-SNN] Story title`, and `[#<backlog>] Write design doc for X` / `[#<backlog>] Write implementation plan for X` / `[#<backlog>] Write retrospective for X` for doc issues. The backlog issue itself is also prefixed with `[#<N>]` by the orchestrator in Phase 0 (the number is known once the issue exists). This prefix disambiguates issues across features and makes them scannable on the project board.
 
 **Issue hierarchy (sub-issues):** All work is tracked via three-level GitHub sub-issue nesting:
 

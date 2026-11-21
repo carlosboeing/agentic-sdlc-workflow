@@ -64,9 +64,9 @@ Execute these phases in order. Each phase has a verification step before proceed
 2. **Dependency pre-check (REQUIRED):** Parse `**Blocked by:**` from the issue body. For each referenced issue, verify it is closed. If any are open, post a blocking comment and halt:
    ```bash
    BODY=$(./scripts/item-get.sh <N> --json body)
-   BLOCKED=$(echo "$BODY" | grep -oP '(?<=Blocked by:\*\* ).*' | head -1)
+   BLOCKED=$(echo "$BODY" | sed -n 's/.*Blocked by:\*\* *//p' | head -1)
    if [ "$BLOCKED" != "none" ] && [ -n "$BLOCKED" ]; then
-     for DEP in $(echo "$BLOCKED" | grep -oP '#\d+' | tr -d '#'); do
+     for DEP in $(echo "$BLOCKED" | grep -oE '#[0-9]+' | tr -d '#'); do
        STATE=$(./scripts/item-get.sh $DEP --json state)
        [ "$STATE" != "CLOSED" ] && echo "BLOCKED: Issue #$DEP is $STATE" && exit 1
      done

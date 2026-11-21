@@ -15,7 +15,9 @@ set -uo pipefail
 #
 # A branch (local or on origin) is removed only when all of these hold:
 #   - it is a workflow branch: backlog/<backlog>-*, epic/*, eNN-sNN/*, docs/*,
-#     worktree-*. Branches of other backlog items are never touched.
+#     worktree-*. Other items' backlog/* integration branches are never
+#     touched; their epic, story, docs and worktree branches can be removed
+#     when the remaining conditions hold, because their work is merged.
 #   - its tip is contained in origin/main, or in the head commit of the merged
 #     pull request from backlog/<backlog>-* into main (a squash merge leaves no
 #     ancestry in main, so the PR head is the proof that the work merged).

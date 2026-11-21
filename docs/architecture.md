@@ -31,9 +31,9 @@ flowchart LR
 
 | Component | Where | What it does | Status |
 |---|---|---|---|
-| Orchestrator | [`.claude/agents/orchestrator.md`](../.claude/agents/orchestrator.md) (662 lines) | Runs Phases 0 to 6, dispatches subagents, owns GitHub state and telemetry. Never writes code, designs, plans or reviews. | Built; control flow is prompt-driven |
+| Orchestrator | [`.claude/agents/orchestrator.md`](../.claude/agents/orchestrator.md) (roughly 670 lines) | Runs Phases 0 to 6, dispatches subagents, owns GitHub state and telemetry. Never writes code, designs, plans or reviews. | Built; control flow is prompt-driven |
 | Role agents | [`.claude/agents/`](../.claude/agents/) | Designer, planner, builder, reviewer, retro. Each file lists what the role must not do. Builder variants for Haiku, Sonnet and Opus differ only in the `model` field. The reviewer has no `Write` or `Edit` tool (`disallowedTools`). | Built |
-| Operating brief | [`CLAUDE.md`](../CLAUDE.md) (828 lines) | Conventions every agent loads: branches, labels, hierarchy, dispatch protocol, telemetry rules, lessons | Built; longer than current guidance |
+| Operating brief | [`CLAUDE.md`](../CLAUDE.md) (roughly 850 lines) | Conventions every agent loads: branches, labels, hierarchy, dispatch protocol, telemetry rules, lessons | Built; longer than current guidance |
 | Work-item scripts | [`scripts/item-*.sh`](../scripts/) | The only way agents touch work items: create, get, list, comment, start, review, close, telemetry | Built, tested |
 | PM abstraction | [`scripts/lib/pm.sh`](../scripts/lib/pm.sh) and `scripts/lib/adapters/pm/` | One interface with adapters for local files, the runtime service and GitHub. `pm.adapter` selects them; the shipped default writes local files only. With `github`, writes go to the local files first, then to GitHub without blocking. | Built, tested |
 | Run state | [`scripts/state.sh`](../scripts/state.sh), [`orchestrator-state.v1.json`](../scripts/schemas/orchestrator-state.v1.json) | JSON state file per run with an append-only `dispatches[]` log, phase status, epic base commits and pricing | Built, tested; `reconstruct` is a stub |
@@ -182,10 +182,10 @@ Most of what the workflow built by hand in March is now a platform feature. What
 
 | March 2026 approach | Revision | Real-task backlog item |
 |---|---|---|
-| Control flow in a 662-line prompt | Phase 3 in a tested script or Agent SDK workflow with schema-checked agent returns | A09 |
+| Control flow in a prompt of roughly 670 lines | Phase 3 in a tested script or Agent SDK workflow with schema-checked agent returns | A09 |
 | One "autonomous" keyword | Risk tiers from changed paths and labels, with human gates on irreversible actions in every tier | A13 |
 | Role boundaries as instructions | Per-agent tools, `disallowedTools` and `permissionMode`. Started in November 2026: the reviewer has no edit tools | A02 |
-| 828-line `CLAUDE.md` | Under 200 lines plus path-scoped rules and skills | A11 |
+| A `CLAUDE.md` of roughly 850 lines | Under 200 lines plus path-scoped rules and skills | A11 |
 | Estimated cost, no budget enforcement | Native telemetry with GenAI attribute names, a budget halt | A12 |
 | Routing by model only | Routing on model and effort pairs, recorded per dispatch | A05 |
 | Raw run state deleted after merge | Run record bundles kept so telemetry can be recomputed | A08 |

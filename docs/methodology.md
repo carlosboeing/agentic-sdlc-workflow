@@ -81,7 +81,7 @@ This page maps each practice the workflow uses to its classical engineering line
 | O8 | Evidence-only retrospective that proposes convention changes | Retrospectives [104], kaizen [101] | Feedback flywheel [27], compound engineering [32] | Built. An agent proposes and a human adopts, which is the flywheel, not a self-improving harness [26]. |
 | O9 | Adoption tracker, including declined proposals | Kaizen records [101] | Bounded harness experiments [26] | Built; recurrence after adoption is not measured |
 | O10 | Blameless lessons: causes and prevention, not people | Blameless postmortems [102][103] | "Change the harness that produced the artefact" [22] | Built |
-| O11 | Long instruction files (828-line `CLAUDE.md`) | Layered configuration | Progressive disclosure at Adopt, instruction bloat at Caution [29] | Behind current practice; the toolkit's short brief plus skills is the successor |
+| O11 | Long instruction files (a `CLAUDE.md` of roughly 850 lines) | Layered configuration | Progressive disclosure at Adopt, instruction bloat at Caution [29] | Behind current practice; the toolkit's short brief plus skills is the successor |
 
 ### Governance
 

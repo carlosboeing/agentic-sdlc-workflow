@@ -341,7 +341,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/state.sh <subcommand> [args]` | Orchestrator state CRUD: init, update, get, overhead, lifecycle-duration, reconstruct |
 | `scripts/item-close.sh <n>` | Close item + set board to Done |
 | `scripts/item-append-body.sh <n> <content>` | Append content to item body via PM dual-write |
-| `scripts/cleanup-post-merge.sh [<backlog-number>]` | Post-merge cleanup: stale branches, worktrees, state dirs, remote refs |
+| `scripts/cleanup-post-merge.sh [--dry-run] [<backlog-number>]` | Human post-merge step. Without a number: report only. With a number: removes that item's merged branches (local and `origin`), clean worktrees and run state; keeps unmerged branches, open-PR branches and dirty worktrees |
 | `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
 | `scripts/reconcile-board.sh --from-state <state-file> [--epic-issues <json>] [--dry-run]` | Reconcile board statuses with state file (1 API query to read, 1 per fix) |
 | `scripts/validate-logs.sh` | Report on board-status, orchestrator, and drift logs |

@@ -108,7 +108,7 @@ Levels 3 and 4 act with your `gh` credentials. A run can:
 - create, edit, close and comment on issues, and link sub-issues
 - create labels (`scripts/setup-labels.sh`)
 - add items to a Projects board and change their Status (only when a board is configured)
-- push branches, and delete remote branches (`git push origin --delete`, used by `scripts/cleanup-post-merge.sh`)
+- push branches; deleting merged branches on `origin` happens only when you run `scripts/cleanup-post-merge.sh <backlog-number>` after a merge
 - create, merge, comment on and edit pull requests, including telemetry written into PR bodies
 
 Levels 1 and 2 never do. Deny rules in `.claude/settings.json` block force pushes, repository deletion and `gh` DELETE calls even in unattended mode.
@@ -123,13 +123,13 @@ Offline tests and the telemetry computation cost nothing.
 
 ## Clean up branches and worktrees
 
-Runs leave branches, worktrees and state directories behind. After a pull request merges and you are on an up-to-date `main`:
+Runs leave branches, worktrees and a run state directory behind. Cleanup is a human step after the backlog PR merges; `.claude/settings.json` denies the script to agent sessions because it deletes branches on `origin`:
 
 ```bash
 git checkout main && git pull
-./scripts/cleanup-post-merge.sh <backlog-number>     # omit the number for a general sweep
+./scripts/cleanup-post-merge.sh                              # report only: lists leftovers, deletes nothing
+./scripts/cleanup-post-merge.sh --dry-run <backlog-number>   # shows what removal would delete
+./scripts/cleanup-post-merge.sh <backlog-number>             # removes that item's merged leftovers
 ```
 
-The script refuses to run unless you are on `main`. It removes stale local and remote workflow branches, worktrees, and the run's state directory, so it deletes remote branches on `origin`. Read `scripts/cleanup-post-merge.sh` first, and use a repository you own.
-
-To list leftovers without deleting anything: `git worktree list` and `git branch --list 'backlog/*'`.
+The script refuses to run unless you are on `main`, and without a backlog number it only reports. With a number it deletes a workflow branch, locally or on `origin`, only when its tip is already in `origin/main` or in the head commit of the item's merged pull request (looked up with `gh`), no open pull request uses it, and no remaining worktree has it checked out. It removes a linked worktree only when that worktree has no modified or untracked files. Branches of other backlog items, unmerged branches and dirty worktrees are kept, and each kept item is listed with the reason. If `gh` cannot list open pull requests, nothing on `origin` is deleted. The run state directory is removed only when the merged pull request was found.

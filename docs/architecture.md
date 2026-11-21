@@ -58,7 +58,7 @@ One run carries one backlog item. Everything happens on an integration branch `b
 | 4. Backlog PR | Merge epics into the integration branch, open one PR to `main` with `Closes` for open issues only, reconcile the board | Orchestrator, scripts | Backlog PR |
 | 5. Review and retro | PR review and retrospective in parallel; since November 2026 the retro scope guard and the full test suite run afterwards; documentation propagation | Reviewer, retro, orchestrator, guard | Findings, retro, CHANGELOG |
 | 6. Telemetry | Compute and post the lifecycle telemetry on the backlog issue and in the PR body | `compute-dispatches.py`, `item-telemetry.sh` | Telemetry, Gantt chart |
-| After merge | A human squash-merges, then runs `cleanup-post-merge.sh`, which deletes branches, worktrees and the run state directory | Human | Clean repository |
+| After merge | A human squash-merges, then runs `cleanup-post-merge.sh <N>`, which removes the item's merged branches, clean worktrees and run state directory, and keeps unmerged branches and dirty worktrees | Human | Clean repository |
 
 Work items have exactly three levels: backlog item, epic, story, linked as GitHub sub-issues. A feature too large for three levels becomes several backlog items.
 

@@ -486,8 +486,7 @@ Computes `overhead_ms = wall_clock - critical_path` from dispatch timestamps. In
 After the human merges the backlog PR (`gh pr merge --squash`):
 
 1. **Set board to Done** for all issues (`item-close.sh` for each).
-2. **Run cleanup:** `git checkout main && git pull && ./scripts/cleanup-post-merge.sh <backlog-number>`
-3. **Verify:** only `main` locally, no workflow branches on remote, no stale worktrees, `.agentic-workflow/runs/` empty.
+2. **Cleanup is a human step.** Tell the human to run `git checkout main && git pull && ./scripts/cleanup-post-merge.sh <backlog-number>` (preview with `--dry-run`). It removes only merged branches and clean worktrees, and it deletes branches on `origin`, so do not run it yourself.
 
 ## Model Routing
 

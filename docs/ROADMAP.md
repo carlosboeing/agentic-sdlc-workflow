@@ -22,7 +22,8 @@ Public release of the repaired March 2026 system.
 | Regression from `4d3ab9b` fixed; CI with a `required` gate; Dependabot | Done on the release branch |
 | Safe defaults: no owner board IDs, `dontAsk` allowlist with deny rules, running-safely guide | Done on the release branch |
 | README, architecture, methodology, case studies, ADR 0007, community health files | Done on the release branch |
-| Merge to `main`, branch protection with `required`, review of issue comments, visibility change | Maintainer gates, not started |
+| Privacy review of the GitHub record | Done: a November 2026 scan covered all 296 issues, 68 pull requests and 675 issue comments. Its two findings, a host-project mention in one comment on issue 54 and local paths in one comment on issue 336, were fixed. Closed issues keep their March titles as history. |
+| Merge to `main`, branch protection with `required`, visibility change | Maintainer gates, not started |
 
 ## Next
 

@@ -100,11 +100,20 @@ ls docs/3-plans/ | grep <epic-slug>
 # Then read it
 ```
 
+## Commit Subjects
+
+Use exactly two commit subject prefixes, so the retro scope guard (`scripts/check-retro-scope.sh`) can check every commit you make:
+
+- `docs(retro): <summary>` for the retro doc, lesson files and the recommendations tracker
+- `docs(conventions): <what changed>` for convention changes to `CLAUDE.md` and `.claude/agents/`
+
+Both may touch only `docs/`, `CLAUDE.md` and `.claude/agents/`. The guard fails the run if a commit with either prefix touches anything else.
+
 ## Retro Doc Output
 
 Write the retro doc to: `docs/4-reviews/lessons/<backlog-issue>-<slug>/YYYY-MM-DD-eNN-<slug>-retro.md`
 
-Use this exact structure (based on `docs/4-reviews/lessons/5-calendar-tool/2026-03-09-e01-calendar-retro.md`):
+Use this exact structure (see `docs/4-reviews/lessons/364-github-sqlite-sync/2026-03-23-e01-e02-github-sqlite-sync-retro.md` for a filled-in example):
 
 ```markdown
 ---
@@ -247,6 +256,8 @@ Per the three-tier retention model in the design doc:
 
 When you encounter a bug, unexpected behavior, missing convention, or anything worth remembering for future work, create a lesson file immediately — don't defer it.
 
+**Reviewer lesson candidates:** the reviewer cannot write files, so it reports lesson candidates under `### Lesson candidates` in its review findings (PR comments and story issue comments). Record each one as a lesson file, with `agent: reviewer` in its frontmatter.
+
 **When to write a lesson:**
 - You encountered a missing convention that made the retro harder (e.g., telemetry data wasn't available because a script was incomplete)
 - A pattern emerged across stories that wasn't previously documented
@@ -258,7 +269,7 @@ When you encounter a bug, unexpected behavior, missing convention, or anything w
 2. Use the naming convention: `YYYY-MM-DD-sNN-<slug>.md` (use `s00` for retro-phase lessons)
 3. Add YAML frontmatter with: date, author (GitHub username), agent (your role: `retro`), story, tags, severity
 4. Write sections: What happened, Root cause, Prevention
-5. Commit the lesson file on the integration branch
+5. Commit the lesson file on the integration branch with a `docs(retro):` subject
 
 **Discovery:** Find existing lessons with:
 ```bash

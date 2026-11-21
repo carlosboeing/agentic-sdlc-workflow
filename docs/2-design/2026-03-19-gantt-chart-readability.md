@@ -1,6 +1,7 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-19
-author: carlosboeing
 agent: designer
 backlog: 242
 status: approved
@@ -10,6 +11,8 @@ title: "Gantt Chart Readability: Story Code Regression and Work Timeline Mode"
 > **Status:** Draft
 
 # Gantt Chart Readability: Story Code Regression and Work Timeline Mode
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 ## 1. Problem Statement
 

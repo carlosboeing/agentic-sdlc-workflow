@@ -1,11 +1,16 @@
 ---
+title: "Workflow Runtime Service — Discovery & Research"
+type: research
+status: resolved
+authors: ["Carlos Boeing"]
 date: 2026-03-22
-author: carlos
 backlog: 116
 scope: Brainstorming and research for BL#116 — expanding from a dashboard to a full workflow runtime service
 ---
 
 # Workflow Runtime Service — Discovery & Research
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 > **Backlog:** [#116 Dashboard (Local Web UI)](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116)
 > **Status:** Brainstorming complete. Ready for design phase.

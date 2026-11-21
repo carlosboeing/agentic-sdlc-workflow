@@ -2,8 +2,8 @@
  * CommentThread — inline comment thread anchored to a paragraph.
  *
  * Displays a list of comments for a specific anchor, organized as:
- * - Top-level comments (thread_id is null) shown first
- * - Replies (thread_id matches a parent comment id) shown indented below their parent
+ * - Top-level comments (threadId is null) shown first
+ * - Replies (threadId matches a parent comment id) shown indented below their parent
  *
  * Each comment shows author, timestamp, and body. A reply form
  * appears when the user clicks "Reply" on a comment.
@@ -97,7 +97,7 @@ export function CommentThread({
   const topLevel = comments.filter((c) => c.threadId === null);
   const replies = comments.filter((c) => c.threadId !== null);
 
-  // Group replies by parent thread_id
+  // Group replies by parent threadId
   const repliesByParent = new Map<string, Comment[]>();
   for (const reply of replies) {
     if (reply.threadId) {

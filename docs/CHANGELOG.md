@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-21
+
+### Public release preparation
+
+Prepares the March 2026 system for a public first run: repaired, not extended. Decision: [ADR 0007](6-adrs/0007-merge-reference-design-and-publish.md). Assessment: [public release assessment](4-reviews/2026-11-20-public-release-assessment.md).
+
+- **Reference design merged** under `blueprint/` with its history, marked historical and unexecuted; the starter kit's approve-all hook replaced, its agents and scripts repaired, and the kit labelled illustrative
+- **Synthetic outputs removed from the tree:** workload outputs, per-run designs and plans, and file-adapter residue are gone from the current tree and remain in Git history; lesson folders renamed to neutral run names; lifecycle records sanitized and given a historical note
+- **Regression fixed:** the code reverted by retro commit `4d3ab9b` is restored (`72f7476`); server 681 of 681, telemetry 252 of 252 and offline shell 36 of 36 pass
+- **CI:** server, telemetry and offline shell jobs behind a single `required` gate, SHA-pinned actions, Dependabot for GitHub Actions and the server packages (`ab3d57e`)
+- **Retro scope guard:** `scripts/check-retro-scope.sh` fails `docs(retro)` commits that touch code; it runs in CI and in the orchestrator after the retro, followed by the full test suite (`b5a4212`)
+- **Safe defaults:** owner board IDs removed and board work skipped when unconfigured (`93c7598`); permissions shaped for `--permission-mode dontAsk` with deny rules, and the logging hook fixed for the `Agent` tool name (`4be6d23`, `57aabfa`); built frontend assets untracked (`00e2db0`)
+- **Docs:** README rewritten around evidence and human gates; new [architecture](architecture.md), [methodology](methodology.md), [case studies](case-studies.md), [running-safely guide](5-guides/running-safely-guide.md), ROADMAP, the [real-task backlog](3-plans/2026-11-20-real-task-backlog-plan.md) and the November 2026 research records; community health files and issue and PR templates
+- **Restored:** the backlog item 116 entry below, which `4d3ab9b` had deleted
+- **Run names:** synthetic run headings in this file now use run numbers instead of workload themes
+- **Release-candidate review fixes** (three cross-model reviews):
+  - `scripts/cleanup-post-merge.sh` reports only unless given a backlog number, deletes a branch only when its tip is in `origin/main` or in the merged PR's head, keeps open-PR branches, other items' branches and dirty worktrees, and has an offline test (`950be95`)
+  - deny rules for `gh pr merge`, pushes to `main` and the cleanup script; the orchestrator merges design and plan PRs into the integration branch with `git merge` (`950be95`, `f779d50`)
+  - the reviewer has no `Write` or `Edit` tool (`0fb1bb7`); the retro scope guard also checks `docs(conventions)` commits (`0d042da`)
+  - portable `sed` and `grep -E` instead of GNU `grep -oP` (`0451f26`); quoted Python heredocs in `fetch-pricing.sh`, with an offline test (`6bb8487`); stale test skip list removed (`1b93c02`)
+  - the shipped config uses the local file adapter with no GitHub writes, and unwired `workflow.*` keys are gone (`b6c4989`)
+  - CLAUDE.md, agent files and historical records recalibrated: no bypass-mode launches, no .NET remnants, labelled November 2026 calibration notes, corrected run-group, speedup and item 116 counts (`0769655`, `74de58a`, `07a7ebd`, `a77b99c`)
+
 ## 2026-03-23
 
 ### GitHub-to-SQLite Sync — Pull Direction (backlog #364)
@@ -13,6 +36,19 @@
 
 ## 2026-03-22
 
+### Workflow Runtime Service (backlog #116)
+
+Persistent Bun server that replaces the file-system PM adapter with SQLite, serves a React dashboard, provides a document viewer with inline comments, and exposes PM operations as MCP tools.
+
+**6 epics, 18 stories:**
+
+- **E01: Server Foundation** — Bun project setup, Drizzle ORM schema (7 tables), PM service layer (6 services, 112 tests), server lifecycle with daemon management
+- **E02: HTTP API & Shell Adapter** — 20+ Hono REST endpoints, Zod validation, server PM shell adapter with fallback to local file adapter
+- **E03: MCP Server** — 13 MCP tools via stdio transport, `.mcp.json` for Claude Code auto-discovery, dual-mode startup (HTTP + MCP)
+- **E04: Sync Engine** — Durable sync queue with retry/backoff/dead-letter, GitHub external adapter, YAML-to-SQLite migration script
+- **E05: Dashboard UI** — React SPA with Kanban board (drag-and-drop), item detail view, telemetry summary, WebSocket activity feed
+- **E06: Document Viewer** — Document API, markdown preview with Mermaid, paragraph-anchored comment threads with stale detection
+
 ### Briefing Skill: Context-Aware Project Orientation (backlog #316)
 
 - **New `/briefing` skill:** Pure AI-driven Claude Code skill that provides structured project orientation with two modes — briefing (between cycles) and debrief (PR open/cycle completed)
@@ -24,23 +60,23 @@
 
 ## 2026-03-20
 
-### Run 17 -- Three-Body Survival Gazette (backlog #303, 52m wall-clock)
+### Run 17 -- synthetic workload (backlog #303, 52m wall-clock)
 
 - **Full e2e pipeline validated:** Design → plan → build → review → retro with no skipped phases
 - **Tiered review strategy:** 4 easy stories (SKIP tier) bypassed per-story review, 1 medium story (REVIEW tier) received per-story review with APPROVE verdict
 - **Parallel dispatch:** 4 builders dispatched simultaneously in Wave 1 (3+1 due to maxParallelBuilders: 3)
-- **Cross-reference validation:** E02-S03 obituaries successfully cross-referenced specific details from E01-S01 (syzygy time, temperature) and E01-S02 (Sophon deployment, fleet details)
-- **Planted bug detection:** 2 bugs planted — "the Sun" singular in E02-S02 (SKIP tier, for PR reviewer), "9-dimensional" in E02-S03 (REVIEW tier, caught by per-story reviewer)
-- **Content:** 5 files for "Three-Body Survival Gazette" — weather forecasts, breaking news, classifieds, letters to editor, editorial with obituaries
+- **Cross-reference validation:** E02-S03 correctly cross-referenced specific details from E01-S01 and E01-S02
+- **Planted bug detection:** 2 bugs planted — one in E02-S02 (SKIP tier, for the PR reviewer), one in E02-S03 (REVIEW tier, caught by the per-story reviewer)
+- **Content:** 5 synthetic prose files (removed from the tree in November 2026; kept in Git history)
 - **Test run asset conventions:** All docs in `test-agentic-sdlc/` subfolders validated
 - 2 epics, 5 stories (4 easy, 1 medium), 0 fix cycles
 
-### Run 15 -- Supernatural Pet Adoption Agency (backlog #290, 49m wall-clock)
+### Run 15 -- synthetic workload (backlog #290, 49m wall-clock)
 
-- **First production test of tiered review strategy:** 4 easy stories successfully bypassed per-story review (`review_tier = SKIP`), 1 medium story received full per-story review (`review_tier = REVIEW`) with 1 fix cycle (formatting issue)
+- **First end-to-end synthetic run of the tiered review strategy:** 4 easy stories successfully bypassed per-story review (`review_tier = SKIP`), 1 medium story received full per-story review (`review_tier = REVIEW`) with 1 fix cycle (formatting issue)
 - **Parallel dispatch validated:** 4 builders dispatched simultaneously in Wave 1, all completed successfully
-- **Content:** 5 creative content files for "Eternally Yours Supernatural Pet Adoption Agency" — 3 adoption listing files (fire-elemental, aquatic-supernatural) and 3 care guides (phoenix care, pet-proofing, nutrition)
-- **Cross-reference validation:** E02-S03 nutrition guide correctly cross-referenced all 6 pets from E01 by name with consistent dietary details
+- **Content:** synthetic prose files: listings and guides (removed from the tree in November 2026; kept in Git history)
+- **Cross-reference validation:** E02-S03 correctly cross-referenced all six E01 entries by name with consistent details
 - **Agent attribution:** All issues created with `--created-by` metadata
 - 2 epics, 5 stories (4 easy, 1 medium), 1 fix cycle
 
@@ -126,16 +162,16 @@
 
 ## 2026-03-17
 
-### The Debugging: A Silicon Valley Musical — Run 16 (backlog #167, 136m wall-clock)
+### Run 16 -- synthetic workload (backlog #167, 136m wall-clock)
 
 - **Primary result:** First test run with the slimmed orchestrator.md (503 lines) and `state.sh` for all state management
 - Validated `state.sh` integration: `init`, `update --dispatch`, `update --add-story`, `update --epic --base-sha`, `overhead`, `lifecycle-duration`
 - Validated `maxParallelBuilders: 3` config enforcement: Wave 1 (5 stories) correctly split into 3+2 sub-waves
-- Creative content: tech-satire musical with 9 songs, 7 characters, across script/handbook/marketing materials
-- 3 epics, 9 stories: E01 Script (4 stories), E02 Production Handbook (3 stories), E03 Marketing (2 stories)
+- Synthetic content across three document sets (removed from the tree in November 2026; kept in Git history)
+- 3 epics, 9 stories: E01 (4 stories), E02 (3 stories), E03 (2 stories)
 - Dispatch: 5 waves — Wave 1a parallel (3-way), Wave 1b parallel (2-way), Wave 2 sequential, Wave 3 parallel (2-way), Wave 4 sequential
-- 3 fix cycles: E02-S02 (word count + missing template sections), E02-S01 (missing table column + short backstories), E02-S03 (planted bug — wrong scene number caught by reviewer)
-- Planted bug validation: reviewer correctly identified "The Standup Ballad" as Scene 4 instead of Scene 2, triggering fix cycle
+- 3 fix cycles: E02-S02 (word count + missing template sections), E02-S01 (missing table column + short backstories), E02-S03 (planted bug — wrong cross-reference caught by reviewer)
+- Planted bug validation: reviewer correctly identified a planted wrong cross-reference, triggering a fix cycle
 - Difficulty: 4 easy, 4 medium, 1 hard; Models: 8 sonnet builds + 1 opus build, 4 sonnet reviews + 5 opus reviews
 
 ## 2026-03-17
@@ -187,25 +223,25 @@
 
 ## 2026-03-15
 
-### Test SDLC v2 Workflow (Run 14) — Interdimensional Restaurant Health Inspections
+### Test SDLC v2 Workflow (Run 14) — Fix-Cycle Validation
 
 - **Primary result:** Validated the fix cycle path (reviewer REQUEST_CHANGES → builder fix → re-review) for the first time in SDLC v2. Two fix cycles completed successfully out of 4 planted bugs
-- Content theme: "Interdimensional Restaurant Health Inspections" — official MFSA inspection reports, violation notices, appeal rulings, compliance certificates, and regulatory memos
-- 2 epics, 12 stories: E01 Inspection Reports (7 stories), E02 Regulatory & Administrative (5 stories)
+- Content: synthetic prose documents (removed from the tree in November 2026; kept in Git history)
+- 2 epics, 12 stories: E01 (7 stories), E02 (5 stories)
 - Dispatch: 5 waves with max 3 parallel builders per wave (Wave 1-3: 3-way parallel sonnet, Wave 4: 2-way parallel opus, Wave 5: sequential opus)
 - Bug planting results: 4 bugs planted (contradictory AC, missing section, format contradiction, wrong cross-reference). 2 triggered fix cycles (E01-S04 word count, E02-S01 format), 2 were avoided by builders following acceptance criteria
 - Fix cycle machinery confirmed working: REQUEST_CHANGES → builder fix → re-review → APPROVE
-- Cross-epic dependencies validated: E02 stories reference E01 documents by MFSA document number
+- Cross-epic dependencies validated: E02 stories reference E01 documents by document number
 - Worktree cross-contamination observed in fix cycle 2 (E01-S04) — E02-S01 file leaked into E01-S04 branch via worktree artifact
 
 
 ## 2026-03-15
 
-### Test SDLC v2 Workflow (Run 13) — Alien Tourist Bureau
+### Test SDLC v2 Workflow (Run 13) — Runtime Data and Live Pricing
 
 - **Primary result:** Validated runtime data consolidation (.agentic-workflow/), live pricing (fetch-pricing.sh), and dispatches-from-state telemetry computation
-- Content theme: "Alien Tourist Bureau" — official travel advisories and visitor guides from the Galactic Federation Bureau of Terran Tourism (GFBTT)
-- 1 epic, 6 stories: Coffee Advisory, Traffic Advisory, Customs Form, Small Talk Guide, Dining Guide, Survival Handbook
+- Content: synthetic prose documents (removed from the tree in November 2026; kept in Git history)
+- 1 epic, 6 stories
 - Dispatch: Wave 1 (3-way parallel easy), Wave 2 (2-way parallel medium), Wave 3 (sequential hard with cross-references to all prior docs)
 - All three difficulty levels tested: easy x3 sonnet, medium x2 sonnet, hard x1 opus
 - Zero fix cycles — all 6 stories passed review on first attempt (6 APPROVE verdicts)
@@ -214,11 +250,11 @@
 
 ## 2026-03-15
 
-### Test SDLC v2 Workflow (Run 12) — Time Traveler's Yelp Reviews
+### Test SDLC v2 Workflow (Run 12) — Configurable Settings
 
 - **Primary result:** Validated configurable workflow settings from PR #55 — scripts reading from `.claude/agentic-sdlc-config.json`, model routing, pricing, and YAML frontmatter plan detection
-- Content theme: "Time Traveler's Yelp Reviews" — formal Yelp-style reviews of historical events written by time-traveling tourists
-- 1 epic, 5 stories: Great Fire of London (1★), Great Pyramid (3★), Magna Carta (4★), Moon Landing (5★), and a ChronoTrip Comparative Guide
+- Content: synthetic prose documents (removed from the tree in November 2026; kept in Git history)
+- 1 epic, 5 stories, the last one cross-referencing the other four
 - Dispatch: Wave 1 (3-way parallel with worktree isolation), Wave 2 (sequential medium), Wave 3 (sequential hard with cross-references)
 - All three difficulty levels tested: easy x2 sonnet, medium x2 sonnet, hard x1 opus
 - Zero fix cycles — all 5 stories passed review on first attempt
@@ -231,10 +267,10 @@
 ### Test SDLC v2 Workflow (Run 11) — Board Drift Detection
 
 - **Primary result:** Validated board drift detection infrastructure and 3-way parallel content dispatch with worktree isolation
-- Two workstreams: board drift detection infrastructure (2 stories) + content creation (4 Fairy Tale HR incident reports)
+- Two workstreams: board drift detection infrastructure (2 stories) + synthetic content (4 stories)
 - Created `scripts/check-board-drift.sh` diagnostic script for detecting board status persistence drift at timed intervals
 - Extended `scripts/validate-logs.sh` with Board Drift Log section for drift event surfacing
-- Created "Incident Reports from Fairy Tale HR" content (4 incident reports from FairyTale Corp's HR department)
+- Created 4 synthetic prose documents (removed from the tree in November 2026; kept in Git history)
 - 2 epics, 6 stories across 4 dispatch waves (Waves 1-2: sequential infra, Wave 3: 3-way parallel content with worktree isolation, Wave 4: sequential hard content)
 - All three difficulty levels tested (easy x3 haiku, medium x2 sonnet, hard x1 opus)
 - Zero fix cycles — all 6 stories passed review on first attempt (5 APPROVE, 1 COMMENT)
@@ -246,9 +282,9 @@
 ### Test SDLC v2 Workflow (Run 10) — Orchestrator Logging
 
 - **Primary result:** Validated two-layer diagnostic logging (board-status.log + orchestrator.log) during a full autonomous lifecycle
-- Two workstreams: logging infrastructure validation (2 stories) + content creation (4 stories, Season 2 episodes)
+- Two workstreams: logging infrastructure validation (2 stories) + synthetic content (4 stories)
 - Created log validation script (`scripts/validate-logs.sh`) and reconciled logging design doc with implementation
-- Created "Nature Documentary: The Open-Plan Office, Season 2" content (3 episodes + 1 formal habitat assessment)
+- Created 4 synthetic prose documents (removed from the tree in November 2026; kept in Git history)
 - 2 epics, 6 stories across 4 dispatch waves (Waves 1-2: sequential logging, Wave 3: 3 parallel content, Wave 4: sequential)
 - All three difficulty levels tested (easy x3 haiku, medium x2 sonnet, hard x1 opus)
 - Zero fix cycles — all 6 stories passed review on first attempt
@@ -259,11 +295,11 @@
 ### Test SDLC v2 Workflow (Run 9) — Full Autonomous Lifecycle
 
 - **Primary result:** Validated full autonomous lifecycle end-to-end — design, plan, build, review, merge, telemetry, and retro in a single unattended orchestrator session
-- Created "Pet Cats: Declassified CIA Field Reports" test content (5 CIA-style intelligence documents)
+- Created 5 synthetic prose documents (removed from the tree in November 2026; kept in Git history)
 - 2 epics, 5 stories across 3 dispatch waves (Wave 1: 3 parallel, Waves 2-3: sequential)
 - All three difficulty levels tested (easy x2 haiku, medium x2 sonnet, hard x1 opus)
 - Zero fix cycles — all 5 stories passed review on first attempt
-- Worktree cross-contamination on E01-S03 caught by reviewer, self-healed by orchestrator via cherry-pick
+- Worktree cross-contamination on E01-S03 caught by reviewer, repaired by the orchestrator via cherry-pick
 - Model routing correctly dispatched haiku/sonnet/opus based on difficulty labels
 - ~29 minutes wall-clock time, ~541K tokens, ~$2.66 estimated cost across 12 agent dispatches
 
@@ -272,7 +308,7 @@
 ### Test SDLC v2 Workflow (Run 8) — Worktree Isolation
 
 - **Primary result:** Validated `isolation: "worktree"` for parallel builder dispatch — zero workspace collision across 3 parallel builders
-- Created "The Office Worker: A Nature Documentary" test content (5 episodes/documents)
+- Created 5 synthetic prose documents (removed from the tree in November 2026; kept in Git history)
 - 2 epics, 5 stories across 3 dispatch waves (Wave 1: 3 parallel, Waves 2-3: sequential)
 - All three difficulty levels tested (easy → haiku, medium → sonnet, hard → opus)
 - One fix cycle triggered by reviewer (sentence count violation on E01-S01)

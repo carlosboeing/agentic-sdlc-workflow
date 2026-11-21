@@ -1,6 +1,9 @@
 ---
+title: "Workflow Speed, Quality & Instruction Architecture — Discovery"
+type: research
+status: resolved
+authors: ["Carlos Boeing"]
 date: 2026-03-23
-author: carlosboeing
 agent: general
 scope: Post BL#116 deep dive — workflow speed optimization, quality improvement, instruction architecture (3-layer model), mock contract parallelism, review strategy, observability gaps
 sources:
@@ -15,6 +18,10 @@ related:
 ---
 
 # Workflow Speed, Quality & Instruction Architecture — Discovery
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
+> **November 2026 calibration.** The context line below says 19 stories and 69 dispatches. The plan's story table and the retrospective list 18 story issues (#334 to #351), and the retrospective counts 66 dispatches: 1 designer, 1 planner, 32 builder and 32 reviewer dispatches. The 69 here also includes the PR review and retrospective phase, as the time breakdown's "Retro + PR review" row shows.
 
 > **Context:** This document captures findings and ideas from a deep-dive analysis of BL#116 (Workflow Runtime Service) — the largest backlog item executed through the workflow (19 stories, 6 epics, 69 dispatches, ~$50, ~6.5h wall clock). The discussion expanded from "why was this run slow?" into broader architectural questions about instruction layering, parallelism strategies, review models, and the workflow's path toward domain-agnostic plugin packaging.
 
@@ -459,8 +466,8 @@ Both control and variant runs execute the **full workflow** — design, plan, im
 **Two separate repository clones**, each running in its own terminal:
 
 ```
-~/Projects/agentic-sdlc-workflow-control/    ← Clone A (baseline)
-~/Projects/agentic-sdlc-workflow-variant/    ← Clone B (with optimizations)
+<repo-root>-control/    ← Clone A (baseline)
+<repo-root>-variant/    ← Clone B (with optimizations)
 ```
 
 - **Separate backlog items on GitHub** — create two identical issues with the same body/scope but different issue numbers. Each run creates its own epics, stories, branches, and PM state with no cross-contamination.

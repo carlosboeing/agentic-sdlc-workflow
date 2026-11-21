@@ -152,8 +152,8 @@ Read the project's CLAUDE.md for the specific testing framework, naming conventi
 Read the project's CLAUDE.md for project-specific code conventions. These universal rules always apply:
 
 - **Use precise types** — avoid `object`, `dynamic`, `any`, or equivalent loose types
-- **Follow existing patterns** — match the project's DI, config, and architectural patterns
-- **Register new services** — when creating a new service/provider class, ensure it's registered in the project's dependency injection setup in the same commit. Unit tests often mock the DI layer, so missing registrations pass all tests but fail at runtime.
+- **Follow existing patterns** — match the project's wiring, config, and architectural patterns
+- **Wire new components in** — when creating a new service, handler or provider, wire it into the application (dependency injection container, route table, registry or command list) in the same commit. Unit tests that pass dependencies in directly still pass when the wiring is missing, and the component fails at runtime.
 - **Write startup wiring integration tests for server components** — when a story creates or modifies a service injected via constructor in a server component, write a test that exercises the full startup path (e.g., `startServer({db}) -> createApp({db}) -> route handler`), not just the factory function in isolation. Tests that inject dependencies directly bypass the production entry point and miss wiring gaps. Evidence: BL116 had 12/18 stories require fix cycles due to DI wiring blindspots invisible to unit tests.
 - **Comment only non-obvious logic** — no `// set the variable` comments
 
@@ -162,7 +162,7 @@ Read the project's CLAUDE.md for project-specific code conventions. These univer
 When you encounter a bug, unexpected behavior, missing convention, or anything worth remembering for future work, create a lesson file immediately — don't defer it.
 
 **When to write a lesson:**
-- You hit a bug that tests didn't catch (e.g., DI registration missing)
+- You hit a bug that tests didn't catch (e.g., a component never wired into the running application)
 - A tool or API behaved unexpectedly (e.g., gh defaults to 30 items)
 - You had to guess a convention that wasn't documented
 - You found a security issue (e.g., missing CSRF validation)
@@ -176,7 +176,7 @@ When you encounter a bug, unexpected behavior, missing convention, or anything w
 4. Write sections: What happened, Root cause, Prevention
 5. Commit the lesson alongside your implementation work
 
-**Example:** `docs/4-reviews/lessons/5-calendar-tool/e03-calendar-plugin/2026-03-09-s01-di-registration-blind-spot.md`
+**Example:** `docs/4-reviews/lessons/116-workflow-runtime-service/e02-item-routes/2026-03-22-s01-startup-wiring-di-blindspot.md`
 
 Lessons are your notes for future agents. Write them at the moment of discovery — context is lost if you defer.
 

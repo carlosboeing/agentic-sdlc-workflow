@@ -27,10 +27,10 @@ function makeActivityEvent(
 ): ActivityEvent {
   return {
     id: 1,
-    item_id: null,
-    event_type: "item:created",
+    itemId: null,
+    eventType: "item:created",
     payload: JSON.stringify({ id: 1, title: "Test", type: "story" }),
-    created_at: "2026-03-22T10:00:00Z",
+    createdAt: "2026-03-22T10:00:00Z",
     ...overrides,
   };
 }
@@ -43,12 +43,12 @@ function makeWorkItem(overrides: Partial<WorkItem> = {}): WorkItem {
     status: "backlog",
     state: "open",
     body: null,
-    parent_id: null,
-    external_id: null,
-    external_url: null,
-    created_by: null,
-    created_at: "2026-03-22T10:00:00Z",
-    updated_at: "2026-03-22T10:00:00Z",
+    parentId: null,
+    externalId: null,
+    externalUrl: null,
+    createdBy: null,
+    createdAt: "2026-03-22T10:00:00Z",
+    updatedAt: "2026-03-22T10:00:00Z",
     labels: [],
     ...overrides,
   };
@@ -288,7 +288,7 @@ describe("WebSocket message JSON format", () => {
   test("connection:established message wraps recentEvents array", () => {
     const recentEvents: ActivityEvent[] = [
       makeActivityEvent({ id: 1 }),
-      makeActivityEvent({ id: 2, event_type: "status:changed" }),
+      makeActivityEvent({ id: 2, eventType: "status:changed" }),
     ];
 
     const msg: ActivityMessage = {

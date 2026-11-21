@@ -15,7 +15,7 @@ The session started in a worktree at
 `.claude/worktrees/agent-a65246c1/` on branch `e01-s02/early-story-branch-creation`.
 After switching the working directory via `git checkout` (inside a Bash call), the
 next Bash call reset the CWD back to the original working directory — which was the
-MAIN worktree path (`/Users/carlos/Projects/carlos/agentic-sdlc-workflow`) on
+MAIN worktree path (`<repo-root>`) on
 `main`.
 
 The Edit tool claimed success when called with the absolute path

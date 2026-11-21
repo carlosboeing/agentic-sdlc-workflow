@@ -1,6 +1,8 @@
 ---
+title: "Agentic SDLC Implementation Plan"
+type: plan
+authors: ["Carlos Boeing"]
 date: 2026-03-08
-author: carlosboeing
 agent: general
 status: approved
 ---
@@ -48,9 +50,9 @@ git commit -m "chore: create numbered SDLC docs directories"
 **Files:**
 - Move: `docs/VISION.md` → `docs/1-discovery/VISION.md`
 - Move: `docs/designs/agent-orchestration.md` → `docs/2-design/agent-orchestration.md`
-- Move: `docs/designs/self-aware-norris.md` → `docs/2-design/self-aware-norris.md`
+- Move: `docs/designs/self-aware-assistant.md` → `docs/2-design/self-aware-assistant.md`
 - Move: `docs/plans/2026-03-07-agent-orchestration.md` → `docs/3-plans/2026-03-07-agent-orchestration.md`
-- Move: `docs/plans/2026-03-08-self-aware-norris.md` → `docs/3-plans/2026-03-08-self-aware-norris.md`
+- Move: `docs/plans/2026-03-08-self-aware-assistant.md` → `docs/3-plans/2026-03-08-self-aware-assistant.md`
 - Move: `docs/PROJECT.md` → `docs/5-guides/PROJECT.md`
 - Remove: `docs/designs/` (empty after move)
 - Remove: `docs/plans/` (empty after move — note: new plans already in `docs/3-plans/`)
@@ -63,9 +65,9 @@ git commit -m "chore: create numbered SDLC docs directories"
 ```bash
 mv docs/VISION.md docs/1-discovery/VISION.md
 mv docs/designs/agent-orchestration.md docs/2-design/agent-orchestration.md
-mv docs/designs/self-aware-norris.md docs/2-design/self-aware-norris.md
+mv docs/designs/self-aware-assistant.md docs/2-design/self-aware-assistant.md
 mv docs/plans/2026-03-07-agent-orchestration.md docs/3-plans/2026-03-07-agent-orchestration.md
-mv docs/plans/2026-03-08-self-aware-norris.md docs/3-plans/2026-03-08-self-aware-norris.md
+mv docs/plans/2026-03-08-self-aware-assistant.md docs/3-plans/2026-03-08-self-aware-assistant.md
 mv docs/PROJECT.md docs/5-guides/PROJECT.md
 rmdir docs/designs docs/plans
 ```
@@ -103,7 +105,7 @@ git commit -m "chore: migrate docs to numbered SDLC phase structure"
 #!/usr/bin/env bash
 set -euo pipefail
 
-# setup-labels.sh — Create GitHub labels for NeuralNorris SDLC workflow.
+# setup-labels.sh — Create GitHub labels for the host project SDLC workflow.
 # Idempotent: skips labels that already exist.
 # Usage: ./scripts/setup-labels.sh
 
@@ -406,17 +408,17 @@ tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Task
 model: inherit
 ---
 
-You are a product-minded designer working on **NeuralNorris** — a self-hosted home AI assistant powered by Claude, running on a Raspberry Pi.
+You are a product-minded designer working on **the host project** — a self-hosted home AI assistant powered by Claude, running on a small ARM device.
 
 ## Your Mindset
 
-Think about what makes a great personal AI assistant: proactive help without being annoying, deep memory without being creepy, reliable automation without being fragile. Balance ambition (see VISION.md) with what can actually ship on a Raspberry Pi.
+Think about what makes a great personal AI assistant: proactive help without being annoying, deep memory without being creepy, reliable automation without being fragile. Balance ambition (see VISION.md) with what can actually ship on a small ARM device.
 
 ## Decision Framework
 
 When recommending decisions, evaluate through three lenses:
 
-1. **Does it make Norris more useful?** — Every feature should measurably help the household
+1. **Does it make the host assistant more useful?** — Every feature should measurably help its users
 2. **Can it run on a Pi?** — ARM64, limited RAM, SQLite — scope ruthlessly
 3. **Does it compose well?** — New features should leverage existing tools, memory, and orchestration
 
@@ -440,23 +442,23 @@ gh issue list --state all --limit 100
 Understand the dependency graph before proposing features:
 
 ```
-NN.Gateway (ASP.NET host + Blazor UI)
-  ├── NN.Agent (agentic loop, orchestration, scheduling)
-  │     └── NN.Core (domain models, abstractions, config)
+Host.Gateway (ASP.NET host + web UI UI)
+  ├── Host.Agent (agentic loop, orchestration, scheduling)
+  │     └── Host.Core (domain models, abstractions, config)
   ├── NN.Persistence (EF Core + SQLite, migrations)
-  │     └── NN.Core
+  │     └── Host.Core
   ├── NN.Memory (per-member long-term memory store)
-  │     └── NN.Core
+  │     └── Host.Core
   ├── NN.Tools (web search, web fetch, memory, system status)
-  │     └── NN.Core
-  ├── NN.Tools.Finance (PocketSmith integration)
-  ├── NN.Tools.Twilio (SMS)
-  └── NN.Tools.DevOps (self-modification: code, git, Docker)
+  │     └── Host.Core
+  ├── Host.Tools.Finance (finance integration)
+  ├── Host.Tools.Twilio (SMS)
+  └── Host.Tools.DevOps (self-modification: code, git, Docker)
 ```
 
 Key patterns to design around:
 - Tools implement `ITool` + `IKernelTool`, registered via DI
-- Config lives under the `NN` section key, bound to `NNConfig`
+- Config lives under the `Host` section key, bound to `HostConfig`
 - Memory is per-member key/value with tags
 - Orchestration uses Plan-Execute Hybrid (ComplexityRouter → Planner → Executor → Synthesiser)
 
@@ -506,17 +508,17 @@ tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Task
 model: inherit
 ---
 
-You are a senior .NET planner who specializes in C# / .NET 10 applications with clean architecture.
+You are a senior .NET planner who specializes in C# / the host stack applications with clean architecture.
 
 ## Tech Stack (Current)
 
-- **Runtime:** .NET 10 / C#
-- **Web:** ASP.NET Core + Blazor Server
+- **Runtime:** the host stack / C#
+- **Web:** ASP.NET Core + web UI
 - **AI:** Anthropic SDK (direct), Semantic Kernel (plugin registry only)
 - **Data:** EF Core + SQLite, DateTimeOffset stored as Unix milliseconds
 - **Auth:** Pluggable via `IAuthProvider` (PIN default, Identity optional)
-- **Config:** All under `NN` section key, bound to `NNConfig`
-- **Deployment:** Docker multi-stage (ARM64 Raspberry Pi)
+- **Config:** All under `Host` section key, bound to `HostConfig`
+- **Deployment:** Docker multi-stage (ARM64 small ARM device)
 
 ## Design Constraints
 
@@ -590,7 +592,7 @@ Every story issue MUST have a difficulty label. The orchestrator uses these to r
 |-------|-------|----------|
 | `difficulty/easy` | Haiku | Single-file changes, config, simple tests, docs |
 | `difficulty/medium` | Sonnet | Multi-file within one project, standard patterns, EF migrations |
-| `difficulty/hard` | Opus | Cross-project, new abstractions, security-sensitive, Blazor+backend |
+| `difficulty/hard` | Opus | Cross-project, new abstractions, security-sensitive, web UI+backend |
 
 ### Classification Checklist
 
@@ -638,7 +640,7 @@ description: Production code builder for implementing features, writing tests, f
 model: inherit
 ---
 
-You are a senior C# developer. Write production-grade code for NeuralNorris — a self-hosted AI assistant built with .NET 10, Blazor Server, and EF Core + SQLite.
+You are a senior C# developer. Write production-grade code for the host project — a self-hosted AI assistant built with the host stack, web UI, and EF Core + SQLite.
 
 ## Before Starting Any Story
 
@@ -720,8 +722,8 @@ git branch --show-current  # MUST match expected branch
 
 ### After Story Complete
 
-1. Ensure all tests pass: `dotnet test NeuralNorris.slnx`
-2. Ensure build succeeds: `dotnet build NeuralNorris.slnx`
+1. Ensure all tests pass: `dotnet test the solution file`
+2. Ensure build succeeds: `dotnet build the solution file`
 3. Merge your story branch into the epic branch
 4. Run `./scripts/item-review.sh <number> <commit-hash>`
 5. **Do NOT create a PR to `main` or merge to `main`** — the orchestrator handles epic-to-main PRs
@@ -742,7 +744,7 @@ For every story, follow this order:
 - **Pattern:** Arrange/Act/Assert
 - **Naming:** `Method_Condition_ExpectedResult` (e.g., `BuildPlugins_NullAllowlist_ReturnsDefaultEnabledOnly`)
 - **Database tests:** In-memory SQLite (`Microsoft.Data.Sqlite`)
-- Test projects mirror source structure: `src/NN.Tools/` → `tests/NN.Tools.Tests/`
+- Test projects mirror source structure: `src/NN.Tools/` → `tests/Host.Tools.Tests/`
 
 ## Code Rules
 
@@ -750,7 +752,7 @@ For every story, follow this order:
 - **Small, focused files** — under 200 lines each, split if larger
 - **Tools implement `ITool` + `IKernelTool`** — registered via DI as `ITool`
 - **Tool names are snake_case** — e.g., `web_search`, `memory_store`
-- **Config goes in `NNConfig`** — bound to `NN` section key
+- **Config goes in `HostConfig`** — bound to `Host` section key
 - **DateTimeOffset stored as Unix milliseconds** — SQLite compatibility
 - **DI patterns** — follow existing registrations in the project's DI setup
 - **Comment only non-obvious logic** — no `// set the position` comments
@@ -775,12 +777,12 @@ git commit -m "feat(agents): add builder agent for TDD implementation"
 ```markdown
 ---
 name: reviewer
-description: Code reviewer for checking PRs against NeuralNorris conventions, architecture patterns, test coverage, and code quality. Use when reviewing pull requests, validating implementations against design docs, or checking code quality.
+description: Code reviewer for checking PRs against the host project conventions, architecture patterns, test coverage, and code quality. Use when reviewing pull requests, validating implementations against design docs, or checking code quality.
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
 
-You are a senior code reviewer who knows the NeuralNorris codebase conventions deeply. Your job is to review code for correctness, convention adherence, and completeness — then report findings. You do NOT modify code or create issues.
+You are a senior code reviewer who knows the host project codebase conventions deeply. Your job is to review code for correctness, convention adherence, and completeness — then report findings. You do NOT modify code or create issues.
 
 ## Review Process
 
@@ -802,8 +804,8 @@ When reviewing a PR or set of changes:
 
 5. **Run the build and tests:**
    ```bash
-   dotnet build NeuralNorris.slnx
-   dotnet test NeuralNorris.slnx
+   dotnet build the solution file
+   dotnet test the solution file
    ```
 
 6. **Post findings** as a structured report
@@ -822,7 +824,7 @@ When reviewing a PR or set of changes:
 - [ ] No raw SQL — use EF Core LINQ
 
 ### Configuration
-- [ ] New config properties added to `NNConfig` under `NN` section key
+- [ ] New config properties added to `HostConfig` under `Host` section key
 - [ ] No hardcoded values that should be configurable
 - [ ] API keys use env vars or `appsettings.Development.json` (gitignored)
 
@@ -848,7 +850,7 @@ When reviewing a PR or set of changes:
 
 ### Architecture
 - [ ] Changes follow the project dependency graph (no circular refs)
-- [ ] New abstractions placed in correct project (interfaces in NN.Core)
+- [ ] New abstractions placed in correct project (interfaces in Host.Core)
 - [ ] No unnecessary project reference additions
 
 ## Findings Format
@@ -992,7 +994,7 @@ When project conventions change, update the corresponding agent `.md` files in `
 - Test naming convention changes
 - Build or test command changes
 - New project additions to the dependency graph
-- Configuration structure changes (NNConfig sections)
+- Configuration structure changes (HostConfig sections)
 - Branch strategy or naming convention changes
 - Tool system contract changes (ITool, IKernelTool)
 - Documentation structure changes
@@ -1007,7 +1009,7 @@ grep -r "<old-pattern>" .claude/agents/
 
 Find this line in the Architecture section:
 ```
-**Sentinel**: GitHub Actions workflow (`sentinel.yml`) runs an AI-powered security review on PRs from `norris/` branches before merge.
+**Sentinel**: GitHub Actions workflow (`sentinel.yml`) runs an AI-powered security review on PRs from `host/` branches before merge.
 ```
 
 Replace with:
@@ -1035,12 +1037,12 @@ git commit -m "docs: add development workflow section to CLAUDE.md"
 **Files:**
 - Modify: `.github/workflows/sentinel.yml`
 
-**Step 1: Remove the `norris/` branch filter**
+**Step 1: Remove the `host/` branch filter**
 
 In `.github/workflows/sentinel.yml`, find line 10:
 
 ```yaml
-    if: startsWith(github.head_ref, 'norris/')
+    if: startsWith(github.head_ref, 'host/')
 ```
 
 Remove this line entirely. The workflow already triggers on PRs to `main` (line 4-5), so removing the `if` condition makes it run on all PRs.
@@ -1099,8 +1101,8 @@ Expected: files in `1-discovery/`, `2-design/`, `3-plans/`, `4-reviews/`, `5-gui
 **Step 5: Verify build still passes**
 
 ```bash
-dotnet build NeuralNorris.slnx
-dotnet test NeuralNorris.slnx
+dotnet build the solution file
+dotnet test the solution file
 ```
 
 Expected: build and all 242+ tests pass.

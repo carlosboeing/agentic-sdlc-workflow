@@ -1,6 +1,8 @@
 ---
+title: "Design: Split orchestrator.md into Core Instructions and Scripts"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-17
-author: carlosboeing
 agent: designer
 status: draft
 backlog: 150
@@ -8,6 +10,8 @@ scope: Extract inline scripts from orchestrator.md into real scripts, delete red
 ---
 
 # Design: Split orchestrator.md into Core Instructions and Scripts
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 > **Status:** Draft
 
@@ -159,7 +163,7 @@ Extract the JSON schema example (currently 55 lines of markdown) into `scripts/s
 | Timestamp recording convention | 10 | **Keep** | Timing protocol the orchestrator must follow. Cannot be scripted -- only the orchestrator knows when it is about to dispatch. |
 | State Readers table | 9 | **Keep** | Architectural context. |
 | State Fallback (no state file) | 8 | **Replace with script call** | `./scripts/state.sh reconstruct <backlog-number>` -- automated recovery replaces manual fallback protocol. The orchestrator's instruction becomes: "If the state file is missing, run `state.sh reconstruct` before proceeding." |
-| System Prompt Hardening | 13 | **Delete** | Legacy NeuralNorris reference. `SdlcWorkflowTool` and `ClaudeDispatchTool` do not exist in the current Claude Code architecture. |
+| System Prompt Hardening | 13 | **Delete** | Legacy reference to an earlier host project. Its host-specific dispatch tools do not exist in the current Claude Code architecture. |
 | Override Pattern: example comment format | 5 | **Keep** | Template with judgment-required placeholders. |
 | Override Pattern: criteria + when NOT to override | 18 | **Keep** | Decision logic requiring agent judgment. |
 | Override Pattern: evidence | 6 | **Keep** | Reinforces correct usage with concrete examples. |
@@ -296,7 +300,7 @@ State management is PM-agnostic. The state file contains dispatch metadata (agen
 
 ### Assumptions
 
-1. **The System Prompt Hardening section is dead code.** It references `SdlcWorkflowTool` and `ClaudeDispatchTool` from the NeuralNorris era. These do not exist in the current Claude Code Agent tool architecture.
+1. **The System Prompt Hardening section is dead code.** It references host-specific dispatch tools from an earlier host project. These do not exist in the current Claude Code Agent tool architecture.
 
 2. **The subcommand pattern for state.sh is preferred over separate scripts.** This keeps the scripts directory clean and establishes a pattern for the future PM adapter. One script with clear subcommands is easier to maintain than `state-init.sh`, `state-update.sh`, `state-overhead.sh`, etc.
 

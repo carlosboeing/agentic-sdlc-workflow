@@ -1,9 +1,10 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 title: "GitHub-to-SQLite Sync (Pull Direction)"
 date: 2026-03-23
-author: carlosboeing
 agent: designer
-status: draft
+status: shipped
 backlog: 364
 related:
   - 2026-03-22-workflow-runtime-service-design.md
@@ -11,9 +12,11 @@ related:
   - 2026-03-18-pm-abstraction-layer.md
 ---
 
-> **Status:** Draft
+> **Status:** Shipped in backlog item 364 (squash commit `d6e6330`)
 
 # Design: GitHub-to-SQLite Sync (Pull Direction)
+
+> Historical record (March 2026). This infrastructure design shipped in backlog item 364; see the [item 364 retrospective](../4-reviews/lessons/364-github-sqlite-sync/2026-03-23-e01-e02-github-sqlite-sync-retro.md) for how the build went.
 
 ## 1. Overview
 

@@ -1,6 +1,8 @@
 ---
+title: "Design: Work Item Taxonomy for Agentic SDLC"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-11
-author: carlosboeing
 agent: general
 status: draft
 recommendations:
@@ -10,6 +12,8 @@ recommendations:
 ---
 
 # Design: Work Item Taxonomy for Agentic SDLC
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 ## Overview
 

@@ -1,11 +1,15 @@
 ---
+title: "Design: GitHub Issue Templates for Work Items"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-10
-author: carlosboeing
 agent: orchestrator
 status: draft
 ---
 
 # Design: GitHub Issue Templates for Work Items
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 
 > **Naming note:** This doc uses "Backlog Item," "Epic," and "Story" — the terminology from the test runs. The work item taxonomy is now configurable with the default being Epic → Story → Task. See [Work Item Taxonomy](2026-03-11-agentic-sdlc-workitem-taxonomy.md) for the full design. The template *structure* (Brief → Grouping → Micro-Spec) is stable regardless of naming.
@@ -285,7 +289,7 @@ The flow is consistent: **Why → What → How → Done**, at decreasing granula
 2. `**---` separators for appended content.** The planner appends Epics/Graph/Dispatch as a continuation of the body, not a separated addendum.
 3. **Emoji in headings.** Clean heading names are more professional and easier to parse.
 4. **Duplicating sub-issue state.** Don't maintain `- [x]` checkboxes on epics for story completion — GitHub sub-issues already track this.
-5. **Forcing user story format.** "As a cat, I want to review my human..." adds no value. Use natural language when the format doesn't fit.
+5. **Forcing user story format.** "As a <persona>, I want ..." on a non-user-facing task adds no value. Use natural language when the format doesn't fit.
 6. **Making epics informative.** Epics are folders. Don't put design detail on them — it belongs in the story's Design section or the design doc.
 7. **Expecting builders to read upstream.** If the builder needs the design doc to understand the story, the story is under-specified. The Design section carries the planner's implementation guidance; the design link is a safety net, not a primary source.
 

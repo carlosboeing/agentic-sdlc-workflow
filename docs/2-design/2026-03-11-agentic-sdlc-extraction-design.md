@@ -1,6 +1,8 @@
 ---
+title: "Design: Agentic SDLC Workflow Extraction & Packaging"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-11
-author: carlosboeing
 agent: designer
 status: draft
 related:
@@ -12,19 +14,21 @@ related:
 
 # Design: Agentic SDLC Workflow Extraction & Packaging
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 > **Historical note:** This document describes the original extraction design from March 2026. The dashboard section (Decision: Dashboard) proposed an ephemeral HTTP server with a self-contained SPA. This was superseded by [BL#116 Workflow Runtime Service](2026-03-22-workflow-runtime-service-design.md), which implements a persistent Bun server with SQLite, React SPA, MCP tools, sync engine, and document viewer — a more comprehensive architecture than originally envisioned here.
 
 ## Overview
 
-The NeuralNorris project contains an agentic SDLC workflow — specialized agents for design, architecture, building, review, and retrospectives, orchestrated through a structured lifecycle with telemetry, lessons, and convention evolution. This workflow is valuable beyond NeuralNorris and should be extracted into a standalone, project-agnostic package that anyone can adopt.
+The host project contains an agentic SDLC workflow — specialized agents for design, architecture, building, review, and retrospectives, orchestrated through a structured lifecycle with telemetry, lessons, and convention evolution. This workflow is valuable beyond the host project and should be extracted into a standalone, project-agnostic package that anyone can adopt.
 
 This document captures the design decisions for extracting the workflow, defining adapter interfaces for pluggable PM and document storage backends, establishing a local-first default that works with zero configuration, and providing a dashboard for human visibility.
 
 ## Problem Statement
 
-The SDLC workflow is currently coupled to NeuralNorris in three ways:
+The SDLC workflow is currently coupled to the host project in three ways:
 
-1. **Project knowledge** — Agent files contain .NET/C#/Blazor architecture knowledge, `NN.*` namespaces, DI patterns, and NeuralNorris-specific conventions
+1. **Project knowledge** — Agent files contain .NET/C#/web UI architecture knowledge, `Host.*` namespaces, DI patterns, and host-specific conventions
 2. **GitHub coupling** — Scripts, agents, and CLAUDE.md embed `gh` CLI commands, GitHub Project board IDs, status option IDs, and GitHub-specific vocabulary
 3. **Local docs coupling** — Design docs, plans, lessons, and retros are stored in a `docs/` folder structure committed to git
 
@@ -42,23 +46,23 @@ The extraction must separate **process** (how work flows) from **knowledge** (wh
 
 ### Files that move to the framework
 
-| Category | Files | Norris-specific content to strip |
+| Category | Files | host-specific content to strip |
 |----------|-------|----------------------------------|
-| **Agents** | `.claude/agents/orchestrator.md`, `planner.md`, `designer.md`, `builder.md`, `builder-{haiku,sonnet,opus}.md`, `reviewer.md`, `retro.md` | All `.NET`, `NN.*`, `ITool`, `IKernelTool`, Blazor, EF Core, SQLite, DI pattern references; all `gh` CLI commands and board IDs |
+| **Agents** | `.claude/agents/orchestrator.md`, `planner.md`, `designer.md`, `builder.md`, `builder-{haiku,sonnet,opus}.md`, `reviewer.md`, `retro.md` | All `.NET`, `Host.*`, `ITool`, `IKernelTool`, web UI, EF Core, SQLite, DI pattern references; all `gh` CLI commands and board IDs |
 | **Scripts** | `scripts/item-start.sh`, `item-review.sh`, `item-telemetry.sh`, `issue-merged.sh`, `dispatch-story.sh`, `dispatch-workflow.sh`, `setup-labels.sh`, `fetch-pricing.sh` | `REPO="carlosboeing/agentic-sdlc-workflow"`, project board IDs, status option IDs |
 | **Templates** | `scripts/templates/telemetry.md` | Already generic |
 | **Config** | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/.gitignore` | `dotnet` command allowlists (tech-stack specific) |
-| **Workflows** | `.github/workflows/sentinel.yml`, `auto-close-issues.yml` | Repo references, NeuralNorris security checklist |
+| **Workflows** | `.github/workflows/sentinel.yml`, `auto-close-issues.yml` | Repo references, the host project security checklist |
 | **CLAUDE.md** | Workflow convention sections (~60% of current file) | Project architecture, build commands, testing conventions, dependency graph |
 
-### Files that stay in NeuralNorris
+### Files that stay in the host project
 
 | Category | Files | Why |
 |----------|-------|-----|
 | **Project CLAUDE.md sections** | Build & Run, Architecture, Testing, CI, Project Documentation | Tech-stack and project-specific |
-| **Project docs** | `docs/5-guides/PROJECT.md`, `docs/1-discovery/VISION.md`, all feature design/plan docs | NeuralNorris-specific content |
+| **Project docs** | `docs/5-guides/PROJECT.md`, `docs/1-discovery/VISION.md`, all feature design/plan docs | host-specific content |
 | **Feature artifacts** | `docs/2-design/*`, `docs/3-plans/*`, `docs/4-reviews/*`, `docs/6-adrs/*` | Content is project-specific (the folder convention is reusable) |
-| **Launch config** | `.claude/launch.json` | VS Code debug config for NeuralNorris |
+| **Launch config** | `.claude/launch.json` | VS Code debug config for the host project |
 
 ### CLAUDE.md separation
 
@@ -377,7 +381,7 @@ claude-sdlc/                              # New standalone repo
 ├── sdlc.config.default                   # Ships with pm=local, docs=local
 ├── install.sh                            # Copies framework into target project
 └── examples/
-    └── neuralnorris/                     # Reference: how NeuralNorris uses the framework
+    └── host-project/                     # Reference: how the host project uses the framework
         ├── sdlc.config
         └── project-claude-section.md     # Example project-specific CLAUDE.md section
 ```
@@ -427,10 +431,10 @@ Agents become intent-based instead of command-based:
 ```markdown
 # In orchestrator.md
 Set story to In Progress:
-ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 \
+ITEM_ID=$(gh project item-list <project-number> --owner <owner> --format json --limit 100 \
   | jq -r '.items[] | select(.content.number == 42) | .id')
-gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
-  --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
+gh project item-edit --project-id "<project-id>" --id "$ITEM_ID" \
+  --field-id "<status-field-id>" \
   --single-select-option-id "47fc9ee4"
 ```
 
@@ -446,13 +450,13 @@ Set task to In Progress:
 
 ```markdown
 # Before (in builder.md)
-Run `dotnet test` to verify. Use xUnit + NSubstitute. Check NN.Core for interfaces.
+Run `dotnet test` to verify. Use xUnit + NSubstitute. Check Host.Core for interfaces.
 
 # After (in builder.md)
 Read the project's CLAUDE.md for build commands, test framework, and architecture conventions.
 ```
 
-## Migration from NeuralNorris
+## Migration from the host project
 
 ### Phase 1: Create the new repo
 
@@ -464,7 +468,7 @@ Read the project's CLAUDE.md for build commands, test framework, and architectur
 
 ### Phase 2: Strip project knowledge
 
-1. Remove all `.NET`, `NN.*`, Blazor, EF Core, SQLite references from agent files
+1. Remove all `.NET`, `Host.*`, web UI, EF Core, SQLite references from agent files
 2. Remove all `gh` CLI commands from agent files — replace with `sdlc.sh` calls
 3. Add "Read the project's CLAUDE.md" delegation instructions
 4. Keep process instructions (TDD workflow, lesson writing, branch conventions)
@@ -482,10 +486,10 @@ Read the project's CLAUDE.md for build commands, test framework, and architectur
 3. Add orchestrator auto-launch hook
 4. Build `sdlc board` CLI fallback
 
-### Phase 5: Test with NeuralNorris
+### Phase 5: Test with the host project
 
-1. NeuralNorris adopts the framework + GitHub adapter
-2. Project-specific sections stay in NeuralNorris's `CLAUDE.md`
+1. The host project adopts the framework + GitHub adapter
+2. Project-specific sections stay in the host project's `CLAUDE.md`
 3. Verify full workflow still works end-to-end
 
 ## Open Questions

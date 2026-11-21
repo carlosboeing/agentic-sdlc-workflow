@@ -131,7 +131,7 @@ The E01-S01 reviewer's verdict comment states: "A lesson file has been written a
 | `fec56dd` | Added "Fault Tolerance" design principle to CLAUDE.md | Design doc identified recovery from interruptions as a core principle missing from conventions |
 | `fec56dd` | Added `state.sh` to CLAUDE.md helper scripts table | New script created in E01 |
 | `fec56dd` | Replaced inline state code in CLAUDE.md with `state.sh` calls | E02-S02 convention propagation |
-| `de59a0c` | Removed System Prompt Hardening from orchestrator.md | Dead code from NeuralNorris era (no `SdlcWorkflowTool` or `ClaudeDispatchTool` exist) |
+| `de59a0c` | Removed System Prompt Hardening from orchestrator.md | Dead code from earlier-host era (the host-specific dispatch tools do not exist) |
 | `de59a0c` | Removed legacy manual telemetry method from orchestrator.md | `--dispatches-from-state` is the only supported path; `state.sh reconstruct` replaces manual fallback |
 | `de59a0c` | Removed Gantt color tagging table from orchestrator.md | `compute-dispatches.py` assigns colors automatically |
 

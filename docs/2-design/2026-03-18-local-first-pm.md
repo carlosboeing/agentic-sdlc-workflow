@@ -1,7 +1,8 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 title: Local-First PM System
 date: 2026-03-18
-author: carlosboeing
 agent: designer
 status: draft
 backlog: 111
@@ -11,10 +12,12 @@ related:
   - 2026-03-11-agentic-sdlc-workitem-taxonomy.md
 ---
 
-> **Note:** This document is historical context for its backlog item. The file-based PM system described here has been superseded by [BL#116 Workflow Runtime Service](2026-03-22-workflow-runtime-service-design.md), which replaces `.workflow/items/` with a SQLite database served by a persistent Bun server. The file adapter remains as a fallback. For the current PM architecture, see the [PM Architecture diagram in README.md](../../README.md#project-management-architecture).
+> **Note:** This document is historical context for its backlog item. The file-based PM system described here has been superseded by [BL#116 Workflow Runtime Service](2026-03-22-workflow-runtime-service-design.md), which replaces `.workflow/items/` with a SQLite database served by a persistent Bun server. The file adapter remains as a fallback. For the current PM architecture, see the [PM abstraction section of the architecture document](../architecture.md#pm-abstraction-and-the-runtime-service).
 
 
 # Design: Local-First PM System
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 > **Status:** Draft
 

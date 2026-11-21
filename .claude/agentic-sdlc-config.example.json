@@ -1,0 +1,82 @@
+{
+  "$comment": "Example configuration for a run that syncs to your own GitHub issues and Projects board. Copy the values you need into agentic-sdlc-config.json. Every field is described under _fields. Leave the board fields empty to run without a board.",
+  "workflowDir": ".workflow",
+  "github": {
+    "repo": "your-org/your-repo",
+    "owner": "your-org",
+    "projectNumber": "1",
+    "projectId": "PVT_xxxxxxxx",
+    "statusFieldId": "PVTSSF_xxxxxxxx"
+  },
+  "boardStatus": {
+    "backlog": "<option-id>",
+    "ready": "<option-id>",
+    "in-progress": "<option-id>",
+    "in-review": "<option-id>",
+    "done": "<option-id>"
+  },
+  "modelRouting": {
+    "easy": "sonnet",
+    "medium": "sonnet",
+    "hard": "opus"
+  },
+  "pm": {
+    "adapter": "github"
+  },
+  "server": {
+    "port": 3117,
+    "portRange": [
+      3117,
+      3127
+    ],
+    "idleTimeoutMinutes": 240,
+    "logLevel": "info"
+  },
+  "reviewStrategy": {
+    "skipPerStoryReview": {
+      "enabled": true,
+      "conditions": {
+        "maxDifficulty": "easy",
+        "requireLabel": "test-agentic-sdlc"
+      }
+    }
+  },
+  "briefing": {
+    "defaultDepth": "standard",
+    "sources": {
+      "roadmap": true,
+      "changelog": true,
+      "retroDocs": {
+        "enabled": true,
+        "maxCount": 2
+      },
+      "lessonFiles": {
+        "enabled": true,
+        "severityThreshold": "high"
+      },
+      "designDocs": true,
+      "planDocs": true,
+      "retroRecommendations": true,
+      "openPRs": true,
+      "board": true,
+      "stateFile": true,
+      "reviewerComments": true,
+      "gitLog": false
+    }
+  },
+  "_fields": {
+    "workflowDir": "Directory for the local work-item files (items and comments), relative to the directory a script runs in. Default .workflow.",
+    "github.repo": "owner/repo for issues and PRs, and for the workflow server's read-only pull from GitHub. Empty means auto-detect from the git remote with gh.",
+    "github.owner": "User or organization that owns the GitHub Projects v2 board.",
+    "github.projectNumber": "Board number from its URL (github.com/orgs/<owner>/projects/<number>).",
+    "github.projectId": "Board node ID (PVT_...). Read it with: gh project view <number> --owner <owner> --format json --jq .id",
+    "github.statusFieldId": "Node ID (PVTSSF_...) of the board's Status single-select field. Read it with: gh project field-list <number> --owner <owner> --format json",
+    "boardStatus": "Option IDs of the Status field for backlog, ready, in-progress, in-review and done, from the same field-list output. Used only when pm.adapter is 'github' and the three board fields above are set.",
+    "modelRouting": "Model used for easy, medium and hard stories.",
+    "pm.adapter": "Where work items go, read by scripts/lib/pm.sh. null (the shipped default): files under workflowDir only; no GitHub issue, label or board writes. 'server': the optional workflow server's SQLite database while it is running, files under workflowDir when it is not; the server never writes to GitHub; it reads issues from github.repo on first start with an empty database and on a sync request. 'github': files under workflowDir, plus GitHub issues, comments, labels and sub-issue links, and board status when the board fields are set; written after the local files without blocking. This mutates GitHub.",
+    "workflow.*": "Not supported. Earlier versions listed autoMergePlanPR, autoMergeDesignPR, skipRetro, maxParallelBuilders and maxCostPerRun here; no script or prompt read the first four, and the budget check that reads maxCostPerRun (scripts/lib/cost-budget.sh) is not called by any workflow step. Autonomous merging of design and plan PRs follows the word 'autonomous' in the start prompt, and nothing caps spend.",
+    "server": "Workflow server port (0 picks one from portRange), idle shutdown in minutes, and log level.",
+    "reviewStrategy.skipPerStoryReview": "Skip per-story review for stories at or under maxDifficulty that carry requireLabel.",
+    "briefing": "Sources and depth for the briefing skill."
+  }
+}

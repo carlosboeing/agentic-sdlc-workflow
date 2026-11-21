@@ -1,6 +1,8 @@
 ---
+title: "Design: Orchestrator Improvements"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-16
-author: carlosboeing
 agent: designer
 backlog: 105
 scope: Bundle of orchestrator enhancements — reviewer routing, early branch creation, streaming reviews, batched board updates, batch issue creation, format templates, orchestrator override pattern, overhead metrics capture
@@ -8,6 +10,10 @@ status: draft
 ---
 
 # Design: Orchestrator Improvements
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+>
+> November 2026 calibration: "100% completion rate and zero organic fix cycles" describes synthetic prose runs judged against structural criteria; it does not measure code quality or missed defects.
 
 > **Status:** Draft
 

@@ -1,6 +1,8 @@
 ---
+title: "GitHub Issue Categorization Implementation Plan"
+type: plan
+authors: ["Carlos Boeing"]
 date: 2026-03-10
-author: carlosboeing
 agent: general
 status: approved
 ---
@@ -107,7 +109,7 @@ while IFS= read -r issue; do
   elif [ "$HAS_BACKLOG" -gt 0 ]; then
     # Has backlog but no epic = could be backlog item OR a docs/plan issue
     # Check title for backlog indicators
-    if echo "$TITLE" | grep -qiE "^\[Backlog\]|^SDLC Self-Orchestration|^Test SDLC|^Agentic SDLC|Mythical Creatures Field Guide|Intergalactic Travel"; then
+    if echo "$TITLE" | grep -qiE "^\[Backlog\]|^SDLC Self-Orchestration|^Test SDLC|^Agentic SDLC|Run 3|Intergalactic Travel"; then
       echo "  backlog: #$NUMBER $TITLE"
       gh issue edit "$NUMBER" --repo "$REPO" --add-label "hierarchy/backlog"
     else
@@ -116,7 +118,7 @@ while IFS= read -r issue; do
   else
     # No epic, no backlog — check if it's an unlabeled backlog item
     # Issues #1-#22 and #122-#127 are backlog items without backlog/* labels
-    if echo "$TITLE" | grep -qiE "^JWT auth|^Vector|^Smarter context|^Per-session|^Home automation|^Shell tool|^Image input|^Scheduled task|^Task result|^Push notification|^File system|^Proactive messages|^Pi deployment|^Reverse proxy|^Structured logging|^Usage metrics|^Automated database|^Replace InvokeToolAsync|^Fix appsettings|^Voice interface|^Proactive error|^Norris-initiated|^Cloud deployment|^Project bootstrapping|^Multi-repo|^Multi-feature|^Agentic SDLC as portable"; then
+    if echo "$TITLE" | grep -qiE "<host backlog title patterns>"; then
       echo "  backlog: #$NUMBER $TITLE"
       gh issue edit "$NUMBER" --repo "$REPO" --add-label "hierarchy/backlog"
     else

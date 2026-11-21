@@ -1,0 +1,74 @@
+{
+  "$comment": "Test fixture: a fully configured GitHub board with fake identifiers. Used via _CFG_FILE_OVERRIDE; never read by real runs.",
+  "workflowDir": ".workflow",
+  "github": {
+    "repo": "example-org/example-repo",
+    "owner": "example-org",
+    "projectNumber": "7",
+    "projectId": "PVT_example",
+    "statusFieldId": "PVTSSF_example"
+  },
+  "boardStatus": {
+    "backlog": "opt-backlog",
+    "ready": "opt-ready",
+    "in-progress": "opt-in-progress",
+    "in-review": "opt-in-review",
+    "done": "opt-done"
+  },
+  "modelRouting": {
+    "easy": "sonnet",
+    "medium": "sonnet",
+    "hard": "opus"
+  },
+  "pm": {
+    "adapter": "github"
+  },
+  "workflow": {
+    "autoMergePlanPR": true,
+    "autoMergeDesignPR": true,
+    "skipRetro": false,
+    "maxParallelBuilders": 3,
+    "maxCostPerRun": null
+  },
+  "server": {
+    "port": 3117,
+    "portRange": [
+      3117,
+      3127
+    ],
+    "idleTimeoutMinutes": 240,
+    "logLevel": "info"
+  },
+  "reviewStrategy": {
+    "skipPerStoryReview": {
+      "enabled": true,
+      "conditions": {
+        "maxDifficulty": "easy",
+        "requireLabel": "test-agentic-sdlc"
+      }
+    }
+  },
+  "briefing": {
+    "defaultDepth": "standard",
+    "sources": {
+      "roadmap": true,
+      "changelog": true,
+      "retroDocs": {
+        "enabled": true,
+        "maxCount": 2
+      },
+      "lessonFiles": {
+        "enabled": true,
+        "severityThreshold": "high"
+      },
+      "designDocs": true,
+      "planDocs": true,
+      "retroRecommendations": true,
+      "openPRs": true,
+      "board": true,
+      "stateFile": true,
+      "reviewerComments": true,
+      "gitLog": false
+    }
+  }
+}

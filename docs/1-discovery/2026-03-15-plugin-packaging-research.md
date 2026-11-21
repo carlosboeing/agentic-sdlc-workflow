@@ -1,11 +1,18 @@
 ---
+title: "Plugin Packaging Research & Brainstorming"
+type: research
+status: resolved
+authors: ["Carlos Boeing"]
 date: 2026-03-15
-author: carlosboeing
 agent: general
 scope: Research and brainstorming for packaging the agentic SDLC workflow as a Claude Code plugin
 ---
 
 # Plugin Packaging Research & Brainstorming
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
+> **November 2026 calibration.** "The self-healing convention loop ... is unique" was not established. Among the alternatives surveyed here, none combined these phases, which is a narrower statement. The loop proposes convention changes that a human adopts or declines, and the 17-story zero-fix streak it is credited with was observed on prose workloads in Runs 9 to 11.
 
 ## Context
 
@@ -48,7 +55,7 @@ Key insight: although designed for software development, the test runs prove the
 
 ```json
 {
-  "github": { "projectNumber": 7, "owner": "carlosboeing" }
+  "github": { "projectNumber": 42, "owner": "carlosboeing" }
 }
 ```
 

@@ -15,7 +15,9 @@
 #   CFG_STATUS_IN_PROGRESS, CFG_STATUS_IN_REVIEW, CFG_STATUS_DONE,
 #   CFG_ROUTE_EASY, CFG_ROUTE_MEDIUM, CFG_ROUTE_HARD,
 #   CFG_PM_ADAPTER, CFG_WORKFLOW_DIR, CFG_LOCAL_WORKFLOW_DIR, CFG_MAX_COST_PER_RUN,
-#   CFG_SKIP_REVIEW_ENABLED, CFG_SKIP_REVIEW_MAX_DIFFICULTY, CFG_SKIP_REVIEW_REQUIRE_LABEL
+#   CFG_SKIP_REVIEW_ENABLED, CFG_SKIP_REVIEW_MAX_DIFFICULTY, CFG_SKIP_REVIEW_REQUIRE_LABEL,
+#   CFG_SERVER_PORT, CFG_SERVER_PORT_RANGE_MIN, CFG_SERVER_PORT_RANGE_MAX,
+#   CFG_SERVER_IDLE_TIMEOUT, CFG_SERVER_LOG_LEVEL
 
 # Locate config file relative to the repo root
 _CFG_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -58,12 +60,12 @@ CFG_REPO_OWNER="${CFG_REPO%%/*}"
 CFG_REPO_NAME="${CFG_REPO##*/}"
 
 # --- Board status option IDs ---
-CFG_STATUS_BACKLOG=$(_cfg '.boardStatus.backlog' "17425ce6")
+CFG_STATUS_BACKLOG=$(_cfg '.boardStatus.backlog' "")
 # CFG_STATUS_PLANNED removed — status no longer exists
-CFG_STATUS_READY=$(_cfg '.boardStatus.ready' "f75ad846")
-CFG_STATUS_IN_PROGRESS=$(_cfg '.boardStatus["in-progress"]' "47fc9ee4")
-CFG_STATUS_IN_REVIEW=$(_cfg '.boardStatus["in-review"]' "9bb97c15")
-CFG_STATUS_DONE=$(_cfg '.boardStatus.done' "98236657")
+CFG_STATUS_READY=$(_cfg '.boardStatus.ready' "")
+CFG_STATUS_IN_PROGRESS=$(_cfg '.boardStatus["in-progress"]' "")
+CFG_STATUS_IN_REVIEW=$(_cfg '.boardStatus["in-review"]' "")
+CFG_STATUS_DONE=$(_cfg '.boardStatus.done' "")
 
 # --- Model routing ---
 CFG_ROUTE_EASY=$(_cfg '.modelRouting.easy' "sonnet")
@@ -71,8 +73,9 @@ CFG_ROUTE_MEDIUM=$(_cfg '.modelRouting.medium' "sonnet")
 CFG_ROUTE_HARD=$(_cfg '.modelRouting.hard' "opus")
 
 # --- PM adapter ---
-# Sync target for dual-write (typically "github"). The local PM is always the
-# workflow server (SQLite via HTTP API); pm.adapter names the remote to sync to.
+# Optional sync target. Work items always live in the local adapter; null (the
+# default) means local files only, "github" adds fire-and-forget GitHub writes,
+# "server" opts in to the experimental runtime service. See scripts/lib/pm.sh.
 CFG_PM_ADAPTER=$(_cfg '.pm.adapter' "")
 
 # --- Workflow directory (top-level, project-scoped) ---
@@ -88,10 +91,19 @@ fi
 # Retain alias for backward compatibility with existing local adapter code
 CFG_LOCAL_WORKFLOW_DIR="$CFG_WORKFLOW_DIR"
 
-# --- Cost budget ---
+# --- Cost budget (read only by scripts/lib/cost-budget.sh, which no workflow
+# step calls yet; not an enforced spend cap) ---
 CFG_MAX_COST_PER_RUN=$(_cfg '.workflow.maxCostPerRun' "null")
 
 # --- Review strategy ---
 CFG_SKIP_REVIEW_ENABLED=$(_cfg '.reviewStrategy.skipPerStoryReview.enabled' "false")
 CFG_SKIP_REVIEW_MAX_DIFFICULTY=$(_cfg '.reviewStrategy.skipPerStoryReview.conditions.maxDifficulty' "easy")
 CFG_SKIP_REVIEW_REQUIRE_LABEL=$(_cfg '.reviewStrategy.skipPerStoryReview.conditions.requireLabel' "")
+
+# --- Server ---
+CFG_SERVER_PORT=$(_cfg '.server.port' "0")
+# Port range: jq array indexing for [min, max]
+CFG_SERVER_PORT_RANGE_MIN=$(_cfg '.server.portRange[0]' "3100")
+CFG_SERVER_PORT_RANGE_MAX=$(_cfg '.server.portRange[1]' "3199")
+CFG_SERVER_IDLE_TIMEOUT=$(_cfg '.server.idleTimeoutMinutes' "30")
+CFG_SERVER_LOG_LEVEL=$(_cfg '.server.logLevel' "info")

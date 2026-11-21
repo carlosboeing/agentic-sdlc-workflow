@@ -21,6 +21,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/config.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+if [ -z "$CFG_PROJECT_ID" ] || [ -z "$CFG_STATUS_FIELD_ID" ] || [ -z "$CFG_PROJECT_NUMBER" ]; then
+  echo "NOTICE: no GitHub project board configured (.claude/agentic-sdlc-config.json); skipping board drift check." >&2
+  exit 0
+fi
+
 REPO_OWNER="$CFG_REPO_OWNER"
 REPO_NAME="$CFG_REPO_NAME"
 

@@ -1,0 +1,36 @@
+{
+  "run_id": "run_abc123",
+  "feature": "Add Stripe billing",
+  "started_at": "2025-02-19T10:30:00Z",
+  "completed_at": "2025-02-19T11:45:00Z",
+  "entry_point": "full",
+  "cost_mode": "standard",
+  "stages": [
+    {
+      "agent": "visionary",
+      "model": "opus",
+      "status": "completed",
+      "tokens": { "input": 15420, "output": 8930, "cached": 3200 },
+      "cost_usd": 0.42,
+      "duration_seconds": 180,
+      "checkpoint": { "approved_by": "human", "approved_at": "2025-02-19T10:35:00Z" },
+      "artifacts": [
+        { "type": "prfaq", "id": "notion-abc", "url": "https://notion.so/..." },
+        { "type": "prd", "id": "notion-def", "url": "https://notion.so/..." }
+      ]
+    },
+    {
+      "agent": "builder",
+      "task": "001-billing-api",
+      "model": "sonnet",
+      "status": "completed",
+      "attempts": 2,
+      "escalated": false,
+      "cost_usd": 0.38,
+      "branch": "feat/001-billing-api",
+      "pr": 42
+    }
+  ],
+  "total_cost_usd": 8.45,
+  "total_tokens": { "input": 245000, "output": 89000 }
+}

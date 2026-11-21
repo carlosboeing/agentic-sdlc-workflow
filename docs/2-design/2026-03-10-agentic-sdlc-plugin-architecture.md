@@ -1,6 +1,8 @@
 ---
+title: "Appendix: Agentic SDLC as a Claude Code Plugin"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-10
-author: carlosboeing
 agent: designer
 status: draft
 parent: 2026-03-09-agentic-sdlc-v2-design.md
@@ -8,17 +10,19 @@ parent: 2026-03-09-agentic-sdlc-v2-design.md
 
 # Appendix: Agentic SDLC as a Claude Code Plugin
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 > Appendix to [Agentic SDLC Workflow v2](2026-03-09-agentic-sdlc-v2-design.md)
 
 ## Motivation
 
-The NeuralNorris SDLC workflow (orchestrator, designer, planner, builder, reviewer, retro) is currently tightly coupled to GitHub. Every script, agent instruction, and convention embeds `gh` CLI commands, GitHub-specific `jq` queries, project board option IDs, and GitHub vocabulary (issues, PRs, labels).
+The host project SDLC workflow (orchestrator, designer, planner, builder, reviewer, retro) is currently tightly coupled to GitHub. Every script, agent instruction, and convention embeds `gh` CLI commands, GitHub-specific `jq` queries, project board option IDs, and GitHub vocabulary (issues, PRs, labels).
 
 This coupling creates two problems:
 
 1. **Swapping tools is a full rewrite.** Moving from GitHub Issues to Linear, or from GitHub Projects to Jira, means rewriting every script, every agent `.md` file, and re-mapping concepts (work items vs issues, iterations vs milestones).
 
-2. **The workflow itself is valuable beyond NeuralNorris.** The agentic SDLC pattern — specialized agents for each phase, difficulty-based model routing, living lessons, self-improvement loops — is general-purpose. Packaging it as a CC plugin would let any team adopt it with their own tool stack.
+2. **The workflow itself is valuable beyond the host project.** The agentic SDLC pattern — specialized agents for each phase, difficulty-based model routing, living lessons, self-improvement loops — is general-purpose. Packaging it as a CC plugin would let any team adopt it with their own tool stack.
 
 ## Current Coupling
 
@@ -88,7 +92,7 @@ Real teams don't use one vendor for everything. A typical setup might be:
 - **Jira** for project tracking + **GitHub** for code hosting + **Confluence** for docs
 - **Linear** for tracking + **GitHub** for code + **Notion** for docs
 - **Azure DevOps** for everything (all-in-one)
-- **GitHub** for everything (the current NeuralNorris setup)
+- **GitHub** for everything (the current the host project setup)
 
 The interface separation (`project-board`, `code-hosting`, `docs-platform`) lets users compose providers independently. Each interface maps to one or more MCP servers. The plugin config declares which server handles which interface.
 
@@ -159,10 +163,10 @@ Agent `.md` files become **intent-based** instead of **command-based**:
    gh issue list --label "epic/$SLUG" --state open --limit 50 --json number,title,labels
 
 2. Update board status:
-   ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 \
+   ITEM_ID=$(gh project item-list <project-number> --owner <owner> --format json --limit 100 \
      | jq -r '.items[] | select(.content.number == 42) | .id')
-   gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
-     --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
+   gh project item-edit --project-id "<project-id>" --id "$ITEM_ID" \
+     --field-id "<status-field-id>" \
      --single-select-option-id "47fc9ee4"
 
 # After (provider-agnostic orchestrator)
@@ -216,13 +220,13 @@ Build a GitHub-specific MCP server implementing the `project-board` and `code-ho
 
 ### Phase 3: CC Plugin Extraction (long-term)
 
-Extract agents, skills, and the GitHub MCP server from NeuralNorris into a standalone CC plugin.
+Extract agents, skills, and the GitHub MCP server from the host project into a standalone CC plugin.
 
 - Package agent `.md` files, skills, and hooks into the plugin format
 - Ship the GitHub MCP server as the reference provider
 - Define plugin config schema (project name, provider mapping, model routing preferences)
 - Document the MCP tool interfaces as the provider contract
-- NeuralNorris becomes a consumer of the plugin (dogfooding)
+- the host project becomes a consumer of the plugin (dogfooding)
 
 ### Phase 4: Additional Providers (community)
 

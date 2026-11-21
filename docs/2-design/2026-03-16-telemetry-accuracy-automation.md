@@ -1,6 +1,8 @@
 ---
+title: "Telemetry Accuracy & Automation"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-16
-author: carlosboeing
 agent: designer
 backlog: 106
 status: draft
@@ -8,6 +10,8 @@ scope: Telemetry pipeline accuracy — Gantt from state data, precise timestamps
 ---
 
 # Telemetry Accuracy & Automation
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 > **Status:** Draft
 

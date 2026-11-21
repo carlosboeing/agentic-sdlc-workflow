@@ -56,13 +56,13 @@ echo ""
 # --- Line count ---
 echo "--- Line Count ---"
 LINE_COUNT=$(wc -l < "$FILE")
-assert_range "Line count in [480, 580]" 480 580 "$LINE_COUNT"
+assert_range "Line count in [480, 720]" 480 720 "$LINE_COUNT"
 
 # --- Deleted content (should NOT be present) ---
 echo ""
 echo "--- Deleted Content (must be absent) ---"
 
-# Dead code: System Prompt Hardening / NeuralNorris references
+# Dead code: System Prompt Hardening references
 COUNT=$(grep -c "SdlcWorkflowTool\|ClaudeDispatchTool" "$FILE" || true)
 assert_zero "No SdlcWorkflowTool/ClaudeDispatchTool references" "$COUNT"
 

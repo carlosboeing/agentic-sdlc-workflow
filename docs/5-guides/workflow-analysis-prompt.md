@@ -5,9 +5,11 @@ Use this prompt to perform a comprehensive critical analysis of the agentic SDLC
 ## Usage
 
 ```bash
-claude --agent orchestrator --dangerously-skip-permissions \
-  "$(cat docs/workflow-analysis-prompt.md)"
+claude --agent orchestrator --permission-mode dontAsk \
+  "$(cat docs/5-guides/workflow-analysis-prompt.md)"
 ```
+
+Run it in a disposable clone; `dontAsk` denies anything the project allowlist does not cover.
 
 Or paste the prompt below directly into an interactive session.
 

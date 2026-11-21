@@ -21,6 +21,8 @@ import type {
   UpdateItemPayload,
   SetStatusPayload,
   BoardStatus,
+  DocumentEntry,
+  DocumentContent,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -103,6 +105,18 @@ export interface ApiClient {
 
   // Activity
   listActivity(limit?: number): Promise<ActivityEvent[]>;
+
+  // Documents
+  listDocuments(): Promise<DocumentEntry[]>;
+  getDocument(path: string): Promise<DocumentContent>;
+  listDocumentComments(path: string): Promise<Comment[]>;
+  addDocumentComment(
+    path: string,
+    body: string,
+    author?: string,
+    anchor?: string,
+    threadId?: string
+  ): Promise<Comment>;
 }
 
 export function createApiClient(baseUrl = ""): ApiClient {
@@ -158,7 +172,7 @@ export function createApiClient(baseUrl = ""): ApiClient {
     },
 
     linkChild: (parentId, childId) =>
-      post<void>(`/api/items/${parentId}/children`, { child_id: childId }),
+      post<void>(`/api/items/${parentId}/children`, { childId }),
 
     listChildren: (id) => get<WorkItem[]>(`/api/items/${id}/children`),
 
@@ -177,7 +191,34 @@ export function createApiClient(baseUrl = ""): ApiClient {
       const qs = limit !== undefined ? buildQuery({ limit }) : "";
       return get<ActivityEvent[]>(`/api/activity${qs}`);
     },
+
+    listDocuments: () => get<DocumentEntry[]>("/api/documents"),
+
+    getDocument: (path) =>
+      get<DocumentContent>(`/api/documents/${encodeDocPath(path)}`),
+
+    listDocumentComments: (path) =>
+      get<Comment[]>(`/api/documents/${encodeDocPath(path)}/comments`),
+
+    addDocumentComment: (path, body, author = "human", anchor, threadId) =>
+      post<Comment>(`/api/documents/${encodeDocPath(path)}/comments`, {
+        body,
+        author,
+        ...(anchor !== undefined ? { anchor } : {}),
+        ...(threadId !== undefined ? { thread_id: threadId } : {}),
+      }),
   };
+}
+
+/**
+ * Encode a document path for use in URLs.
+ * Encodes each segment individually to allow slashes in the path.
+ */
+function encodeDocPath(path: string): string {
+  return path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
 }
 
 /** Default API client using relative paths (same-origin). */

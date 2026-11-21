@@ -1,6 +1,8 @@
 ---
+title: "Design: Plugin Runtime Data & Pricing Architecture"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-15
-author: carlosboeing
 agent: orchestrator
 status: approved
 backlog: 56
@@ -8,6 +10,8 @@ scope: Design the runtime data directory structure and pricing architecture for 
 ---
 
 # Design: Plugin Runtime Data & Pricing Architecture
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 ## Problem
 

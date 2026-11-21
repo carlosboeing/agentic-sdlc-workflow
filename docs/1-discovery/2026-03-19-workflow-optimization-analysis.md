@@ -1,12 +1,19 @@
 ---
+title: "Telemetry Deep Dive — Critical Workflow Analysis"
+type: analysis
+status: resolved
+authors: ["Carlos Boeing"]
 date: 2026-03-19
-author: carlosboeing
 agent: general
 scope: Deep-dive telemetry analysis across 14 backlog items (Runs 8-16 + 5 infrastructure runs) — model routing ROI, phase optimization, long poles, and visualization improvements
 sources: GitHub issue telemetry comments and PR descriptions for backlog items 1, 14, 27, 41, 56, 69, 83, 105, 106, 109, 111, 150, 167, 227
 ---
 
 # Telemetry Deep Dive — Critical Workflow Analysis
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
+> **November 2026 calibration.** "Identical quality outcomes" in finding 1 means only that neither reviewer sample triggered a fix cycle; missed defects and review quality were not measured. Some summary figures do not reproduce from the master table in section 2. Section 10.1 compares "9 test runs" with "5 infra runs", but item 150 is typed as infrastructure in section 2: from that table the per-run fix-rate average is about 9 percent over 8 synthetic runs and about 24 percent over 6 infrastructure items, not 7.8 and 28.6 percent. Section 8.1 reports an average speedup of 1.22x, which matches the 14-run master table, while its own eight rows average 1.29x. The 60 percent sequential fraction in section 8.2 is an assumption, not a measurement.
 
 ## Executive Summary
 
@@ -68,7 +75,7 @@ Using the live-fetched pricing from `.agentic-workflow/pricing.json` (fetched 20
 
 ### The Run 12 Pricing Anomaly
 
-Run 12 (BL#56, Time Traveler's Yelp Reviews) is the **only run with incorrect cost data** still on record.
+Run 12 (BL#56, Run 12) is the **only run with incorrect cost data** still on record.
 
 **What happened:** The CHANGELOG states "corrected cost underreporting (was ~$4.77, correct ~$12.55) caused by using memorized $10/M Opus rate instead of config $30/M."
 
@@ -101,15 +108,15 @@ All costs normalized to current blended rates ($10/$6/$2 per MTok for Opus/Sonne
 
 | # | BL# | Type | Topic | Stories | Dispatches | Seq Duration | Wall Clock | Speedup | Tokens | Est. Cost | Fix Cycles | Fix Rate |
 |---|-----|------|-------|---------|------------|-------------|------------|---------|--------|-----------|------------|----------|
-| R8 | #1 | Test | Office Nature Doc | 5 | 16 | 39m 13s | ~33m | 1.19x | 770K | ~$4.79 | 1 | 20% |
-| R9 | #14 | Test | CIA Cat Reports | 5 | 14 | 31m 30s | 25m 37s | 1.23x | 649K | ~$4.44 | 0 | 0% |
+| R8 | #1 | Test | Run 8 | 5 | 16 | 39m 13s | ~33m | 1.19x | 770K | ~$4.79 | 1 | 20% |
+| R9 | #14 | Test | Run 9 | 5 | 14 | 31m 30s | 25m 37s | 1.23x | 649K | ~$4.44 | 0 | 0% |
 | R10 | #27 | Test | Orchestrator Logging | 6 | 16 | 47m 12s | 48m 29s† | 0.97x | 976K | ~$6.60 | 0 | 0% |
-| R11 | #41 | Test | Board Drift + Fairy Tale | 6 | 16 | 46m 25s | 40m 35s | 1.14x | 1,047K | ~$7.48 | 0 | 0% |
-| R12 | #56 | Test | Time Traveler Yelp | 5 | 14 | 30m 43s | 25m 12s | 1.22x | 536K | ~$4.77‡ | 0 | 0% |
-| R13 | #69 | Test | Alien Tourist Bureau | 6 | 16 | 36m 1s | 27m 28s | 1.31x | 681K | ~$5.96 | 0 | 0% |
-| R14 | #83 | Test | Health Inspections | 12 | 36 | 102m 43s | 74m 4s | 1.39x | 1,597K | ~$13.94 | 3 | 17% |
+| R11 | #41 | Test | Board Drift + Run 11 | 6 | 16 | 46m 25s | 40m 35s | 1.14x | 1,047K | ~$7.48 | 0 | 0% |
+| R12 | #56 | Test | Run 12 | 5 | 14 | 30m 43s | 25m 12s | 1.22x | 536K | ~$4.77‡ | 0 | 0% |
+| R13 | #69 | Test | Run 13 | 6 | 16 | 36m 1s | 27m 28s | 1.31x | 681K | ~$5.96 | 0 | 0% |
+| R14 | #83 | Test | Run 14 | 12 | 36 | 102m 43s | 74m 4s | 1.39x | 1,597K | ~$13.94 | 3 | 17% |
 | R15 | #150 | Infra | Split orchestrator.md | 5 | 20 | 111m 40s | 96m 45s | 1.15x | 2,570K | ~$22.67 | 2 | 40% |
-| R16 | #167 | Test | Silicon Valley Musical | 9 | 28 | 148m 33s | 116m 27s | 1.28x | 1,870K | ~$14.81 | 3 | 33% |
+| R16 | #167 | Test | Run 16 | 9 | 28 | 148m 33s | 116m 27s | 1.28x | 1,870K | ~$14.81 | 3 | 33% |
 | — | #105 | Infra | Orchestrator Improvements | 6 | 16 | 89m 55s | 82m 37s | 1.09x | 1,110K | ~$9.48 | 0 | 0% |
 | — | #106 | Infra | Telemetry Accuracy | 7 | 22 | 150m 57s | 118m 7s | 1.28x | 1,850K | ~$14.96 | 1 | 14% |
 | — | #109 | Infra | PM Abstraction Layer | 10 | 35 | 128m 40s | 97m 38s | 1.32x | 2,550K | ~$21.58 | 1 | 10% |
@@ -190,7 +197,7 @@ Current routing sends hard stories to Opus. We have no data for sonnet on hard s
 Opus hard stories take 1.75x longer and consume 1.25x more tokens than sonnet medium stories. The quality difference is invisible in the data — both have 0% fix rates on test content. However:
 
 - Hard stories have cross-document references, complex acceptance criteria, and longer word count requirements.
-- Opus's 0% fix rate on hard stories includes R14's E01-S06 (Multiversal Buffet, 2m 48s) and E01-S07 (Entropy Tavern, 5m 26s) and R16's E02-S03 (Orchestra Notes, 13m 27s) — all passed first review.
+- Opus's 0% fix rate on hard stories includes R14's E01-S06 (2m 48s) and E01-S07 (5m 26s) and R16's E02-S03 (13m 27s) — all passed first review.
 - We don't know if sonnet would have the same success rate on these tasks.
 
 **The risk/reward calculation:** Switching hard→sonnet would save ~1m 53s and ~10K tokens per story. However, a single fix cycle adds ~4m duration and ~70K tokens (builder + reviewer re-dispatch). If sonnet's fix rate on hard stories exceeds ~25%, the duration savings are wiped out. Given the complexity differential between medium and hard stories, this is plausible but untested.

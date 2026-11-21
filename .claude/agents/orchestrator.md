@@ -51,7 +51,19 @@ For out-of-session or human-initiated dispatches only. See `scripts/dispatch-sto
 
 **Interactive mode** — without "autonomous". Designer/planner ask clarifying questions via `AskUserQuestion`, orchestrator waits for human to merge PRs.
 
-**Auto-merge protocol (autonomous only):** After designer/planner opens a PR targeting the integration branch: find it (`gh pr list --head "docs/" --state open`), merge it (`gh pr merge <N> --merge --delete-branch`), pull the integration branch. If merge fails, halt and post a comment. Do NOT force-merge.
+**Auto-merge protocol (autonomous only):** After the designer or planner opens a PR targeting the integration branch, merge it with `git`, not with `gh pr merge`. `.claude/settings.json` denies `gh pr merge` and pushes to `main` in every agent session, so no agent can merge a PR into `main`; merges into the integration branch stay `git` operations:
+
+```bash
+PR=$(gh pr list --base backlog/<N>-<slug> --state open --json number,headRefName \
+  -q '.[] | select(.headRefName | startswith("docs/")) | .number' | head -1)
+HEAD_BRANCH=$(gh pr view "$PR" --json headRefName -q .headRefName)
+git fetch origin "$HEAD_BRANCH" && git checkout backlog/<N>-<slug> && git pull \
+  && git merge --no-ff "origin/$HEAD_BRANCH" -m "docs: merge PR $PR into backlog/<N>-<slug>" \
+  && git push origin backlog/<N>-<slug>
+gh pr view "$PR" --json state -q .state
+```
+
+If the PR still shows `OPEN` after the push, close it with `gh pr close "$PR" --comment "Merged into backlog/<N>-<slug> as <short-sha>"`. If the merge conflicts, run `git merge --abort`, post a comment and halt. Do NOT force-merge.
 
 ## Workflow Phases
 
@@ -64,9 +76,9 @@ Execute these phases in order. Each phase has a verification step before proceed
 2. **Dependency pre-check (REQUIRED):** Parse `**Blocked by:**` from the issue body. For each referenced issue, verify it is closed. If any are open, post a blocking comment and halt:
    ```bash
    BODY=$(./scripts/item-get.sh <N> --json body)
-   BLOCKED=$(echo "$BODY" | grep -oP '(?<=Blocked by:\*\* ).*' | head -1)
+   BLOCKED=$(echo "$BODY" | sed -n 's/.*Blocked by:\*\* *//p' | head -1)
    if [ "$BLOCKED" != "none" ] && [ -n "$BLOCKED" ]; then
-     for DEP in $(echo "$BLOCKED" | grep -oP '#\d+' | tr -d '#'); do
+     for DEP in $(echo "$BLOCKED" | grep -oE '#[0-9]+' | tr -d '#'); do
        STATE=$(./scripts/item-get.sh $DEP --json state)
        [ "$STATE" != "CLOSED" ] && echo "BLOCKED: Issue #$DEP is $STATE" && exit 1
      done
@@ -405,6 +417,12 @@ For each story with `REQUEST_CHANGES` verdict (cycle count < 2):
    ```
    Close retro issue (`item-close.sh`). Add to backlog PR as `Related (already closed): #<retro-issue>`.
 
+   **Retro guard (before closing the backlog PR):** the retro may only change documentation. After the retro commits are on the integration branch, run the scope guard and the full test suite. If either fails, halt and report to the human; do not continue to documentation propagation or merge.
+   ```bash
+   ./scripts/check-retro-scope.sh <integration-base-sha> HEAD   # fails if a docs(retro) or docs(conventions) commit touches code
+   (cd server && bun test) && python3 -m pytest scripts/lib/test_compute_dispatches.py -q
+   ```
+
 5. **Documentation propagation.** After all fix cycles and retro are complete — when the code is final and nothing else will change — update all documentation to reflect what was built. This is the single place where all doc updates happen.
 
    **Mechanical updates** (deterministic — the orchestrator knows what shipped):
@@ -480,8 +498,7 @@ Computes `overhead_ms = wall_clock - critical_path` from dispatch timestamps. In
 After the human merges the backlog PR (`gh pr merge --squash`):
 
 1. **Set board to Done** for all issues (`item-close.sh` for each).
-2. **Run cleanup:** `git checkout main && git pull && ./scripts/cleanup-post-merge.sh <backlog-number>`
-3. **Verify:** only `main` locally, no workflow branches on remote, no stale worktrees, `.agentic-workflow/runs/` empty.
+2. **Cleanup is a human step.** Tell the human to run `git checkout main && git pull && ./scripts/cleanup-post-merge.sh <backlog-number>` (preview with `--dry-run`). It removes only merged branches and clean worktrees, and it deletes branches on `origin`, so do not run it yourself.
 
 ## Model Routing
 

@@ -11,6 +11,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PM_SH="$REPO_ROOT/scripts/lib/pm.sh"
 BOARD_SH="$REPO_ROOT/scripts/lib/adapters/pm/github/board.sh"
 ADAPTERS_DIR="$REPO_ROOT/scripts/lib/adapters/pm/github"
+# Use a fully configured fixture board, not the (empty) repository config.
+export _CFG_FILE_OVERRIDE="$REPO_ROOT/tests/fixtures/config/github-board.json"
 
 PASS=0
 FAIL=0
@@ -152,7 +154,7 @@ echo ""
 # --- Test Group 3: _gh_status_to_option_id mapping ---
 echo "Test Group: _gh_status_to_option_id mapping"
 
-for status_pair in "backlog:17425ce6" "ready:f75ad846" "in-progress:47fc9ee4" "in-review:9bb97c15" "done:98236657"; do
+for status_pair in "backlog:opt-backlog" "ready:opt-ready" "in-progress:opt-in-progress" "in-review:opt-in-review" "done:opt-done"; do
   status_name="${status_pair%%:*}"
   expected_id="${status_pair##*:}"
 
@@ -410,6 +412,35 @@ if [ "$ALL_ACCEPTED" = true ]; then
   echo "  PASS: All five status values accepted"
   PASS=$((PASS + 1))
 fi
+
+echo ""
+
+# --- Test Group: board operations are skipped when no board is configured ---
+echo "Test Group: no board configured"
+
+EMPTY_CFG=$(mktemp)
+echo '{"pm":{"adapter":"github"},"github":{}}' > "$EMPTY_CFG"
+for call in "pm_set_status 1 done" "pm_add_to_board 1" "pm_batch_set_status 1:done"; do
+  TMPOUT=$(mktemp)
+  # A gh stub that fails loudly proves no GitHub call is attempted.
+  STUB_DIR=$(mktemp -d)
+  printf '#!/bin/sh\necho "gh called: $*" >&2\nexit 99\n' > "$STUB_DIR/gh"
+  chmod +x "$STUB_DIR/gh"
+  PATH="$STUB_DIR:$PATH" _CFG_FILE_OVERRIDE="$EMPTY_CFG" bash --norc --noprofile -c "
+    source \"$PM_SH\"
+    _external_$call
+  " > "$TMPOUT" 2>&1
+  EXIT_CODE=$?
+  OUT=$(cat "$TMPOUT")
+  rm -rf "$TMPOUT" "$STUB_DIR"
+  assert_exit_zero "NoBoard_${call%% *}_exits_zero" "$EXIT_CODE"
+  assert_contains "NoBoard_${call%% *}_prints_notice" "no GitHub project board configured" "$OUT"
+  case "$OUT" in
+    *"gh called"*) echo "  FAIL: NoBoard_${call%% *}_does_not_call_gh"; FAIL=$((FAIL + 1)) ;;
+    *) echo "  PASS: NoBoard_${call%% *}_does_not_call_gh"; PASS=$((PASS + 1)) ;;
+  esac
+done
+rm -f "$EMPTY_CFG"
 
 echo ""
 

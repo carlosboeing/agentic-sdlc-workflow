@@ -1,6 +1,8 @@
 ---
+title: "Agentic SDLC Workflow v2 — Orchestration & Self-Improvement"
+type: design
+authors: ["Carlos Boeing"]
 date: 2026-03-09
-author: carlosboeing
 agent: designer
 status: draft
 retro: ../4-reviews/2026-03-09-e01-calendar-retro.md
@@ -8,19 +10,21 @@ retro: ../4-reviews/2026-03-09-e01-calendar-retro.md
 
 # Agentic SDLC Workflow v2 — Orchestration & Self-Improvement
 
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+
 ## Overview
 
 This project follows an **agentic SDLC** — a blueprint for AI-driven software development where specialized Claude Code agents handle design, planning, building, reviewing, and retrospectives. The [v1 design](2026-03-08-agentic-sdlc-design.md) established the blueprint: four agents, GitHub Issues as the source of truth, difficulty-based model routing, and helper scripts for telemetry — with manual human orchestration.
 
-The NeuralNorris Calendar Tool build was the first end-to-end test of this blueprint. It proved the SDLC works — 12 stories, 167 tests, a working feature — but exposed a structural bottleneck: a human must sit between every agent transition, dispatching builders, parsing telemetry, merging branches, and updating the project board.
+The host project Calendar Tool build was the first end-to-end test of this blueprint. It proved the SDLC works — 12 stories, 167 tests, a working feature — but exposed a structural bottleneck: a human must sit between every agent transition, dispatching builders, parsing telemetry, merging branches, and updating the project board.
 
-This v2 design iterates on the blueprint by replacing the human orchestrator with a CC CLI agent that dispatches workers as in-session subagents (via the Agent tool) or CLI scripts. Workers are self-sufficient — they read context from the repo and GitHub, produce side effects (code, commits, issue comments), and return only a success/failure signal. A retro agent closes a self-improvement loop by synthesizing lessons learned and proposing convention changes via PR. The blueprint is tool-agnostic: any AI agent capable of running shell commands and reading repos could orchestrate it. Eventually, an AI agent like NeuralNorris could trigger or drive the SDLC as orchestrator.
+This v2 design iterates on the blueprint by replacing the human orchestrator with a CC CLI agent that dispatches workers as in-session subagents (via the Agent tool) or CLI scripts. Workers are self-sufficient — they read context from the repo and GitHub, produce side effects (code, commits, issue comments), and return only a success/failure signal. A retro agent closes a self-improvement loop by synthesizing lessons learned and proposing convention changes via PR. The blueprint is tool-agnostic: any AI agent capable of running shell commands and reading repos could orchestrate it. Eventually, an AI agent like the host project could trigger or drive the SDLC as orchestrator.
 
 The key insight: **agents don't need to return data to the orchestrator.** Work products persist in the repo and on GitHub. The orchestrator only needs to know "did it succeed?" — verifiable via exit code, `gh issue view`, or `git log`.
 
 ## Problem Statement
 
-The Calendar Tool build ([retro](../4-reviews/2026-03-09-e01-calendar-retro.md)) delivered 12 stories, 167 tests, and a working feature across 3 epics. It was the first end-to-end test of the agentic SDLC blueprint — and it exposed six structural problems:
+The Calendar Tool build (retro) delivered 12 stories, 167 tests, and a working feature across 3 epics. It was the first end-to-end test of the agentic SDLC blueprint — and it exposed six structural problems:
 
 | # | Problem | Evidence | Impact |
 | - | ------- | -------- | ------ |
@@ -95,7 +99,7 @@ This is what makes v2 possible. Since all work products persist in shared storag
 
 ### Non-Goals
 
-- Multi-repo orchestration — NeuralNorris is a single repo
+- Multi-repo orchestration — the host project is a single repo
 - Cost tracking dashboard — telemetry comments on issues are sufficient for now
 - Webhook-based approval gates — polling `gh pr view` is simpler and sufficient
 
@@ -107,7 +111,7 @@ This is what makes v2 possible. Since all work products persist in shared storag
 flowchart TD
     subgraph Trigger ["Trigger (either)"]
         HU[Human: claude --agent orchestrator 'Build #5']
-        NO[Norris: shell_exec dispatch-workflow.sh 5]
+        NO[Host assistant: shell_exec dispatch-workflow.sh 5]
     end
 
     subgraph Orchestrator ["Orchestrator Agent"]
@@ -174,7 +178,7 @@ Compare with the [v1 sequence diagram above](#current-workflow-v1) — every `Hu
 
 ```mermaid
 sequenceDiagram
-    participant Human as Human / Norris
+    participant Human as Human / host assistant
     participant Orch as Orchestrator Agent
     participant Worker as CC Worker
     participant GH as GitHub (Issues, Board, PRs)
@@ -240,7 +244,7 @@ sequenceDiagram
 In interactive mode, the only remaining `Human` arrows are the two approval gates (design PR merge, plan PR merge). In autonomous mode (`--autonomous`), even those gates are removed — the orchestrator auto-merges design/plan PRs via `gh pr merge`, enabling a fully unattended lifecycle from a single command:
 
 ```bash
-# Autonomous (recommended) — full live UI with real-time progress
+# Autonomous (see the README section on running safely) — full live UI with real-time progress
 claude --agent orchestrator --dangerously-skip-permissions \
   "Execute backlog item #42."
 
@@ -260,7 +264,7 @@ The designer and planner agents still follow their structured processes in auton
 
 **Role:** Drives the full lifecycle from design to retro, dispatching all other agents and managing GitHub state.
 
-**Trigger:** `claude --agent orchestrator "Execute backlog item #5"` or Norris via `shell_exec`.
+**Trigger:** `claude --agent orchestrator "Execute backlog item #5"` or the host assistant via `shell_exec`.
 
 **Capabilities:**
 
@@ -404,11 +408,11 @@ Two gaps:
 gh issue close "$ISSUE_NUMBER" --repo "$REPO" --reason completed
 
 # Set board status to Done
-ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 \
+ITEM_ID=$(gh project item-list <project-number> --owner <owner> --format json --limit 100 \
   | jq -r ".items[] | select(.content.number == $ISSUE_NUMBER) | .id")
 if [ -n "$ITEM_ID" ]; then
-  gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
-    --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
+  gh project item-edit --project-id "<project-id>" --id "$ITEM_ID" \
+    --field-id "<status-field-id>" \
     --single-select-option-id "98236657"
 fi
 ```
@@ -475,9 +479,9 @@ New script that orchestrates a full backlog item lifecycle:
 
 **Approval gates:** In interactive mode (default), the script pauses after design and plan phases, polling for human PR merge. In autonomous mode (`--autonomous`), design/plan PRs are auto-merged via `gh pr merge` immediately after the agent completes.
 
-#### Norris Integration
+#### Host assistant integration
 
-Norris invokes the same scripts via `shell_exec`:
+The host assistant invokes the same scripts via `shell_exec`:
 
 ```bash
 shell_exec(branch, "./scripts/dispatch-workflow.sh 5")
@@ -503,10 +507,10 @@ Required additions to `DevOpsConfig.ShellAllowlist`:
 ]
 ```
 
-Additional config changes for Norris:
+Additional config changes for the host assistant:
 
 - `ShellTimeoutSeconds`: increase to 1800+ (stories can take 10+ minutes)
-- `BranchPrefix`: relax from `norris/` to support `epic/` and story branches
+- `BranchPrefix`: relax from `host/` to support `epic/` and story branches
 - Auth: `claude setup-token` on the Pi for subscription-based CC CLI access
 
 ### Living Lessons
@@ -789,7 +793,7 @@ Every agent call consumes API tokens at pay-per-use rates. The Calendar build co
 
 | Activity | Cost model |
 | -------- | ---------- |
-| Orchestrator (CC agent or Norris planning) | Subscription (CC CLI) or minimal API (Norris) |
+| Orchestrator (CC agent or host assistant planning) | Subscription (CC CLI) or minimal API (host assistant) |
 | Designer | Subscription (CC CLI) |
 | Planner | Subscription (CC CLI) |
 | Builder x N | Subscription (CC CLI) |
@@ -834,14 +838,14 @@ The orchestrator reads the label from `gh issue view` and passes `--model` to th
 3. Test: orchestrator dispatches builder via Agent tool (in-session) and CLI (secondary)
 4. Test: CLI dispatch with `--model` flag correctly routes to haiku/sonnet/opus
 
-### Phase 4: Norris integration (optional, future)
+### Phase 4: Host assistant integration (optional, future)
 
 1. Configure `claude setup-token` on Pi
 2. Expand `ShellAllowlist` in production config
 3. Increase `ShellTimeoutSeconds` for long-running CC CLI sessions
 4. Relax `BranchPrefix` constraint
 5. Add "repo root" execution mode to `ShellExecTool` for `gh` commands
-6. Test: Norris receives "build backlog item #5" in chat and executes full workflow
+6. Test: the host assistant receives "build backlog item #5" in chat and executes full workflow
 
 ## Risks & Mitigations
 
@@ -864,8 +868,8 @@ The original v2 design above was tested across four end-to-end runs. Each run va
 |-----|---------|----------------|---------|----------------|-----------|
 | 1 | #43 | Calendar Tool | 12 | First SDLC v1 test (manual orchestration) | Identified need for automated orchestrator |
 | 2 | #57 | SDLC v2 Test | 3 | Agent tool dispatch, model routing | CLI nested session detection, variant files required |
-| 3 | #89 | Mythical Creatures | 7 | Parallel dispatch, reviewer integration, full autonomous lifecycle | Board transitions, epic telemetry scoping, word count enforcement |
-| 4 | #106 | Travel Advisory | 5 | Board transition fixes, scoped telemetry, all 3 model tiers | Builder self-merge prevention, gitignore conflicts, epic PR review gate |
+| 3 | #89 | Run 3 | 7 | Parallel dispatch, reviewer integration, full autonomous lifecycle | Board transitions, epic telemetry scoping, word count enforcement |
+| 4 | #106 | Run 4 | 5 | Board transition fixes, scoped telemetry, all 3 model tiers | Builder self-merge prevention, gitignore conflicts, epic PR review gate |
 
 ### Orchestrator State Persistence
 
@@ -1058,9 +1062,9 @@ Rates are fetched dynamically at session start. The blended rate assumes ~75% in
 
 | Decision | Rationale |
 | -------- | --------- |
-| CC CLI over native tool reimplementation | CC's agentic framework (Edit, Bash, Grep, error recovery) is battle-tested. Reimplementing it in Norris's DevOps tools would be inferior and expensive. |
+| CC CLI over native tool reimplementation | CC's agentic framework (Edit, Bash, Grep, error recovery) is battle-tested. Reimplementing it in the host assistant's DevOps tools would be inferior and expensive. |
 | Exit code communication, not stdout parsing | Side effects (commits, issue comments) are the communication channel. Parsing CC output is fragile and unnecessary. |
-| Shared scripts (either CC or Norris can call) | Maximum flexibility. Scripts are the orchestration API; the caller is interchangeable. |
+| Shared scripts (either CC or the host assistant can call) | Maximum flexibility. Scripts are the orchestration API; the caller is interchangeable. |
 | One lesson per file (not single LESSONS.md) | Avoids merge conflicts with parallel agents. Grep-friendly. Agents discover relevant lessons by grepping tags. Git-native (add file, no merge resolution). |
 | Agents write lessons in real-time, retro synthesizes | Capture learnings at the moment of discovery — agents forget context if deferred. After compilation, the retro doc becomes the primary reference and old lessons are eventually archived. |
 | Human approval gate for convention changes | The retro agent proposes, humans approve. Prevents runaway self-modification of the workflow. |
@@ -1134,7 +1138,7 @@ claude --agent orchestrator \
 - How does the orchestrator "wait" in a CLI session? Poll? Long-lived process? Or save state and exit, resuming when re-invoked?
 - Should checkpoints support post-build review (pause after all stories are built but before the backlog PR)?
 - How are notification hooks configured? Per-user? Per-project? Environment variables?
-- Could this integrate with NeuralNorris's own notification system (Twilio SMS, etc.)?
+- Could this integrate with the host project's own notification system (Twilio SMS, etc.)?
 - Should there be a "review-then-continue" UX where the human approves in the terminal and the orchestrator resumes automatically?
 
 **Relationship to interactive mode:** Checkpoints are a strict superset of the current interactive mode. Interactive mode is equivalent to `--checkpoints design,plan` plus interactive brainstorming questions. The checkpoint concept decouples "pause for review" from "ask questions during design."
@@ -1145,7 +1149,7 @@ claude --agent orchestrator \
 
 - [Agentic SDLC v1 Design](2026-03-08-agentic-sdlc-design.md) — Original blueprint: four agents, manual orchestration
 - [Plugin Architecture Appendix](2026-03-10-agentic-sdlc-plugin-architecture.md) — MCP-based adapter interfaces for PM/code-hosting/docs
-- [Self-Orchestration](2026-03-10-agentic-sdlc-self-orchestration.md) — NeuralNorris triggering its own SDLC
+- Self-Orchestration — the host project triggering its own SDLC
 - [Issue Templates](2026-03-10-agentic-sdlc-issue-templates-design.md) — Work item templates (Goal/Epic/Task)
 - [GitHub Issue Categorization](2026-03-10-agentic-sdlc-github-issue-categorization-design.md) — Label taxonomy and board categorization
 - [Work Item Taxonomy](2026-03-11-agentic-sdlc-workitem-taxonomy.md) — Goal → Epic → Task naming decision
@@ -1155,9 +1159,8 @@ claude --agent orchestrator \
 
 - [Agentic SDLC v1 Plan](../3-plans/2026-03-08-agentic-sdlc-plan.md) — v1 implementation plan
 - [Agentic SDLC v2 Plan](../3-plans/2026-03-09-agentic-sdlc-v2-plan.md) — v2 implementation plan
-- [Self-Orchestration Plan](../3-plans/2026-03-10-agentic-sdlc-self-orchestration-plan.md) — Self-orchestration implementation
+- Self-Orchestration Plan — Self-orchestration implementation
 - [GitHub Issue Categorization Plan](../3-plans/2026-03-10-agentic-sdlc-github-issue-categorization.md) — Label/categorization implementation
-- [Test Issue Cleanup Plan](../3-plans/2026-03-10-agentic-sdlc-test-issue-cleanup-plan.md) — Test issue hygiene
 
 ### ADRs
 
@@ -1183,7 +1186,7 @@ claude --agent orchestrator \
 
 ### Helper scripts (`scripts/`)
 
-| File | Purpose | Norris-specific? |
+| File | Purpose | Host-specific? |
 |------|---------|------------------|
 | `item-start.sh` | Posts "Work Started" comment on issue, records model/agent/timestamp | Yes — hardcoded `REPO` |
 | `item-review.sh` | Posts "Ready for Review" comment on issue, records commit hash | Yes — hardcoded `REPO` |
@@ -1193,32 +1196,32 @@ claude --agent orchestrator \
 | `dispatch-workflow.sh` | Full lifecycle CLI orchestration: design → plan → build → review → retro | Yes — hardcoded `REPO`, all board IDs |
 | `setup-labels.sh` | Creates all GitHub labels (hierarchy/*, type/*, difficulty/*, backlog/*). Idempotent | Yes — hardcoded `REPO` |
 | `fetch-pricing.sh` | Fetches Anthropic token pricing from pricing page, outputs JSON. Falls back to hardcoded defaults | Generic — no project refs |
-| `setup-field-guide-issues.sh` | One-off script to create issues for a specific backlog item (#89). Not reusable | NeuralNorris-only — skip when porting |
+| `setup-field-guide-issues.sh` | One-off script to create issues for a specific backlog item (#89). Not reusable | host-only — skip when porting |
 
 ### Script templates (`scripts/templates/`)
 
-| File | Purpose | Norris-specific? |
+| File | Purpose | Host-specific? |
 |------|---------|------------------|
 | `telemetry.md` | Markdown template for telemetry rendering: conditional blocks, variable placeholders, Mermaid Gantt theming | Generic — no project refs |
 
 ### Claude Code config (`.claude/`)
 
-| File | Purpose | Norris-specific? |
+| File | Purpose | Host-specific? |
 |------|---------|------------------|
 | `settings.json` | Tool permissions policy (allowed CLI commands) | Light — `dotnet` commands are .NET-specific |
 | `settings.local.json` | Permission overrides for orchestrator (`gh project:*`, `gh issue:*`) | Generic structure |
-| `launch.json` | VS Code debug configuration | Yes — `NN.Gateway`, port 5050. Skip when porting |
+| `launch.json` | VS Code debug configuration | Yes — `Host.Gateway`, port 5050. Skip when porting |
 | `.gitignore` | Ignores `state/` and `worktrees/` directories | Generic |
 | `state/` | Orchestrator state persistence directory (gitignored, runtime-only) | Generic structure |
 | `worktrees/` | Git worktree checkouts for isolated agent work (gitignored) | Generic structure |
 
 ### GitHub workflows (`.github/workflows/`)
 
-| File | Purpose | Norris-specific? |
+| File | Purpose | Host-specific? |
 |------|---------|------------------|
-| `sentinel.yml` | AI-powered security review on all PRs to `main` | Yes — repo reference, NeuralNorris security checklist |
+| `sentinel.yml` | AI-powered security review on all PRs to `main` | Yes — repo reference, the host project security checklist |
 | `auto-close-issues.yml` | Safety net: closes issues when PRs merge (extracts `Closes #N` from PR body) | Generic |
-| `ci.yml` | Build + test CI on push/PR to main | Yes — `NeuralNorris.slnx`, .NET 10 |
+| `ci.yml` | Build + test CI on push/PR to main | Yes — `the solution file`, the host stack |
 
 ### CLAUDE.md section breakdown
 
@@ -1229,13 +1232,13 @@ claude --agent orchestrator \
 | Section | Why it stays |
 |---------|-------------|
 | `## Build & Run` | Build commands, EF migrations, Docker — entirely tech-stack specific |
-| `## Architecture` | Project description, stack, dependency graph, architectural patterns, persistence — NeuralNorris-specific |
-| `### Project Dependency Graph` | `NN.Gateway`, `NN.Agent`, `NN.Core`, etc. |
-| `### Key Architectural Patterns` | Agentic loop, orchestration pipeline, tool system, context management, auth, config, personality, self-modification — all NeuralNorris application code |
+| `## Architecture` | Project description, stack, dependency graph, architectural patterns, persistence — host-specific |
+| `### Project Dependency Graph` | `Host.Gateway`, `Host.Agent`, `Host.Core`, etc. |
+| `### Key Architectural Patterns` | Agentic loop, orchestration pipeline, tool system, context management, auth, config, personality, self-modification — all the host project application code |
 | `### Persistence` | `NNDbContext`, `IdentityDbContext`, SQLite, auto-migration |
 | `## Testing Conventions` | xUnit, NSubstitute, in-memory SQLite — tech-stack specific |
-| `## CI` | `.NET 10`, `NeuralNorris.slnx` — tech-stack specific |
-| `## Project Documentation` | Doc paths are generic, but the descriptions reference NeuralNorris docs |
+| `## CI` | `the host stack`, `the solution file` — tech-stack specific |
+| `## Project Documentation` | Doc paths are generic, but the descriptions reference the host project docs |
 
 **Workflow sections (extract to framework):**
 
@@ -1257,24 +1260,24 @@ claude --agent orchestrator \
 
 **Notes:**
 - `### GitHub Conventions` contains **both** generic workflow rules (3-level hierarchy, status transitions, label taxonomy) **and** GitHub-specific implementation details (project board IDs, option IDs, `gh` commands). When extracting, the generic rules go to the framework's `CLAUDE.md.template`, and the GitHub-specific details go to the GitHub PM adapter.
-- The board status option IDs (`17425ce6`, `47fc9ee4`, etc.) and project ID (`PVT_kwHOADPMJc4BRg45`) appear in both `CLAUDE.md` and multiple scripts/agent files. These are the primary coupling points to NeuralNorris's specific GitHub Project.
+- The board status option IDs (`17425ce6`, `47fc9ee4`, etc.) and project ID (`<project-id>`) appear in both `CLAUDE.md` and multiple scripts/agent files. These are the primary coupling points to the host project's specific GitHub Project.
 
 ### Porting checklist
 
-Use this to copy files from NeuralNorris into a new framework repo. For each file, the "Action" column describes what to do with it. The full extraction architecture is in [Extraction & Packaging](2026-03-11-agentic-sdlc-extraction-design.md).
+Use this to copy files from the host project into a new framework repo. For each file, the "Action" column describes what to do with it. The full extraction architecture is in [Extraction & Packaging](2026-03-11-agentic-sdlc-extraction-design.md).
 
 **Agents — copy and rewrite:**
 
 | File | Action |
 |------|--------|
-| `orchestrator.md` | Copy. Remove all `gh` commands, board IDs, `carlosboeing` references. Replace with `sdlc.sh` adapter calls. Remove NeuralNorris architecture knowledge. |
-| `designer.md` | Copy. Remove NeuralNorris project vision/architecture references. Keep design phase workflow. |
+| `orchestrator.md` | Copy. Remove all `gh` commands, board IDs, `carlosboeing` references. Replace with `sdlc.sh` adapter calls. Remove the host project architecture knowledge. |
+| `designer.md` | Copy. Remove host project vision/architecture references. Keep design phase workflow. |
 | `planner.md` | Copy. Remove `gh issue create`/`gh project` commands, board IDs. Remove .NET/C# architecture knowledge. Replace with adapter calls and "Read the project's CLAUDE.md". |
-| `builder.md` | Copy. Remove .NET build commands, `NN.*` namespaces, DI patterns, xUnit/NSubstitute. Replace with "Read the project's CLAUDE.md for build commands, test framework, and conventions". |
+| `builder.md` | Copy. Remove .NET build commands, `Host.*` namespaces, DI patterns, xUnit/NSubstitute. Replace with "Read the project's CLAUDE.md for build commands, test framework, and conventions". |
 | `builder-haiku.md` | Copy. Same changes as `builder.md` (sync from rewritten `builder.md`). |
 | `builder-sonnet.md` | Copy. Same changes as `builder.md`. |
 | `builder-opus.md` | Copy. Same changes as `builder.md`. |
-| `reviewer.md` | Copy. Remove .NET patterns, DI checklist, NeuralNorris security checklist. Replace with "Read the project's CLAUDE.md for conventions". |
+| `reviewer.md` | Copy. Remove .NET patterns, DI checklist, the host project security checklist. Replace with "Read the project's CLAUDE.md for conventions". |
 | `retro.md` | Copy. Mostly generic already — remove `carlosboeing/agentic-sdlc-workflow` reference. |
 
 **Scripts — copy and rewrite:**
@@ -1304,15 +1307,15 @@ Use this to copy files from NeuralNorris into a new framework repo. For each fil
 | File | Action |
 |------|--------|
 | `auto-close-issues.yml` | Copy as-is. Fully generic. |
-| `sentinel.yml` | Copy. Replace NeuralNorris security checklist with a generic template. Replace repo reference. |
+| `sentinel.yml` | Copy. Replace the host project security checklist with a generic template. Replace repo reference. |
 
-**Do NOT copy (NeuralNorris-specific):**
+**Do NOT copy (host-specific):**
 
 | File | Why |
 |------|-----|
-| `setup-field-guide-issues.sh` | One-off script for NeuralNorris backlog #89 |
-| `launch.json` | VS Code debug config for `NN.Gateway` |
-| `ci.yml` | NeuralNorris build/test CI (`.NET 10`, `NeuralNorris.slnx`) |
+| `setup-field-guide-issues.sh` | One-off script for the host project backlog #89 |
+| `launch.json` | VS Code debug config for `Host.Gateway` |
+| `ci.yml` | Host-project build/test CI (`the host stack`, `the solution file`) |
 
 **CLAUDE.md — split into two files:**
 
@@ -1324,8 +1327,8 @@ Extract the workflow sections into a `CLAUDE.md.template` for the framework (see
 |-------|-----------|-------------|
 | `carlosboeing/agentic-sdlc-workflow` | 7 scripts, `sentinel.yml` | Config: `SDLC_REPO` |
 | `carlosboeing` | `orchestrator.md`, `dispatch-workflow.sh` | Config: `SDLC_GITHUB_OWNER` |
-| `PVT_kwHOADPMJc4BRg45` | `orchestrator.md`, `builder.md` + variants, `dispatch-workflow.sh`, `issue-merged.sh`, `CLAUDE.md` | GitHub adapter config: `SDLC_PROJECT_ID` |
-| `PVTSSF_lAHOADPMJc4BRg45zg_UfJc` | Same files | GitHub adapter config: `SDLC_STATUS_FIELD_ID` |
+| `<project-id>` | `orchestrator.md`, `builder.md` + variants, `dispatch-workflow.sh`, `issue-merged.sh`, `CLAUDE.md` | GitHub adapter config: `SDLC_PROJECT_ID` |
+| `<status-field-id>` | Same files | GitHub adapter config: `SDLC_STATUS_FIELD_ID` |
 | 6 status option IDs | Same files + `CLAUDE.md` | GitHub adapter config: `SDLC_STATUS_*` |
-| `.NET 10`, `dotnet`, `NeuralNorris.slnx` | `settings.json`, agents, `CLAUDE.md` | Removed — project's own `CLAUDE.md` |
-| `NN.*`, `ITool`, `IKernelTool`, Blazor, EF Core, SQLite | Agents, `CLAUDE.md` | Removed — project's own `CLAUDE.md` |
+| `the host stack`, `dotnet`, `the solution file` | `settings.json`, agents, `CLAUDE.md` | Removed — project's own `CLAUDE.md` |
+| `Host.*`, `ITool`, `IKernelTool`, web UI, EF Core, SQLite | Agents, `CLAUDE.md` | Removed — project's own `CLAUDE.md` |

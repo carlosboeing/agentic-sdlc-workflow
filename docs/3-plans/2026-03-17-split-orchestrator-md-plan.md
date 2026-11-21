@@ -1,6 +1,8 @@
 ---
+title: "Implementation Plan: Split orchestrator.md into Core Instructions and Scripts"
+type: plan
+authors: ["Carlos Boeing"]
 date: 2026-03-17
-author: carlosboeing
 agent: planner
 backlog: 150
 design: docs/2-design/2026-03-17-split-orchestrator-md.md
@@ -377,7 +379,7 @@ The overhead row is NOT included in the summary or breakdown tables automaticall
 **Test Plan:**
 - Run `wc -l` on the rewritten file -- must be in [480, 580] range
 - Grep for deleted content to verify removal:
-  - `grep -c "SdlcWorkflowTool\|ClaudeDispatchTool"` should return 0
+  - a grep for the legacy host-specific tool names should return 0
   - `grep -c "Legacy method"` should return 0
   - `grep -c "Gantt color tagging"` should return 0
 - Grep for required content to verify preservation:

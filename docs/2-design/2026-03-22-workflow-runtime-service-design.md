@@ -1,7 +1,8 @@
 ---
+type: design
+authors: ["Carlos Boeing"]
 title: Workflow Runtime Service Design
 date: 2026-03-22
-author: carlosboeing
 agent: designer
 status: draft
 backlog: 116
@@ -15,6 +16,8 @@ related:
 > **Status:** Draft
 
 # Design: Workflow Runtime Service
+
+> Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
 ## 1. Overview
 

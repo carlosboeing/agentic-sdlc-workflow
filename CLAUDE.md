@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> This file is the operating brief that the workflow's agents load at the start of every session: conventions, branch rules, dispatch and telemetry protocols. It was written for agents, not as an introduction. Readers should start with [README.md](README.md), then [docs/architecture.md](docs/architecture.md).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
@@ -8,7 +10,7 @@ This repository contains an **agentic SDLC workflow** — a set of specialized A
 
 ## Design Philosophy: Determinism First
 
-This workflow turns something inherently non-deterministic (AI/LLM output) into something deterministic and reliable (defined input → structured workflow → predictable output). Every design decision should reinforce this principle.
+This workflow surrounds non-deterministic model output with deterministic computation. Scripts compute run state, telemetry, wall-clock and critical path, cost estimates, board reconciliation and branch base commits. Phase order, wave grouping and halts are still driven by the orchestrator prompt, not by tested code, so this rule governs computation, not control flow. Every design decision should move more of the workflow onto the computed side.
 
 **The rule:** When a value can be computed deterministically from existing data, compute it. Never rely on an agent to remember, estimate, or manually track what a script can derive from the state file, config, or Git history.
 
@@ -20,27 +22,27 @@ This workflow turns something inherently non-deterministic (AI/LLM output) into 
 | Script with validation | Agent judgment call | Scripts are repeatable; judgment varies by context window |
 | Convention with enforcement | Convention with trust | Enforcement catches violations; trust assumes compliance |
 
-**Where AI/LLM intelligence belongs:** The non-deterministic strengths of AI — creativity, judgment, adaptation, self-healing — are valuable for:
+**Where AI/LLM intelligence belongs:** The non-deterministic strengths of AI — creativity, judgment, adaptation and failure diagnosis — are valuable for:
 - **Design and planning:** Brainstorming approaches, evaluating trade-offs, decomposing requirements
 - **Content creation:** Writing code, docs, and creative content that meets acceptance criteria
 - **Failure recovery:** Diagnosing unexpected errors, working around infrastructure issues, adapting to novel situations
 - **Code review:** Applying judgment about quality, security, and convention adherence
 
-**Where determinism must prevail:** The workflow infrastructure — dispatch sequencing, board management, telemetry computation, branch operations, state tracking, cost estimation — must be deterministic. These are the rails that make the AI's output reliable at scale. When an agent makes a mistake in infrastructure (wrong branch, incorrect cost, missed status update), the workflow's credibility degrades even if the content is perfect.
+**Where determinism must prevail:** The workflow infrastructure — dispatch sequencing, board management, telemetry computation, branch operations, state tracking, cost estimation — should be deterministic. Telemetry, cost estimation, state tracking, board reconciliation and branch bases are scripted today; dispatch sequencing is still prompt-driven (moving it into a tested script is item A09 of `docs/3-plans/2026-11-20-real-task-backlog-plan.md`). These are the rails that make a run auditable. When an agent makes a mistake in infrastructure (wrong branch, incorrect cost, missed status update), the workflow's credibility degrades even if the content is perfect.
 
 **Evidence:** Run 14 posted wall-clock = sequential duration (102m 43s instead of 74m 4s) because the orchestrator relied on `$SECONDS` tracking instead of computing the critical path from the state file's dispatch log. The state file already contained all the data — `started_at` timestamps naturally encode parallelism. The fix was to compute deterministically from what was already recorded, not to "try harder" to track `$SECONDS`. See `item-telemetry.sh` wall-clock auto-computation.
 
 ## Design Philosophy: Fault Tolerance
 
-The workflow runs long autonomous sessions where interruptions are expected: usage limits, crashes, network failures, window closures. The system must recover gracefully without human intervention.
+The workflow runs long sessions where interruptions are expected: usage limits, crashes, network failures, window closures. A restarted session should find its place from durable records, not from memory. Today that holds only in part: a human restarts the session, and the orchestrator works out where it stopped from the state file, Git and issue comments.
 
-**The rule:** Every workflow checkpoint must be recoverable from durable state. If the orchestrator is interrupted at any point and restarted — potentially on a different machine, in a different session, with no memory of prior work — it must be able to reconstruct its position and resume without data loss.
+**The rule:** Every workflow checkpoint should be recoverable from durable state. If the orchestrator is interrupted and restarted — possibly on a different machine, in a different session, with no memory of prior work — it should determine its position from the state file, Git and issue comments rather than from recall.
 
 **Where this applies:**
-- **State persistence:** The orchestrator state file captures every dispatch, phase transition, and telemetry data point. If the session is interrupted, the state file enables instant recovery.
-- **State reconstruction:** If the state file itself is lost, `state.sh reconstruct` rebuilds it from durable external sources (GitHub issue comments, branch state, board status). The telemetry comments posted on each issue are the write-ahead log that makes this possible.
-- **Idempotent operations:** Every phase can be re-entered safely. Branch creation checks for existing branches. Story dispatch checks for "Ready for Review" comments. Board updates are idempotent by design.
-- **No silent data loss:** Failed dispatches still record telemetry. Interrupted agents accumulate metrics defensively. The system never drops information that was paid for in tokens and time.
+- **State persistence:** The orchestrator state file records every dispatch, phase transition and telemetry data point, so an interrupted session can see where it stopped.
+- **State reconstruction (not implemented):** `state.sh reconstruct` is a stub that exits with an error. If the state file is lost, restart idempotently: stories that already have a "Ready for Review" comment are skipped, merged branches are left as they are, and prices are fetched again. The telemetry comments on each issue keep the measurements that were paid for.
+- **Idempotent operations:** Phases are written to be re-entered. Branch creation checks for existing branches. Story dispatch checks for "Ready for Review" comments. Board updates set an absolute status.
+- **No silent data loss:** Failed dispatches still record telemetry, and metrics from interrupted and resumed agents are summed, so information that was paid for in tokens and time is kept.
 
 **Where AI judgment belongs in recovery:** The orchestrator uses judgment to decide what to do after recovery (which phase to resume, whether to re-dispatch a failed builder, how to handle partial work). But determining *where we are* — reading the state file, checking GitHub, verifying branch state — must be deterministic and scripted.
 
@@ -89,7 +91,6 @@ Every design decision should consider the end-state architecture, but every impl
 ## Project Documentation
 
 - `README.md` — architecture overview, PM architecture diagram, project structure
-- `docs/1-discovery/VISION.md` — long-term vision and aspirations
 - `docs/CHANGELOG.md` — build history
 - `docs/2-design/` — feature design documents
 - `docs/3-plans/` — implementation plans
@@ -98,7 +99,17 @@ Every design decision should consider the end-state architecture, but every impl
 
 ## Configuration
 
-Workflow configuration lives in `.claude/agentic-sdlc-config.json`. See `docs/2-design/2026-03-15-configurable-workflow-settings.md` for field documentation. All scripts read from this config file via the shared `scripts/lib/config.sh` library.
+Workflow configuration lives in `.claude/agentic-sdlc-config.json`. Every field is described under `_fields` in `.claude/agentic-sdlc-config.example.json`; the March design `docs/2-design/2026-03-15-configurable-workflow-settings.md` is historical and lists `workflow.*` keys that no script read and that were removed in November 2026. All scripts read from this config file via the shared `scripts/lib/config.sh` library.
+
+**`pm.adapter`** — where work items go (read by `scripts/lib/pm.sh`):
+
+| Value | Work items | Writes to GitHub issues, labels, board |
+|-------|-----------|----------------------------------------|
+| `null` (shipped default) | Files under `workflowDir` (`.workflow/`) | No |
+| `"server"` | The optional workflow server's SQLite database while it runs; the files when it is not running | No (the server only reads issues from `github.repo`) |
+| `"github"` | The files, then GitHub issues, comments, labels and sub-issue links, written without blocking; board status when the board fields are set | Yes |
+
+Branch pushes and pull requests go to GitHub in every mode.
 
 **`reviewStrategy` section** — controls per-story review skipping:
 
@@ -148,7 +159,7 @@ Six specialized agents in `.claude/agents/`:
 - Reference `README.md` for architecture context (PM architecture diagram, project structure, workflow overview)
 - Write lesson files when encountering bugs, unexpected behavior, or missing conventions (see Lesson Conventions below)
 - **Browser automation / UI testing artifacts:** When taking screenshots or saving test artifacts using any browser automation tool (Playwright, Puppeteer, Cypress, Selenium, etc.), always save to a dedicated output directory (e.g., `.playwright-mcp/`, `.test-artifacts/`) — never to the project root or working directory. These artifacts should be gitignored. If the tool supports an `--output-dir` flag or equivalent configuration, use it.
-- **Local PM data lives in SQLite** (`.agentic-workflow/workflow.db`) via the workflow server — no files to commit. The `pm.adapter` config field names the remote sync target (e.g., `"github"` for dual-write to the GitHub API). The old file-based adapter (`adapters/pm/local/`) is retained for tests only. See `server/` directory and `docs/2-design/2026-03-22-workflow-runtime-service-design.md` for the server architecture.
+- **Where work items live depends on `pm.adapter`** (see Configuration). With the shipped default (`null`) they are files under `.workflow/`, written relative to the directory a script runs in, so agents in separate worktrees see each other's items only after the files are committed and merged on the integration branch: commit `.workflow/` changes with your work. With `"server"`, items live in SQLite (`.agentic-workflow/workflow.db`) while the workflow server runs. With `"github"`, the files are also mirrored to GitHub issues. See `scripts/lib/pm.sh`, the `server/` directory and `docs/2-design/2026-03-22-workflow-runtime-service-design.md`.
 
 ### Branch Conventions
 
@@ -221,7 +232,7 @@ Format: `**Blocked by:** none` or `**Blocked by:** #109, #110, #111`
 - Always present — use `none` explicitly, never omit the line
 - Use issue numbers with `#` prefix — renders as clickable links on GitHub
 - Optional parenthetical descriptions: `**Blocked by:** #109 (PM Abstraction Layer)`
-- Machine-parsed by the orchestrator: `grep -oP '(?<=Blocked by:\*\* ).*' | grep -oP '#\d+'`, and `[#<backlog>] Write design doc for X` / `[#<backlog>] Write implementation plan for X` / `[#<backlog>] Write retrospective for X` for doc issues. The backlog issue itself is also prefixed with `[#<N>]` by the orchestrator in Phase 0 (the number is known once the issue exists). This prefix disambiguates issues across features and makes them scannable on the project board.
+- Machine-parsed by the orchestrator with portable tools (BSD and GNU): `sed -n 's/.*Blocked by:\*\* *//p' | grep -oE '#[0-9]+'`. Title prefixes follow the same scheme: `[#<backlog>/ENN] Epic title`, `[#<backlog>/ENN-SNN] Story title`, and `[#<backlog>] Write design doc for X` / `[#<backlog>] Write implementation plan for X` / `[#<backlog>] Write retrospective for X` for doc issues. The backlog issue itself is also prefixed with `[#<N>]` by the orchestrator in Phase 0 (the number is known once the issue exists). This prefix disambiguates issues across features and makes them scannable on the project board.
 
 **Issue hierarchy (sub-issues):** All work is tracked via three-level GitHub sub-issue nesting:
 
@@ -245,7 +256,7 @@ Link sub-issues using `item-link-child.sh`:
 
 **Dependency diagrams on issues:** After the planner creates all issues, they MUST append the Mermaid dependency graph from the plan to the **issue description** (body) of the **backlog issue** (full cross-epic graph + dispatch plan table) and each **epic issue** (subset for that epic's stories). Use `./scripts/item-append-body.sh <N> "<content>"` to append below the existing body. This keeps dependency structure and wave assignments visible at the top of the issue page. See `planner.md` for the exact format.
 
-**GitHub Project board:** All issues live on the [Agentic SDLC Workflow Project](https://github.com/users/carlosboeing/projects/7) (project number 7, owner `carlosboeing`).
+**GitHub Project board:** All issues live on the configured project board (optional).
 
 Status field values and their meanings:
 
@@ -278,16 +289,16 @@ Adding an issue to the project and setting its status: use `item-create.sh` (whi
 
 ```bash
 # Add a pre-existing issue to project (does NOT set status — item will have status: null)
-gh project item-add 7 --owner carlosboeing --url <issue-url> --format json
+gh project item-add <project-number> --owner <owner> --url <issue-url> --format json
 
 # REQUIRED: Set status explicitly after adding
 ./scripts/item-set-status.sh <issue-number> in-progress
 
 # Or manually (use the option ID from the project field):
 # NOTE: gh project item-list output contains control characters that break jq -- always pipe through tr -d
-ITEM_ID=$(gh project item-list 7 --owner carlosboeing --format json --limit 100 | tr -d '\x00-\x1f' | jq -r '.items[] | select(.content.number == <issue-number>) | .id')
-gh project item-edit --project-id "PVT_kwHOADPMJc4BRg45" --id "$ITEM_ID" \
-  --field-id "PVTSSF_lAHOADPMJc4BRg45zg_UfJc" \
+ITEM_ID=$(gh project item-list <project-number> --owner <owner> --format json --limit 100 | tr -d '\x00-\x1f' | jq -r '.items[] | select(.content.number == <issue-number>) | .id')
+gh project item-edit --project-id "<project-id>" --id "$ITEM_ID" \
+  --field-id "<status-field-id>" \
   --single-select-option-id "<option-id>"
 ```
 
@@ -295,11 +306,13 @@ Status option IDs:
 
 | Status      | Option ID  |
 |-------------|------------|
-| Backlog     | `17425ce6` |
-| Ready       | `f75ad846` |
-| In Progress | `47fc9ee4` |
-| In Review   | `9bb97c15` |
-| Done        | `98236657` |
+| Backlog     | `<backlog-option-id>` |
+| Ready       | `<ready-option-id>` |
+| In Progress | `<in-progress-option-id>` |
+| In Review   | `<in-review-option-id>` |
+| Done        | `<done-option-id>` |
+
+Read the option IDs for your board from its Status field (`gh project field-list <project-number> --owner <owner> --format json`) and record them in `.claude/agentic-sdlc-config.json`.
 
 **DANGER: Never use `updateProjectV2Field` to add/modify status options.** That mutation replaces the entire option set, generating new IDs and wiping all existing item statuses. To add a new status option, use the GitHub web UI (Project → Settings → Status field) and then update the option IDs in this file.
 
@@ -307,7 +320,7 @@ Status option IDs:
 
 ```graphql
 query {
-  repository(owner: "carlosboeing", name: "agentic-sdlc-workflow") {
+  repository(owner: "<owner>", name: "<repo>") {
     issue(number: $N) {
       projectItems(first: 1) {
         nodes { id }
@@ -317,7 +330,7 @@ query {
 }
 ```
 
-This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exhausted, use `gh api` with REST endpoints as a fallback. Evidence: Run 10 lesson `e00-setup/2026-03-13-s00-rate-limit-item-list.md`.
+This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exhausted, use `gh api` with REST endpoints as a fallback. Evidence: Run 10 lesson `docs/4-reviews/lessons/synthetic-workloads/2026-03-13-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`.
 
 **Helper scripts:**
 
@@ -334,10 +347,10 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/item-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
 | `scripts/item-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--gantt-from-state <state-file>] [--gantt-mode <work\|wall-clock>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |
 | `scripts/lib/compute-dispatches.py --from-state <state-file> [--gantt] [--gantt-mode <work\|wall-clock>] [--pricing <file>] [--config <file>]` | Compute dispatch metrics (breakdown, summary, Gantt, fix cycles) from state or dispatch JSON. `--gantt-mode work` (default) collapses gaps; `wall-clock` uses absolute timestamps. |
-| `scripts/state.sh <subcommand> [args]` | Orchestrator state CRUD: init, update, get, overhead, lifecycle-duration, reconstruct |
+| `scripts/state.sh <subcommand> [args]` | Orchestrator state CRUD: init, update, get, overhead, lifecycle-duration, reconstruct (a stub that exits with an error) |
 | `scripts/item-close.sh <n>` | Close item + set board to Done |
 | `scripts/item-append-body.sh <n> <content>` | Append content to item body via PM dual-write |
-| `scripts/cleanup-post-merge.sh [<backlog-number>]` | Post-merge cleanup: stale branches, worktrees, state dirs, remote refs |
+| `scripts/cleanup-post-merge.sh [--dry-run] [<backlog-number>]` | Human post-merge step. Without a number: report only. With a number: removes that item's merged branches (local and `origin`), clean worktrees and run state; keeps unmerged branches, open-PR branches and dirty worktrees |
 | `scripts/check-board-drift.sh <n> <status>` | Diagnostic: set board status, re-verify at +10s and +30s for drift |
 | `scripts/reconcile-board.sh --from-state <state-file> [--epic-issues <json>] [--dry-run]` | Reconcile board statuses with state file (1 API query to read, 1 per fix) |
 | `scripts/validate-logs.sh` | Report on board-status, orchestrator, and drift logs |
@@ -452,7 +465,7 @@ Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Ever
 2. Clean up any stale artifacts before proceeding to merges: `git clean -fd` (after verifying no wanted files are affected)
 3. Verify each story branch was pushed to remote: `git ls-remote --heads origin <branch>` — worktree-isolated builders may not push automatically. If a branch is missing from remote, push it manually before merging.
 
-**This cleanup also applies before fix cycle dispatches.** When re-dispatching a builder for a fix cycle in worktree mode, run the same cleanup steps first. Stale artifacts from the original parallel wave may still be present and can leak into the fix cycle's commits. Evidence: Run 14 E01-S04 fix cycle 2 (commit `9aa16c7`) picked up E02-S01's `violation-quantum-bistro.md` from a stale worktree, requiring manual removal (commit `d537441`).
+**This cleanup also applies before fix cycle dispatches.** When re-dispatching a builder for a fix cycle in worktree mode, run the same cleanup steps first. Stale artifacts from the original parallel wave may still be present and can leak into the fix cycle's commits. Evidence: Run 14 E01-S04 fix cycle 2 (commit `9aa16c7`) picked up a content file from story E02-S01 left in a stale worktree, requiring manual removal (commit `d537441`).
 
 **Parallel dispatch git safety (defense-in-depth):** With worktree isolation enabled, these rules serve as a secondary safety net. They remain mandatory for any non-worktree parallel dispatch:
 - **Chain all git operations in a single Bash call:** `git checkout <branch> && git add <files> && git commit -m "msg"` — never split checkout and commit across separate Bash calls.
@@ -468,27 +481,29 @@ Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Ever
 The orchestrator can handle the entire lifecycle from design to retro:
 
 ```bash
-# Autonomous (recommended) — full live UI with real-time progress
-claude --agent orchestrator --dangerously-skip-permissions \
-  "Execute backlog item #42."
+# Interactive (start here) — designer/planner ask questions, wait for PR approval;
+# Claude Code asks before any command the allowlist does not cover
+claude --agent orchestrator
+
+# Autonomous, in a disposable clone — the project allowlist is the whole policy,
+# anything it does not cover is denied (docs/5-guides/running-safely-guide.md)
+claude --agent orchestrator --permission-mode dontAsk \
+  "autonomous — Execute backlog item #42."
 
 # Skip phases when design/plan already exist
-claude --agent orchestrator --dangerously-skip-permissions \
-  "Execute backlog item #42. Skip design and plan."
-
-# Interactive — designer/planner ask questions, wait for PR approval
-claude --agent orchestrator
+claude --agent orchestrator --permission-mode dontAsk \
+  "autonomous — Execute backlog item #42. Skip design and plan."
 
 # CLI dispatch with autonomous flag (always shows progress)
 ./scripts/dispatch-workflow.sh 42 --autonomous
 ./scripts/dispatch-workflow.sh 42 --skip-design --skip-plan
 ```
 
-**Headless mode (`-p`):** For CI/CD or headless compute, add `-p` to run without the interactive UI. Options: `-p --verbose` for turn-by-turn text logging, `-p --output-format stream-json` for machine-readable streaming events (pipe to `tee` for log files), or `-p` alone for silent execution. All are fully autonomous with `--dangerously-skip-permissions`.
+**Headless mode (`-p`):** For CI/CD or headless compute, add `-p` to run without the interactive UI, with `--permission-mode dontAsk` in a disposable clone. Options: `-p --verbose` for turn-by-turn text logging, `-p --output-format stream-json` for machine-readable streaming events (pipe to `tee` for log files), or `-p` alone for silent execution. A human still reviews and merges the backlog PR. `--dangerously-skip-permissions` belongs only inside an isolated container that holds nothing you care about.
 
 **Phase detection:** The orchestrator checks for existing design docs (`docs/2-design/`) and plans (`docs/3-plans/`) by matching the YAML frontmatter `backlog:` field (e.g., `grep -rl "^backlog: <N>$" docs/2-design/`). Raw content grep on the backlog number is unreliable for short numbers. If artifacts exist, those phases are skipped automatically.
 
-**Autonomous mode:** When the prompt includes "autonomous" or the orchestrator is run non-interactively, the designer and planner agents skip interactive questions (brainstorming skill, `AskUserQuestion`) and instead derive all requirements from the backlog issue. Design/plan PRs are auto-merged via `gh pr merge`. The structured design process is preserved — agents still explore approaches, document trade-offs, and flag assumptions.
+**Autonomous mode:** When the prompt includes "autonomous" or the orchestrator is run non-interactively, the designer and planner agents skip interactive questions (brainstorming skill, `AskUserQuestion`) and instead derive all requirements from the backlog issue. The orchestrator merges design and plan PRs into the integration branch with `git merge` and a push (see `orchestrator.md`, "Auto-merge protocol"); `gh pr merge` is denied to agent sessions. The structured design process is preserved — agents still explore approaches, document trade-offs, and flag assumptions.
 
 **Interactive mode:** When the orchestrator is run interactively without "autonomous", the designer and planner ask clarifying questions as normal, and the orchestrator waits for the human to merge PRs before proceeding.
 
@@ -496,7 +511,7 @@ claude --agent orchestrator
 
 **One PR per backlog item.** All work for a backlog item — design docs, plans, stories across all epics, retro, changelog, and lessons — ships in a single PR from `backlog/<N>-<slug>` to `main`. This PR stays open for human review and is never auto-merged by the orchestrator.
 
-**Squash merge the backlog PR:** When the human merges the PR, always use squash merge to keep `main` history clean:
+**Squash merge the backlog PR:** When the human merges the PR, always use squash merge to keep `main` history clean. This is a human command; `.claude/settings.json` denies `gh pr merge` and pushes to `main` in agent sessions:
 
 ```bash
 gh pr merge <N> --squash --delete-branch
@@ -587,7 +602,7 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 
 **Read:** `./scripts/state.sh get '<jq-path>'`
 
-**Fallback (no state file):** Run `./scripts/state.sh reconstruct <backlog-number>` to rebuild from GitHub issue comments, branch state, and board status. **Note:** `reconstruct` is currently a stub (not yet implemented). Until then, use idempotent restart: check "Ready for Review" comments, merged branches, re-fetch pricing.
+**Fallback (no state file):** `./scripts/state.sh reconstruct <backlog-number>` is intended to rebuild state from GitHub issue comments, branch state, and board status, but it is a stub that exits 1. **Note:** `reconstruct` is currently a stub (not yet implemented). Until then, use idempotent restart: check "Ready for Review" comments, merged branches, re-fetch pricing.
 
 See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full lifecycle and state readers table.
 
@@ -607,7 +622,7 @@ See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full l
 - ADRs → `docs/6-adrs/` (numbered: `NNNN-title.md`)
 - Diagrams → use Mermaid (`\`\`\`mermaid` code blocks) for all architecture, flow, and sequence diagrams in docs
 
-**Doc approval workflow:** Design docs and plans are written on `docs/<slug>` branches off the integration branch (`backlog/<N>-<slug>`) with a corresponding GitHub Issue (`type/docs`). A PR is opened targeting the integration branch (not `main`). **Merging the PR = approval.** In autonomous mode, the orchestrator auto-merges. In interactive mode, the human merges. The next phase (planner after design, builder after plan) cannot start until the PR is merged.
+**Doc approval workflow:** Design docs and plans are written on `docs/<slug>` branches off the integration branch (`backlog/<N>-<slug>`) with a corresponding GitHub Issue (`type/docs`). A PR is opened targeting the integration branch (not `main`). **Merging the PR = approval.** In autonomous mode, the orchestrator merges it with `git merge` (an agent approval, not a human one). In interactive mode, the human merges. The next phase (planner after design, builder after plan) cannot start until the PR is merged.
 
 ### Lesson Conventions
 
@@ -624,7 +639,7 @@ docs/4-reviews/lessons/
       YYYY-MM-DD-sNN-<slug>.md
 ```
 
-Example: `docs/4-reviews/lessons/2026-03-13-test-agentic-sdlc-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`
+Example: `docs/4-reviews/lessons/synthetic-workloads/2026-03-13-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`
 
 The date-prefixed directory groups lessons by feature, with epic subfolders beneath. The backlog issue number is stored in the retro doc's YAML frontmatter, not in the directory name. File names tie each lesson to the specific story where it was discovered. Use the `e00-setup/` subfolder for lessons discovered during design, plan, or orchestrator-setup phases before any epic begins.
 
@@ -632,27 +647,29 @@ The date-prefixed directory groups lessons by feature, with epic subfolders bene
 
 ```markdown
 ---
-date: 2026-03-09
-author: carlosboeing
-agent: reviewer
-story: "E03-S01 (#34) — CalendarToolPlugin with list and get functions"
-tags: [builder, di, testing, runtime-failure, review]
+date: 2026-03-22
+author: <github-username>
+agent: builder
+story: "E01-S02 (#12) — Add the export command"
+tags: [builder, wiring, testing, runtime-failure]
 severity: critical
 ---
 
-# DI Registration Blind Spot
+# Startup Wiring Blind Spot
 
 ## What happened
-Builder created service classes but didn't register them in
-ServiceCollectionExtensions. 3 critical runtime failures found by reviewer.
+The new command and its handler passed every unit test, but the running
+application never registered the command. The reviewer found the gap.
 
 ## Root cause
-Unit tests mock the DI layer, so missing registrations pass all tests.
+Unit tests built the handler with its dependencies passed in directly, so
+no test exercised the startup path that wires components together.
 
 ## Prevention
-- Builder MUST verify every new service is registered in the
-  corresponding ServiceCollectionExtensions file.
-- Reviewer MUST check DI wiring for any new service class.
+- Builder MUST add a test that starts the application the way production
+  does and calls the new behaviour through that path.
+- Reviewer MUST check that every new component is wired into the running
+  application.
 ```
 
 **YAML frontmatter fields:** `date` (ISO), `author` (GitHub username of the human collaborator), `agent` (agent role that produced the doc: `designer`, `planner`, `builder`, `reviewer`, `orchestrator`, `retro`, or `general`), `story` (issue ref + title), `tags[]` (freeform — common values: `builder`, `reviewer`, `orchestrator`, `design`, `architecture`, `testing`, `di`, `telemetry`, `github-api`), `severity` (`critical`, `high`, `medium`, `low`). Use lowercase for `status` values (`draft`, `approved`, `implemented`).
@@ -668,7 +685,7 @@ grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/   # orchestrator lessons
 grep -rl "tags:.*design" docs/4-reviews/lessons/         # designer lessons
 grep -rl "tags:.*architecture" docs/4-reviews/lessons/   # planner lessons
 # Scope to current feature for faster grep:
-grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
+grep -rl "tags:.*builder" docs/4-reviews/lessons/<backlog-issue>-<feature-slug>/
 ```
 
 #### Who reads and writes lessons
@@ -676,7 +693,7 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
 | Agent | Reads | Writes | When it writes |
 |-------|-------|--------|----------------|
 | Builder | Yes (before starting) | Yes | When it encounters a bug, unexpected behavior, or missing convention during implementation |
-| Reviewer | Yes (during review) | Yes | When it finds issues that represent a systemic pattern worth capturing |
+| Reviewer | Yes (during review) | No (no `Write` or `Edit` tool) | Reports lesson candidates in its review findings when it finds a systemic pattern; the retro records them |
 | Orchestrator | Yes | Yes | When dispatch or board operations fail unexpectedly |
 | Retro | Yes (all) | Yes (supplements) | When it identifies cross-story patterns that individual agents missed |
 | Designer | Yes | Yes | When it discovers constraints or trade-offs worth capturing for future designs |
@@ -690,7 +707,7 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
 | **Compiled** | After retro runs | On disk but deprioritized | Retro doc (`docs/4-reviews/`) |
 | **Archived** | After 3-5 epics | Moved to `lessons/archive/` or deleted | Retro doc only |
 
-**Active (current epic):** Builders and reviewers write lessons as they discover issues; agents working on later stories in the same epic grep them immediately. No gating, no compilation step.
+**Active (current epic):** Builders write lessons as they discover issues, and reviewers report lesson candidates that the retro records; agents working on later stories in the same epic grep them immediately. No gating, no compilation step.
 
 **Compiled (retro complete):** After the retro agent synthesizes lessons into the retro doc, the retro doc becomes the primary reference. Prefer `docs/4-reviews/lessons/<backlog-issue>-<slug>/YYYY-MM-DD-eNN-*-retro.md` over grepping individual lesson files for completed epics.
 
@@ -699,6 +716,8 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
 **Scoping grep for speed:** Scope to the current feature's lesson folder first (`docs/4-reviews/lessons/<issue>-<slug>/`), then fall back to retro docs for older features.
 
 ### Known Claude Code Platform Limitations (tested 2026-03-08)
+
+> These limitations were observed in March 2026, and several no longer hold. See `docs/architecture.md` for the current platform assumptions.
 
 These are limitations of Claude Code itself that affect how agents are dispatched:
 
@@ -723,7 +742,7 @@ grep -rn "<changed-concept>" --include="*.sh" scripts/
 
 # Examples:
 grep -rn "issue-telemetry" --include="*.md" .       # Changed a script flag
-grep -rn "308bbc1e" --include="*.md" .               # Changed a board status ID
+grep -rn "<old-status-option-id>" --include="*.md" .  # Changed a board status ID
 grep -rn "backlog/" --include="*.md" .claude/agents/  # Changed branch convention
 grep -rn "modelRouting" --include="*.md" .              # Changed a config field
 ```
@@ -790,15 +809,15 @@ This project validates the workflow pipeline using **test runs** — autonomous 
 
 | Run | Backlog | Topic | What it tested |
 |-----|---------|-------|---------------|
-| 8 | #1 | Office Nature Documentary | Worktree isolation |
-| 9 | #14 | CIA Cat Field Reports | Full autonomous lifecycle |
-| 10 | #27 | Orchestrator Logging + Nature Doc S2 | Orchestrator logging |
-| 11 | #41 | Board Drift Detection + Fairy Tale HR | Board drift detection |
-| 12 | #56 | Time Traveler's Yelp Reviews | Configurable workflow settings (config.json, model routing, pricing) |
-| 13 | #69 | Alien Tourist Bureau | Runtime data consolidation, live pricing, dispatches-from-state |
-| 14 | #83 | Interdimensional Health Inspections | Fix cycle validation, cross-epic merge |
+| 8 | #1 | Run 8 | Worktree isolation |
+| 9 | #14 | Run 9 | Full autonomous lifecycle |
+| 10 | #27 | Orchestrator Logging | Orchestrator logging |
+| 11 | #41 | Board Drift Detection | Board drift detection |
+| 12 | #56 | Run 12 | Configurable workflow settings (config.json, model routing, pricing) |
+| 13 | #69 | Run 13 | Runtime data consolidation, live pricing, dispatches-from-state |
+| 14 | #83 | Run 14 | Fix cycle validation, cross-epic merge |
 
-Runs 1-7 were executed in the original NeuralNorris repo (gavinkilbride/NeuralNorris, issues #57-#217).
+Runs 1-7 were executed in the repository where the workflow was first developed (an earlier host project); their issues are not part of this repository.
 
 ### Creating a Test Run
 
@@ -817,11 +836,10 @@ All test run assets are grouped under `test-agentic-sdlc/` subfolders within the
 
 | Asset | Convention | Example |
 |-------|-----------|---------|
-| **Design doc** | `docs/2-design/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>.md` | `docs/2-design/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption.md` |
-| **Plan doc** | `docs/3-plans/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>-plan.md` | `docs/3-plans/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption-plan.md` |
-| **Content output** | `test-output/test-agentic-sdlc-<slug>/` | `test-output/test-agentic-sdlc-supernatural-pet-adoption/` |
-| **Lesson folder** | `docs/4-reviews/lessons/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>/` | `docs/4-reviews/lessons/test-agentic-sdlc/2026-03-20-run15-supernatural-pet-adoption/` |
+| **Design doc** | `docs/2-design/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>.md` | `docs/2-design/test-agentic-sdlc/2026-03-20-run15.md` |
+| **Plan doc** | `docs/3-plans/test-agentic-sdlc/YYYY-MM-DD-runNN-<slug>-plan.md` | `docs/3-plans/test-agentic-sdlc/2026-03-20-run15-plan.md` |
+| **Lesson folder** | `docs/4-reviews/lessons/synthetic-workloads/YYYY-MM-DD-runNN-<slug>/` | `docs/4-reviews/lessons/synthetic-workloads/2026-03-20-run15/` |
 | **Labels** | `test-agentic-sdlc` on **all** issues (backlog, epics, stories, design, plan, retro) | — |
 
-Content files inside `test-output/test-agentic-sdlc-<slug>/` use descriptive names without prefix (e.g., `fire-elemental-adoptions.md`).
+Content output of test runs is not retained in the published tree, and neither are the per-run design and plan documents. Only the lessons and retros under `docs/4-reviews/lessons/synthetic-workloads/` are kept as engineering evidence.
 

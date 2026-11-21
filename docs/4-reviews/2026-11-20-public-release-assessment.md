@@ -44,7 +44,7 @@ The workflow was a real, working implementation with a dense record of failures,
 | An explicit rule for what is computed and what is judged, backed by an incident and by code | `CLAUDE.md` "Determinism First"; `compute-dispatches.py` with 252 offline tests |
 | Telemetry used to disprove the author's own decision | Reviewer routing reverted in `d6e8799` ([case study 1](../case-studies.md#1-a-cost-saving-hypothesis-that-telemetry-disproved)) |
 | Lessons, retrospectives and an adoption tracker that records declined proposals | 51 lesson files, 26 retrospectives, [retro recommendations tracker](retro-recommendations.md) |
-| An honest split of synthetic and infrastructure results | Fix-cycle rate 7.8 percent across 9 synthetic runs against 28.6 percent across 5 infrastructure runs |
+| An honest split of synthetic and infrastructure results | Per-run fix-cycle rate about 9 percent across 8 synthetic runs against about 24 percent across 6 infrastructure items (recomputed on 2026-11-21 from the analysis's master table; its summary said 7.8 and 28.6 percent) |
 | Isolation rules grounded in real collisions | [Case study 3](../case-studies.md#3-parallel-builders-collided-then-isolation-tightened-in-four-steps) |
 | Root-causing a race with an external system | [Case study 4](../case-studies.md#4-board-status-drift-traced-to-a-github-automation) |
 | Self-hosting | 11 backlog items changed the workflow's own scripts and server through the workflow |
@@ -86,7 +86,7 @@ The workflow was a real, working implementation with a dense record of failures,
 | `--dangerously-skip-permissions` as the recommended path | Offline first run; supervised interactive run; `dontAsk` allowlist inside a container for unattended runs |
 | "Self-improving system" | Retrospective-driven continuous improvement: the retro proposes, a human adopts or declines, a tracker records the outcome |
 | "100% completion rate and zero code correctness failures" | Across 10 synthetic prose runs, all planned stories were completed, judged by an LLM reviewer against structural criteria |
-| "17-story zero-fix streak, 100% first-pass approval" | Observed on prose workloads in Runs 9 to 11; infrastructure work ran at 28.6 percent on average and 67 percent on the largest build |
+| "17-story zero-fix streak, 100% first-pass approval" | Observed on prose workloads in Runs 9 to 11; infrastructure work ran at about 24 percent on average and 67 percent on the largest build |
 | "Infrastructure self-healing works" | Each recorded infrastructure failure led to a proposed convention change; recurrence was not measured and some classes recurred in new forms |
 | "Mandatory review, no exceptions" | Every backlog PR is reviewed; per-story review is skipped only under the configured skip tier |
 | "Idempotent restart" | Restart skips completed stories; reconstruction from GitHub is not implemented |

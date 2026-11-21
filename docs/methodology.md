@@ -74,7 +74,7 @@ This page maps each practice the workflow uses to its classical engineering line
 | O1 | Per-dispatch telemetry on issues and the PR body | DORA metrics [105][62] | Native OpenTelemetry metrics [48], GenAI agent spans [60] | Built; now platform-native |
 | O2 | Estimated cost, kept secondary to tokens and duration | Unit cost per change | Cost per accepted change [61] | Partial: budget library not wired in |
 | O3 | Gantt timeline, critical path, orchestrator overhead | Gantt charts, CPM [76] | Per-agent progress views [44] | Built; ahead of common practice (Inference) |
-| O4 | Amdahl ceiling: average wave speedup 1.22x, best 1.39x, ceiling 1.36x for 3-way parallelism with a 60 percent sequential fraction (8 runs) | Amdahl's law [78] | Scaling studies of agent systems [63] | Built |
+| O4 | Amdahl ceiling. Across the 14 analyzed runs, average speedup was 1.22x and the best was 1.39x; the 8 runs with parallel waves listed in the analysis average 1.29x. A 60 percent sequential model, assumed rather than measured, predicts about 1.36x for three-way parallelism | Amdahl's law [78] | Scaling studies of agent systems [63] | Built |
 | O5 | Fix-cycle rate as the quality signal, split by workload | Change fail rate, rework rate [62] | First-pass acceptance [30], rework rate [61] | Built; measured before merge only |
 | O6 | Hypotheses tested by telemetry and reverted | Evidence-based improvement [105] | Evals [39], re-test harness components on model change [51] | Built ([case study 1](case-studies.md#1-a-cost-saving-hypothesis-that-telemetry-disproved)) |
 | O7 | One lesson file per finding, by feature and epic | After-action reviews | One memory file per agent to avoid overwrites [54], compounding [32] | Built |

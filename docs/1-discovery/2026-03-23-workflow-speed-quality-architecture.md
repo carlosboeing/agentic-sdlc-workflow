@@ -21,6 +21,8 @@ related:
 
 > Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
+> **November 2026 calibration.** The context line below says 19 stories and 69 dispatches. The plan's story table and the retrospective list 18 story issues (#334 to #351), and the retrospective counts 66 dispatches: 1 designer, 1 planner, 32 builder and 32 reviewer dispatches. The 69 here also includes the PR review and retrospective phase, as the time breakdown's "Retro + PR review" row shows.
+
 > **Context:** This document captures findings and ideas from a deep-dive analysis of BL#116 (Workflow Runtime Service) — the largest backlog item executed through the workflow (19 stories, 6 epics, 69 dispatches, ~$50, ~6.5h wall clock). The discussion expanded from "why was this run slow?" into broader architectural questions about instruction layering, parallelism strategies, review models, and the workflow's path toward domain-agnostic plugin packaging.
 
 ## 1. BL#116 Run Data

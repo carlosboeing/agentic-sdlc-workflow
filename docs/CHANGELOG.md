@@ -33,7 +33,7 @@ Prepares the March 2026 system for a public first run: repaired, not extended. D
 
 Persistent Bun server that replaces the file-system PM adapter with SQLite, serves a React dashboard, provides a document viewer with inline comments, and exposes PM operations as MCP tools.
 
-**6 epics, 19 stories:**
+**6 epics, 18 stories:**
 
 - **E01: Server Foundation** — Bun project setup, Drizzle ORM schema (7 tables), PM service layer (6 services, 112 tests), server lifecycle with daemon management
 - **E02: HTTP API & Shell Adapter** — 20+ Hono REST endpoints, Zod validation, server PM shell adapter with fallback to local file adapter

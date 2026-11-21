@@ -109,9 +109,10 @@ Levels 3 and 4 act with your `gh` credentials. A run can:
 - create labels (`scripts/setup-labels.sh`)
 - add items to a Projects board and change their Status (only when a board is configured)
 - push branches; deleting merged branches on `origin` happens only when you run `scripts/cleanup-post-merge.sh <backlog-number>` after a merge
-- create, merge, comment on and edit pull requests, including telemetry written into PR bodies
+- create, comment on and edit pull requests, including telemetry written into PR bodies
+- in autonomous mode, merge design and plan PRs into the integration branch with `git merge` and a push (never into `main`)
 
-Levels 1 and 2 never do. Deny rules in `.claude/settings.json` block force pushes, repository deletion and `gh` DELETE calls even in unattended mode.
+Levels 1 and 2 never do. Deny rules in `.claude/settings.json` refuse `gh pr merge`, pushes to `main`, force pushes, remote branch deletion, the cleanup script, repository deletion and `gh` DELETE calls in every mode, and they apply before the folder is trusted. They match command text, not intent, so protect `main` with branch protection on your fork as well.
 
 ## What costs money
 

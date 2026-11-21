@@ -41,7 +41,7 @@ flowchart LR
 | Board tools | [`reconcile-board.sh`](../scripts/reconcile-board.sh), [`batch-set-status.sh`](../scripts/batch-set-status.sh), [`check-board-drift.sh`](../scripts/check-board-drift.sh) | Compute expected board status from the state file and fix differences. Skipped when no board is configured. | Built, tested |
 | Guards | [`check-retro-scope.sh`](../scripts/check-retro-scope.sh), [`ci.yml`](../.github/workflows/ci.yml) | Fail retro commits that touch code; server, telemetry and shell suites behind one `required` gate | Built November 2026 |
 | Runtime service | [`server/`](../server/) | Bun, Hono HTTP API, Drizzle and SQLite, an MCP stdio server with 13 tools, a React dashboard, a sync queue with retry and dead-letter handling, and a pull sync from GitHub | Experimental, optional; started by hand |
-| Permissions | [`.claude/settings.json`](../.claude/settings.json) | An allowlist shaped for `--permission-mode dontAsk`, plus deny rules for force pushes, remote branch deletion, hard resets, repository deletion and secret reads | Built November 2026; a filter, not an isolation boundary |
+| Permissions | [`.claude/settings.json`](../.claude/settings.json) | An allowlist shaped for `--permission-mode dontAsk`, plus deny rules for `gh pr merge`, pushes to `main`, force pushes, remote branch deletion, the post-merge cleanup script, hard resets, repository deletion and secret reads | Built November 2026; a filter, not an isolation boundary |
 | Legacy CLI path | `scripts/dispatch-workflow.sh`, `scripts/dispatch-story.sh` | The first version's terminal dispatch, before the integration-branch model | Historical |
 | Cost budget | `scripts/lib/cost-budget.sh` | A budget check library | Not wired in; `maxCostPerRun` is unset |
 
@@ -126,7 +126,7 @@ Halt conditions are declared in the orchestrator prompt in advance, not left to 
 | Retro scope guard or full test suite fails after the retro | Halt before documentation propagation (since November 2026) |
 | Backlog PR ready | Leave open; a human reviews and squash-merges |
 
-The permission allowlist does not itself block a merge into `main` (`gh pr *` is allowed); that boundary relies on the prompt and on branch protection, which is a repository setting. A PreToolUse check for it is part of backlog item A02.
+Deny rules in `.claude/settings.json` refuse `gh pr merge` and the usual forms of a push to `main` (`git push <remote> main`, `git push <remote> <ref>:main`) in every agent session, subagents included, and in every permission mode. The orchestrator therefore merges design and plan PRs into the integration branch with `git merge` and a push. Deny rules match the command text, so a differently written command (`git -C . push origin main`) or a script that pushes is not caught; branch protection on `main`, a repository setting this repository cannot ship, is the boundary that holds against those. A PreToolUse check that inspects the target branch is part of backlog item A02.
 
 ## Known platform limitations, then and now
 

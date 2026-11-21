@@ -492,7 +492,7 @@ claude --agent orchestrator
 
 **Phase detection:** The orchestrator checks for existing design docs (`docs/2-design/`) and plans (`docs/3-plans/`) by matching the YAML frontmatter `backlog:` field (e.g., `grep -rl "^backlog: <N>$" docs/2-design/`). Raw content grep on the backlog number is unreliable for short numbers. If artifacts exist, those phases are skipped automatically.
 
-**Autonomous mode:** When the prompt includes "autonomous" or the orchestrator is run non-interactively, the designer and planner agents skip interactive questions (brainstorming skill, `AskUserQuestion`) and instead derive all requirements from the backlog issue. Design/plan PRs are auto-merged via `gh pr merge`. The structured design process is preserved — agents still explore approaches, document trade-offs, and flag assumptions.
+**Autonomous mode:** When the prompt includes "autonomous" or the orchestrator is run non-interactively, the designer and planner agents skip interactive questions (brainstorming skill, `AskUserQuestion`) and instead derive all requirements from the backlog issue. The orchestrator merges design and plan PRs into the integration branch with `git merge` and a push (see `orchestrator.md`, "Auto-merge protocol"); `gh pr merge` is denied to agent sessions. The structured design process is preserved — agents still explore approaches, document trade-offs, and flag assumptions.
 
 **Interactive mode:** When the orchestrator is run interactively without "autonomous", the designer and planner ask clarifying questions as normal, and the orchestrator waits for the human to merge PRs before proceeding.
 
@@ -500,7 +500,7 @@ claude --agent orchestrator
 
 **One PR per backlog item.** All work for a backlog item — design docs, plans, stories across all epics, retro, changelog, and lessons — ships in a single PR from `backlog/<N>-<slug>` to `main`. This PR stays open for human review and is never auto-merged by the orchestrator.
 
-**Squash merge the backlog PR:** When the human merges the PR, always use squash merge to keep `main` history clean:
+**Squash merge the backlog PR:** When the human merges the PR, always use squash merge to keep `main` history clean. This is a human command; `.claude/settings.json` denies `gh pr merge` and pushes to `main` in agent sessions:
 
 ```bash
 gh pr merge <N> --squash --delete-branch

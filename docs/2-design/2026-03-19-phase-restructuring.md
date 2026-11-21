@@ -5,13 +5,15 @@ title: "Phase Restructuring: Parallel Story Lifecycles and Tiered Reviews"
 date: 2026-03-19
 agent: designer
 backlog: 243
-status: approved
+status: shipped
 revision: 2
 revision_date: 2026-03-19
 revision_reason: "Approach E (prompt augmentation) is infeasible due to subagent nesting hard cap. All approaches requiring builder-dispatches-reviewer are invalid. Revised to recommend Approach H (background dispatch with orchestrator polling)."
 ---
 
-> **Status:** Draft (Revision 2)
+> **Status:** Shipped in backlog item 243 (Revision 2)
+>
+> **November 2026 note:** The body recommends Approach H (parallel builds, then parallel review-and-fix units), and that is what shipped: the CHANGELOG entry for backlog item 243 records parallel review dispatch and parallel fix cycles. The revision note below names Approach F, and the `revision_reason` field gives H the description of F; both mean Approach H.
 >
 > **Revision note:** The original design recommended Approach E (Orchestrator-Driven Prompt Augmentation), which required builders to dispatch reviewers via the Agent tool. A confirmed platform constraint -- subagents cannot spawn other subagents -- makes this infeasible. This revision documents the constraint, re-evaluates all approaches, and recommends Approach F (Background Dispatch with Orchestrator Polling).
 

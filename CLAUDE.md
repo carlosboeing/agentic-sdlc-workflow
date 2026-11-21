@@ -707,7 +707,7 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/<backlog-issue>-<feature-slug>/
 | **Compiled** | After retro runs | On disk but deprioritized | Retro doc (`docs/4-reviews/`) |
 | **Archived** | After 3-5 epics | Moved to `lessons/archive/` or deleted | Retro doc only |
 
-**Active (current epic):** Builders and reviewers write lessons as they discover issues; agents working on later stories in the same epic grep them immediately. No gating, no compilation step.
+**Active (current epic):** Builders write lessons as they discover issues, and reviewers report lesson candidates that the retro records; agents working on later stories in the same epic grep them immediately. No gating, no compilation step.
 
 **Compiled (retro complete):** After the retro agent synthesizes lessons into the retro doc, the retro doc becomes the primary reference. Prefer `docs/4-reviews/lessons/<backlog-issue>-<slug>/YYYY-MM-DD-eNN-*-retro.md` over grepping individual lesson files for completed epics.
 

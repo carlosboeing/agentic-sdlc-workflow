@@ -11,7 +11,7 @@ This guide takes a stranger from a fresh clone to a supervised run without touch
 | Level | What you run | Needs Claude | Needs GitHub | Costs money | Mutates GitHub |
 |---|---|---|---|---|---|
 | 1. Offline first run | Telemetry computation on a fixture | No | No | No | No |
-| 2. Tests | Server, telemetry and shell tests | No | No | No | No |
+| 2. Tests | Server, telemetry and shell tests (`bun install` downloads packages once) | No | No | No | No |
 | 3. Supervised run | Orchestrator in an interactive session | Yes | Yes | Yes | Yes |
 | 4. Unattended run | Orchestrator with `--permission-mode dontAsk` | Yes | Yes | Yes | Yes |
 
@@ -21,15 +21,16 @@ This guide takes a stranger from a fresh clone to a supervised run without touch
 |---|---|---|
 | `git` | Everything | `git --version` |
 | `bash`, `jq`, `python3` (3.10+) | Scripts and telemetry | `jq --version && python3 --version` |
+| `pytest` for that Python | Telemetry tests (Level 2) | `python3 -m pytest --version`; install with `python3 -m pip install pytest` |
 | `bun` (1.1.39 or newer; 1.4.3 tested) | Server, MCP tools, frontend build | `bun --version` |
 | Claude Code CLI | Levels 3 and 4 only | `claude --version` |
 | `gh`, authenticated with the `repo` scope, plus `project` if you configure a board | Levels 3 and 4 only | `gh auth status` |
 
-Levels 1 and 2 need only the first three rows.
+Level 1 needs only `python3`. Level 2 needs the first four rows.
 
 ## 1. Offline first run
 
-Run the telemetry computation on its test fixture. It reads one JSON file, prints a JSON result, and does nothing else: no Claude, no GitHub, no board, no network.
+Run the telemetry computation on its test fixture. It needs only `python3`, reads one JSON file, prints a JSON result, and does nothing else: no Claude, no GitHub, no board, no network.
 
 ```bash
 python3 scripts/lib/compute-dispatches.py --from-state tests/fixtures/telemetry/state.json --gantt 2>/dev/null
@@ -39,7 +40,7 @@ Expected: one line of JSON whose `breakdown` field ends with `**Total (3 dispatc
 
 ## 2. Run the tests
 
-All three suites are offline.
+The suites need no Claude session, no GitHub access and no running server. One step uses the network: `bun install` downloads the server's packages from the npm registry the first time.
 
 ```bash
 # Server (SQLite, REST API, MCP tools, frontend components)
@@ -52,7 +53,7 @@ python3 -m pytest scripts/lib/test_compute_dispatches.py -q
 ./scripts/run-offline-tests.sh
 ```
 
-CI runs the same three commands (`.github/workflows/ci.yml`), so a green local run predicts a green CI run.
+CI (`.github/workflows/ci.yml`) runs these three suites, and also builds the frontend and runs the retro scope guard over the pushed commit range (it skips the guard when there is no base commit). To cover the same ground locally, also run `cd server && bun run build:frontend` and `./scripts/check-retro-scope.sh origin/main HEAD`.
 
 ### Build the frontend
 

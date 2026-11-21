@@ -18,6 +18,7 @@ The approach comes from applying the controls of large engineering organisations
 - **Execution model.** Independent stories run in parallel waves, one git worktree per agent, branched from one recorded commit. Review depth is tiered by difficulty, fix cycles stop at two, and difficulty labels route builders to models.
 - **A decision the evidence reversed.** Cheaper reviewers for easy stories were expected to save 15 to 20 percent. Telemetry showed twice the tokens and time for the same outcome on that workload, so the routing was removed ([case study 1](docs/case-studies.md#1-a-cost-saving-hypothesis-that-telemetry-disproved)).
 - **A failure the pipeline missed.** A retrospective commit silently reverted about 1,000 lines of reviewed code, and with no CI it reached `main`. It was found in November 2026, fixed, and closed with CI, a retro scope guard and a post-retro test run ([case study 2](docs/case-studies.md#2-a-retrospective-commit-that-reverted-reviewed-code)).
+- **Humans own `main`.** A human reviews and squash-merges every pull request to `main`; models never do. Agent sessions are denied `gh pr merge` and pushes to `main`.
 - **Not yet proven.** No run on real tasks outside the workflow itself, small samples, no external users, and control flow that is prompt-driven rather than tested code. See [Limitations](#limitations).
 
 ## How it works
@@ -112,7 +113,7 @@ Eight months later, most of the hand-built mechanics ship as platform features. 
 
 | Holds | Now a platform feature | Changes |
 |---|---|---|
-| Durable lifecycle records as handoffs | Worktree-isolated subagents and automatic sweeps | Control flow moves from a 662-line prompt to a tested script |
+| Durable lifecycle records as handoffs | Worktree-isolated subagents and automatic sweeps | Control flow moves from a prompt of roughly 670 lines to a tested script |
 | The determinism-first boundary | Wave execution of dependent tasks | Gates follow risk and reversibility, not one "autonomous" keyword |
 | Human merge authority and pre-declared halts | Per-call model and effort selection | Role boundaries enforced by tool permissions, not instructions |
 | Bounded fix loops and review tiers | Native OpenTelemetry cost and token metrics | A short instruction file plus path-scoped rules |
@@ -128,12 +129,12 @@ The first run is offline. It needs `python3` and touches no network, no Claude s
 python3 scripts/lib/compute-dispatches.py --from-state tests/fixtures/telemetry/state.json --gantt
 ```
 
-It prints JSON holding the telemetry tables and a Mermaid Gantt timeline for a three-dispatch fixture. Cost shows as a dash because no pricing data is cached. Then run the three offline test suites, the same ones CI runs:
+It prints JSON holding the telemetry tables and a Mermaid Gantt timeline for a three-dispatch fixture. Cost shows as a dash because no pricing data is cached. Then run the three test suites CI runs. They need Bun 1.1.39 or newer, Python 3.10+ with pytest (`python3 -m pip install pytest`), `jq` and `git`; `bun install` downloads the server's packages once, and nothing else uses the network:
 
 ```bash
 cd server && bun install --frozen-lockfile && bun test && cd ..   # 681 tests
 python3 -m pytest scripts/lib/test_compute_dispatches.py -q          # 252 tests
-./scripts/run-offline-tests.sh                                     # 34 shell suites
+./scripts/run-offline-tests.sh                                     # 36 shell suites
 ```
 
 A real run creates issues, branches and pull requests with your `gh` credentials and spends model tokens. Before trying one, read the [running-safely guide](docs/5-guides/running-safely-guide.md): it covers a supervised interactive run, the `dontAsk` allowlist for unattended runs, what mutates GitHub and how to clean up. Unattended runs belong in a disposable clone inside a container.

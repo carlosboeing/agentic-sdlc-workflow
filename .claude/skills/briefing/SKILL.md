@@ -213,8 +213,8 @@ Extract: recent commit activity, whether integration branch is ahead of main, an
 CLAUDE.md is already loaded into your context. Scan it for references to project documentation files — file paths, doc sections, or explicitly listed reference documents. Use judgment to identify which referenced docs are relevant to project orientation (architecture docs, vision docs, guides) vs operational details (script flags, config schemas).
 
 Examples of relevant references:
-- `docs/5-guides/PROJECT.md` → current architecture context
-- `docs/1-discovery/VISION.md` → strategic direction
+- `docs/architecture.md` → current architecture context
+- `docs/ROADMAP.md` → strategic direction
 - `docs/6-adrs/` → recent architectural decisions
 - `CONTRIBUTING.md` → team conventions
 

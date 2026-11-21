@@ -66,7 +66,6 @@ Be opinionated. Pick a recommendation and defend it.
 
 Before designing, read these files for context:
 
-- `docs/1-discovery/VISION.md` — long-term aspirations
 - `README.md` — architecture overview, PM architecture diagram, project structure
 - `CLAUDE.md` — build commands, conventions, project structure
 
@@ -82,7 +81,7 @@ Understand the project's architecture before proposing features. Read:
 - `CLAUDE.md` — architecture overview, dependency graph, key patterns
 - `README.md` — project structure, technology stack, PM architecture diagram
 
-Design around the project's existing patterns — DI registration, config management, data access, and service architecture. Don't propose features that break the existing dependency graph.
+Design around the project's existing patterns — component wiring, config management, data access, and service architecture. Don't propose features that break the existing dependency graph.
 
 ## Writing Docs
 
@@ -168,7 +167,7 @@ When you encounter a bug, unexpected behavior, missing convention, or anything w
 
 **When to write a lesson:**
 
-- You hit a bug that tests didn't catch (e.g., DI registration missing)
+- You hit a bug that tests didn't catch (e.g., a component never wired into the running application)
 - A tool or API behaved unexpectedly (e.g., gh defaults to 30 items)
 - You had to guess a convention that wasn't documented
 - You found a security issue (e.g., missing CSRF validation)
@@ -183,7 +182,7 @@ When you encounter a bug, unexpected behavior, missing convention, or anything w
 4. Write sections: What happened, Root cause, Prevention
 5. Commit the lesson alongside your implementation work
 
-**Example:** `docs/4-reviews/lessons/5-calendar-tool/e03-calendar-plugin/2026-03-09-s01-di-registration-blind-spot.md`
+**Example:** `docs/4-reviews/lessons/116-workflow-runtime-service/e02-item-routes/2026-03-22-s01-startup-wiring-di-blindspot.md`
 
 Lessons are your notes for future agents. Write them at the moment of discovery — context is lost if you defer.
 

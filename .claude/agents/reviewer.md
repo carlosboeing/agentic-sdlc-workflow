@@ -43,12 +43,12 @@ When reviewing a PR or set of changes:
 
 ## Convention Checklist
 
-### Service Registration
-- [ ] New services/providers are registered in the project's DI setup
-- [ ] **DI registration verified** — unit tests often mock the DI layer and will NOT catch missing registrations. The code will compile, tests will pass, but the service will be invisible at runtime.
+### Wiring
+- [ ] New components are wired into the running application where the project requires it (for example a dependency injection container, route table, plugin registry or command list)
+- [ ] **Wiring verified by a test that starts the application the way production does** — unit tests that pass dependencies in directly will NOT catch a missing registration. The code builds and the tests pass, but the component is absent at runtime.
 
 ### Data & Persistence
-- [ ] Database migrations present for schema changes (if applicable)
+- [ ] Schema migrations present for schema changes (if applicable)
 - [ ] Data access follows the project's established patterns (read CLAUDE.md)
 
 ### Configuration
@@ -57,8 +57,8 @@ When reviewing a PR or set of changes:
 - [ ] API keys and secrets use env vars or gitignored config files
 
 ### Code Quality
-- [ ] No `object` or `dynamic` types
-- [ ] DI follows existing patterns (scoped services, constructor injection)
+- [ ] No loose types where the language offers precise ones (for example `any`, `object` or `dynamic`)
+- [ ] Dependencies are created and passed the way the project already does it (read CLAUDE.md)
 - [ ] No silent exception swallowing — log or rethrow at system boundaries
 - [ ] No unnecessary abstractions (YAGNI)
 
@@ -77,7 +77,7 @@ When reviewing a PR or set of changes:
 ### Architecture
 - [ ] Changes follow the project dependency graph (no circular refs)
 - [ ] New abstractions placed in correct module/package (read CLAUDE.md for structure)
-- [ ] No unnecessary project reference additions
+- [ ] No unnecessary new dependencies between modules or packages
 
 ## Findings Format
 

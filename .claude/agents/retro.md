@@ -113,7 +113,7 @@ Both may touch only `docs/`, `CLAUDE.md` and `.claude/agents/`. The guard fails 
 
 Write the retro doc to: `docs/4-reviews/lessons/<backlog-issue>-<slug>/YYYY-MM-DD-eNN-<slug>-retro.md`
 
-Use this exact structure (based on `docs/4-reviews/lessons/5-calendar-tool/2026-03-09-e01-calendar-retro.md`):
+Use this exact structure (see `docs/4-reviews/lessons/364-github-sqlite-sync/2026-03-23-e01-e02-github-sqlite-sync-retro.md` for a filled-in example):
 
 ```markdown
 ---

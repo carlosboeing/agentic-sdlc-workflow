@@ -680,7 +680,7 @@ grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
 | Agent | Reads | Writes | When it writes |
 |-------|-------|--------|----------------|
 | Builder | Yes (before starting) | Yes | When it encounters a bug, unexpected behavior, or missing convention during implementation |
-| Reviewer | Yes (during review) | Yes | When it finds issues that represent a systemic pattern worth capturing |
+| Reviewer | Yes (during review) | No (no `Write` or `Edit` tool) | Reports lesson candidates in its review findings when it finds a systemic pattern; the retro records them |
 | Orchestrator | Yes | Yes | When dispatch or board operations fail unexpectedly |
 | Retro | Yes (all) | Yes (supplements) | When it identifies cross-story patterns that individual agents missed |
 | Designer | Yes | Yes | When it discovers constraints or trade-offs worth capturing for future designs |

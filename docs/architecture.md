@@ -32,7 +32,7 @@ flowchart LR
 | Component | Where | What it does | Status |
 |---|---|---|---|
 | Orchestrator | [`.claude/agents/orchestrator.md`](../.claude/agents/orchestrator.md) (662 lines) | Runs Phases 0 to 6, dispatches subagents, owns GitHub state and telemetry. Never writes code, designs, plans or reviews. | Built; control flow is prompt-driven |
-| Role agents | [`.claude/agents/`](../.claude/agents/) | Designer, planner, builder, reviewer, retro. Each file lists what the role must not do. Builder variants for Haiku, Sonnet and Opus differ only in the `model` field. | Built |
+| Role agents | [`.claude/agents/`](../.claude/agents/) | Designer, planner, builder, reviewer, retro. Each file lists what the role must not do. Builder variants for Haiku, Sonnet and Opus differ only in the `model` field. The reviewer has no `Write` or `Edit` tool (`disallowedTools`). | Built |
 | Operating brief | [`CLAUDE.md`](../CLAUDE.md) (828 lines) | Conventions every agent loads: branches, labels, hierarchy, dispatch protocol, telemetry rules, lessons | Built; longer than current guidance |
 | Work-item scripts | [`scripts/item-*.sh`](../scripts/) | The only way agents touch work items: create, get, list, comment, start, review, close, telemetry | Built, tested |
 | PM abstraction | [`scripts/lib/pm.sh`](../scripts/lib/pm.sh) and `scripts/lib/adapters/pm/` | One interface with adapters for the runtime service, GitHub and local files. Writes go to the local store first, then to GitHub without blocking. | Built, tested |
@@ -75,6 +75,10 @@ The rule in `CLAUDE.md` is "Determinism First": when a value can be computed fro
 | Retro scope check, CI test gates | Retrospective synthesis and convention proposals | Calling each script at the right moment |
 
 The third column is the main architectural weakness: a script cannot test it, and its reliability depends on context budget and instruction-following. Moving Phase 3 into a tested scheduling script is item A09 of the [real-task backlog](3-plans/2026-11-20-real-task-backlog-plan.md).
+
+## Role tool restrictions
+
+Since November 2026 the reviewer's frontmatter sets `disallowedTools: Write, Edit, NotebookEdit`, so it cannot edit files through those tools and reports lesson candidates in its findings instead. It keeps `Bash` because it runs the tests, so a shell command could still write a file: the restriction narrows the boundary rather than sealing it. The retro agent keeps `Write`, because writing the retrospective, lessons and convention proposals is its job. Its boundary is the retro scope guard: `scripts/check-retro-scope.sh`, run by the orchestrator after the retro and by CI on every pull request, fails any retro commit (`docs(retro)` or `docs(conventions)`) that touches a path outside `docs/`, `CLAUDE.md` and `.claude/agents/`.
 
 ## Isolation
 
@@ -178,7 +182,7 @@ Most of what the workflow built by hand in March is now a platform feature. What
 |---|---|---|
 | Control flow in a 662-line prompt | Phase 3 in a tested script or Agent SDK workflow with schema-checked agent returns | A09 |
 | One "autonomous" keyword | Risk tiers from changed paths and labels, with human gates on irreversible actions in every tier | A13 |
-| Role boundaries as instructions | Per-agent tools, `disallowedTools` and `permissionMode`; no edit tools for reviewers | A02 |
+| Role boundaries as instructions | Per-agent tools, `disallowedTools` and `permissionMode`. Started in November 2026: the reviewer has no edit tools | A02 |
 | 828-line `CLAUDE.md` | Under 200 lines plus path-scoped rules and skills | A11 |
 | Estimated cost, no budget enforcement | Native telemetry with GenAI attribute names, a budget halt | A12 |
 | Routing by model only | Routing on model and effort pairs, recorded per dispatch | A05 |

@@ -165,7 +165,7 @@ A real run creates issues, branches and pull requests with your `gh` credentials
 - **Synthetic workloads behind the early metrics.** 10 of the 21 executed backlog items were controlled prose workloads judged by an LLM reviewer against structural criteria. They test orchestration, not code quality. Their outputs were removed from the tree and remain in Git history.
 - **Small samples.** Most comparisons rest on 4 to 25 observations from runs that also changed the harness. Fix-cycle rates averaged 7.8 percent across 9 synthetic runs and 28.6 percent across 5 infrastructure runs, and reached 67 percent (12 of 18 stories) on the largest build.
 - **No real-task evaluation and no external users.** The [real-task backlog](docs/3-plans/2026-11-20-real-task-backlog-plan.md) defines one; it has not run.
-- **Prompt-driven control flow.** Phase order, wave dispatch and halts depend on the orchestrator following a long prompt. Role boundaries are instructions, apart from the retro guard.
+- **Prompt-driven control flow.** Phase order, wave dispatch and halts depend on the orchestrator following a long prompt. Most role boundaries are instructions; the exceptions are the retro scope guard and the reviewer, which has no edit tools.
 - **Estimated cost.** Cost is tokens times a blended rate, reported as estimated API-equivalent value. Prompt caching and orchestrator tokens are not counted.
 - **Raw run state was deleted after each merge.** The March analyses can be checked against issue and PR telemetry comments, but not recomputed from source data.
 - **Experimental runtime service.** It must be started by hand, and the scripts fall back to local files when it is down.

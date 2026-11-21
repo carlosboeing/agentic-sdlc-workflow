@@ -13,6 +13,8 @@ sources: GitHub issue telemetry comments and PR descriptions for backlog items 1
 
 > Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
+> **November 2026 calibration.** "Identical quality outcomes" in finding 1 means only that neither reviewer sample triggered a fix cycle; missed defects and review quality were not measured. Some summary figures do not reproduce from the master table in section 2. Section 10.1 compares "9 test runs" with "5 infra runs", but item 150 is typed as infrastructure in section 2: from that table the per-run fix-rate average is about 9 percent over 8 synthetic runs and about 24 percent over 6 infrastructure items, not 7.8 and 28.6 percent. Section 8.1 reports an average speedup of 1.22x, which matches the 14-run master table, while its own eight rows average 1.29x. The 60 percent sequential fraction in section 8.2 is an assumption, not a measurement.
+
 ## Executive Summary
 
 This document is a data-driven audit of the agentic SDLC workflow based on telemetry from **14 backlog items** (9 test content runs + 5 real infrastructure runs) completed between 2026-03-12 and 2026-03-19. Across these runs, the workflow delivered **97 stories** through **302 agent dispatches**, consuming **20.4M tokens** in **23h 9m of sequential agent time** (18h 20m wall-clock with parallelism).
@@ -195,7 +197,7 @@ Current routing sends hard stories to Opus. We have no data for sonnet on hard s
 Opus hard stories take 1.75x longer and consume 1.25x more tokens than sonnet medium stories. The quality difference is invisible in the data — both have 0% fix rates on test content. However:
 
 - Hard stories have cross-document references, complex acceptance criteria, and longer word count requirements.
-- Opus's 0% fix rate on hard stories includes R14's E01-S06 (Multiversal Buffet, 2m 48s) and E01-S07 (Entropy Tavern, 5m 26s) and R16's E02-S03 (Orchestra Notes, 13m 27s) — all passed first review.
+- Opus's 0% fix rate on hard stories includes R14's E01-S06 (2m 48s) and E01-S07 (5m 26s) and R16's E02-S03 (13m 27s) — all passed first review.
 - We don't know if sonnet would have the same success rate on these tasks.
 
 **The risk/reward calculation:** Switching hard→sonnet would save ~1m 53s and ~10K tokens per story. However, a single fix cycle adds ~4m duration and ~70K tokens (builder + reviewer re-dispatch). If sonnet's fix rate on hard stories exceeds ~25%, the duration savings are wiped out. Given the complexity differential between medium and hard stories, this is plausible but untested.

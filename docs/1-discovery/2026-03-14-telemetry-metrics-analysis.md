@@ -13,6 +13,8 @@ sources: GitHub issue telemetry comments (earlier host repository issues for Run
 
 > Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
 
+> **November 2026 calibration.** Three claims below overstate the evidence. "100% completion rate and zero code correctness failures": across the synthetic prose runs in this analysis, all planned stories were completed, judged by an LLM reviewer against structural criteria; code correctness was not what these runs tested. "Infrastructure self-healing works" and the "self-healing feedback loop": each recorded infrastructure failure led to a proposed convention change, a human adopted or declined it, recurrence was not measured, and some failure classes recurred in new forms ([case study 3](../case-studies.md#3-parallel-builders-collided-then-isolation-tightened-in-four-steps)). The "17-story zero-fix-cycle streak" was observed on prose workloads in Runs 9 to 11. The recalibrated wording is in the [public release assessment](../4-reviews/2026-11-20-public-release-assessment.md#claims-recalibrated).
+
 ## Executive Summary
 
 This document analyses telemetry data from 11 autonomous test runs of the agentic SDLC v2 workflow, executed between 2026-03-09 and 2026-03-14. Across 10 executed runs, the pipeline completed **58 stories** in **20 epics** with a **100% completion rate** and **zero code correctness failures**. Total estimated API cost was approximately **$55** across **~7.6M tokens** and **~158 agent dispatches**.

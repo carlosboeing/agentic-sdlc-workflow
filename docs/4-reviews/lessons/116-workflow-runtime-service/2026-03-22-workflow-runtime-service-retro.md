@@ -106,6 +106,8 @@ The 66 dispatches had a sequential agent time of 400m 22s but the actual wall cl
 
 The lesson file `e02-item-routes/2026-03-22-s01-startup-wiring-di-blindspot.md` documents a critical DI wiring bug caught during E02-S01. The `startServer()` function never passed the database to `createApp()`, so all item routes were silently absent at runtime. Unit tests passed because they injected `db` directly. The fix cycle added startup wiring integration tests that exercise the full `startServer({db}) -> createApp({db}) -> routes` path. This pattern recurred across multiple stories and validates the retro recommendation that wiring tests are essential when DI layers exist.
 
+> **November 2026 calibration.** "Production-ready" in the heading below overstates the evidence. Bun and Drizzle were enough to finish 18 stories in this experimental implementation; 12 of them needed fix cycles, mostly because unit tests skipped the startup path. No production deployment or operational validation took place.
+
 ### 5. New technology stack (Bun + Drizzle) was production-ready
 
 All 18 stories built, tested, and passed using Bun's native test runner, SQLite driver, and bundler. No workarounds were needed for Bun-specific limitations. Drizzle ORM's migration system worked correctly for all 7 database tables. The Bun + Hono combination for HTTP routing was straightforward and required no special handling.

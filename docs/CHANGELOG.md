@@ -66,7 +66,7 @@ Persistent Bun server that replaces the file-system PM adapter with SQLite, serv
 
 ### Run 15 -- synthetic workload (backlog #290, 49m wall-clock)
 
-- **First production test of tiered review strategy:** 4 easy stories successfully bypassed per-story review (`review_tier = SKIP`), 1 medium story received full per-story review (`review_tier = REVIEW`) with 1 fix cycle (formatting issue)
+- **First end-to-end synthetic run of the tiered review strategy:** 4 easy stories successfully bypassed per-story review (`review_tier = SKIP`), 1 medium story received full per-story review (`review_tier = REVIEW`) with 1 fix cycle (formatting issue)
 - **Parallel dispatch validated:** 4 builders dispatched simultaneously in Wave 1, all completed successfully
 - **Content:** synthetic prose files: listings and guides (removed from the tree in November 2026; kept in Git history)
 - **Cross-reference validation:** E02-S03 correctly cross-referenced all six E01 entries by name with consistent details

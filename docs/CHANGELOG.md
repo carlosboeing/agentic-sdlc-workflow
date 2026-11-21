@@ -15,6 +15,13 @@ Prepares the March 2026 system for a public first run: repaired, not extended. D
 - **Docs:** README rewritten around evidence and human gates; new [architecture](architecture.md), [methodology](methodology.md), [case studies](case-studies.md), [running-safely guide](5-guides/running-safely-guide.md), ROADMAP, the [real-task backlog](3-plans/2026-11-20-real-task-backlog-plan.md) and the November 2026 research records; community health files and issue and PR templates
 - **Restored:** the backlog item 116 entry below, which `4d3ab9b` had deleted
 - **Run names:** synthetic run headings in this file now use run numbers instead of workload themes
+- **Release-candidate review fixes** (three cross-model reviews):
+  - `scripts/cleanup-post-merge.sh` reports only unless given a backlog number, deletes a branch only when its tip is in `origin/main` or in the merged PR's head, keeps open-PR branches, other items' branches and dirty worktrees, and has an offline test (`950be95`)
+  - deny rules for `gh pr merge`, pushes to `main` and the cleanup script; the orchestrator merges design and plan PRs into the integration branch with `git merge` (`950be95`, `f779d50`)
+  - the reviewer has no `Write` or `Edit` tool (`0fb1bb7`); the retro scope guard also checks `docs(conventions)` commits (`0d042da`)
+  - portable `sed` and `grep -E` instead of GNU `grep -oP` (`0451f26`); quoted Python heredocs in `fetch-pricing.sh`, with an offline test (`6bb8487`); stale test skip list removed (`1b93c02`)
+  - the shipped config uses the local file adapter with no GitHub writes, and unwired `workflow.*` keys are gone (`b6c4989`)
+  - CLAUDE.md, agent files and historical records recalibrated: no bypass-mode launches, no .NET remnants, labelled November 2026 calibration notes, corrected run-group, speedup and item 116 counts (`0769655`, `74de58a`, `07a7ebd`, `a77b99c`)
 
 ## 2026-03-23
 

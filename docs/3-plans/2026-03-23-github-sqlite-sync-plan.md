@@ -1,7 +1,8 @@
 ---
 title: "Implementation Plan: GitHub-to-SQLite Sync (Pull Direction)"
+type: plan
+authors: ["Carlos Boeing"]
 date: 2026-03-23
-author: carlosboeing
 agent: planner
 status: shipped
 backlog: 364

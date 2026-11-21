@@ -106,15 +106,15 @@ All costs normalized to current blended rates ($10/$6/$2 per MTok for Opus/Sonne
 
 | # | BL# | Type | Topic | Stories | Dispatches | Seq Duration | Wall Clock | Speedup | Tokens | Est. Cost | Fix Cycles | Fix Rate |
 |---|-----|------|-------|---------|------------|-------------|------------|---------|--------|-----------|------------|----------|
-| R8 | #1 | Test | Office Nature Doc | 5 | 16 | 39m 13s | ~33m | 1.19x | 770K | ~$4.79 | 1 | 20% |
+| R8 | #1 | Test | Run 8 | 5 | 16 | 39m 13s | ~33m | 1.19x | 770K | ~$4.79 | 1 | 20% |
 | R9 | #14 | Test | Run 9 | 5 | 14 | 31m 30s | 25m 37s | 1.23x | 649K | ~$4.44 | 0 | 0% |
 | R10 | #27 | Test | Orchestrator Logging | 6 | 16 | 47m 12s | 48m 29s† | 0.97x | 976K | ~$6.60 | 0 | 0% |
-| R11 | #41 | Test | Board Drift + Fairy Tale | 6 | 16 | 46m 25s | 40m 35s | 1.14x | 1,047K | ~$7.48 | 0 | 0% |
+| R11 | #41 | Test | Board Drift + Run 11 | 6 | 16 | 46m 25s | 40m 35s | 1.14x | 1,047K | ~$7.48 | 0 | 0% |
 | R12 | #56 | Test | Run 12 | 5 | 14 | 30m 43s | 25m 12s | 1.22x | 536K | ~$4.77‡ | 0 | 0% |
 | R13 | #69 | Test | Run 13 | 6 | 16 | 36m 1s | 27m 28s | 1.31x | 681K | ~$5.96 | 0 | 0% |
 | R14 | #83 | Test | Run 14 | 12 | 36 | 102m 43s | 74m 4s | 1.39x | 1,597K | ~$13.94 | 3 | 17% |
 | R15 | #150 | Infra | Split orchestrator.md | 5 | 20 | 111m 40s | 96m 45s | 1.15x | 2,570K | ~$22.67 | 2 | 40% |
-| R16 | #167 | Test | Silicon Valley Musical | 9 | 28 | 148m 33s | 116m 27s | 1.28x | 1,870K | ~$14.81 | 3 | 33% |
+| R16 | #167 | Test | Run 16 | 9 | 28 | 148m 33s | 116m 27s | 1.28x | 1,870K | ~$14.81 | 3 | 33% |
 | — | #105 | Infra | Orchestrator Improvements | 6 | 16 | 89m 55s | 82m 37s | 1.09x | 1,110K | ~$9.48 | 0 | 0% |
 | — | #106 | Infra | Telemetry Accuracy | 7 | 22 | 150m 57s | 118m 7s | 1.28x | 1,850K | ~$14.96 | 1 | 14% |
 | — | #109 | Infra | PM Abstraction Layer | 10 | 35 | 128m 40s | 97m 38s | 1.32x | 2,550K | ~$21.58 | 1 | 10% |

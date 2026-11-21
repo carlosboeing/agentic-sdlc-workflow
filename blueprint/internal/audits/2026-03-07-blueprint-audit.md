@@ -12,7 +12,7 @@
 
 ## Context
 
-This audit reviews the agentic-sdlc-blueprint repository — a documentation repo with 8 core design docs, a GitHub-native implementation guide, and a reference implementation for building an end-to-end agentic SDLC with Claude Code. The audit covers 8 dimensions: technical accuracy, MCP accuracy, GitHub Actions accuracy, internal consistency, cross-reference integrity, completeness, reference implementation quality, and real-world viability.
+This audit reviews the reference design (then a standalone documentation repository) with 8 core design docs, a GitHub-native implementation guide, and a reference implementation for building an end-to-end agentic SDLC with Claude Code. The audit covers 8 dimensions: technical accuracy, MCP accuracy, GitHub Actions accuracy, internal consistency, cross-reference integrity, completeness, reference implementation quality, and real-world viability.
 
 **Methodology:** Three parallel exploration agents read all 30+ files, followed by a Claude Code feature verification agent that checked every CLI flag and feature reference against official documentation. Findings from the exploration agents were then reconciled against verified facts — several initially-flagged issues were reclassified as false positives after verification confirmed the features exist.
 

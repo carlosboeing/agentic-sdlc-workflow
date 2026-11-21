@@ -83,8 +83,8 @@ For CI/CD environments, store the token as a repository secret named `GITHUB_PAT
 From the blueprint repository, copy the `starter-kit/` directory into your target project:
 
 ```bash
-cp -r /path/to/agentic-sdlc-blueprint/starter-kit/.claude .claude
-cp /path/to/agentic-sdlc-blueprint/starter-kit/.mcp.json .mcp.json
+cp -r /path/to/agentic-sdlc-workflow/blueprint/starter-kit/.claude .claude
+cp /path/to/agentic-sdlc-workflow/blueprint/starter-kit/.mcp.json .mcp.json
 ```
 
 ### 2. Customize `CLAUDE.md`

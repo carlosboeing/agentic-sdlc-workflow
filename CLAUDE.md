@@ -297,11 +297,13 @@ Status option IDs:
 
 | Status      | Option ID  |
 |-------------|------------|
-| Backlog     | `17425ce6` |
-| Ready       | `f75ad846` |
-| In Progress | `47fc9ee4` |
-| In Review   | `9bb97c15` |
-| Done        | `98236657` |
+| Backlog     | `<backlog-option-id>` |
+| Ready       | `<ready-option-id>` |
+| In Progress | `<in-progress-option-id>` |
+| In Review   | `<in-review-option-id>` |
+| Done        | `<done-option-id>` |
+
+Read the option IDs for your board from its Status field (`gh project field-list <project-number> --owner <owner> --format json`) and record them in `.claude/agentic-sdlc-config.json`.
 
 **DANGER: Never use `updateProjectV2Field` to add/modify status options.** That mutation replaces the entire option set, generating new IDs and wiping all existing item statuses. To add a new status option, use the GitHub web UI (Project → Settings → Status field) and then update the option IDs in this file.
 
@@ -727,7 +729,7 @@ grep -rn "<changed-concept>" --include="*.sh" scripts/
 
 # Examples:
 grep -rn "issue-telemetry" --include="*.md" .       # Changed a script flag
-grep -rn "308bbc1e" --include="*.md" .               # Changed a board status ID
+grep -rn "<old-status-option-id>" --include="*.md" .  # Changed a board status ID
 grep -rn "backlog/" --include="*.md" .claude/agents/  # Changed branch convention
 grep -rn "modelRouting" --include="*.md" .              # Changed a config field
 ```

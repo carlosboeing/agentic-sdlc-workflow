@@ -25,7 +25,7 @@ Introduce a structured AI-agent-driven software development lifecycle (SDLC) for
 | Sentinel + reviewer | Complementary — Sentinel for security on all PRs, reviewer for code quality |
 | Model routing | easy→Haiku, medium→Sonnet, hard→Opus |
 | Helper scripts | Bash (consistent with an earlier private project) |
-| Branch strategy | `epic/eNN-slug` → `eNN-sNN/slug`, no `norris/` prefix |
+| Branch strategy | `epic/eNN-slug` → `eNN-sNN/slug`, no `host/` prefix |
 | Sentinel trigger | All PRs to main |
 | Orchestration | Manual (human dispatches agents) |
 | External dependencies | None — workflow works with just the repo + `gh` CLI |
@@ -115,10 +115,10 @@ docs/
     VISION.md              # (moved from docs/)
   2-design/                # Feature design docs
     agent-orchestration.md # (moved from designs/)
-    self-aware-norris.md   # (moved from designs/)
+    self-aware-assistant.md   # (moved from designs/)
   3-plans/                 # Implementation plans
     2026-03-07-agent-orchestration.md  # (moved from plans/)
-    2026-03-08-self-aware-norris.md    # (moved from plans/)
+    2026-03-08-self-aware-assistant.md    # (moved from plans/)
   4-reviews/               # Code reviews, retros
   5-guides/                # How-to docs, reference
     PROJECT.md             # (moved from docs/)
@@ -283,7 +283,7 @@ Existing sections (Build & Run, Architecture, Testing, CI) remain unchanged.
 
 Single change to `.github/workflows/sentinel.yml`:
 
-Remove the `norris/` branch name filter so Sentinel triggers on all PRs to `main`. The workflow body remains unchanged — it still fetches the diff, calls Claude for security review, and posts findings.
+Remove the `host/` branch name filter so Sentinel triggers on all PRs to `main`. The workflow body remains unchanged — it still fetches the diff, calls Claude for security review, and posts findings.
 
 ---
 

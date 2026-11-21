@@ -118,7 +118,7 @@ while IFS= read -r issue; do
   else
     # No epic, no backlog — check if it's an unlabeled backlog item
     # Issues #1-#22 and #122-#127 are backlog items without backlog/* labels
-    if echo "$TITLE" | grep -qiE "^JWT auth|^Vector|^Smarter context|^Per-session|^Home automation|^Shell tool|^Image input|^Scheduled task|^Task result|^Push notification|^File system|^Proactive messages|^Pi deployment|^Reverse proxy|^Structured logging|^Usage metrics|^Automated database|^Replace InvokeToolAsync|^Fix appsettings|^Voice interface|^Proactive error|^Norris-initiated|^Cloud deployment|^Project bootstrapping|^Multi-repo|^Multi-feature|^Agentic SDLC as portable"; then
+    if echo "$TITLE" | grep -qiE "<host backlog title patterns>"; then
       echo "  backlog: #$NUMBER $TITLE"
       gh issue edit "$NUMBER" --repo "$REPO" --add-label "hierarchy/backlog"
     else

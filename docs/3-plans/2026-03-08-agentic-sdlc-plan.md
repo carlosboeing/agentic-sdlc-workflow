@@ -50,9 +50,9 @@ git commit -m "chore: create numbered SDLC docs directories"
 **Files:**
 - Move: `docs/VISION.md` → `docs/1-discovery/VISION.md`
 - Move: `docs/designs/agent-orchestration.md` → `docs/2-design/agent-orchestration.md`
-- Move: `docs/designs/self-aware-norris.md` → `docs/2-design/self-aware-norris.md`
+- Move: `docs/designs/self-aware-assistant.md` → `docs/2-design/self-aware-assistant.md`
 - Move: `docs/plans/2026-03-07-agent-orchestration.md` → `docs/3-plans/2026-03-07-agent-orchestration.md`
-- Move: `docs/plans/2026-03-08-self-aware-norris.md` → `docs/3-plans/2026-03-08-self-aware-norris.md`
+- Move: `docs/plans/2026-03-08-self-aware-assistant.md` → `docs/3-plans/2026-03-08-self-aware-assistant.md`
 - Move: `docs/PROJECT.md` → `docs/5-guides/PROJECT.md`
 - Remove: `docs/designs/` (empty after move)
 - Remove: `docs/plans/` (empty after move — note: new plans already in `docs/3-plans/`)
@@ -65,9 +65,9 @@ git commit -m "chore: create numbered SDLC docs directories"
 ```bash
 mv docs/VISION.md docs/1-discovery/VISION.md
 mv docs/designs/agent-orchestration.md docs/2-design/agent-orchestration.md
-mv docs/designs/self-aware-norris.md docs/2-design/self-aware-norris.md
+mv docs/designs/self-aware-assistant.md docs/2-design/self-aware-assistant.md
 mv docs/plans/2026-03-07-agent-orchestration.md docs/3-plans/2026-03-07-agent-orchestration.md
-mv docs/plans/2026-03-08-self-aware-norris.md docs/3-plans/2026-03-08-self-aware-norris.md
+mv docs/plans/2026-03-08-self-aware-assistant.md docs/3-plans/2026-03-08-self-aware-assistant.md
 mv docs/PROJECT.md docs/5-guides/PROJECT.md
 rmdir docs/designs docs/plans
 ```
@@ -418,7 +418,7 @@ Think about what makes a great personal AI assistant: proactive help without bei
 
 When recommending decisions, evaluate through three lenses:
 
-1. **Does it make Norris more useful?** — Every feature should measurably help the household
+1. **Does it make the host assistant more useful?** — Every feature should measurably help its users
 2. **Can it run on a Pi?** — ARM64, limited RAM, SQLite — scope ruthlessly
 3. **Does it compose well?** — New features should leverage existing tools, memory, and orchestration
 
@@ -1009,7 +1009,7 @@ grep -r "<old-pattern>" .claude/agents/
 
 Find this line in the Architecture section:
 ```
-**Sentinel**: GitHub Actions workflow (`sentinel.yml`) runs an AI-powered security review on PRs from `norris/` branches before merge.
+**Sentinel**: GitHub Actions workflow (`sentinel.yml`) runs an AI-powered security review on PRs from `host/` branches before merge.
 ```
 
 Replace with:
@@ -1037,12 +1037,12 @@ git commit -m "docs: add development workflow section to CLAUDE.md"
 **Files:**
 - Modify: `.github/workflows/sentinel.yml`
 
-**Step 1: Remove the `norris/` branch filter**
+**Step 1: Remove the `host/` branch filter**
 
 In `.github/workflows/sentinel.yml`, find line 10:
 
 ```yaml
-    if: startsWith(github.head_ref, 'norris/')
+    if: startsWith(github.head_ref, 'host/')
 ```
 
 Remove this line entirely. The workflow already triggers on PRs to `main` (line 4-5), so removing the `if` condition makes it run on all PRs.

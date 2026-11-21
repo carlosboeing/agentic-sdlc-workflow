@@ -46,7 +46,7 @@ The extraction must separate **process** (how work flows) from **knowledge** (wh
 
 ### Files that move to the framework
 
-| Category | Files | Norris-specific content to strip |
+| Category | Files | host-specific content to strip |
 |----------|-------|----------------------------------|
 | **Agents** | `.claude/agents/orchestrator.md`, `planner.md`, `designer.md`, `builder.md`, `builder-{haiku,sonnet,opus}.md`, `reviewer.md`, `retro.md` | All `.NET`, `Host.*`, `ITool`, `IKernelTool`, web UI, EF Core, SQLite, DI pattern references; all `gh` CLI commands and board IDs |
 | **Scripts** | `scripts/item-start.sh`, `item-review.sh`, `item-telemetry.sh`, `issue-merged.sh`, `dispatch-story.sh`, `dispatch-workflow.sh`, `setup-labels.sh`, `fetch-pricing.sh` | `REPO="carlosboeing/agentic-sdlc-workflow"`, project board IDs, status option IDs |

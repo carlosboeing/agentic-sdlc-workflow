@@ -74,7 +74,7 @@ The most significant trends:
 ### Run Progression Context
 
 - **Run 1:** Initial pipeline validation. CLI dispatch (`claude -p`) discovered broken inside nested sessions. Builders only — no reviewer or retro agents. All 9 stories ran sequentially.
-- **Run 2:** Planned but never executed. Would have tested 6-way parallel dispatch across 3 epics (Recipe Book, Travel Guide, Board Game).
+- **Run 2:** Planned but never executed. Would have tested 6-way parallel dispatch across 3 epics.
 - **Run 3:** First parallel dispatch (in-session, no worktree isolation). Board management races discovered. First run with reviewer and retro agents. 22 dispatches.
 - **Run 4:** Full lifecycle with structured per-phase telemetry. Board transitions validated. Workspace collision latent but not yet manifested. First fix cycle from `.gitignore` issue.
 - **Run 5:** First zero-fix run. Detailed acceptance criteria proven effective. All 5 stories approved on first review.

@@ -111,7 +111,7 @@ This is what makes v2 possible. Since all work products persist in shared storag
 flowchart TD
     subgraph Trigger ["Trigger (either)"]
         HU[Human: claude --agent orchestrator 'Build #5']
-        NO[Norris: shell_exec dispatch-workflow.sh 5]
+        NO[Host assistant: shell_exec dispatch-workflow.sh 5]
     end
 
     subgraph Orchestrator ["Orchestrator Agent"]
@@ -178,7 +178,7 @@ Compare with the [v1 sequence diagram above](#current-workflow-v1) — every `Hu
 
 ```mermaid
 sequenceDiagram
-    participant Human as Human / Norris
+    participant Human as Human / host assistant
     participant Orch as Orchestrator Agent
     participant Worker as CC Worker
     participant GH as GitHub (Issues, Board, PRs)
@@ -264,7 +264,7 @@ The designer and planner agents still follow their structured processes in auton
 
 **Role:** Drives the full lifecycle from design to retro, dispatching all other agents and managing GitHub state.
 
-**Trigger:** `claude --agent orchestrator "Execute backlog item #5"` or Norris via `shell_exec`.
+**Trigger:** `claude --agent orchestrator "Execute backlog item #5"` or the host assistant via `shell_exec`.
 
 **Capabilities:**
 
@@ -479,9 +479,9 @@ New script that orchestrates a full backlog item lifecycle:
 
 **Approval gates:** In interactive mode (default), the script pauses after design and plan phases, polling for human PR merge. In autonomous mode (`--autonomous`), design/plan PRs are auto-merged via `gh pr merge` immediately after the agent completes.
 
-#### Norris Integration
+#### Host assistant integration
 
-Norris invokes the same scripts via `shell_exec`:
+The host assistant invokes the same scripts via `shell_exec`:
 
 ```bash
 shell_exec(branch, "./scripts/dispatch-workflow.sh 5")
@@ -507,10 +507,10 @@ Required additions to `DevOpsConfig.ShellAllowlist`:
 ]
 ```
 
-Additional config changes for Norris:
+Additional config changes for the host assistant:
 
 - `ShellTimeoutSeconds`: increase to 1800+ (stories can take 10+ minutes)
-- `BranchPrefix`: relax from `norris/` to support `epic/` and story branches
+- `BranchPrefix`: relax from `host/` to support `epic/` and story branches
 - Auth: `claude setup-token` on the Pi for subscription-based CC CLI access
 
 ### Living Lessons
@@ -793,7 +793,7 @@ Every agent call consumes API tokens at pay-per-use rates. The Calendar build co
 
 | Activity | Cost model |
 | -------- | ---------- |
-| Orchestrator (CC agent or Norris planning) | Subscription (CC CLI) or minimal API (Norris) |
+| Orchestrator (CC agent or host assistant planning) | Subscription (CC CLI) or minimal API (host assistant) |
 | Designer | Subscription (CC CLI) |
 | Planner | Subscription (CC CLI) |
 | Builder x N | Subscription (CC CLI) |
@@ -838,14 +838,14 @@ The orchestrator reads the label from `gh issue view` and passes `--model` to th
 3. Test: orchestrator dispatches builder via Agent tool (in-session) and CLI (secondary)
 4. Test: CLI dispatch with `--model` flag correctly routes to haiku/sonnet/opus
 
-### Phase 4: Norris integration (optional, future)
+### Phase 4: Host assistant integration (optional, future)
 
 1. Configure `claude setup-token` on Pi
 2. Expand `ShellAllowlist` in production config
 3. Increase `ShellTimeoutSeconds` for long-running CC CLI sessions
 4. Relax `BranchPrefix` constraint
 5. Add "repo root" execution mode to `ShellExecTool` for `gh` commands
-6. Test: Norris receives "build backlog item #5" in chat and executes full workflow
+6. Test: the host assistant receives "build backlog item #5" in chat and executes full workflow
 
 ## Risks & Mitigations
 
@@ -1062,9 +1062,9 @@ Rates are fetched dynamically at session start. The blended rate assumes ~75% in
 
 | Decision | Rationale |
 | -------- | --------- |
-| CC CLI over native tool reimplementation | CC's agentic framework (Edit, Bash, Grep, error recovery) is battle-tested. Reimplementing it in Norris's DevOps tools would be inferior and expensive. |
+| CC CLI over native tool reimplementation | CC's agentic framework (Edit, Bash, Grep, error recovery) is battle-tested. Reimplementing it in the host assistant's DevOps tools would be inferior and expensive. |
 | Exit code communication, not stdout parsing | Side effects (commits, issue comments) are the communication channel. Parsing CC output is fragile and unnecessary. |
-| Shared scripts (either CC or Norris can call) | Maximum flexibility. Scripts are the orchestration API; the caller is interchangeable. |
+| Shared scripts (either CC or the host assistant can call) | Maximum flexibility. Scripts are the orchestration API; the caller is interchangeable. |
 | One lesson per file (not single LESSONS.md) | Avoids merge conflicts with parallel agents. Grep-friendly. Agents discover relevant lessons by grepping tags. Git-native (add file, no merge resolution). |
 | Agents write lessons in real-time, retro synthesizes | Capture learnings at the moment of discovery — agents forget context if deferred. After compilation, the retro doc becomes the primary reference and old lessons are eventually archived. |
 | Human approval gate for convention changes | The retro agent proposes, humans approve. Prevents runaway self-modification of the workflow. |
@@ -1186,7 +1186,7 @@ claude --agent orchestrator \
 
 ### Helper scripts (`scripts/`)
 
-| File | Purpose | Norris-specific? |
+| File | Purpose | Host-specific? |
 |------|---------|------------------|
 | `item-start.sh` | Posts "Work Started" comment on issue, records model/agent/timestamp | Yes — hardcoded `REPO` |
 | `item-review.sh` | Posts "Ready for Review" comment on issue, records commit hash | Yes — hardcoded `REPO` |
@@ -1200,13 +1200,13 @@ claude --agent orchestrator \
 
 ### Script templates (`scripts/templates/`)
 
-| File | Purpose | Norris-specific? |
+| File | Purpose | Host-specific? |
 |------|---------|------------------|
 | `telemetry.md` | Markdown template for telemetry rendering: conditional blocks, variable placeholders, Mermaid Gantt theming | Generic — no project refs |
 
 ### Claude Code config (`.claude/`)
 
-| File | Purpose | Norris-specific? |
+| File | Purpose | Host-specific? |
 |------|---------|------------------|
 | `settings.json` | Tool permissions policy (allowed CLI commands) | Light — `dotnet` commands are .NET-specific |
 | `settings.local.json` | Permission overrides for orchestrator (`gh project:*`, `gh issue:*`) | Generic structure |
@@ -1217,7 +1217,7 @@ claude --agent orchestrator \
 
 ### GitHub workflows (`.github/workflows/`)
 
-| File | Purpose | Norris-specific? |
+| File | Purpose | Host-specific? |
 |------|---------|------------------|
 | `sentinel.yml` | AI-powered security review on all PRs to `main` | Yes — repo reference, the host project security checklist |
 | `auto-close-issues.yml` | Safety net: closes issues when PRs merge (extracts `Closes #N` from PR body) | Generic |

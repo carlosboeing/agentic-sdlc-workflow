@@ -20,7 +20,7 @@ related:
 
 ## Summary
 
-This plan replaces the synthetic prose workloads (cat reports, poems, fictional handbooks) that exercised the agentic SDLC workflow in March 2026 with 19 real engineering tasks: 15 on the workflow repository itself and 4 in two public tools whose code the workflow did not write, quotacap and crossrev. Each task is bounded to an agent run of hours, has deterministic acceptance tests, carries a risk tier that decides its human gates, and maps to the 15 workflow capabilities the synthetic runs covered, with deliberate probes for a merge conflict, an interrupted run, interactive approval, fix-cycle exhaustion and planted defects. The plan also fixes what each run records and how results are reported with their scope, and it authorizes no run.
+This plan replaces the synthetic prose workloads that exercised the agentic SDLC workflow in March 2026 with 19 real engineering tasks: 15 on the workflow repository itself and 4 in two public tools whose code the workflow did not write, quotacap and crossrev. Each task is bounded to an agent run of hours, has deterministic acceptance tests, carries a risk tier that decides its human gates, and maps to the 15 workflow capabilities the synthetic runs covered, with deliberate probes for a merge conflict, an interrupted run, interactive approval, fix-cycle exhaustion and planted defects. The plan also fixes what each run records and how results are reported with their scope, and it authorizes no run.
 
 ## Document control
 

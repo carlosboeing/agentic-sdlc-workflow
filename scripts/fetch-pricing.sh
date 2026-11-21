@@ -37,12 +37,14 @@ _fetch_from_web() {
     return 1
   fi
 
+  # Quoted delimiter: the shell expands nothing inside the Python source. The
+  # downloaded file's path reaches Python as an argument, never as code.
   local result
-  result=$(python3 << PYEOF
+  result=$(python3 - "$tmpfile" << 'PYEOF'
 import json, re, sys
 from datetime import datetime, timezone
 
-with open("$tmpfile", "r", errors="replace") as f:
+with open(sys.argv[1], "r", errors="replace") as f:
     html = f.read()
 
 text = re.sub(r"<[^>]+>", " ", html)
@@ -51,9 +53,9 @@ text = re.sub(r"\s+", " ", text)
 pattern = re.compile(
     r"((?:Opus|Sonnet|Haiku)\s+[\d.]+)"
     r".{0,150}?"
-    r"Input\s+\\\$\s+([\d.]+)\s*/\s*MTok"
+    r"Input\s+\$\s+([\d.]+)\s*/\s*MTok"
     r".{0,80}?"
-    r"Output\s+\\\$\s+([\d.]+)\s*/\s*MTok"
+    r"Output\s+\$\s+([\d.]+)\s*/\s*MTok"
 )
 
 family_versions = {}
@@ -117,12 +119,13 @@ _fetch_from_litellm() {
     return 1
   fi
 
+  # Quoted delimiter and path as an argument, as in _fetch_from_web.
   local result
-  result=$(python3 << PYEOF
+  result=$(python3 - "$tmpfile" << 'PYEOF'
 import json, re, sys
 from datetime import datetime, timezone
 
-with open("$tmpfile") as f:
+with open(sys.argv[1]) as f:
     data = json.load(f)
 
 # Find latest Claude models (direct Anthropic, not AWS/GCP/Azure variants)

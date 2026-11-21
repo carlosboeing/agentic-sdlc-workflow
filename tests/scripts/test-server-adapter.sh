@@ -716,21 +716,34 @@ assert_contains "pm_add_label_calls_labels_subpath" "/labels" "$LABEL_FN_BODY"
 echo ""
 
 # =========================================================================
-# Test Group 21: Config sets pm.adapter to server
+# Test Group 21: pm.adapter "server" is read from config; the shipped
+# default is local-only
 # =========================================================================
 echo "Test Group 21: Config pm.adapter value"
 
+SERVER_CFG=$(mktemp)
+echo '{"pm": {"adapter": "server"}}' > "$SERVER_CFG"
 TMPOUT=$(mktemp)
-bash --norc --noprofile -c "
+_CFG_FILE_OVERRIDE="$SERVER_CFG" bash --norc --noprofile -c "
   source '$CONFIG_SH'
   echo \"CFG_PM_ADAPTER=\$CFG_PM_ADAPTER\"
 " > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 CFG_OUTPUT=$(cat "$TMPOUT")
-rm -f "$TMPOUT"
+rm -f "$TMPOUT" "$SERVER_CFG"
 
 assert_exit_zero "Config_loads_ok" "$EXIT_CODE"
 assert_contains "PM_adapter_is_server" "CFG_PM_ADAPTER=server" "$CFG_OUTPUT"
+
+TMPOUT=$(mktemp)
+bash --norc --noprofile -c "
+  source '$CONFIG_SH'
+  echo \"CFG_PM_ADAPTER=[\$CFG_PM_ADAPTER]\"
+" > "$TMPOUT" 2>&1
+CFG_OUTPUT=$(cat "$TMPOUT")
+rm -f "$TMPOUT"
+
+assert_contains "Shipped_default_is_local_only" "CFG_PM_ADAPTER=[]" "$CFG_OUTPUT"
 
 echo ""
 

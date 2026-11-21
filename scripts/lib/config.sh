@@ -73,8 +73,9 @@ CFG_ROUTE_MEDIUM=$(_cfg '.modelRouting.medium' "sonnet")
 CFG_ROUTE_HARD=$(_cfg '.modelRouting.hard' "opus")
 
 # --- PM adapter ---
-# Sync target for dual-write (typically "github"). The local PM is always the
-# workflow server (SQLite via HTTP API); pm.adapter names the remote to sync to.
+# Optional sync target. Work items always live in the local adapter; null (the
+# default) means local files only, "github" adds fire-and-forget GitHub writes,
+# "server" opts in to the experimental runtime service. See scripts/lib/pm.sh.
 CFG_PM_ADAPTER=$(_cfg '.pm.adapter' "")
 
 # --- Workflow directory (top-level, project-scoped) ---
@@ -90,7 +91,8 @@ fi
 # Retain alias for backward compatibility with existing local adapter code
 CFG_LOCAL_WORKFLOW_DIR="$CFG_WORKFLOW_DIR"
 
-# --- Cost budget ---
+# --- Cost budget (read only by scripts/lib/cost-budget.sh, which no workflow
+# step calls yet; not an enforced spend cap) ---
 CFG_MAX_COST_PER_RUN=$(_cfg '.workflow.maxCostPerRun' "null")
 
 # --- Review strategy ---

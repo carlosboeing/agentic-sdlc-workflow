@@ -8,7 +8,7 @@ Prepares the March 2026 system for a public first run: repaired, not extended. D
 
 - **Reference design merged** under `blueprint/` with its history, marked historical and unexecuted; the starter kit's approve-all hook replaced, its agents and scripts repaired, and the kit labelled illustrative
 - **Synthetic outputs removed from the tree:** workload outputs, per-run designs and plans, and file-adapter residue are gone from the current tree and remain in Git history; lesson folders renamed to neutral run names; lifecycle records sanitized and given a historical note
-- **Regression fixed:** the code reverted by retro commit `4d3ab9b` is restored (`72f7476`); server 681 of 681, telemetry 252 of 252 and offline shell 34 of 34 pass
+- **Regression fixed:** the code reverted by retro commit `4d3ab9b` is restored (`72f7476`); server 681 of 681, telemetry 252 of 252 and offline shell 36 of 36 pass
 - **CI:** server, telemetry and offline shell jobs behind a single `required` gate, SHA-pinned actions, Dependabot for GitHub Actions and the server packages (`ab3d57e`)
 - **Retro scope guard:** `scripts/check-retro-scope.sh` fails `docs(retro)` commits that touch code; it runs in CI and in the orchestrator after the retro, followed by the full test suite (`b5a4212`)
 - **Safe defaults:** owner board IDs removed and board work skipped when unconfigured (`93c7598`); permissions shaped for `--permission-mode dontAsk` with deny rules, and the logging hook fixed for the `Agent` tool name (`4be6d23`, `57aabfa`); built frontend assets untracked (`00e2db0`)

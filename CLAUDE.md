@@ -330,7 +330,7 @@ query {
 }
 ```
 
-This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exhausted, use `gh api` with REST endpoints as a fallback. Evidence: Run 10 lesson `e00-setup/2026-03-13-s00-rate-limit-item-list.md`.
+This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exhausted, use `gh api` with REST endpoints as a fallback. Evidence: Run 10 lesson `docs/4-reviews/lessons/synthetic-workloads/2026-03-13-run10-orchestrator-logging/e00-setup/2026-03-13-s00-rate-limit-item-list.md`.
 
 **Helper scripts:**
 
@@ -602,7 +602,7 @@ The orchestrator must capture `duration_ms`, `total_tokens`, and `tool_uses` fro
 
 **Read:** `./scripts/state.sh get '<jq-path>'`
 
-**Fallback (no state file):** Run `./scripts/state.sh reconstruct <backlog-number>` to rebuild from GitHub issue comments, branch state, and board status. **Note:** `reconstruct` is currently a stub (not yet implemented). Until then, use idempotent restart: check "Ready for Review" comments, merged branches, re-fetch pricing.
+**Fallback (no state file):** `./scripts/state.sh reconstruct <backlog-number>` is intended to rebuild state from GitHub issue comments, branch state, and board status, but it is a stub that exits 1. **Note:** `reconstruct` is currently a stub (not yet implemented). Until then, use idempotent restart: check "Ready for Review" comments, merged branches, re-fetch pricing.
 
 See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full lifecycle and state readers table.
 

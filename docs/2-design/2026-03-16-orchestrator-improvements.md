@@ -12,6 +12,8 @@ status: draft
 # Design: Orchestrator Improvements
 
 > Historical record (March 2026). Measurements come from controlled synthetic workloads and early infrastructure runs; see [case studies](../case-studies.md) for scoped findings.
+>
+> November 2026 calibration: "100% completion rate and zero organic fix cycles" describes synthetic prose runs judged against structural criteria; it does not measure code quality or missed defects.
 
 > **Status:** Draft
 

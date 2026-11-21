@@ -90,7 +90,7 @@ The workflow was a real, working implementation with a dense record of failures,
 | "Infrastructure self-healing works" | Each recorded infrastructure failure led to a proposed convention change; recurrence was not measured and some classes recurred in new forms |
 | "Mandatory review, no exceptions" | Every backlog PR is reviewed; per-story review is skipped only under the configured skip tier |
 | "Idempotent restart" | Restart skips completed stories; reconstruction from GitHub is not implemented |
-| "~500 tests" | 681 server tests, 252 telemetry tests and 34 offline shell suites, all passing after the fix |
+| "~500 tests" | 681 server tests, 252 telemetry tests and 36 offline shell suites, all passing after the fix |
 | Per-run cost tables | Estimated API-equivalent value at a blended rate; caching and orchestrator tokens excluded |
 | "Turns non-deterministic output into deterministic output" | Moves state, telemetry and board operations into tested scripts; phase sequencing remains instruction-following |
 

@@ -11,7 +11,7 @@ related:
   - 2026-03-10-agentic-sdlc-plugin-architecture.md
 ---
 
-> **Note:** This document is historical context for its backlog item. For the current PM architecture (script layer, inline comments, dual-write adapters), see the [PM Architecture diagram in README.md](../../README.md#project-management-architecture).
+> **Note:** This document is historical context for its backlog item. For the current PM architecture (script layer, inline comments, dual-write adapters), see the [PM abstraction section of the architecture document](../architecture.md#pm-abstraction-and-the-runtime-service).
 
 
 # Design: PM Abstraction Layer

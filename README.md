@@ -1,573 +1,175 @@
 # Agentic SDLC Workflow
 
-> A fully autonomous software development lifecycle powered by AI agents — from design to deployed PR, with zero human intervention.
+A human-governed agentic SDLC for Claude Code: an orchestrator agent carries one backlog item through design, planning, dependency-ordered parallel builds, review and a retrospective, and opens one pull request that a human reviews and merges.
 
-This project implements an **agentic software development lifecycle (SDLC)** where specialized AI agents collaborate to deliver features end-to-end. An orchestrator dispatches designer, planner, builder, reviewer, and retro agents — each with a defined role, running as [Claude Code](https://claude.ai/code) subagents. The entire workflow runs autonomously: a single command produces a reviewed, tested, merge-ready pull request.
+**Status:** Experimental. A March 2026 implementation of a human-governed agentic SDLC, repaired in November 2026 for a safe first run. The method is maintained in [agentic-toolkit](https://github.com/carlosboeing/agentic-toolkit) and [crossrev](https://github.com/carlosboeing/crossrev).
+
+## What it is
+
+This repository engineers the development system around coding agents, not the agents themselves. Specialized agents do the design, code and review work; tested scripts own state, telemetry, branch and board operations; a human owns every merge to `main` and every other step that cannot be undone. In short: scripts compute, models judge, humans own the irreversible gates.
+
+The approach comes from applying the controls of large engineering organisations (design review, decomposition, isolation, separation of duties in review, CI, telemetry, blameless retrospectives) to coding agents, then running the result and measuring it.
+
+## In two minutes
+
+- **What ran.** In March 2026 the workflow carried 21 backlog items in this repository from issue to merged pull request: 10 synthetic content runs that exercise orchestration paths, and 11 items that changed the workflow's own scripts and runtime service. The record is public: 296 issues, 68 pull requests, 51 lesson files and 26 retrospectives.
+- **Handoffs are artifacts, not chat history.** Backlog issue, design document, plan with epic and story issues and a dependency graph, one branch per story, one pull request per backlog item. Each step reads the previous step's files.
+- **Control model.** Code computes wall-clock, critical path, cost, run state and board reconciliation. Models write designs, code and review verdicts. Pre-declared halts (merge conflict, third fix cycle, open dependency, repeated dispatch failure) hand control back to a human.
+- **Execution model.** Independent stories run in parallel waves, one git worktree per agent, branched from one recorded commit. Review depth is tiered by difficulty, fix cycles stop at two, and difficulty labels route builders to models.
+- **A decision the evidence reversed.** Cheaper reviewers for easy stories were expected to save 15 to 20 percent. Telemetry showed twice the tokens and time for the same outcome on that workload, so the routing was removed ([case study 1](docs/case-studies.md#1-a-cost-saving-hypothesis-that-telemetry-disproved)).
+- **A failure the pipeline missed.** A retrospective commit silently reverted about 1,000 lines of reviewed code, and with no CI it reached `main`. It was found in November 2026, fixed, and closed with CI, a retro scope guard and a post-retro test run ([case study 2](docs/case-studies.md#2-a-retrospective-commit-that-reverted-reviewed-code)).
+- **Not yet proven.** No run on real tasks outside the workflow itself, small samples, no external users, and control flow that is prompt-driven rather than tested code. See [Limitations](#limitations).
+
+## How it works
+
+```mermaid
+flowchart TD
+    H["Human writes and prioritizes a backlog issue"] --> O["Orchestrator agent"]
+    O --> D["Designer: design document PR"]
+    D --> P["Planner: epics, stories, dependency graph"]
+    P --> B["Builders in parallel waves, one worktree each"]
+    B --> R["Story review, by tier"]
+    R -->|"changes requested, at most 2 cycles"| B
+    R --> PR["One backlog PR to main"]
+    PR --> RR["PR review and retrospective"]
+    RR --> M["Human reviews and squash-merges"]
+    S["Scripts: state, telemetry, branches, board"] -.-> O
+```
+
+| Role | Does | Must not |
+|---|---|---|
+| Orchestrator | Runs Phases 0 to 6, dispatches subagents, manages GitHub state, posts telemetry | Write code, designs, plans or reviews; merge the backlog PR |
+| Designer | Compares two or three approaches, checks platform facts against current docs, writes the design | Plan or implement |
+| Planner | Splits the design into epics and stories with difficulty labels, dependencies and an ADR when needed | Implement |
+| Builder | Implements one story test-first on its own branch and worktree | Merge its own story |
+| Reviewer | Reads the diff, criteria and design, runs the tests, returns severity-ranked findings and a verdict | Edit files |
+| Retro | Turns lessons, telemetry and findings into a retrospective and proposed convention changes | Change code (checked by a guard since November 2026) |
+
+Agent definitions live in [`.claude/agents/`](.claude/agents/). The full design is in [docs/architecture.md](docs/architecture.md).
+
+## Who decides what
+
+| Decision | Humans | Deterministic code | Models |
+|---|---|---|---|
+| What to build | Write and prioritize the backlog issue | Parse `Blocked by` and halt on an open dependency | |
+| Design and plan | Approve by merging the PR (interactive mode) | | Write them; in autonomous mode the orchestrator merges them into the integration branch, which is agent approval, not human approval |
+| Build order and isolation | | One git worktree per dispatch; the base commit recorded in the state file | The planner draws the dependency graph; the orchestrator groups waves, creates branches and sequences phases by following its prompt |
+| Story quality | | Tests the builder and reviewer run | Review verdict and findings, bounded fix cycles |
+| Run accounting | | Wall-clock, critical path, tokens and estimated cost from the state file | |
+| Stop the line | Resolve conflicts, exhausted fix cycles and repeated failures | Retro scope guard and the CI `required` gate | Recognize a pre-declared halt condition |
+| Merge to `main` | Review and squash-merge every backlog PR | | Never |
+| Change the method | Adopt or decline each retrospective proposal by merging it | | Propose changes with evidence |
+
+The halts are written into the orchestrator prompt, so a model has to recognize them. Moving them into tested code is item A09 on the [real-task backlog](docs/3-plans/2026-11-20-real-task-backlog-plan.md).
+
+## Evidence
+
+Every number below is scoped to the runs it came from. The [case studies](docs/case-studies.md) give the full failure, diagnosis, change and outcome for each.
+
+### 1. A cost-saving hypothesis that telemetry disproved
+
+- **Hypothesis (backlog item 105).** Routing easy-story reviews from Opus to the cheaper Sonnet would cut review cost by 15 to 20 percent.
+- **Measurement.** On easy synthetic stories, 4 Sonnet reviews in one run averaged 57K tokens and 2m 20s; 15 Opus reviews across six earlier runs averaged 28K tokens and 1m 10s. Neither set triggered a fix cycle ([analysis, section 4](docs/1-discovery/2026-03-19-workflow-optimization-analysis.md)).
+- **Decision.** Routing removed in commit `d6e8799`, leaving one reviewer agent. The cost goal was later pursued by skipping per-story review for easy stories (backlog item 243), with the PR-level review kept.
+- **Scope.** Small samples from different runs, prose workloads, the March 2026 Opus and Sonnet models at March prices. On infrastructure stories (about 18 Sonnet and 25 Opus reviews) Sonnet used fewer tokens, so the result does not generalize. Zero fix cycles measures neither missed defects nor review quality.
+
+### 2. A retrospective commit that reverted reviewed code
+
+- **Failure.** In backlog item 116 the retrospective ran in parallel with the PR review. Its commit `4d3ab9b`, labelled `docs(retro)`, landed 55 seconds after a review fix (`4634d58`) and reverted it, together with about 1,000 lines across 37 files: a document API schema and route, frontend fixes, a script fallback, part of a startup-wiring test and the CHANGELOG entry. The PR reviewer had read an earlier snapshot, the repository had no CI, and the squash merge carried the revert to `main`.
+- **How it was found.** In November 2026, running the server suite from a clean export showed 623 of 635 tests passing, 12 failing and 2 files unable to load. Diffing each suspect commit against its parent pointed at `4d3ab9b`.
+- **Fix and controls.** Restored in `72f7476` (server 681 of 681 passing). CI with a single `required` gate (`ab3d57e`). A retro scope guard, `scripts/check-retro-scope.sh`, that fails any `docs(retro)` commit touching code, run in CI and in the orchestrator after the retro, followed by a full test run before the PR proceeds (`b5a4212`).
+- **What remains.** The guard keys on the commit subject. A check that a retro commit's parent is the current branch head is planned, not built.
+
+### More case studies
+
+3. [Parallel builders collided, then isolation tightened in four steps](docs/case-studies.md#3-parallel-builders-collided-then-isolation-tightened-in-four-steps)
+4. [Board status drift traced to a GitHub automation](docs/case-studies.md#4-board-status-drift-traced-to-a-github-automation)
+5. [A wall-clock bug that produced the determinism-first rule](docs/case-studies.md#5-a-wall-clock-bug-that-produced-the-determinism-first-rule)
+6. [A design invalidated by a platform limit](docs/case-studies.md#6-a-design-invalidated-by-a-platform-limit)
+7. [A 67 percent fix-cycle rate from an untested startup path](docs/case-studies.md#7-a-67-percent-fix-cycle-rate-from-an-untested-startup-path)
+
+A traced example from issue to merge: backlog [issue #364](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/364), its [design](docs/2-design/2026-03-23-github-sqlite-sync.md) and [plan](docs/3-plans/2026-03-23-github-sqlite-sync-plan.md), 5 stories with one fix cycle, [pull request #376](https://github.com/carlosboeing/agentic-sdlc-workflow/pull/376), its [retrospective](docs/4-reviews/lessons/364-github-sqlite-sync/2026-03-23-e01-e02-github-sqlite-sync-retro.md), squash commit `d6e6330`.
+
+## How it maps to current practice
+
+Most practices here are classical engineering applied to agents. The [methodology mapping](docs/methodology.md) traces each one.
+
+| Practice in this repository | Classical lineage | November 2026 term |
+|---|---|---|
+| Scripts compute, models judge | Separation of mechanism from policy | Harness engineering: computational and inferential sensors |
+| Design doc, plan, tasks before code | Design docs, ADRs, work breakdown | Spec-driven development |
+| Orchestrator with role subagents | Chief programmer team | Orchestrator-workers |
+| Dependency waves in worktrees | Critical-path scheduling, isolated workspaces | Wave execution, worktree isolation |
+| Severity-ranked review with bounded fix loops | Fagan inspection, separation of duties | Evaluator-optimizer loop |
+| Human merge authority and halt conditions | Four-eyes principle, stop the line | Risk-tiered human oversight, human-on-the-loop |
+| Retrospectives with an adoption tracker | Kaizen, blameless postmortems | Feedback flywheel |
+
+**Is this an "AI software factory"?** In the process sense, yes: sequenced stations, specialized roles, isolated work cells, inspection gates, a stop-the-line rule and line telemetry. In the 2026 autonomy sense, no: a "dark factory" removes human code review, and here a human reviews and merges every backlog PR. The honest label is a factory-style pipeline with human merge authority.
+
+## November 2026 revision
+
+Eight months later, most of the hand-built mechanics ship as platform features. The [architecture](docs/architecture.md#november-2026-revision) records the full assessment, based on the [state-of-practice research](docs/1-discovery/2026-11-20-state-of-practice-research.md).
+
+| Holds | Now a platform feature | Changes |
+|---|---|---|
+| Durable lifecycle records as handoffs | Worktree-isolated subagents and automatic sweeps | Control flow moves from a 662-line prompt to a tested script |
+| The determinism-first boundary | Wave execution of dependent tasks | Gates follow risk and reversibility, not one "autonomous" keyword |
+| Human merge authority and pre-declared halts | Per-call model and effort selection | Role boundaries enforced by tool permissions, not instructions |
+| Bounded fix loops and review tiers | Native OpenTelemetry cost and token metrics | A short instruction file plus path-scoped rules |
+| Retrospectives with recorded adoption | Built-in multi-agent code review | Raw run records kept so analyses can be recomputed |
+
+The March implementation receives the fixes a safe first run needs. New work goes through the [real-task evaluation](docs/ROADMAP.md) first.
+
+## Try it safely
+
+The first run is offline. It needs `python3` and touches no network, no Claude session and no GitHub state:
 
 ```bash
-claude --agent orchestrator --dangerously-skip-permissions \
-  "autonomous — Execute backlog item #42."
+python3 scripts/lib/compute-dispatches.py --from-state tests/fixtures/telemetry/state.json --gantt
 ```
 
-That's it. One command. The orchestrator reads the backlog item, designs the feature, creates an implementation plan, builds every story, reviews the code, writes a retrospective, and opens a PR — all without human input.
-
----
-
-## How It Works
-
-### The Agent Team
-
-Six specialized agents collaborate through the orchestrator, each with a focused responsibility:
-
-```mermaid
-graph TB
-    Human["👤 Human"]
-    Orch["🎯 Orchestrator<br/><i>Workflow conductor</i>"]
-    Des["🎨 Designer<br/><i>Feature design</i>"]
-    Plan["📋 Planner<br/><i>Epic & story breakdown</i>"]
-    Build["🔨 Builder<br/><i>TDD implementation</i>"]
-    Rev["🔍 Reviewer<br/><i>Code quality gate</i>"]
-    Retro["📝 Retro<br/><i>Lessons & conventions</i>"]
-
-    Human -->|"backlog item"| Orch
-    Orch -->|"dispatch"| Des
-    Orch -->|"dispatch"| Plan
-    Orch -->|"dispatch"| Build
-    Orch -->|"dispatch"| Rev
-    Orch -->|"dispatch"| Retro
-    Orch -->|"opens PR"| Human
-
-    style Orch fill:#8b5cf6,color:#fff
-    style Des fill:#06b6d4,color:#fff
-    style Plan fill:#06b6d4,color:#fff
-    style Build fill:#059669,color:#fff
-    style Rev fill:#dc2626,color:#fff
-    style Retro fill:#ca8a04,color:#fff
-    style Human fill:#374151,color:#fff
-```
-
-| Agent | What it does | Inputs | Outputs |
-|-------|-------------|--------|---------|
-| **Orchestrator** | Conducts the entire workflow. Dispatches agents, manages GitHub state, tracks telemetry, opens the final PR. Never writes code. | Backlog issue number | Reviewed PR ready for human merge |
-| **Designer** | Explores approaches, evaluates trade-offs, writes a design document. In interactive mode, asks the human clarifying questions. | Backlog issue | Design doc + PR |
-| **Planner** | Decomposes the design into epics and stories with difficulty labels. Creates GitHub Issues, dependency graphs, and the implementation plan. | Design doc | Plan doc + GitHub Issues + PR |
-| **Builder** | Implements a single story via TDD. Creates the branch, writes code, runs tests, commits. Model variants (sonnet/opus) routed by difficulty. | Story issue + branch | Working code on story branch |
-| **Reviewer** | Reviews every story and the final PR. Posts structured findings with severity levels. Can trigger fix cycles (re-dispatch builder → re-review). | Story branch or PR | Review verdict (APPROVE / REQUEST_CHANGES) |
-| **Retro** | Synthesizes lessons from the run, proposes convention changes, updates the changelog. | Completed epic | Retro doc + convention PRs |
-
-### The Workflow Phases
-
-The orchestrator executes these phases in order. Each phase has verification gates before proceeding to the next.
-
-```mermaid
-graph LR
-    P0["Phase 0<br/>Setup"]
-    P1["Phase 1<br/>Design"]
-    P2["Phase 2<br/>Plan"]
-    P3["Phase 3-4<br/>Read Plan &<br/>Build Graph"]
-    P5["Phase 5-6<br/>Build &<br/>Review"]
-    P7["Phase 7<br/>Merge"]
-    P8["Phase 8<br/>Open PR"]
-    P10["Phase 10<br/>Retro"]
-    P11["Phase 11<br/>Telemetry"]
-
-    P0 --> P1 --> P2 --> P3 --> P5 --> P7 --> P8 --> P10 --> P11
-
-    style P0 fill:#374151,color:#fff
-    style P1 fill:#06b6d4,color:#fff
-    style P2 fill:#06b6d4,color:#fff
-    style P3 fill:#374151,color:#fff
-    style P5 fill:#059669,color:#fff
-    style P7 fill:#374151,color:#fff
-    style P8 fill:#8b5cf6,color:#fff
-    style P10 fill:#ca8a04,color:#fff
-    style P11 fill:#374151,color:#fff
-```
-
-**Phase 0 — Setup:** Create an integration branch from `main`, add the backlog issue to the project board, initialize the orchestrator state file.
-
-**Phase 1 — Design:** Dispatch the designer agent. It explores approaches, documents trade-offs, and writes a design doc. The design PR is auto-merged into the integration branch.
-
-**Phase 2 — Plan:** Dispatch the planner agent. It reads the design, decomposes the feature into epics and stories, assigns difficulty labels, creates GitHub Issues with a dependency graph, and opens a plan PR. Auto-merged into the integration branch.
-
-**Phases 3-4 — Read Plan & Build Graph:** Parse the plan's dependency graph to determine which stories can run in parallel. Create epic and story branches.
-
-**Phases 5-6 — Build & Review:** For each wave of stories:
-1. Set board status to In Progress
-2. Dispatch builders (parallel for independent stories, sequential for dependent ones)
-3. Post telemetry on each story issue
-4. Dispatch a reviewer for every story (mandatory — no story merges without review)
-5. If the reviewer requests changes → re-dispatch builder → re-review (max 2 cycles)
-
-**Phase 7 — Merge:** Merge story branches into epic branches, then epic branches into the integration branch. Clean up merged branches.
-
-**Phase 8 — Open PR:** Open ONE pull request from the integration branch to `main`. The PR includes everything — design docs, plans, code, retro, changelog. The PR body lists `Closes #N` for every issue so merging auto-closes them all. **The orchestrator never auto-merges this PR** — it stays open for human review.
-
-**Phase 10 — Retro:** Dispatch the retro agent to synthesize lessons, propose convention changes, and update the changelog.
-
-**Phase 11 — Telemetry:** Post a full lifecycle telemetry summary on the backlog issue and PR, covering every agent dispatch across all phases.
-
-### Model Routing
-
-Builders are routed to different Claude models based on story difficulty:
-
-```mermaid
-graph LR
-    D["difficulty/easy"] --> S1["🟢 Sonnet<br/><i>~$6/M tokens</i>"]
-    M["difficulty/medium"] --> S2["🟡 Sonnet<br/><i>~$6/M tokens</i>"]
-    X["difficulty/hard"] --> O["🔴 Opus<br/><i>~$30/M tokens</i>"]
-
-    style S1 fill:#059669,color:#fff
-    style S2 fill:#ca8a04,color:#fff
-    style O fill:#dc2626,color:#fff
-```
-
-| Difficulty | Model | Use case |
-|-----------|-------|----------|
-| `difficulty/easy` | Sonnet | Single-file, config, docs, simple tests |
-| `difficulty/medium` | Sonnet | Multi-file, standard patterns, migrations |
-| `difficulty/hard` | Opus | Cross-project, new abstractions, security |
-
-Routing is configurable via `.claude/agentic-sdlc-config.json`. Sonnet replaced Haiku as the default for easy stories based on telemetry showing Haiku uses 3-4x more tokens for comparable output at similar cost.
-
-The planner assigns difficulty labels when creating story issues. The orchestrator reads the label and dispatches the matching builder variant. Non-builder agents (designer, planner, reviewer, retro) inherit the orchestrator's model.
-
-### Parallel Dispatch
-
-Independent stories run in parallel using git worktree isolation:
-
-```mermaid
-gantt
-    title Example: Run 9 — CIA Cat Reports (5 stories, 3 waves)
-    dateFormat HH:mm:ss
-    axisFormat %M:%S
-    tickInterval 5minute
-    Designer (3m32s)             :active, design, 00:00:00, 212s
-    Planner (4m56s)              :active, plan, after design, 296s
-    E01-S01 Kitchen Counter (2m30s) :active, w1s1, after plan, 150s
-    E01-S02 Red Dot (2m09s)      :active, w1s2, after plan, 129s
-    E01-S03 Midnight Zoomies (4m45s) :active, w1s3, after plan, 285s
-    Review E01-S01 (0m36s)       :crit, r1, after w1s3, 36s
-    Review E01-S02 (0m40s)       :crit, r2, after w1s3, 40s
-    Review E01-S03 (1m14s)       :crit, r3, after w1s3, 74s
-    E02-S01 Asset Profile (1m21s) :active, w2, after r3, 81s
-    Review E02-S01 (0m41s)       :crit, r4, after w2, 41s
-    E02-S02 Feline Threat (2m00s) :active, w3, after r4, 120s
-    Review E02-S02 (1m08s)       :crit, r5, after w3, 68s
-    Retro Agent (3m43s)          :active, retro, after r5, 223s
-    PR Review (2m18s)            :crit, prr, after retro, 138s
-```
-
-Wave 1 runs three builders simultaneously, each in its own git worktree. The orchestrator waits for all three to complete before reviewing and merging. Dependent stories (Wave 2 and 3) run sequentially.
-
----
-
-## Work Item Hierarchy
-
-All work is organized into exactly three levels:
-
-```mermaid
-graph TD
-    B["🏗️ Backlog Item<br/><i>User-facing capability</i><br/><code>hierarchy/backlog</code>"]
-    E1["📦 Epic<br/><i>Technical workstream</i><br/><code>hierarchy/epic</code>"]
-    E2["📦 Epic<br/><i>Technical workstream</i><br/><code>hierarchy/epic</code>"]
-    S1["📄 Story"]
-    S2["📄 Story"]
-    S3["📄 Story"]
-    S4["📄 Story"]
-
-    B --> E1
-    B --> E2
-    E1 --> S1
-    E1 --> S2
-    E2 --> S3
-    E2 --> S4
-
-    style B fill:#8b5cf6,color:#fff
-    style E1 fill:#06b6d4,color:#fff
-    style E2 fill:#06b6d4,color:#fff
-    style S1 fill:#059669,color:#fff
-    style S2 fill:#059669,color:#fff
-    style S3 fill:#059669,color:#fff
-    style S4 fill:#059669,color:#fff
-```
-
-| Level | Name | What it represents | Who creates it |
-|-------|------|--------------------|----------------|
-| **1** | **Backlog Item** | A user-facing feature. One orchestrator run. One PR to `main`. | Human |
-| **2** | **Epic** | A technical workstream within a backlog item. Groups related stories. | Planner |
-| **3** | **Story** | The smallest unit of work. One builder, one branch. | Planner |
-
-### Branch Strategy
-
-Everything flows through a single integration branch per backlog item:
-
-```
-main
-└── backlog/42-my-feature              ← integration branch (ONE PR to main)
-    ├── docs/design-doc                ← designer's PR (merged into integration)
-    ├── docs/plan                      ← planner's PR (merged into integration)
-    ├── epic/e01-first-workstream      ← epic branch
-    │   ├── e01-s01/story-one          ← story branch (merged into epic)
-    │   └── e01-s02/story-two          ← story branch (merged into epic)
-    └── epic/e02-second-workstream     ← epic branch
-        └── e02-s01/another-story      ← story branch (merged into epic)
-```
-
-Stories merge into epics. Epics merge into the integration branch. The integration branch becomes one squash-merged PR to `main`. Branches are deleted after merging.
-
-### Board Tracking
-
-Every issue moves through a Kanban-style workflow on the [GitHub Project board](https://github.com/users/carlosboeing/projects/7):
-
-```
-Backlog → Ready → In Progress → In Review → Done
-```
-
-The orchestrator manages all transitions automatically, including keeping epic status in sync with its stories (e.g., if all stories are In Review, the epic moves to In Review).
-
-
-### Project Management Architecture
-
-Agents never call PM tools (GitHub, Jira, etc.) directly. All work item operations flow through a four-layer abstraction that keeps agents PM-agnostic:
-
-```mermaid
-graph TB
-    subgraph agents["🤖 Agent Layer"]
-        direction TB
-        D[Designer]
-        P[Planner]
-        B[Builder]
-        R[Reviewer]
-        O[Orchestrator]
-        RE[Retro]
-    end
-
-    subgraph scripts["📜 Script Layer"]
-        direction TB
-        subgraph board["Board and Telemetry"]
-            direction LR
-            s10["item-set-status"]
-            s11["item-telemetry"]
-            s12["batch-set-status"]
-        end
-        subgraph life["Lifecycle"]
-            direction LR
-            s6["item-start"]
-            s7["item-review"]
-            s8["item-comment"]
-            s9["item-close"]
-        end
-        subgraph crud["CRUD"]
-            direction LR
-            s1["item-create"]
-            s2["item-get"]
-            s3["item-list"]
-            s4["item-append-body"]
-            s5["item-link-child"]
-        end
-    end
-
-    subgraph pm["⚙️ PM Abstraction"]
-        direction LR
-        subgraph pitems["Items"]
-            direction LR
-            f1["create_item"]
-            f2["get_item"]
-            f3["update_item"]
-            f4["append_body"]
-            f5["list_items"]
-            f6["close_item"]
-        end
-        subgraph pboard["Board"]
-            direction LR
-            f7["set_status"]
-            f8["add_to_board"]
-            f9["batch_set_status"]
-        end
-        subgraph plife["Lifecycle"]
-            direction LR
-            f10["start_work"]
-            f11["complete_work"]
-        end
-        subgraph pother["Other"]
-            direction LR
-            f12["add_comment"]
-            f13["add_label"]
-            f14["link_child"]
-        end
-        pitems ~~~ pboard ~~~ plife ~~~ pother
-    end
-
-    subgraph storage["💾 Persistence Layer"]
-        direction LR
-        subgraph optional["Optional External Sync"]
-            direction LR
-            github["GitHub Issues + Projects"]
-            jira["Jira - future"]
-            linr["Linear - future"]
-            ado["Azure DevOps - future"]
-        end
-        subgraph always["Local (always on)"]
-            direction LR
-            server["SQLite via Workflow Server"]
-        end
-    end
-
-    subgraph runtime["🖥️ Workflow Runtime Service (optional)"]
-        direction LR
-        dashboard["React Dashboard"]
-        mcptools["MCP Tools"]
-        docviewer["Document Viewer"]
-    end
-
-    agents -->|"agents only call scripts<br/>(or MCP tools)"| scripts
-    scripts -->|"scripts call pm functions"| pm
-    pm -->|"sync"| always
-    pm -.->|"fire-and-forget"| optional
-    mcptools -->|"same service layer"| pm
-    server -.->|"serves"| dashboard
-    server -.->|"serves"| docviewer
-
-    style server fill:#059669,color:#fff
-    style github fill:#3b82f6,color:#fff
-    style jira fill:#6b7280,color:#fff
-    style linr fill:#6b7280,color:#fff
-    style ado fill:#6b7280,color:#fff
-    style dashboard fill:#7c3aed,color:#fff
-    style mcptools fill:#7c3aed,color:#fff
-    style docviewer fill:#7c3aed,color:#fff
-```
-
-**Key design rules:**
-
-- **Agents only call wrapper scripts** (`scripts/item-*.sh`) — or MCP tools when the server is running. Never `pm_*` functions or `gh` commands directly.
-- **Local persistence is always on** — the workflow server stores all PM data in SQLite (`.agentic-workflow/workflow.db`). The old `.workflow/items/` file adapter is retained for tests only.
-- **External sync is optional** — `pm.adapter` in config names the remote sync target (e.g., `"github"`). Future adapters (Jira, Linear, Azure DevOps) plug in without changing any layer above.
-- **Dual-write is transparent** — `pm.sh` auto-generates wrappers at load time that call the local server (sync) then the external adapter (fire-and-forget).
-- **MCP tools as a first-class interface** — the server exposes 13 MCP tools (create_item, set_status, add_comment, etc.) via `.mcp.json` auto-discovery. Agents can use MCP tools directly instead of routing through shell scripts.
-
-
----
-
-## Telemetry
-
-The orchestrator tracks token usage, duration, and estimated cost for every agent dispatch. Telemetry is posted at three levels:
-
-### Per-Story (on each story issue)
-
-```
-Model: haiku | Duration: 2m 30s | Tokens: 114K
-Speed: 760 tokens/s | Est. Cost: ~$0.23
-Commit: 40a3ceb
-```
-
-### Per-Epic (on each epic issue)
-
-| Agent | Task | Duration | Tokens | Est. Cost |
-|-------|------|----------|--------|-----------|
-| Builder (haiku) | E01-S01 Kitchen Counter | 2m 30s | 114K | ~$0.23 |
-| Builder (haiku) | E01-S02 Red Dot | 2m 09s | 109K | ~$0.22 |
-| Builder (sonnet) | E01-S03 Midnight Zoomies | 4m 45s | 38K | ~$0.23 |
-| | **Total (3 dispatches)** | **~9m** | **260K** | **~$0.68** |
-
-### Full Lifecycle (on backlog issue + PR description)
-
-The complete summary covers all phases — design, plan, build, review, and retro:
-
-| Phase | Agent | Duration | Tokens | Est. Cost |
-|-------|-------|----------|--------|-----------|
-| Design | designer (opus) | 3m 32s | 38K | ~$0.38 |
-| Plan | planner (opus) | 4m 56s | 64K | ~$0.64 |
-| Build | builders (5 stories) | 12m 44s | 320K | ~$1.16 |
-| Review | reviewers (6 dispatches) | 6m 37s | 161K | ~$1.61 |
-| Retro | retro (opus) | 3m 43s | 66K | ~$0.66 |
-| **Total** | | **31m 31s** | **649K** | **~$4.44** |
-
-The Gantt timeline is generated automatically, showing parallel dispatch visually:
-
-```
-Designer ████████                                          3m 32s
-Planner         ██████████                                 4m 56s
-E01-S01 (haiku)           █████                            2m 30s  ┐
-E01-S02 (haiku)           ████                             2m 09s  ├ Wave 1 (parallel)
-E01-S03 (sonnet)          █████████                        4m 45s  ┘
-Reviews                            ██                      1m 14s
-E02-S01 (sonnet)                     ███                   1m 21s  Wave 2
-Review                                  █                  0m 41s
-E02-S02 (opus)                            ████             2m 00s  Wave 3
-Review                                        ██           1m 08s
-Retro                                           ████████   3m 43s
-PR Review                                               ████ 2m 18s
-```
-
----
-
-## Running the Workflow
-
-### Prerequisites
-
-- [Claude Code CLI](https://claude.ai/code) installed and authenticated
-- `gh` CLI authenticated with repo access
-- Repository cloned locally
-
-### Full Autonomous Run
+It prints the telemetry table and a Mermaid Gantt timeline for a three-dispatch fixture. Cost shows as a dash because no pricing data is cached. Then run the three offline test suites, the same ones CI runs:
 
 ```bash
-# Run the complete lifecycle — design, plan, build, review, retro
-claude --agent orchestrator --dangerously-skip-permissions \
-  "autonomous — Execute backlog item #42."
+cd server && bun install --frozen-lockfile && bun test && cd ..   # 681 tests
+python3 -m pytest scripts/lib/test_compute_dispatches.py -q          # 252 tests
+./scripts/run-offline-tests.sh                                     # 34 shell suites
 ```
 
-### Skip Phases
+A real run creates issues, branches and pull requests with your `gh` credentials and spends model tokens. Before trying one, read the [running-safely guide](docs/5-guides/running-safely-guide.md): it covers a supervised interactive run, the `dontAsk` allowlist for unattended runs, what mutates GitHub and how to clean up. Unattended runs belong in a disposable clone inside a container.
 
-```bash
-# Skip design and plan (if they already exist)
-claude --agent orchestrator --dangerously-skip-permissions \
-  "autonomous — Execute backlog item #42. Skip design and plan."
-```
+## Repository map
 
-### Interactive Mode
+| Path | Contents |
+|---|---|
+| [`.claude/agents/`](.claude/agents/) | Orchestrator, designer, planner, builder and its model variants, reviewer, retro |
+| [`CLAUDE.md`](CLAUDE.md) | The operating brief the agents load: conventions, branch rules, telemetry rules |
+| [`scripts/`](scripts/) | Work-item wrappers, state file, PM abstraction and adapters, telemetry, board reconciliation, guards |
+| [`server/`](server/) | Experimental optional runtime service: Bun, SQLite, HTTP API, MCP tools, dashboard |
+| [`tests/`](tests/) | Shell tests and fixtures for the deterministic layer |
+| [`docs/`](docs/) | Lifecycle records: discovery, designs, plans, reviews and lessons, guides, ADRs |
+| [`docs/case-studies.md`](docs/case-studies.md) | Failure-driven case studies with evidence links |
+| [`blueprint/`](blueprint/) | The reference design written before the implementation, historical and unexecuted |
 
-```bash
-# Designer and planner ask clarifying questions
-# Human approves design/plan PRs before proceeding
-claude --agent orchestrator \
-  "Execute backlog item #42."
-```
+## Related projects
 
-### Individual Agent Dispatch
+- [agentic-toolkit](https://github.com/carlosboeing/agentic-toolkit): the maintained lifecycle conventions, phase skills and hooks that carry this method forward across harnesses.
+- [crossrev](https://github.com/carlosboeing/crossrev): a cross-model pull request review loop, where one model reviews and another resolves.
+- [penmark](https://github.com/carlosboeing/penmark): Markdown review with comments stored in the file, for reviewing agent-written documents.
+- [quotacap](https://github.com/carlosboeing/quotacap): tracks subscription usage windows across AI providers and advises which plan to use next.
+- [copydesk](https://github.com/carlosboeing/copydesk): a cross-harness prose gate that applies writing rules before generation, at write time and at commit.
+- [chat-harness](https://github.com/carlosboeing/chat-harness): the same harness discipline applied to chat assistants used for work other than coding.
 
-```bash
-# Design only
-claude --agent designer "Design a feature for backlog item #42."
+## Limitations
 
-# Plan only
-claude --agent planner "Create an implementation plan for backlog item #42."
-
-# Build a specific story
-claude --agent builder "Implement story #55."
-
-# Review a story branch
-claude --agent reviewer "Review story #55 on branch e01-s01/my-story."
-```
-
----
-
-## Safety & Quality Gates
-
-The workflow enforces several safety mechanisms:
-
-- **Mandatory review** — Every story and the final PR must pass review before merging. No exceptions.
-- **Fix cycles** — If a reviewer requests changes, the builder is re-dispatched to fix. Up to 2 cycles before escalating to human intervention.
-- **Branch isolation** — Parallel builders run in separate git worktrees to prevent cross-contamination.
-- **No auto-merge to main** — The backlog PR is always left open for human review. The orchestrator never merges to `main`.
-- **Idempotent restart** — The orchestrator can be re-run safely on partially completed work. It detects completed stories and resumes from where it left off.
-
----
-
-## Project Structure
-
-```
-.claude/
-  agents/                  ← Agent definitions (9 files: orchestrator, designer,
-                             planner, builder + 3 variants, reviewer, retro)
-  hooks/                   ← Claude Code hooks (logging)
-  agentic-sdlc-config.json ← Workflow configuration (model routing, board IDs, pricing, server)
-  settings.json            ← Permissions and hook registration
-
-.mcp.json                  ← MCP server registration (Claude Code auto-discovers this)
-
-.agentic-workflow/         ← Runtime data (gitignored)
-  workflow.db              ← SQLite database (when server is running)
-  server.pid / server.port ← Daemon process management
-  pricing.json             ← Cached API pricing (fetched live each run)
-  runs/<backlog>/          ← Per-run orchestrator state
-
-server/                    ← Workflow Runtime Service (Bun + TypeScript)
-  src/
-    db/                    ← Drizzle ORM schema, migrations, connection
-    services/              ← PM service layer (items, board, comments, hierarchy, labels, lifecycle, sync)
-    api/                   ← Hono HTTP API routes (20+ endpoints)
-    mcp/                   ← MCP server (13 tools via stdio transport)
-    adapters/              ← External sync adapters (GitHub)
-  frontend/                ← React SPA dashboard
-    src/
-      components/          ← Kanban board, activity feed, comment threads, etc.
-      pages/               ← Dashboard, item detail, telemetry, document viewer
-      hooks/               ← useWebSocket, useItems, useDocument
-  tests/                   ← ~500 tests (services, API, MCP, frontend)
-
-scripts/
-  item-*.sh                ← PM wrapper scripts
-  lib/
-    pm.sh                  ← PM abstraction layer (local + dual-write wrappers)
-    adapters/pm/server/    ← Local PM adapter (HTTP→SQLite via workflow server)
-    adapters/pm/github/    ← GitHub sync adapter (fire-and-forget dual-write)
-    adapters/pm/local/     ← Legacy file adapter (tests only)
-    config.sh              ← Shared config reader
-  templates/telemetry.md   ← Telemetry comment template
-
-docs/
-  1-discovery/     ← Research, analysis, and roadmap
-  2-design/        ← Feature design documents
-  3-plans/         ← Implementation plans
-  4-reviews/       ← Retros, reviews, and lessons
-  5-guides/        ← Architecture and technical guides
-  6-adrs/          ← Architecture decision records
-  CHANGELOG.md     ← Build history
-```
-
----
-
-## Self-Improving System
-
-The workflow improves itself over each run:
-
-1. **Lessons** — Agents write lesson files when they encounter bugs, unexpected behaviour, or missing conventions. These are scoped by epic and tagged for discovery.
-
-2. **Retro** — After each run, the retro agent synthesizes lessons into a retrospective document and proposes convention changes to `CLAUDE.md` and agent files.
-
-3. **Convention propagation** — Changes are committed on the integration branch and reviewed as part of the backlog PR. Approved changes become part of the codebase for future runs.
-
-For example, Run 9 discovered a cross-contamination bug in parallel dispatch and automatically added a new convention: *"Before dispatching a parallel wave, create all story branches from the same epic branch commit."* This rule now prevents the same issue in future runs.
-
----
-
-## Runs
-
-The workflow has been validated through 16 test runs (creative content workloads) and multiple real feature implementations. Runs 1-7 were in the original NeuralNorris repo; Runs 8+ are in this repo.
-
-### Real Feature Builds
-
-| Backlog | Feature | Stories | Epics | Cost |
-|---------|---------|---------|-------|------|
-| [#116](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/116) | Workflow Runtime Service (Bun server, dashboard, MCP, doc viewer) | 19 | 6 | ~$50 |
-| [#227](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/227) | Dual-Write PM Layer | 6 | 2 | ~$8 |
-| [#111](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/111) | Local-First PM System | 10 | 3 | ~$14 |
-| [#109](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/109) | PM Abstraction Layer | 10 | 3 | ~$13 |
-
-### Test Runs (creative content)
-
-| Run | Backlog | Theme | Primary Test | Stories | Cost |
-|-----|---------|-------|-------------|---------|------|
-| 17 | [#303](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/303) | Three-Body Survival Gazette | Full v2 workflow | 6 | ~$7 |
-| 15 | [#290](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/290) | Supernatural Pet Adoption Agency | Universal worktree isolation | 6 | ~$8 |
-| 14 | [#83](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/83) | Interdimensional Health Inspections | Fix cycle validation, cross-epic merge | 12 | ~$11 |
-| 13 | [#69](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/69) | Alien Tourist Bureau | Runtime data, live pricing, dispatches-from-state | 6 | ~$5 |
-| 12 | [#56](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/56) | Time Traveler's Yelp Reviews | Configurable settings, model routing | 5 | ~$3 |
-| 11 | [#41](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/41) | Board Drift Detection + Fairy Tale HR | Board drift detection, 3-way parallel | 6 | ~$7 |
-| 9 | [#14](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/14) | CIA Cat Field Reports | Full autonomous lifecycle | 5 | ~$4 |
-| 8 | [#1](https://github.com/carlosboeing/agentic-sdlc-workflow/issues/1) | Office Nature Documentary | Worktree isolation | 5 | ~$4 |
-
----
-
-## Roadmap
-
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the full roadmap with dependency graph, priority order, and links to all backlog items. Track current work on the [project board](https://github.com/users/carlosboeing/projects/7).
-
----
+- **Synthetic workloads behind the early metrics.** 10 of the 21 executed backlog items were controlled prose workloads judged by an LLM reviewer against structural criteria. They test orchestration, not code quality. Their outputs were removed from the tree and remain in Git history.
+- **Small samples.** Most comparisons rest on 4 to 25 observations from runs that also changed the harness. Fix-cycle rates averaged 7.8 percent across 9 synthetic runs and 28.6 percent across 5 infrastructure runs, and reached 67 percent (12 of 18 stories) on the largest build.
+- **No real-task evaluation and no external users.** The [real-task backlog](docs/3-plans/2026-11-20-real-task-backlog-plan.md) defines one; it has not run.
+- **Prompt-driven control flow.** Phase order, wave dispatch and halts depend on the orchestrator following a long prompt. Role boundaries are instructions, apart from the retro guard.
+- **Estimated cost.** Cost is tokens times a blended rate, reported as estimated API-equivalent value. Prompt caching and orchestrator tokens are not counted.
+- **Raw run state was deleted after each merge.** The March analyses can be checked against issue and PR telemetry comments, but not recomputed from source data.
+- **Experimental runtime service.** It must be started by hand, and the scripts fall back to local files when it is down.
 
 ## License
 
-This project is a research exploration of agentic software development workflows. See the repository for details.
+[MIT](LICENSE).

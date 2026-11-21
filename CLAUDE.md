@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> This file is the operating brief that the workflow's agents load at the start of every session: conventions, branch rules, dispatch and telemetry protocols. It was written for agents, not as an introduction. Readers should start with [README.md](README.md), then [docs/architecture.md](docs/architecture.md).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview

@@ -10,7 +10,7 @@ This repository contains an **agentic SDLC workflow** — a set of specialized A
 
 ## Design Philosophy: Determinism First
 
-This workflow turns something inherently non-deterministic (AI/LLM output) into something deterministic and reliable (defined input → structured workflow → predictable output). Every design decision should reinforce this principle.
+This workflow surrounds non-deterministic model output with deterministic computation. Scripts compute run state, telemetry, wall-clock and critical path, cost estimates, board reconciliation and branch base commits. Phase order, wave grouping and halts are still driven by the orchestrator prompt, not by tested code, so this rule governs computation, not control flow. Every design decision should move more of the workflow onto the computed side.
 
 **The rule:** When a value can be computed deterministically from existing data, compute it. Never rely on an agent to remember, estimate, or manually track what a script can derive from the state file, config, or Git history.
 
@@ -22,27 +22,27 @@ This workflow turns something inherently non-deterministic (AI/LLM output) into 
 | Script with validation | Agent judgment call | Scripts are repeatable; judgment varies by context window |
 | Convention with enforcement | Convention with trust | Enforcement catches violations; trust assumes compliance |
 
-**Where AI/LLM intelligence belongs:** The non-deterministic strengths of AI — creativity, judgment, adaptation, self-healing — are valuable for:
+**Where AI/LLM intelligence belongs:** The non-deterministic strengths of AI — creativity, judgment, adaptation and failure diagnosis — are valuable for:
 - **Design and planning:** Brainstorming approaches, evaluating trade-offs, decomposing requirements
 - **Content creation:** Writing code, docs, and creative content that meets acceptance criteria
 - **Failure recovery:** Diagnosing unexpected errors, working around infrastructure issues, adapting to novel situations
 - **Code review:** Applying judgment about quality, security, and convention adherence
 
-**Where determinism must prevail:** The workflow infrastructure — dispatch sequencing, board management, telemetry computation, branch operations, state tracking, cost estimation — must be deterministic. These are the rails that make the AI's output reliable at scale. When an agent makes a mistake in infrastructure (wrong branch, incorrect cost, missed status update), the workflow's credibility degrades even if the content is perfect.
+**Where determinism must prevail:** The workflow infrastructure — dispatch sequencing, board management, telemetry computation, branch operations, state tracking, cost estimation — should be deterministic. Telemetry, cost estimation, state tracking, board reconciliation and branch bases are scripted today; dispatch sequencing is still prompt-driven (moving it into a tested script is item A09 of `docs/3-plans/2026-11-20-real-task-backlog-plan.md`). These are the rails that make a run auditable. When an agent makes a mistake in infrastructure (wrong branch, incorrect cost, missed status update), the workflow's credibility degrades even if the content is perfect.
 
 **Evidence:** Run 14 posted wall-clock = sequential duration (102m 43s instead of 74m 4s) because the orchestrator relied on `$SECONDS` tracking instead of computing the critical path from the state file's dispatch log. The state file already contained all the data — `started_at` timestamps naturally encode parallelism. The fix was to compute deterministically from what was already recorded, not to "try harder" to track `$SECONDS`. See `item-telemetry.sh` wall-clock auto-computation.
 
 ## Design Philosophy: Fault Tolerance
 
-The workflow runs long autonomous sessions where interruptions are expected: usage limits, crashes, network failures, window closures. The system must recover gracefully without human intervention.
+The workflow runs long sessions where interruptions are expected: usage limits, crashes, network failures, window closures. A restarted session should find its place from durable records, not from memory. Today that holds only in part: a human restarts the session, and the orchestrator works out where it stopped from the state file, Git and issue comments.
 
-**The rule:** Every workflow checkpoint must be recoverable from durable state. If the orchestrator is interrupted at any point and restarted — potentially on a different machine, in a different session, with no memory of prior work — it must be able to reconstruct its position and resume without data loss.
+**The rule:** Every workflow checkpoint should be recoverable from durable state. If the orchestrator is interrupted and restarted — possibly on a different machine, in a different session, with no memory of prior work — it should determine its position from the state file, Git and issue comments rather than from recall.
 
 **Where this applies:**
-- **State persistence:** The orchestrator state file captures every dispatch, phase transition, and telemetry data point. If the session is interrupted, the state file enables instant recovery.
-- **State reconstruction:** If the state file itself is lost, `state.sh reconstruct` rebuilds it from durable external sources (GitHub issue comments, branch state, board status). The telemetry comments posted on each issue are the write-ahead log that makes this possible.
-- **Idempotent operations:** Every phase can be re-entered safely. Branch creation checks for existing branches. Story dispatch checks for "Ready for Review" comments. Board updates are idempotent by design.
-- **No silent data loss:** Failed dispatches still record telemetry. Interrupted agents accumulate metrics defensively. The system never drops information that was paid for in tokens and time.
+- **State persistence:** The orchestrator state file records every dispatch, phase transition and telemetry data point, so an interrupted session can see where it stopped.
+- **State reconstruction (not implemented):** `state.sh reconstruct` is a stub that exits with an error. If the state file is lost, restart idempotently: stories that already have a "Ready for Review" comment are skipped, merged branches are left as they are, and prices are fetched again. The telemetry comments on each issue keep the measurements that were paid for.
+- **Idempotent operations:** Phases are written to be re-entered. Branch creation checks for existing branches. Story dispatch checks for "Ready for Review" comments. Board updates set an absolute status.
+- **No silent data loss:** Failed dispatches still record telemetry, and metrics from interrupted and resumed agents are summed, so information that was paid for in tokens and time is kept.
 
 **Where AI judgment belongs in recovery:** The orchestrator uses judgment to decide what to do after recovery (which phase to resume, whether to re-dispatch a failed builder, how to handle partial work). But determining *where we are* — reading the state file, checking GitHub, verifying branch state — must be deterministic and scripted.
 
@@ -91,7 +91,6 @@ Every design decision should consider the end-state architecture, but every impl
 ## Project Documentation
 
 - `README.md` — architecture overview, PM architecture diagram, project structure
-- `docs/1-discovery/VISION.md` — long-term vision and aspirations
 - `docs/CHANGELOG.md` — build history
 - `docs/2-design/` — feature design documents
 - `docs/3-plans/` — implementation plans
@@ -321,7 +320,7 @@ Read the option IDs for your board from its Status field (`gh project field-list
 
 ```graphql
 query {
-  repository(owner: "carlosboeing", name: "agentic-sdlc-workflow") {
+  repository(owner: "<owner>", name: "<repo>") {
     issue(number: $N) {
       projectItems(first: 1) {
         nodes { id }
@@ -348,7 +347,7 @@ This costs ~1 point vs potentially 200+ for `item-list`. If rate limits are exha
 | `scripts/item-review.sh <n> <commit>` | Post "Ready for Review" comment + set board to In Review |
 | `scripts/item-telemetry.sh <n> --model <m> --duration <ms> --commit <hash> [--tokens <n>] [--tool-uses <n>] [--rate <cents>] [--cost <dollars>] [--wall-clock <ms>] [--breakdown <md>] [--gantt <md>] [--gantt-from-state <state-file>] [--gantt-mode <work\|wall-clock>] [--summary <md>] [--footer <md>] [--pr <n>] [--dispatches <json>] [--dispatches-from-state <state-file>]` | Post telemetry (story, epic, or backlog) |
 | `scripts/lib/compute-dispatches.py --from-state <state-file> [--gantt] [--gantt-mode <work\|wall-clock>] [--pricing <file>] [--config <file>]` | Compute dispatch metrics (breakdown, summary, Gantt, fix cycles) from state or dispatch JSON. `--gantt-mode work` (default) collapses gaps; `wall-clock` uses absolute timestamps. |
-| `scripts/state.sh <subcommand> [args]` | Orchestrator state CRUD: init, update, get, overhead, lifecycle-duration, reconstruct |
+| `scripts/state.sh <subcommand> [args]` | Orchestrator state CRUD: init, update, get, overhead, lifecycle-duration, reconstruct (a stub that exits with an error) |
 | `scripts/item-close.sh <n>` | Close item + set board to Done |
 | `scripts/item-append-body.sh <n> <content>` | Append content to item body via PM dual-write |
 | `scripts/cleanup-post-merge.sh [--dry-run] [<backlog-number>]` | Human post-merge step. Without a number: report only. With a number: removes that item's merged branches (local and `origin`), clean worktrees and run state; keeps unmerged branches, open-PR branches and dirty worktrees |
@@ -466,7 +465,7 @@ Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Ever
 2. Clean up any stale artifacts before proceeding to merges: `git clean -fd` (after verifying no wanted files are affected)
 3. Verify each story branch was pushed to remote: `git ls-remote --heads origin <branch>` — worktree-isolated builders may not push automatically. If a branch is missing from remote, push it manually before merging.
 
-**This cleanup also applies before fix cycle dispatches.** When re-dispatching a builder for a fix cycle in worktree mode, run the same cleanup steps first. Stale artifacts from the original parallel wave may still be present and can leak into the fix cycle's commits. Evidence: Run 14 E01-S04 fix cycle 2 (commit `9aa16c7`) picked up E02-S01's `violation-quantum-bistro.md` from a stale worktree, requiring manual removal (commit `d537441`).
+**This cleanup also applies before fix cycle dispatches.** When re-dispatching a builder for a fix cycle in worktree mode, run the same cleanup steps first. Stale artifacts from the original parallel wave may still be present and can leak into the fix cycle's commits. Evidence: Run 14 E01-S04 fix cycle 2 (commit `9aa16c7`) picked up a content file from story E02-S01 left in a stale worktree, requiring manual removal (commit `d537441`).
 
 **Parallel dispatch git safety (defense-in-depth):** With worktree isolation enabled, these rules serve as a secondary safety net. They remain mandatory for any non-worktree parallel dispatch:
 - **Chain all git operations in a single Bash call:** `git checkout <branch> && git add <files> && git commit -m "msg"` — never split checkout and commit across separate Bash calls.
@@ -482,23 +481,25 @@ Add `--pr <pr-number>` to also post telemetry as a comment on the story PR. Ever
 The orchestrator can handle the entire lifecycle from design to retro:
 
 ```bash
-# Autonomous — full live UI with real-time progress (see the README section on running safely)
-claude --agent orchestrator --dangerously-skip-permissions \
-  "Execute backlog item #42."
+# Interactive (start here) — designer/planner ask questions, wait for PR approval;
+# Claude Code asks before any command the allowlist does not cover
+claude --agent orchestrator
+
+# Autonomous, in a disposable clone — the project allowlist is the whole policy,
+# anything it does not cover is denied (docs/5-guides/running-safely-guide.md)
+claude --agent orchestrator --permission-mode dontAsk \
+  "autonomous — Execute backlog item #42."
 
 # Skip phases when design/plan already exist
-claude --agent orchestrator --dangerously-skip-permissions \
-  "Execute backlog item #42. Skip design and plan."
-
-# Interactive — designer/planner ask questions, wait for PR approval
-claude --agent orchestrator
+claude --agent orchestrator --permission-mode dontAsk \
+  "autonomous — Execute backlog item #42. Skip design and plan."
 
 # CLI dispatch with autonomous flag (always shows progress)
 ./scripts/dispatch-workflow.sh 42 --autonomous
 ./scripts/dispatch-workflow.sh 42 --skip-design --skip-plan
 ```
 
-**Headless mode (`-p`):** For CI/CD or headless compute, add `-p` to run without the interactive UI. Options: `-p --verbose` for turn-by-turn text logging, `-p --output-format stream-json` for machine-readable streaming events (pipe to `tee` for log files), or `-p` alone for silent execution. All are fully autonomous with `--dangerously-skip-permissions`.
+**Headless mode (`-p`):** For CI/CD or headless compute, add `-p` to run without the interactive UI, with `--permission-mode dontAsk` in a disposable clone. Options: `-p --verbose` for turn-by-turn text logging, `-p --output-format stream-json` for machine-readable streaming events (pipe to `tee` for log files), or `-p` alone for silent execution. A human still reviews and merges the backlog PR. `--dangerously-skip-permissions` belongs only inside an isolated container that holds nothing you care about.
 
 **Phase detection:** The orchestrator checks for existing design docs (`docs/2-design/`) and plans (`docs/3-plans/`) by matching the YAML frontmatter `backlog:` field (e.g., `grep -rl "^backlog: <N>$" docs/2-design/`). Raw content grep on the backlog number is unreliable for short numbers. If artifacts exist, those phases are skipped automatically.
 
@@ -621,7 +622,7 @@ See `.claude/agents/orchestrator.md` § "Orchestrator State File" for the full l
 - ADRs → `docs/6-adrs/` (numbered: `NNNN-title.md`)
 - Diagrams → use Mermaid (`\`\`\`mermaid` code blocks) for all architecture, flow, and sequence diagrams in docs
 
-**Doc approval workflow:** Design docs and plans are written on `docs/<slug>` branches off the integration branch (`backlog/<N>-<slug>`) with a corresponding GitHub Issue (`type/docs`). A PR is opened targeting the integration branch (not `main`). **Merging the PR = approval.** In autonomous mode, the orchestrator auto-merges. In interactive mode, the human merges. The next phase (planner after design, builder after plan) cannot start until the PR is merged.
+**Doc approval workflow:** Design docs and plans are written on `docs/<slug>` branches off the integration branch (`backlog/<N>-<slug>`) with a corresponding GitHub Issue (`type/docs`). A PR is opened targeting the integration branch (not `main`). **Merging the PR = approval.** In autonomous mode, the orchestrator merges it with `git merge` (an agent approval, not a human one). In interactive mode, the human merges. The next phase (planner after design, builder after plan) cannot start until the PR is merged.
 
 ### Lesson Conventions
 
@@ -646,27 +647,29 @@ The date-prefixed directory groups lessons by feature, with epic subfolders bene
 
 ```markdown
 ---
-date: 2026-03-09
-author: carlosboeing
-agent: reviewer
-story: "E03-S01 (#34) — CalendarToolPlugin with list and get functions"
-tags: [builder, di, testing, runtime-failure, review]
+date: 2026-03-22
+author: <github-username>
+agent: builder
+story: "E01-S02 (#12) — Add the export command"
+tags: [builder, wiring, testing, runtime-failure]
 severity: critical
 ---
 
-# DI Registration Blind Spot
+# Startup Wiring Blind Spot
 
 ## What happened
-Builder created service classes but didn't register them in
-ServiceCollectionExtensions. 3 critical runtime failures found by reviewer.
+The new command and its handler passed every unit test, but the running
+application never registered the command. The reviewer found the gap.
 
 ## Root cause
-Unit tests mock the DI layer, so missing registrations pass all tests.
+Unit tests built the handler with its dependencies passed in directly, so
+no test exercised the startup path that wires components together.
 
 ## Prevention
-- Builder MUST verify every new service is registered in the
-  corresponding ServiceCollectionExtensions file.
-- Reviewer MUST check DI wiring for any new service class.
+- Builder MUST add a test that starts the application the way production
+  does and calls the new behaviour through that path.
+- Reviewer MUST check that every new component is wired into the running
+  application.
 ```
 
 **YAML frontmatter fields:** `date` (ISO), `author` (GitHub username of the human collaborator), `agent` (agent role that produced the doc: `designer`, `planner`, `builder`, `reviewer`, `orchestrator`, `retro`, or `general`), `story` (issue ref + title), `tags[]` (freeform — common values: `builder`, `reviewer`, `orchestrator`, `design`, `architecture`, `testing`, `di`, `telemetry`, `github-api`), `severity` (`critical`, `high`, `medium`, `low`). Use lowercase for `status` values (`draft`, `approved`, `implemented`).
@@ -682,7 +685,7 @@ grep -rl "tags:.*orchestrator" docs/4-reviews/lessons/   # orchestrator lessons
 grep -rl "tags:.*design" docs/4-reviews/lessons/         # designer lessons
 grep -rl "tags:.*architecture" docs/4-reviews/lessons/   # planner lessons
 # Scope to current feature for faster grep:
-grep -rl "tags:.*builder" docs/4-reviews/lessons/43-sdlc-v2/
+grep -rl "tags:.*builder" docs/4-reviews/lessons/<backlog-issue>-<feature-slug>/
 ```
 
 #### Who reads and writes lessons
